@@ -37,6 +37,9 @@ export class Anchor {
   @Column({ nullable: false, name: 'tx_hash' })
   txHash: string;
 
+  @Column({ nullable: false, name: 'tx_hash_cid' })
+  txHashCid: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

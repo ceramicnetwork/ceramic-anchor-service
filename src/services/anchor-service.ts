@@ -16,9 +16,12 @@ import { Anchor } from '../models/anchor';
 import { getManager } from 'typeorm';
 import { Request } from '../models/request';
 import BlockchainService from './blockchain-service';
-import { TransactionReceipt, TransactionResponse } from 'ethers/providers';
 import Transaction from '../models/transaction';
+import Utils from "../utils";
 
+/**
+ * Anchors CIDs to blockchain
+ */
 export default class AnchorService implements Contextual {
   private readonly ipfs: Ipfs;
   private readonly ipfsMerge: IpfsMerge;
@@ -78,6 +81,7 @@ export default class AnchorService implements Contextual {
       anchor.blockTimestamp = tx.blockTimestamp;
       anchor.chain = tx.chain;
       anchor.txHash = tx.txHash;
+      anchor.txHashCid = Utils.convertEthHashToCid('eth-tx', tx.txHash.slice(2)).toString();
 
       const path = await merkleTree.getDirectPathFromRoot(index);
       anchor.path = path.map((p) => PathDirection[p].toString()).toString();

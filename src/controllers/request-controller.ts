@@ -51,6 +51,7 @@ export default class RequestController implements Contextual {
             blockTimestamp: anchor.blockTimestamp,
             chain: anchor.chain,
             txHash: anchor.txHash,
+            txHashCid: anchor.txHashCid,
           },
         });
       }
