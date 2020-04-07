@@ -10,7 +10,7 @@ import { Logger as logger } from '@overnightjs/logger';
 import { RequestStatus } from '../models/request-status';
 
 import { config } from 'node-config-ts';
-import { MergeFunction, Node, PathDirection } from '../merkle/merkle';
+import { CompareFunction, MergeFunction, Node, PathDirection } from "../merkle/merkle";
 import { MerkleTree } from '../merkle/merkle-tree';
 import { Anchor } from '../models/anchor';
 import { getManager } from 'typeorm';
@@ -25,6 +25,7 @@ import Utils from "../utils";
 export default class AnchorService implements Contextual {
   private readonly ipfs: Ipfs;
   private readonly ipfsMerge: IpfsMerge;
+  private readonly ipfsCompare: IpfsCompare;
 
   private requestSrv: RequestService;
   private blockchainSrv: BlockchainService;
@@ -32,6 +33,7 @@ export default class AnchorService implements Contextual {
   constructor() {
     this.ipfs = ipfsClient(config.ipfsConfig.host);
     this.ipfsMerge = new IpfsMerge(this.ipfs);
+    this.ipfsCompare = new IpfsCompare();
   }
 
   setContext(context: Context): void {
@@ -64,19 +66,19 @@ export default class AnchorService implements Contextual {
 
     await this.requestSrv.updateStatus(RequestStatus.PENDING, RequestStatus.PROCESSING);
 
-    const cids = requests.map((r) => new CID(r.cid));
-    const merkleTree: MerkleTree<CID> = await this._createMerkleTree(cids);
+    const pairs = requests.map((r) => new CidDocPair(new CID(r.cid), r.docId));
+    const merkleTree: MerkleTree<CidDocPair> = await this._createMerkleTree(pairs);
 
-    const tx: Transaction = await this.blockchainSrv.sendTransaction(merkleTree.getRoot().data);
+    const tx: Transaction = await this.blockchainSrv.sendTransaction(merkleTree.getRoot().data.cid);
 
     const anchorRepository = getManager().getRepository(Anchor);
 
-    for (let index = 0; index < cids.length; index++) {
+    for (let index = 0; index < pairs.length; index++) {
       const request: Request = requests[index];
 
       const anchor: Anchor = new Anchor();
       anchor.request = request;
-      anchor.proof = merkleTree.getRoot().data.toBaseEncodedString();
+      anchor.proof = merkleTree.getRoot().data.cid.toString();
       anchor.blockNumber = tx.blockNumber;
       anchor.blockTimestamp = tx.blockTimestamp;
       anchor.chain = tx.chain;
@@ -95,13 +97,27 @@ export default class AnchorService implements Contextual {
 
   /**
    * Creates Merkle tree and adds merged docs to IPFS
-   * @param cids - CID array
+   * @param pairs - CID-docId pairs
    * @private
    */
-  private async _createMerkleTree(cids: CID[]): Promise<MerkleTree<CID>> {
-    const merkleTree: MerkleTree<CID> = new MerkleTree<CID>(this.ipfsMerge);
-    await merkleTree.build(cids);
+  private async _createMerkleTree(pairs: CidDocPair[]): Promise<MerkleTree<CidDocPair>> {
+    const merkleTree: MerkleTree<CidDocPair> = new MerkleTree<CidDocPair>(this.ipfsMerge);
+    await merkleTree.build(pairs);
     return merkleTree;
+  }
+}
+
+/**
+ * Paris CID with docId
+ */
+// tslint:disable-next-line:max-classes-per-file
+class CidDocPair {
+  public cid: CID;
+  public docId: string;
+
+  constructor(cid:CID, docId?:string) {
+    this.cid = cid;
+    this.docId = docId;
   }
 }
 
@@ -109,20 +125,30 @@ export default class AnchorService implements Contextual {
  * Implements IPFS merge CIDs
  */
 // tslint:disable-next-line:max-classes-per-file
-class IpfsMerge implements MergeFunction<CID> {
+class IpfsMerge implements MergeFunction<CidDocPair> {
   private ipfs: Ipfs;
 
   constructor(ipfs: Ipfs) {
     this.ipfs = ipfs;
   }
 
-  async merge(left: Node<CID>, right: Node<CID>): Promise<Node<CID>> {
+  async merge(left: Node<CidDocPair>, right: Node<CidDocPair>): Promise<Node<CidDocPair>> {
     const merged = {
-      L: left.data,
-      R: right.data,
+      L: left.data.cid,
+      R: right.data.cid,
     };
 
     const mergedCid = await this.ipfs.dag.put(merged);
-    return new Node<CID>(mergedCid, left, right);
+    return new Node<CidDocPair>(new CidDocPair(mergedCid), left, right);
+  }
+}
+
+/**
+ * Implements IPFS merge CIDs
+ */
+// tslint:disable-next-line:max-classes-per-file
+class IpfsCompare implements CompareFunction<CidDocPair> {
+  compare(left: Node<CidDocPair>, right: Node<CidDocPair>): number {
+    return left.data.docId.localeCompare(right.data.docId);
   }
 }
