@@ -1,0 +1,19 @@
+{
+  "port": 3000,
+  "cronExpression": "0 0 */1 * * *",
+  "ipfsConfig": {
+    "host": "http://localhost:5001"
+  },
+  "blockchain": {
+    "network": "ganache",
+    "gasLimit": 4712388,
+    "gasPrice": "100000000000",
+    "rpc": {
+      "host": "http://localhost",
+      "port": "8545"
+    },
+    "account": {
+      "privateKey": "0x06dd0990d19001c57eeea6d32e8fdeee40d3945962caf18c18c3930baa5a6ec9"
+    }
+  }
+}

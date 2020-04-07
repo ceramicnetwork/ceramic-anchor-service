@@ -1,0 +1,22 @@
+{
+   "name": "default",
+   "type": "sqlite",
+   "database": "./anchor.db.sq3",
+   "autoSchemaSync": true,
+   "synchronize": true,
+   "logging": true,
+   "entities": [
+      "build/models/**/*.js"
+   ],
+   "migrations": [
+      "src/migration/**/*.ts"
+   ],
+   "subscribers": [
+      "src/subscriber/**/*.ts"
+   ],
+   "cli": {
+      "entitiesDir": "src/models",
+      "migrationsDir": "src/migration",
+      "subscribersDir": "src/subscriber"
+   }
+}

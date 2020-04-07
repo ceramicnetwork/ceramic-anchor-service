@@ -1,0 +1,43 @@
+# Docker Compose file Reference (https://docs.docker.com/compose/compose-file/)
+
+version: '3.4'
+
+# Define services
+services:
+  ipfs:
+    image: ipfs/go-ipfs:latest
+    environment:
+      - IPFS_PROFILE=server
+      - IPFS_PATH=/ipfsdata
+    volumes:
+      - ./data/ipfs:/ipfsdata
+    ports:
+      - "4001:4001"
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8081:8081"
+      - "127.0.0.1:5001:5001"
+  ganache:
+    image: trufflesuite/ganache-cli:latest
+    ports:
+      - "8545:8545"
+    volumes:
+      - ./data/ganache:/ganache_data
+    entrypoint:
+      - node
+      - /app/ganache-core.docker.cli.js
+      - --deterministic
+      - --db=/ganache_data
+      - --mnemonic
+      - 'move sense much taxi wave hurry recall stairs thank brother nut woman'
+      - --networkId
+      - '5777'
+      - --hostname
+      - '0.0.0.0'
+      - -l
+      - '80000000'
+      - --quiet
+    networks:
+      - internal
+networks:
+  internal:
+    driver: bridge

@@ -1,0 +1,12 @@
+.idea/
+.vscode/
+node_modules/
+build/
+tmp/
+temp/
+anchor.db.sq3
+coverage
+.nyc_output
+lib
+config/Config.d.ts
+data
