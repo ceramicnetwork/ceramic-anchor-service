@@ -44,14 +44,7 @@ export default class RequestController implements Contextual {
           docId: request.docId,
           createdAt: request.createdAt,
           updatedAt: request.updatedAt,
-          anchorMetadata: {
-            proof: anchor.proof,
-            path: anchor.path,
-            blockNumber: anchor.blockNumber,
-            blockTimestamp: anchor.blockTimestamp,
-            chainId: anchor.chain,
-            txHash: anchor.txHashCid,
-          },
+          anchorMetadata: RequestController.convertToAnchorMetadata(anchor),
         });
       }
 
@@ -62,6 +55,24 @@ export default class RequestController implements Contextual {
         error: err.message,
       });
     }
+  }
+
+  /**
+   * Converts to IPFS anchor metadata structure
+   * @param anchor - Anchor record
+   */
+  private static convertToAnchorMetadata(anchor: Anchor): any {
+    return {
+      cid: anchor.cid,
+      proof: {
+        blockNumber: anchor.blockNumber,
+        blockTimestamp: anchor.blockTimestamp,
+        root: anchor.proof,
+        chainId: anchor.chain,
+        txHash: anchor.txHashCid,
+      },
+      path: anchor.path,
+    };
   }
 
   @Post()

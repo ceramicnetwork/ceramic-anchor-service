@@ -82,12 +82,26 @@ export default class AnchorService implements Contextual {
       anchor.blockNumber = tx.blockNumber;
       anchor.blockTimestamp = tx.blockTimestamp;
       anchor.chain = tx.chain;
-      anchor.txHash = tx.txHash;
-      anchor.txHashCid = Utils.convertEthHashToCid('eth-tx', tx.txHash.slice(2)).toString();
+
+      const txHashCid = Utils.convertEthHashToCid('eth-tx', tx.txHash.slice(2));
+      anchor.txHashCid = txHashCid.toString();
 
       const path = await merkleTree.getDirectPathFromRoot(index);
-      anchor.path = path.map((p) => PathDirection[p].toString()).toString();
+      anchor.path = path.map((p) => PathDirection[p].toString()).join('/');
 
+      const ipfsAnchor = {
+        proof: {
+          blockNumber: tx.blockNumber,
+          blockTimestamp: tx.blockTimestamp,
+          root: merkleTree.getRoot().data.cid,
+          chainId: tx.chain,
+          txHash: txHashCid,
+        },
+        path: anchor.path,
+      };
+
+      const anchorCid = await this.ipfs.dag.put(ipfsAnchor);
+      anchor.cid = anchorCid.toString();
       await anchorRepository.save(anchor);
 
       request.status = RequestStatus.COMPLETED;

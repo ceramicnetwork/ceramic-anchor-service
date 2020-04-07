@@ -34,11 +34,11 @@ export class Anchor {
   @Column({ nullable: false, name: 'block_timestamp' })
   blockTimestamp: number;
 
-  @Column({ nullable: false, name: 'tx_hash' })
-  txHash: string;
-
   @Column({ nullable: false, name: 'tx_hash_cid' })
   txHashCid: string;
+
+  @Column({ nullable: false })
+  cid: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
