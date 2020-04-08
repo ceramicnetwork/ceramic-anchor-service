@@ -10,14 +10,14 @@ import { Logger as logger } from '@overnightjs/logger';
 import { RequestStatus } from '../models/request-status';
 
 import { config } from 'node-config-ts';
-import { CompareFunction, MergeFunction, Node, PathDirection } from "../merkle/merkle";
+import { CompareFunction, MergeFunction, Node, PathDirection } from '../merkle/merkle';
 import { MerkleTree } from '../merkle/merkle-tree';
 import { Anchor } from '../models/anchor';
 import { getManager } from 'typeorm';
 import { Request } from '../models/request';
 import BlockchainService from './blockchain-service';
 import Transaction from '../models/transaction';
-import Utils from "../utils";
+import Utils from '../utils';
 
 /**
  * Anchors CIDs to blockchain
@@ -129,7 +129,7 @@ class CidDocPair {
   public cid: CID;
   public docId: string;
 
-  constructor(cid:CID, docId?:string) {
+  constructor(cid: CID, docId?: string) {
     this.cid = cid;
     this.docId = docId;
   }

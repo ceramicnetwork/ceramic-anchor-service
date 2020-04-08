@@ -1,7 +1,7 @@
-import CID from 'cids'
+import CID from 'cids';
 import { promises as fsPromises } from 'fs';
 
-import { encode } from "typestub-multihashes";
+import { encode } from 'typestub-multihashes';
 
 export default class Utils {
   /**
@@ -25,11 +25,11 @@ export default class Utils {
    * @param codec - ETH coded
    * @param hash - ETH hash
    */
-  static convertEthHashToCid(codec:string, hash:string): CID {
+  static convertEthHashToCid(codec: string, hash: string): CID {
     const bytes = Buffer.from(hash, 'hex');
 
     const multihash = encode(bytes, 'keccak-256');
     const cidVersion = 1;
-    return new CID(cidVersion, codec, multihash)
+    return new CID(cidVersion, codec, multihash);
   }
 }
