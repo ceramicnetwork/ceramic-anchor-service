@@ -60,8 +60,8 @@ export default class AnchorService implements Contextual {
   public async anchorRequests(): Promise<void> {
     const requests = await this.requestSrv.findByStatus(RequestStatus.PENDING);
 
-    if (requests.length < 2) {
-      logger.Info('Not enough CID requests to create Merkle tree. Number of requests: ' + requests.length);
+    if (requests.length === 0) {
+      logger.Info('No pending CID requests found. Skipping anchor.');
       return;
     }
 
@@ -108,6 +108,8 @@ export default class AnchorService implements Contextual {
       request.status = RequestStatus.COMPLETED;
       await this.requestSrv.update(request);
     }
+
+    logger.Info('Anchor completed.');
   }
 
   /**
