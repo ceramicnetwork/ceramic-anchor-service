@@ -6,7 +6,7 @@ This implementation uses Ethereum blockchain but is built in order to be blockch
 
 ### Prerequisites
 
-In order to run the simulation you need to install [Node.js] (https://nodejs.org).
+In order to run the simulation you need to install [Node.js](https://nodejs.org).
 
 ### Installing
 
