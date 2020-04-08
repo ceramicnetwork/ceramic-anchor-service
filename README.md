@@ -1,4 +1,4 @@
-# Ceramic anchor service - PoC  <img src="./resources/anchor.png" width="40"/>
+# Ceramic anchor service - PoC
 
 Ceramic anchor service is a PoC of anchor service according to the Ceramic [specification](https://github.com/ceramicnetwork/specs).
 
@@ -158,4 +158,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Team
 
-Built with <img src="./resources/heart.png" width="20"/> from [3Box](https://3box.io) team. 
+Built with  <img src="./resources/heart.png" width="20"/>  from [3Box](https://3box.io) team. 
