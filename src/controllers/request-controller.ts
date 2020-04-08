@@ -47,10 +47,16 @@ export default class RequestController implements Contextual {
           docId: request.docId,
           createdAt: request.createdAt,
           updatedAt: request.updatedAt,
-          anchorMetadata: RequestController.convertToAnchorMetadata(anchor),
+          anchorRecord: {
+            cid: anchor.cid,
+            content: {
+              path: anchor.path,
+              prev: anchor.request.cid,
+              proof: anchor.proofCid,
+            }
+          },
         });
       }
-
       return res.status(OK).json(request);
     } catch (err) {
       Logger.Err(err, true);
@@ -58,25 +64,6 @@ export default class RequestController implements Contextual {
         error: err.message,
       });
     }
-  }
-
-  /**
-   * Converts to IPFS anchor metadata structure
-   * @param anchor - Anchor record
-   */
-  private static convertToAnchorMetadata(anchor: Anchor): any {
-    return {
-      cid: anchor.cid,
-      prev: anchor.request.cid,
-      proof: {
-        blockNumber: anchor.blockNumber,
-        blockTimestamp: anchor.blockTimestamp,
-        root: anchor.proof,
-        chainId: anchor.chain,
-        txHash: anchor.txHashCid,
-      },
-      path: anchor.path,
-    };
   }
 
   @Post()
@@ -93,10 +80,10 @@ export default class RequestController implements Contextual {
       }
 
       const created = await this.requestService.create(cid, docId);
-      return res.status(OK).json(created);
+      return res.status(CREATED).json(created);
     } catch (err) {
       Logger.Err(err, true);
-      return res.status(CREATED).json({
+      return res.status(BAD_REQUEST).json({
         error: err.message,
       });
     }

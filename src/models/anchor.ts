@@ -23,22 +23,10 @@ export class Anchor {
   path: string;
 
   @Column({ nullable: false })
-  proof: string;
-
-  @Column({ nullable: false })
-  chain: number;
-
-  @Column({ nullable: false, name: 'block_number' })
-  blockNumber: number;
-
-  @Column({ nullable: false, name: 'block_timestamp' })
-  blockTimestamp: number;
-
-  @Column({ nullable: false, name: 'tx_hash_cid' })
-  txHashCid: string;
-
-  @Column({ nullable: false })
   cid: string;
+
+  @Column({ nullable: false, name: 'proof_cid' })
+  proofCid: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

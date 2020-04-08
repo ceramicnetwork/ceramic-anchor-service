@@ -42,7 +42,7 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
   * **Content:** 
     ```json
       {
-      	"cid": "bafyreicscnpmnk2iu5yukebijgud6yhmq3726dy5leaeknhgblpqrxmmrm",
+      	"cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
       	"docId": "documentId" 
       }
     ```
@@ -53,10 +53,10 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
     **Content:** 
      ```json
      {
-         "cid": "bafyreicscnpmnk2iu5yukebijgud6yhmq3726dy5leaeknhgblpqrxmmrm",
+         "id": "b9913267-fe51-4265-b707-9a06ed2b7530",
+         "cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
          "docId": "documentId",
          "status": 0,
-         "id": "c4823980-dc66-453d-a6c2-28a1c8a48fc0",
          "createdAt": "2020-04-06T10:01:59.000Z",
          "updatedAt": "2020-04-06T10:01:59.000Z"
      }
@@ -69,7 +69,7 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
 
 * **URL**
 
-  `/requests/:id`
+  `/requests/:cid`
 
 * **Method:**
 
@@ -79,7 +79,7 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
 
    **Required:**
  
-   `id=[string]`
+   `cid=[string]`
 
 * **Data Params**
 
@@ -91,24 +91,20 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
     **Content:** 
     ```json
     {
-      "id": "0d6cdc13-e4cd-439e-888d-1ab77f0befa7",
-      "status": 2,
-      "cid": "bafyreicscnpmnk2iu5yukebijgud6yhmq3726dy5leaeknhgblpqrxmmrm",
-      "docId": "doc_4b296dbf-d213-467f-a43d-481cd2cdb342",
-      "createdAt": "2020-04-07T20:44:01.000Z",
-      "updatedAt": "2020-04-07T20:44:02.000Z",
-      "anchorMetadata": {
-        "cid": "bafyreihbq4yjuta27wgvnluubxtrt3fms34g3oqqxndtwpj4skhvcqsham",
-        "prev": "bafyreicscnpmnk2iu5yukebijgud6yhmq3726dy5leaeknhgblpqrxmmrm",
-        "proof": {
-          "blockNumber": 8,
-          "blockTimestamp": 1586292242,
-          "root": "bafyreihpauoqxjmhnokmmtcuegb7ifamgtvdfoqqs5ihfzh5ek7e7ivyhy",
-          "chainId": 5777,
-          "txHash": "bagjqcgzajrjc7ax4wn3prxczthqwssi5ydn3r6tcpmtflmuacej6h2h7iqba"
-        },
-        "path": "R/R"
-      }
+        "id": "b9913267-fe51-4265-b707-9a06ed2b7530",
+        "status": 2,
+        "cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
+        "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
+        "createdAt": "2020-04-08T12:10:06.000Z",
+        "updatedAt": "2020-04-08T12:10:07.000Z",
+        "anchorRecord": {
+            "cid": "bafyreicq6rwooyi2dk24p52nutgysi4gpu2lvoeilooekqypk4h4f32wpy",
+            "content": {
+                "path": "L/L",
+                "prev": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
+                "proof": "bafyreid3fjhoybtbgzdt2afdrxzikprbmgvufn3z7oavodd37k2tnof5ry"
+            }
+        }
     }
     ```
  
@@ -125,10 +121,16 @@ The image below represents requested CID IPLD document.
     <img src="./resources/ipld-cid.png" width="800" alt="CID IPLD document"/>
 </p>
     
-The image below represents anchor IPLD document.
+The image below represents anchor record IPLD document.
 
 <p align="center">
-    <img src="./resources/ipld-anchor.png" width="800" alt="Anchor IPLD document"/>
+    <img src="./resources/ipld-anchor-record.png" width="800" alt="Anchor IPLD document"/>
+</p>
+
+The image below represents anchor proof IPLD document.
+
+<p align="center">
+    <img src="./resources/ipld-anchor-proof.png" width="800" alt="Anchor IPLD document"/>
 </p>
 
 ## Running the tests

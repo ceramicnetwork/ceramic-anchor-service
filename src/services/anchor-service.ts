@@ -74,35 +74,34 @@ export default class AnchorService implements Contextual {
 
     const anchorRepository = getManager().getRepository(Anchor);
 
+    const txHashCid = Utils.convertEthHashToCid('eth-tx', tx.txHash.slice(2));
+
+    const ipfsAnchorProof = {
+      blockNumber: tx.blockNumber,
+      blockTimestamp: tx.blockTimestamp,
+      root: merkleTree.getRoot().data.cid,
+      chainId: tx.chain,
+      txHash: txHashCid,
+    };
+    const ipfsProofCid = await this.ipfs.dag.put(ipfsAnchorProof);
+
     for (let index = 0; index < pairs.length; index++) {
       const request: Request = requests[index];
 
       const anchor: Anchor = new Anchor();
       anchor.request = request;
-      anchor.proof = merkleTree.getRoot().data.cid.toString();
-      anchor.blockNumber = tx.blockNumber;
-      anchor.blockTimestamp = tx.blockTimestamp;
-      anchor.chain = tx.chain;
-
-      const txHashCid = Utils.convertEthHashToCid('eth-tx', tx.txHash.slice(2));
-      anchor.txHashCid = txHashCid.toString();
+      anchor.proofCid = ipfsProofCid.toString();
 
       const path = await merkleTree.getDirectPathFromRoot(index);
       anchor.path = path.map((p) => PathDirection[p].toString()).join('/');
 
-      const ipfsAnchor = {
+      const ipfsAnchorRecord = {
         prev: new CID(request.cid),
-        proof: {
-          blockNumber: tx.blockNumber,
-          blockTimestamp: tx.blockTimestamp,
-          root: merkleTree.getRoot().data.cid,
-          chainId: tx.chain,
-          txHash: txHashCid,
-        },
+        proof: ipfsProofCid,
         path: anchor.path,
       };
+      const anchorCid = await this.ipfs.dag.put(ipfsAnchorRecord);
 
-      const anchorCid = await this.ipfs.dag.put(ipfsAnchor);
       anchor.cid = anchorCid.toString();
       await anchorRepository.save(anchor);
 

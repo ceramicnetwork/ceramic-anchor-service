@@ -69,7 +69,7 @@ export default class RequestService implements Contextual {
     return await getManager()
       .getRepository(Request)
       .createQueryBuilder('request')
-      .where('request.cid = :cid', { cid })
+      .where('request.cid = :cid', { cid: cid.toString() })
       .getOne();
   }
 
