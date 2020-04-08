@@ -1,4 +1,4 @@
-import { OK, NOT_FOUND, BAD_REQUEST } from 'http-status-codes';
+import { OK, NOT_FOUND, BAD_REQUEST, CREATED } from "http-status-codes";
 import { Request as ExpReq, Response as ExpRes } from 'express';
 import { Logger, Logger as logger } from '@overnightjs/logger';
 
@@ -94,7 +94,7 @@ export default class RequestController implements Contextual {
       return res.status(OK).json(created);
     } catch (err) {
       Logger.Err(err, true);
-      return res.status(BAD_REQUEST).json({
+      return res.status(CREATED).json({
         error: err.message,
       });
     }

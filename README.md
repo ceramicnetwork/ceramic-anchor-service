@@ -37,12 +37,6 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
 
   `POST`
   
-*  **URL Params**
-
-   **Required:**
- 
-   `id=[string]`
-
 * **Data Params**<br />
 
   * **Content:** 
@@ -55,7 +49,7 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
 
 * **Success Response:**
 
-  * **Code:** 200 <br />
+  * **Code:** 201 <br />
     **Content:** 
      ```json
      {
