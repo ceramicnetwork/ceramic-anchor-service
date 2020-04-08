@@ -31,7 +31,9 @@ export default class RequestController implements Contextual {
     try {
       const request = await this.requestService.findById(req.params.id);
       if (request == null) {
-        return res.status(NOT_FOUND).send('Not found');
+        return res.status(NOT_FOUND).send({
+          error: 'Request doesn\'t exist',
+        });
       }
 
       if (RequestStatus.COMPLETED === request.status) {
