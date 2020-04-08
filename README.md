@@ -138,7 +138,7 @@ Tests are located in the `test` directory. In order to run test start the follow
 
 In order to run tests with coverage run:
 
-```npm run coverate```
+```npm run coverage```
 
 ## Built With
 
