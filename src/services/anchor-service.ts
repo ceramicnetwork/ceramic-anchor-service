@@ -90,6 +90,7 @@ export default class AnchorService implements Contextual {
       anchor.path = path.map((p) => PathDirection[p].toString()).join('/');
 
       const ipfsAnchor = {
+        prev: new CID(request.cid),
         proof: {
           blockNumber: tx.blockNumber,
           blockTimestamp: tx.blockTimestamp,
