@@ -1,4 +1,4 @@
-# Ceramic anchor service - PoC  <img src="./resources/anchor.png" width="25"/>
+# Ceramic anchor service - PoC  <img src="./resources/anchor.png" width="40"/>
 
 Ceramic anchor service is a PoC of anchor service according to the Ceramic [specification](https://github.com/ceramicnetwork/specs).
 
@@ -127,13 +127,13 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
 The image below represents requested CID IPLD document.
 
 <p align="center">
-    <img src="./resources/ipld-cid.png" width="600" alt="CID IPLD document"/>
+    <img src="./resources/ipld-cid.png" width="800" alt="CID IPLD document"/>
 </p>
     
 The image below represents anchor IPLD document.
 
 <p align="center">
-    <img src="./resources/ipld-anchor.png" width="600" alt="Anchor IPLD document"/>
+    <img src="./resources/ipld-anchor.png" width="800" alt="Anchor IPLD document"/>
 </p>
 
 ## Running the tests
@@ -158,4 +158,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Team
 
-Built with <img src="./resources/heart.png" width="25"/> from [3Box](https://3box.io) team. 
+Built with <img src="./resources/heart.png" width="20"/> from [3Box](https://3box.io) team. 
