@@ -46,7 +46,8 @@
       "typeorm": "^0.2.24",
       "uuid": "latest",
       "typestub-multibase": "latest",
-      "typestub-multihashes": "latest"
+      "typestub-multihashes": "latest",
+      "cron-parser": "latest"
    },
    "devDependencies": {
       "@types/chai": "^4.2.11",

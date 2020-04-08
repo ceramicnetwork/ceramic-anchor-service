@@ -43,7 +43,7 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
     ```json
       {
       	"cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
-      	"docId": "documentId" 
+      	"docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa" 
       }
     ```
 
@@ -53,12 +53,13 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
     **Content:** 
      ```json
      {
-         "id": "b9913267-fe51-4265-b707-9a06ed2b7530",
+         "id": "06a483c9-eb73-4e08-a019-7b5665588172",
+         "status": "PENDING",
          "cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
-         "docId": "documentId",
-         "status": 0,
-         "createdAt": "2020-04-06T10:01:59.000Z",
-         "updatedAt": "2020-04-06T10:01:59.000Z"
+         "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
+         "createdAt": "2020-04-08T12:46:37.000Z",
+         "updatedAt": "2020-04-08T12:46:37.000Z",
+         "scheduledAt": "2020-04-08T13:00:00.000Z"
      }
      ```
 
@@ -85,14 +86,44 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
 
   None
 
-* **Success Response:**
+* **Success Response - `PENDING`:**
 
   * **Code:** 200 <br />
     **Content:** 
     ```json
     {
-        "id": "b9913267-fe51-4265-b707-9a06ed2b7530",
-        "status": 2,
+        "id": "06a483c9-eb73-4e08-a019-7b5665588172",
+        "status": "PENDING",
+        "cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
+        "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
+        "createdAt": "2020-04-08T12:10:06.000Z",
+        "updatedAt": "2020-04-08T12:10:07.000Z",
+        "scheduledAt": "2020-04-08T13:00:00.000Z"
+    }
+    ```
+* **Success Response - `PROCESSING`:**
+
+  * **Code:** 200 <br />
+    **Content:** 
+    ```json
+    {
+        "id": "06a483c9-eb73-4e08-a019-7b5665588172",
+        "status": "PROCESSING",
+        "cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
+        "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
+        "createdAt": "2020-04-08T12:10:06.000Z",
+        "updatedAt": "2020-04-08T12:10:07.000Z"
+    }
+    ```
+
+* **Success Response - `COMPLETED`:**
+
+  * **Code:** 200 <br />
+    **Content:** 
+    ```json
+    {
+        "id": "06a483c9-eb73-4e08-a019-7b5665588172",
+        "status": "COMPLETED",
         "cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
         "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
         "createdAt": "2020-04-08T12:10:06.000Z",

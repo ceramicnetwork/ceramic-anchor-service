@@ -2,6 +2,9 @@ import { OK, NOT_FOUND, BAD_REQUEST, CREATED } from "http-status-codes";
 import { Request as ExpReq, Response as ExpRes } from 'express';
 import { Logger, Logger as logger } from '@overnightjs/logger';
 
+import parser from 'cron-parser';
+import { config } from 'node-config-ts';
+
 import cors from 'cors';
 import { Controller, Get, Post, ClassMiddleware } from '@overnightjs/core';
 
@@ -37,27 +40,48 @@ export default class RequestController implements Contextual {
         });
       }
 
-      if (RequestStatus.COMPLETED === request.status) {
-        const anchor: Anchor = await this.anchorService.findByRequest(request);
+      switch (request.status) {
+        case RequestStatus.COMPLETED:
+          const anchor: Anchor = await this.anchorService.findByRequest(request);
 
-        return res.status(OK).json({
-          id: request.id,
-          status: request.status,
-          cid: request.cid,
-          docId: request.docId,
-          createdAt: request.createdAt,
-          updatedAt: request.updatedAt,
-          anchorRecord: {
-            cid: anchor.cid,
-            content: {
-              path: anchor.path,
-              prev: anchor.request.cid,
-              proof: anchor.proofCid,
-            }
-          },
-        });
+          return res.status(OK).json({
+            id: request.id,
+            status: RequestStatus[request.status],
+            cid: request.cid,
+            docId: request.docId,
+            createdAt: request.createdAt,
+            updatedAt: request.updatedAt,
+            anchorRecord: {
+              cid: anchor.cid,
+              content: {
+                path: anchor.path,
+                prev: anchor.request.cid,
+                proof: anchor.proofCid,
+              }
+            },
+          });
+        case RequestStatus.PENDING:
+          const interval = parser.parseExpression(config.cronExpression);
+
+          return res.status(OK).json({
+            id: request.id,
+            status: RequestStatus[request.status],
+            cid: request.cid,
+            docId: request.docId,
+            createdAt: request.createdAt,
+            updatedAt: request.updatedAt,
+            scheduledAt: interval.next().toDate(),
+          });
+        case RequestStatus.PROCESSING:
+          return res.status(OK).json({
+            id: request.id,
+            status: RequestStatus[request.status],
+            cid: request.cid,
+            docId: request.docId,
+            createdAt: request.createdAt,
+            updatedAt: request.updatedAt,
+          });
       }
-      return res.status(OK).json(request);
     } catch (err) {
       Logger.Err(err, true);
       return res.status(BAD_REQUEST).json({
@@ -80,7 +104,17 @@ export default class RequestController implements Contextual {
       }
 
       const created = await this.requestService.create(cid, docId);
-      return res.status(CREATED).json(created);
+      const interval = parser.parseExpression(config.cronExpression);
+
+      return res.status(CREATED).json({
+        id: created.id,
+        status: RequestStatus[created.status],
+        cid: created.cid,
+        docId: created.docId,
+        createdAt: created.createdAt,
+        updatedAt: created.updatedAt,
+        scheduledAt: interval.next().toDate(),
+      });
     } catch (err) {
       Logger.Err(err, true);
       return res.status(BAD_REQUEST).json({
