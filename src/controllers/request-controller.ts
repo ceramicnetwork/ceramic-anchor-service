@@ -66,6 +66,7 @@ export default class RequestController implements Contextual {
   private static convertToAnchorMetadata(anchor: Anchor): any {
     return {
       cid: anchor.cid,
+      prev: anchor.request.cid,
       proof: {
         blockNumber: anchor.blockNumber,
         blockTimestamp: anchor.blockTimestamp,

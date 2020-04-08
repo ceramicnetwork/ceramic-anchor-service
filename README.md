@@ -99,6 +99,7 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
       "updatedAt": "2020-04-07T20:44:02.000Z",
       "anchorMetadata": {
         "cid": "bafyreihbq4yjuta27wgvnluubxtrt3fms34g3oqqxndtwpj4skhvcqsham",
+        "prev": "bafyreicscnpmnk2iu5yukebijgud6yhmq3726dy5leaeknhgblpqrxmmrm",
         "proof": {
           "blockNumber": 8,
           "blockTimestamp": 1586292242,

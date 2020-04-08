@@ -49,7 +49,8 @@ export default class AnchorService implements Contextual {
     return await getManager()
       .getRepository(Anchor)
       .createQueryBuilder('anchor')
-      .where('anchor.request_id = :requestId', { requestId: request.id })
+      .leftJoinAndSelect("anchor.request", "request")
+      .where('request.id = :requestId', { requestId: request.id })
       .getOne();
   }
 
