@@ -109,7 +109,7 @@ export default class AnchorService implements Contextual {
       await this.requestSrv.update(request);
     }
 
-    logger.Info('Anchor completed.');
+    logger.Info('Anchoring successfully completed.');
   }
 
   /**

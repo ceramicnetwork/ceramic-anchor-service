@@ -15,6 +15,7 @@ import Contextual from '../contextual';
 import { RequestStatus } from '../models/request-status';
 import AnchorService from '../services/anchor-service';
 import { Anchor } from '../models/anchor';
+import Utils from "../utils";
 
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
@@ -49,8 +50,8 @@ export default class RequestController implements Contextual {
             status: RequestStatus[request.status],
             cid: request.cid,
             docId: request.docId,
-            createdAt: request.createdAt,
-            updatedAt: request.updatedAt,
+            createdAt: Utils.convertToUnixTimestamp(request.createdAt),
+            updatedAt: Utils.convertToUnixTimestamp(request.updatedAt),
             anchorRecord: {
               cid: anchor.cid,
               content: {
@@ -68,9 +69,9 @@ export default class RequestController implements Contextual {
             status: RequestStatus[request.status],
             cid: request.cid,
             docId: request.docId,
-            createdAt: request.createdAt,
-            updatedAt: request.updatedAt,
-            scheduledAt: interval.next().toDate(),
+            createdAt: Utils.convertToUnixTimestamp(request.createdAt),
+            updatedAt: Utils.convertToUnixTimestamp(request.updatedAt),
+            scheduledAt: Utils.convertToUnixTimestamp(interval.next().toDate()),
           });
         case RequestStatus.PROCESSING:
           return res.status(OK).json({
@@ -78,8 +79,8 @@ export default class RequestController implements Contextual {
             status: RequestStatus[request.status],
             cid: request.cid,
             docId: request.docId,
-            createdAt: request.createdAt,
-            updatedAt: request.updatedAt,
+            createdAt: Utils.convertToUnixTimestamp(request.createdAt),
+            updatedAt: Utils.convertToUnixTimestamp(request.updatedAt),
           });
       }
     } catch (err) {
@@ -111,9 +112,9 @@ export default class RequestController implements Contextual {
         status: RequestStatus[created.status],
         cid: created.cid,
         docId: created.docId,
-        createdAt: created.createdAt,
-        updatedAt: created.updatedAt,
-        scheduledAt: interval.next().toDate(),
+        createdAt: Utils.convertToUnixTimestamp(created.createdAt),
+        updatedAt: Utils.convertToUnixTimestamp(created.updatedAt),
+        scheduledAt: Utils.convertToUnixTimestamp(interval.next().toDate()),
       });
     } catch (err) {
       Logger.Err(err, true);

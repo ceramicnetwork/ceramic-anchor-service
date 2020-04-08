@@ -32,4 +32,12 @@ export default class Utils {
     const cidVersion = 1;
     return new CID(cidVersion, codec, multihash);
   }
+
+  /**
+   * Converts date to unix timestamp
+   * @param date - Date obj
+   */
+  static convertToUnixTimestamp(date:Date): number {
+    return Math.round((new Date()).getTime() / 1000);
+  }
 }
