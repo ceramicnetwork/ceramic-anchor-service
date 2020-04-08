@@ -24,12 +24,13 @@ export default class RequestController implements Contextual {
     this.requestService = context.lookup('RequestService');
   }
 
-  @Get(':id')
+  @Get(':cid')
   private async get(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
-    logger.Info(req.params.id);
+    logger.Info(req.params.cid);
 
     try {
-      const request = await this.requestService.findById(req.params.id);
+      const cid = new CID(req.params.cid);
+      const request = await this.requestService.findByCid(cid);
       if (request == null) {
         return res.status(NOT_FOUND).send({
           error: 'Request doesn\'t exist',
