@@ -1,23 +1,23 @@
-import Context from "../context";
-import RequestService from "./request-service";
+import Context from '../context';
+import RequestService from './request-service';
 
-import Contextual from "../contextual";
+import Contextual from '../contextual';
 
-import CID from "cids";
-import { Ipfs } from "ipfs";
-import ipfsClient from "ipfs-http-client";
-import { Logger as logger } from "@overnightjs/logger";
-import { RequestStatus as RS } from "../models/request-status";
+import CID from 'cids';
+import { Ipfs } from 'ipfs';
+import ipfsClient from 'ipfs-http-client';
+import { Logger as logger } from '@overnightjs/logger';
+import { RequestStatus as RS } from '../models/request-status';
 
-import { config } from "node-config-ts";
-import { CompareFunction, MergeFunction, Node, PathDirection } from "../merkle/merkle";
-import { MerkleTree } from "../merkle/merkle-tree";
-import { Anchor } from "../models/anchor";
-import { getManager } from "typeorm";
-import { Request } from "../models/request";
-import BlockchainService from "./blockchain-service";
-import Transaction from "../models/transaction";
-import Utils from "../utils";
+import { config } from 'node-config-ts';
+import { CompareFunction, MergeFunction, Node, PathDirection } from '../merkle/merkle';
+import { MerkleTree } from '../merkle/merkle-tree';
+import { Anchor } from '../models/anchor';
+import { getManager } from 'typeorm';
+import { Request } from '../models/request';
+import BlockchainService from './blockchain-service';
+import Transaction from '../models/transaction';
+import Utils from '../utils';
 
 /**
  * Anchors CIDs to blockchain
@@ -49,7 +49,7 @@ export default class AnchorService implements Contextual {
     return await getManager()
       .getRepository(Anchor)
       .createQueryBuilder('anchor')
-      .leftJoinAndSelect("anchor.request", "request")
+      .leftJoinAndSelect('anchor.request', 'request')
       .where('request.id = :requestId', { requestId: request.id })
       .getOne();
   }
@@ -74,18 +74,18 @@ export default class AnchorService implements Contextual {
         docReqMapping.set(req.docId, req);
         continue;
       }
-      docReqMapping.set(req.docId, old.createdAt < req.createdAt? req : old);
+      docReqMapping.set(req.docId, old.createdAt < req.createdAt ? req : old);
     }
 
-    const validReqs:Array<Request> = [];
+    const validReqs: Request[] = [];
     for (const req of docReqMapping.values()) {
       validReqs.push(req);
     }
 
-    const oldReqs = reqs.filter(r => !validReqs.includes(r));
+    const oldReqs = reqs.filter((r) => !validReqs.includes(r));
     await this.updateReqs(RS.FAILED, 'Request failed. Staled request.', ...oldReqs);
 
-    const pairs:Array<CidDocPair> = [];
+    const pairs: CidDocPair[] = [];
     for (const req of validReqs) {
       pairs.push(new CidDocPair(new CID(req.cid), req.docId));
     }
@@ -138,7 +138,7 @@ export default class AnchorService implements Contextual {
    * @param status - request status
    * @param message - request message
    */
-  private async updateReqs(status: RS, message: string, ...reqs: Array<Request>): Promise<void> {
+  private async updateReqs(status: RS, message: string, ...reqs: Request[]): Promise<void> {
     for (const req of reqs) {
       req.status = status;
       req.message = message;

@@ -37,7 +37,7 @@ export default class Utils {
    * Converts date to unix timestamp
    * @param date - Date obj
    */
-  static convertToUnixTimestamp(date:Date): number {
-    return Math.round((new Date()).getTime() / 1000);
+  static convertToUnixTimestamp(date: Date): number {
+    return Math.round(new Date().getTime() / 1000);
   }
 }
