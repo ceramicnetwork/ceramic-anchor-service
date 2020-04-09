@@ -75,7 +75,17 @@ export default class RequestController implements Contextual {
             updatedAt: Utils.convertToUnixTimestamp(request.updatedAt),
             scheduledAt: Utils.convertToUnixTimestamp(interval.next().toDate()),
           });
-        case RequestStatus.PROCESSING || RequestStatus.FAILED:
+        case RequestStatus.PROCESSING:
+          return res.status(OK).json({
+            id: request.id,
+            status: RequestStatus[request.status],
+            cid: request.cid,
+            docId: request.docId,
+            message: request.message,
+            createdAt: Utils.convertToUnixTimestamp(request.createdAt),
+            updatedAt: Utils.convertToUnixTimestamp(request.updatedAt),
+          });
+        case RequestStatus.FAILED:
           return res.status(OK).json({
             id: request.id,
             status: RequestStatus[request.status],
