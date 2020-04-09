@@ -63,8 +63,8 @@ export default class AnchorService implements Contextual {
       logger.Info('No pending CID requests found. Skipping anchor.');
       return;
     }
-
-    await this.requestService.setStatus(RS.PENDING, RS.PROCESSING);
+    // set to processing
+    await this.updateReqs(RS.PROCESSING, 'Request is processing.', ...reqs);
 
     // filter old updates for same docIds
     const docReqMapping = new Map<string, Request>();
@@ -83,11 +83,7 @@ export default class AnchorService implements Contextual {
     }
 
     const oldReqs = reqs.filter(r => !validReqs.includes(r));
-    for (const req of oldReqs) {
-      req.status = RS.FAILED;
-      req.message = 'Stale request.';
-      await this.requestService.save(req);
-    }
+    await this.updateReqs(RS.FAILED, 'Request failed. Staled request.', ...oldReqs);
 
     const pairs:Array<CidDocPair> = [];
     for (const req of validReqs) {
@@ -130,13 +126,24 @@ export default class AnchorService implements Contextual {
 
       anchor.cid = anchorCid.toString();
       await anchorRepository.save(anchor);
-
-      request.status = RS.COMPLETED;
-      request.message = 'CID successfully anchored.';
-      await this.requestService.save(request);
+      await this.updateReqs(RS.COMPLETED, 'CID successfully anchored.', request);
     }
 
     logger.Info('Anchoring successfully completed.');
+  }
+
+  /**
+   * Updates one or more requests
+   * @param reqs - one or more requests
+   * @param status - request status
+   * @param message - request message
+   */
+  private async updateReqs(status: RS, message: string, ...reqs: Array<Request>): Promise<void> {
+    for (const req of reqs) {
+      req.status = status;
+      req.message = message;
+      await this.requestService.save(req);
+    }
   }
 
   /**

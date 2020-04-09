@@ -23,7 +23,7 @@ export default class RequestService implements Contextual {
     req.cid = cid;
     req.docId = docId;
     req.status = RequestStatus.PENDING;
-    req.message = 'Request pending.';
+    req.message = 'Request is pending.';
 
     const reqRepository = getManager().getRepository(Request);
     return reqRepository.save(req);
@@ -61,20 +61,5 @@ export default class RequestService implements Contextual {
       .createQueryBuilder('request')
       .where('request.cid = :cid', { cid: cid.toString() })
       .getOne();
-  }
-
-  /**
-   * Sets new status for all requests by old status
-   * @param oldStatus - Old status of the client request
-   * @param newStatus - New status of the client request
-   */
-  public async setStatus(oldStatus: RequestStatus, newStatus: RequestStatus): Promise<UpdateResult> {
-    return await getManager()
-      .getRepository(Request)
-      .createQueryBuilder('request')
-      .update(Request)
-      .set({ status: newStatus })
-      .where('request.status = :newStatus', { newStatus })
-      .execute();
   }
 }

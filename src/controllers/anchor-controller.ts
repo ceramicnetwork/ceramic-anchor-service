@@ -43,7 +43,7 @@ export default class AnchorController implements Contextual {
           test: 'test_' + uuid() + i,
         });
 
-        const docId = 'doc_1';
+        const docId = 'doc_1' + uuid();
         await this.requestService.create(cid.string, docId);
       }
 
