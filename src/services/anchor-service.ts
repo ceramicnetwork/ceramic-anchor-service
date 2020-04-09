@@ -1,23 +1,23 @@
-import Context from '../context';
-import RequestService from './request-service';
+import Context from "../context";
+import RequestService from "./request-service";
 
-import Contextual from '../contextual';
+import Contextual from "../contextual";
 
-import CID from 'cids';
-import { Ipfs } from 'ipfs';
-import ipfsClient from 'ipfs-http-client';
-import { Logger as logger } from '@overnightjs/logger';
-import { RequestStatus } from '../models/request-status';
+import CID from "cids";
+import { Ipfs } from "ipfs";
+import ipfsClient from "ipfs-http-client";
+import { Logger as logger } from "@overnightjs/logger";
+import { RequestStatus as RS } from "../models/request-status";
 
-import { config } from 'node-config-ts';
-import { CompareFunction, MergeFunction, Node, PathDirection } from '../merkle/merkle';
-import { MerkleTree } from '../merkle/merkle-tree';
-import { Anchor } from '../models/anchor';
-import { getManager } from 'typeorm';
-import { Request } from '../models/request';
-import BlockchainService from './blockchain-service';
-import Transaction from '../models/transaction';
-import Utils from '../utils';
+import { config } from "node-config-ts";
+import { CompareFunction, MergeFunction, Node, PathDirection } from "../merkle/merkle";
+import { MerkleTree } from "../merkle/merkle-tree";
+import { Anchor } from "../models/anchor";
+import { getManager } from "typeorm";
+import { Request } from "../models/request";
+import BlockchainService from "./blockchain-service";
+import Transaction from "../models/transaction";
+import Utils from "../utils";
 
 /**
  * Anchors CIDs to blockchain
@@ -27,8 +27,8 @@ export default class AnchorService implements Contextual {
   private readonly ipfsMerge: IpfsMerge;
   private readonly ipfsCompare: IpfsCompare;
 
-  private requestSrv: RequestService;
-  private blockchainSrv: BlockchainService;
+  private requestService: RequestService;
+  private blockchainService: BlockchainService;
 
   constructor() {
     this.ipfs = ipfsClient(config.ipfsConfig.host);
@@ -37,8 +37,8 @@ export default class AnchorService implements Contextual {
   }
 
   setContext(context: Context): void {
-    this.requestSrv = context.lookup('RequestService');
-    this.blockchainSrv = context.lookup('BlockchainService');
+    this.requestService = context.lookup('RequestService');
+    this.blockchainService = context.lookup('BlockchainService');
   }
 
   /**
@@ -58,24 +58,50 @@ export default class AnchorService implements Contextual {
    * Creates anchors for client requests
    */
   public async anchorRequests(): Promise<void> {
-    const requests = await this.requestSrv.findByStatus(RequestStatus.PENDING);
-
-    if (requests.length === 0) {
+    const reqs = await this.requestService.findByStatus(RS.PENDING);
+    if (reqs.length === 0) {
       logger.Info('No pending CID requests found. Skipping anchor.');
       return;
     }
 
-    await this.requestSrv.updateStatus(RequestStatus.PENDING, RequestStatus.PROCESSING);
+    await this.requestService.setStatus(RS.PENDING, RS.PROCESSING);
 
-    const pairs = requests.map((r) => new CidDocPair(new CID(r.cid), r.docId));
+    // filter old updates for same docIds
+    const docReqMapping = new Map<string, Request>();
+    for (const req of reqs) {
+      const old = docReqMapping.get(req.docId);
+      if (old == null) {
+        docReqMapping.set(req.docId, req);
+        continue;
+      }
+      docReqMapping.set(req.docId, old.createdAt < req.createdAt? req : old);
+    }
+
+    const validReqs:Array<Request> = [];
+    for (const req of docReqMapping.values()) {
+      validReqs.push(req);
+    }
+
+    const oldReqs = reqs.filter(r => !validReqs.includes(r));
+    for (const req of oldReqs) {
+      req.status = RS.FAILED;
+      req.message = 'Stale request.';
+      await this.requestService.save(req);
+    }
+
+    const pairs:Array<CidDocPair> = [];
+    for (const req of validReqs) {
+      pairs.push(new CidDocPair(new CID(req.cid), req.docId));
+    }
+
+    // create merkle tree
     const merkleTree: MerkleTree<CidDocPair> = await this._createMerkleTree(pairs);
 
-    const tx: Transaction = await this.blockchainSrv.sendTransaction(merkleTree.getRoot().data.cid);
-
-    const anchorRepository = getManager().getRepository(Anchor);
-
+    // make a blockchain transaction
+    const tx: Transaction = await this.blockchainService.sendTransaction(merkleTree.getRoot().data.cid);
     const txHashCid = Utils.convertEthHashToCid('eth-tx', tx.txHash.slice(2));
 
+    const anchorRepository = getManager().getRepository(Anchor);
     const ipfsAnchorProof = {
       blockNumber: tx.blockNumber,
       blockTimestamp: tx.blockTimestamp,
@@ -86,7 +112,7 @@ export default class AnchorService implements Contextual {
     const ipfsProofCid = await this.ipfs.dag.put(ipfsAnchorProof);
 
     for (let index = 0; index < pairs.length; index++) {
-      const request: Request = requests[index];
+      const request: Request = reqs[index];
 
       const anchor: Anchor = new Anchor();
       anchor.request = request;
@@ -105,8 +131,9 @@ export default class AnchorService implements Contextual {
       anchor.cid = anchorCid.toString();
       await anchorRepository.save(anchor);
 
-      request.status = RequestStatus.COMPLETED;
-      await this.requestSrv.update(request);
+      request.status = RS.COMPLETED;
+      request.message = 'CID successfully anchored.';
+      await this.requestService.save(request);
     }
 
     logger.Info('Anchoring successfully completed.');
@@ -118,7 +145,7 @@ export default class AnchorService implements Contextual {
    * @private
    */
   private async _createMerkleTree(pairs: CidDocPair[]): Promise<MerkleTree<CidDocPair>> {
-    const merkleTree: MerkleTree<CidDocPair> = new MerkleTree<CidDocPair>(this.ipfsMerge);
+    const merkleTree: MerkleTree<CidDocPair> = new MerkleTree<CidDocPair>(this.ipfsMerge, this.ipfsCompare);
     await merkleTree.build(pairs);
     return merkleTree;
   }

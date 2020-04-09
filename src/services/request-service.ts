@@ -19,20 +19,21 @@ export default class RequestService implements Contextual {
    * @param docId - Genesis document ID
    */
   public async create(cid: string, docId: string): Promise<Request> {
-    const request: Request = new Request();
-    request.cid = cid;
-    request.docId = docId;
-    request.status = RequestStatus.PENDING;
+    const req: Request = new Request();
+    req.cid = cid;
+    req.docId = docId;
+    req.status = RequestStatus.PENDING;
+    req.message = 'Request pending.';
 
     const reqRepository = getManager().getRepository(Request);
-    return reqRepository.save(request);
+    return reqRepository.save(req);
   }
 
   /**
    * Updates client request
    * @param request - Request
    */
-  public async update(request: Request): Promise<Request> {
+  public async save(request: Request): Promise<Request> {
     const reqRepository = getManager().getRepository(Request);
     return reqRepository.save(request);
   }
@@ -45,20 +46,9 @@ export default class RequestService implements Contextual {
     return await getManager()
       .getRepository(Request)
       .createQueryBuilder('request')
+      .orderBy('request.createdAt', 'DESC')
       .where('request.status = :status', { status })
       .getMany();
-  }
-
-  /**
-   * Creates new client request
-   * @param id: Client request ID
-   */
-  public async findById(id: string): Promise<Request> {
-    return await getManager()
-      .getRepository(Request)
-      .createQueryBuilder('request')
-      .where('request.id = :id', { id })
-      .getOne();
   }
 
   /**
@@ -78,12 +68,13 @@ export default class RequestService implements Contextual {
    * @param oldStatus - Old status of the client request
    * @param newStatus - New status of the client request
    */
-  public async updateStatus(oldStatus: RequestStatus, newStatus: RequestStatus): Promise<UpdateResult> {
+  public async setStatus(oldStatus: RequestStatus, newStatus: RequestStatus): Promise<UpdateResult> {
     return await getManager()
-      .createQueryBuilder()
+      .getRepository(Request)
+      .createQueryBuilder('request')
       .update(Request)
       .set({ status: newStatus })
-      .where('status = :newStatus', { newStatus })
+      .where('request.status = :newStatus', { newStatus })
       .execute();
   }
 }

@@ -1,20 +1,20 @@
-import { OK, NOT_FOUND, BAD_REQUEST, CREATED } from "http-status-codes";
-import { Request as ExpReq, Response as ExpRes } from 'express';
-import { Logger, Logger as logger } from '@overnightjs/logger';
+import { BAD_REQUEST, CREATED, NOT_FOUND, OK } from "http-status-codes";
+import { Request as ExpReq, Response as ExpRes } from "express";
+import { Logger, Logger as logger } from "@overnightjs/logger";
 
-import parser from 'cron-parser';
-import { config } from 'node-config-ts';
+import parser from "cron-parser";
+import { config } from "node-config-ts";
 
-import cors from 'cors';
-import { Controller, Get, Post, ClassMiddleware } from '@overnightjs/core';
+import cors from "cors";
+import { ClassMiddleware, Controller, Get, Post } from "@overnightjs/core";
 
-import CID from 'cids';
-import Context from '../context';
-import RequestService from '../services/request-service';
-import Contextual from '../contextual';
-import { RequestStatus } from '../models/request-status';
-import AnchorService from '../services/anchor-service';
-import { Anchor } from '../models/anchor';
+import CID from "cids";
+import Context from "../context";
+import RequestService from "../services/request-service";
+import Contextual from "../contextual";
+import { RequestStatus } from "../models/request-status";
+import AnchorService from "../services/anchor-service";
+import { Anchor } from "../models/anchor";
 import Utils from "../utils";
 
 @Controller('api/v0/requests')
@@ -50,6 +50,7 @@ export default class RequestController implements Contextual {
             status: RequestStatus[request.status],
             cid: request.cid,
             docId: request.docId,
+            message: request.message,
             createdAt: Utils.convertToUnixTimestamp(request.createdAt),
             updatedAt: Utils.convertToUnixTimestamp(request.updatedAt),
             anchorRecord: {
@@ -69,16 +70,18 @@ export default class RequestController implements Contextual {
             status: RequestStatus[request.status],
             cid: request.cid,
             docId: request.docId,
+            message: request.message,
             createdAt: Utils.convertToUnixTimestamp(request.createdAt),
             updatedAt: Utils.convertToUnixTimestamp(request.updatedAt),
             scheduledAt: Utils.convertToUnixTimestamp(interval.next().toDate()),
           });
-        case RequestStatus.PROCESSING:
+        case RequestStatus.PROCESSING || RequestStatus.FAILED:
           return res.status(OK).json({
             id: request.id,
             status: RequestStatus[request.status],
             cid: request.cid,
             docId: request.docId,
+            message: request.message,
             createdAt: Utils.convertToUnixTimestamp(request.createdAt),
             updatedAt: Utils.convertToUnixTimestamp(request.updatedAt),
           });
@@ -112,6 +115,7 @@ export default class RequestController implements Contextual {
         status: RequestStatus[created.status],
         cid: created.cid,
         docId: created.docId,
+        message: created.message,
         createdAt: Utils.convertToUnixTimestamp(created.createdAt),
         updatedAt: Utils.convertToUnixTimestamp(created.updatedAt),
         scheduledAt: Utils.convertToUnixTimestamp(interval.next().toDate()),
