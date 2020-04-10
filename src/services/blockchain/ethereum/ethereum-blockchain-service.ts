@@ -1,18 +1,18 @@
-import { config } from 'node-config-ts';
-import { Logger as logger } from '@overnightjs/logger';
+import CID from 'cids'
+import { BaseProvider, Block, TransactionReceipt, TransactionResponse } from "ethers/providers";
 
-import CID from 'cids';
-import Context from '../context';
-import { ethers, utils } from 'ethers';
-import { BaseProvider, Block, TransactionReceipt, TransactionResponse } from 'ethers/providers';
-import Transaction from '../models/transaction';
-import Contextual from "../contextual";
+import { ethers, utils } from "ethers";
+import { config } from "node-config-ts";
+import { Logger as logger } from "@overnightjs/logger/lib/Logger";
+
+import Context from "../../../context";
+import Transaction from "../../../models/transaction";
+import { BlockchainService } from "../blockchain-service";
 
 /**
- * Blockchain related operations
- * Note: Ethereum implementation by default
+ * Ethereum blockchain service
  */
-export default class BlockchainService implements Contextual {
+export default class EthereumBlockchainService implements BlockchainService {
   private ctx: Context;
   private provider: BaseProvider;
 
@@ -28,11 +28,11 @@ export default class BlockchainService implements Contextual {
    * Connects to blockchain
    */
   public async connect(): Promise<void> {
-    logger.Imp('Connecting to ' + config.blockchain.network + ' blockchain provider');
-    const { network } = config.blockchain;
+    logger.Imp('Connecting to ' + config.blockchain.connectors.ethereum.network + ' blockchain...');
+    const { network } = config.blockchain.connectors.ethereum;
 
     if (network === 'ganache') {
-      const { host, port } = config.blockchain.rpc;
+      const { host, port } = config.blockchain.connectors.ethereum.rpc;
       const url = `${host}:${port}`;
       this.provider = new ethers.providers.JsonRpcProvider(url);
     } else {
@@ -46,15 +46,15 @@ export default class BlockchainService implements Contextual {
    * Sends transaction with root CID as data
    */
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
-    const wallet = new ethers.Wallet(config.blockchain.account.privateKey, this.provider);
+    const wallet = new ethers.Wallet(config.blockchain.connectors.ethereum.account.privateKey, this.provider);
 
     const hexEncoded = '0x' + rootCid.toBaseEncodedString('base16');
 
     const txResponse: TransactionResponse = await wallet.sendTransaction({
       to: wallet.address,
       data: hexEncoded,
-      gasLimit: config.blockchain.gasLimit,
-      gasPrice: utils.bigNumberify(config.blockchain.gasPrice),
+      gasLimit: config.blockchain.connectors.ethereum.gasLimit,
+      gasPrice: utils.bigNumberify(config.blockchain.connectors.ethereum.gasPrice),
     });
 
     const txReceipt: TransactionReceipt = await this.provider.waitForTransaction(txResponse.hash);

@@ -13,8 +13,6 @@ export default class Utils {
     return globby(`${dir}/**/*`);
   }
 
-
-
   /**
    * Flatten array of arrays
    * @param arr - Array of arrays

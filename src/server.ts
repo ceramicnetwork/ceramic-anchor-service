@@ -4,7 +4,7 @@ import { Logger as logger } from '@overnightjs/logger';
 
 import Context from './context';
 import SchedulerService from './services/scheduler-service';
-import BlockchainService from './services/blockchain-service';
+import { BlockchainService } from './services/blockchain/blockchain-service';
 
 export default class CeramicAnchorServer extends Server {
   private readonly ctx: Context;
@@ -32,7 +32,7 @@ export default class CeramicAnchorServer extends Server {
    * @param port - Server listening port
    */
   public async start(port?: number): Promise<void> {
-    const blockchainSrv: BlockchainService = this.ctx.lookup('BlockchainService');
+    const blockchainSrv: BlockchainService = this.ctx.getSelectedBlockchainService();
     await blockchainSrv.connect();
 
     const schedulerSrv: SchedulerService = this.ctx.lookup('SchedulerService');
