@@ -34,6 +34,12 @@ export default class RequestController implements Contextual {
 
     try {
       const cid = new CID(req.params.cid);
+      if (cid == null) {
+        return res.status(BAD_REQUEST).send({
+          error: 'CID is empty',
+        });
+      }
+
       const request = await this.requestService.findByCid(cid);
       if (request == null) {
         return res.status(NOT_FOUND).send({
@@ -110,6 +116,18 @@ export default class RequestController implements Contextual {
       logger.Info(req.body, true);
 
       const { cid, docId } = req.body;
+
+      if (cid == null) {
+        return res.status(BAD_REQUEST).send({
+          error: 'CID is empty',
+        });
+      }
+
+      if (docId == null) {
+        return res.status(BAD_REQUEST).send({
+          error: "Document ID is empty"
+        });
+      }
 
       const cidObj = new CID(cid);
       const request = await this.requestService.findByCid(cidObj);
