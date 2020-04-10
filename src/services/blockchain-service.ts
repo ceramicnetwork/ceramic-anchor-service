@@ -60,7 +60,7 @@ export default class BlockchainService implements Contextual {
     const txReceipt: TransactionReceipt = await this.provider.waitForTransaction(txResponse.hash);
     const block: Block = await this.provider.getBlock(txReceipt.blockHash);
 
-    const caip2ChainId = 'ethereum:eip155-' + txResponse.chainId;
+    const caip2ChainId = 'eip155:' + txResponse.chainId;
     return new Transaction(caip2ChainId, txReceipt.transactionHash, txReceipt.blockNumber, block.timestamp);
   }
 }
