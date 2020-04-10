@@ -3,7 +3,7 @@ import * as path from 'path';
 import { config } from 'node-config-ts';
 
 import Utils from './utils';
-import { BlockchainService } from "./services/blockchain/blockchain-service";
+import { BlockchainService } from './services/blockchain/blockchain-service';
 
 /**
  * Builds application context (services, controllers, etc.)
@@ -45,7 +45,7 @@ export default class Context {
   /**
    * Gets the blockchain service instance
    */
-  public getSelectedBlockchainService():BlockchainService {
+  public getSelectedBlockchainService(): BlockchainService {
     const sc = config.blockchain.selectedConnector;
 
     const className = sc[0].toUpperCase() + sc.slice(1) + 'BlockchainService';

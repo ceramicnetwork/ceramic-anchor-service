@@ -1,8 +1,8 @@
 import { assert } from 'chai';
 import { describe, it } from 'mocha';
 
-import { Node, PathDirection, MergeFunction } from '../../src/merkle/merkle';
-import { MerkleTree } from '../../src/merkle/merkle-tree';
+import { Node, PathDirection, MergeFunction } from '../merkle';
+import { MerkleTree } from '../merkle-tree';
 
 class StringConcat implements MergeFunction<string> {
   async merge(n1: Node<string>, n2: Node<string>): Promise<Node<string>> {

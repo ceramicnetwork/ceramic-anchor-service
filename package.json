@@ -10,10 +10,10 @@
       "3box"
    ],
    "scripts": {
-      "test": "./node_modules/.bin/mocha -r ts-node/register test/**/*.test.ts ",
+      "test": "./node_modules/.bin/mocha -r ts-node/register src/**/*.test.ts ",
       "coverage": "nyc npm run test",
       "build": "./node_modules/.bin/tsc -p tsconfig.json",
-      "format": "prettier --write 'src/**/*{.ts,.tsx,.js}' 'test/**/*{.ts,.tsx,.js}'",
+      "format": "prettier --write 'src/**/*{.ts,.tsx,.js}'",
       "prepublishOnly": "npm run build",
       "prebuild": "npm run clean",
       "postinstall": "node-config-ts",

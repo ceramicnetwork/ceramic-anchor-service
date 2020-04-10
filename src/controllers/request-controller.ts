@@ -125,7 +125,7 @@ export default class RequestController implements Contextual {
 
       if (docId == null) {
         return res.status(BAD_REQUEST).send({
-          error: "Document ID is empty"
+          error: 'Document ID is empty',
         });
       }
 

@@ -3,9 +3,9 @@ import { describe, it } from 'mocha';
 
 import * as crypto from 'crypto';
 
-import Proof from '../../src/merkle/proof';
-import { MergeFunction, Node } from '../../src/merkle/merkle';
-import { MerkleTree } from '../../src/merkle/merkle-tree';
+import Proof from '../proof';
+import { MergeFunction, Node } from '../merkle';
+import { MerkleTree } from '../merkle-tree';
 
 class StringConcat implements MergeFunction<string> {
   async merge(n1: Node<string>, n2: Node<string>): Promise<Node<string>> {
