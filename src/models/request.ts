@@ -16,6 +16,9 @@ export class Request {
   @Column({ nullable: false, name: 'doc_id' })
   docId: string;
 
+  @Column({ nullable: true })
+  message: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
