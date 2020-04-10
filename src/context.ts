@@ -20,13 +20,17 @@ export default class Context {
   public async build(...paths: string[]) {
     for (const dir of paths) {
       const filenames: string[] = await Utils.listDir(path.resolve(__dirname, dir));
-      for (const filename of filenames) {
-        if (filename.endsWith('.map')) {
+      for (const absFilename of filenames) {
+        if (absFilename.endsWith('.map')) {
           continue;
         }
-        const absFilename = path.resolve(__dirname, dir, filename);
-        const clazz = require(absFilename).default;
-        this.register(new clazz());
+        try {
+          // get default exported class
+          const clazz = require(absFilename).default;
+          this.register(new clazz());
+        } catch (e) {
+          // do nothing
+        }
       }
     }
 

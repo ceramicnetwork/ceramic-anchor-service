@@ -3,18 +3,23 @@ import { Logger as logger } from '@overnightjs/logger';
 
 import CID from 'cids';
 import Context from '../context';
-import Contextual from '../contextual';
 import { ethers, utils } from 'ethers';
-import { BaseProvider, Block, TransactionReceipt, TransactionRequest, TransactionResponse } from 'ethers/providers';
+import { BaseProvider, Block, TransactionReceipt, TransactionResponse } from 'ethers/providers';
 import Transaction from '../models/transaction';
+import Contextual from "../contextual";
 
 /**
- * Schedules anchor operations
+ * Blockchain related operations
+ * Note: Ethereum implementation by default
  */
 export default class BlockchainService implements Contextual {
   private ctx: Context;
   private provider: BaseProvider;
 
+  /**
+   * Set application context
+   * @param context
+   */
   setContext(context: Context): void {
     this.ctx = context;
   }
@@ -54,6 +59,8 @@ export default class BlockchainService implements Contextual {
 
     const txReceipt: TransactionReceipt = await this.provider.waitForTransaction(txResponse.hash);
     const block: Block = await this.provider.getBlock(txReceipt.blockHash);
-    return new Transaction(txResponse.chainId, txReceipt.transactionHash, txReceipt.blockNumber, block.timestamp);
+
+    const caip2ChainId = 'eip155:' + txResponse.chainId;
+    return new Transaction(caip2ChainId, txReceipt.transactionHash, txReceipt.blockNumber, block.timestamp);
   }
 }
