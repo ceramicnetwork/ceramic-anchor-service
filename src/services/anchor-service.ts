@@ -15,7 +15,7 @@ import { MerkleTree } from '../merkle/merkle-tree';
 import { Anchor } from '../models/anchor';
 import { getManager } from 'typeorm';
 import { Request } from '../models/request';
-import BlockchainService from './blockchain-service';
+import { BlockchainService } from './blockchain/blockchain-service';
 import Transaction from '../models/transaction';
 import Utils from '../utils';
 
@@ -36,9 +36,13 @@ export default class AnchorService implements Contextual {
     this.ipfsCompare = new IpfsCompare();
   }
 
+  /**
+   * Sets dependencies
+   * @param context - Application context
+   */
   setContext(context: Context): void {
+    this.blockchainService = context.getSelectedBlockchainService();
     this.requestService = context.lookup('RequestService');
-    this.blockchainService = context.lookup('BlockchainService');
   }
 
   /**
