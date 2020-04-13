@@ -1,14 +1,22 @@
 import 'reflect-metadata';
 import { LoggerModes } from '@overnightjs/logger';
 
+// Set env variables
+process.env.OVERNIGHT_LOGGER_MODE = LoggerModes.Console;
+process.env.OVERNIGHT_LOGGER_RM_TIMESTAMP = 'false';
+
+import { Logger as logger } from '@overnightjs/logger';
+
+if(!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'development'
+}
+
+logger.Imp(`Ceramic Anchor Service running in ${process.env.NODE_ENV} mode`);
+
 import { config } from 'node-config-ts';
 
 import CeramicAnchorServer from './server';
 import { createConnection } from 'typeorm';
-
-// Set env variables
-process.env.OVERNIGHT_LOGGER_MODE = LoggerModes.Console;
-process.env.OVERNIGHT_LOGGER_RM_TIMESTAMP = 'false';
 
 // create connection with database
 // note that it's not active database connection

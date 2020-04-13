@@ -67,10 +67,14 @@ export default class Context {
 
   /**
    * Registers single class instance
+   * @param name - instance name
    * @param instance - Class instance
    */
-  private register<T>(instance: T): void {
-    this.instances.set(instance.constructor.name, instance);
+  private register<T>(instance: T, name?: string): void {
+    if (name == null) {
+      name = instance.constructor.name;
+    }
+    this.instances.set(name, instance);
   }
 
   /**
