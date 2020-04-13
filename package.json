@@ -22,6 +22,12 @@
       "clean": "rm -rf ./build; rm -rf coverage; rm -rf .nyc_output",
       "start": "node ./build/app.js"
    },
+   "husky": {
+      "hooks": {
+         "pre-commit": "npm test",
+         "pre-push": "npm test"
+      }
+   },
    "dependencies": {
       "@overnightjs/core": "^1.6.15",
       "@overnightjs/logger": "^1.1.10",
@@ -51,7 +57,6 @@
    },
    "devDependencies": {
       "@babel/core": "^7.9.0",
-      "@types/node-cron": "^2.0.3",
       "@babel/preset-env": "^7.8.4",
       "@babel/preset-typescript": "^7.9.0",
       "@types/chai": "^4.2.11",
@@ -60,6 +65,7 @@
       "@types/express": "^4.17.4",
       "@types/jest": "^25.2.1",
       "@types/node": "^13.11.0",
+      "@types/node-cron": "^2.0.3",
       "@types/uuid": "^7.0.2",
       "@typescript-eslint/eslint-plugin": "^2.19.0",
       "@typescript-eslint/parser": "^2.19.0",
@@ -68,6 +74,7 @@
       "eslint": "^6.8.0",
       "eslint-plugin-jest": "^23.8.2",
       "ganache-core": "^2.10.2",
+      "husky": "^4.2.5",
       "ipfs": "^0.41.2",
       "jest": "^25.3.0",
       "node-config-ts": "^3.0.4",
