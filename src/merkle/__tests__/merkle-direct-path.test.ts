@@ -1,8 +1,7 @@
 import { assert } from 'chai';
-import { describe, it } from 'mocha';
 
-import { Node, PathDirection, MergeFunction } from '../../src/merkle/merkle';
-import { MerkleTree } from '../../src/merkle/merkle-tree';
+import { Node, PathDirection, MergeFunction } from '../merkle';
+import { MerkleTree } from '../merkle-tree';
 
 class StringConcat implements MergeFunction<string> {
   async merge(n1: Node<string>, n2: Node<string>): Promise<Node<string>> {
@@ -10,8 +9,8 @@ class StringConcat implements MergeFunction<string> {
   }
 }
 
-describe('Merkle tree direct path tests', async () => {
-  it('should handle the case: [A]', async () => {
+describe('Merkle tree direct path tests',  () => {
+  test('should handle the case: [A]', async () => {
     const leaves = ['A'];
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
@@ -20,7 +19,7 @@ describe('Merkle tree direct path tests', async () => {
     assert.deepEqual(directPath, []);
   });
 
-  it('should handle the case: [A]', async () => {
+  test('should handle the case: [A]', async () => {
     const leaves = ['A', 'B', 'C', 'D'];
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
@@ -29,7 +28,7 @@ describe('Merkle tree direct path tests', async () => {
     assert.deepEqual(directPath, [PathDirection.L, PathDirection.L]);
   });
 
-  it('should handle the case: [A]', async () => {
+  test('should handle the case: [A]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
@@ -38,7 +37,7 @@ describe('Merkle tree direct path tests', async () => {
     assert.deepEqual(directPath, [PathDirection.L, PathDirection.L, PathDirection.L]);
   });
 
-  it('should handle the case: [B]', async () => {
+  test('should handle the case: [B]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
@@ -47,7 +46,7 @@ describe('Merkle tree direct path tests', async () => {
     assert.deepEqual(directPath, [PathDirection.L, PathDirection.L, PathDirection.R]);
   });
 
-  it('should handle the case: [H]', async () => {
+  test('should handle the case: [H]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
@@ -56,7 +55,7 @@ describe('Merkle tree direct path tests', async () => {
     assert.deepEqual(directPath, [PathDirection.R, PathDirection.R, PathDirection.R]);
   });
 
-  it('should handle the case: [G]', async () => {
+  test('should handle the case: [G]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
@@ -65,7 +64,7 @@ describe('Merkle tree direct path tests', async () => {
     assert.deepEqual(directPath, [PathDirection.R, PathDirection.R, PathDirection.L]);
   });
 
-  it('should handle the case: [J]', async () => {
+  test('should handle the case: [J]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J'];
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);

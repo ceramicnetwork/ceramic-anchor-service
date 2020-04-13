@@ -14,7 +14,7 @@ process.env.OVERNIGHT_LOGGER_RM_TIMESTAMP = 'false';
 // note that it's not active database connection
 // typeorm creates connection pools and uses them for requests
 createConnection()
-  .then(async (connection) => {
+  .then(async () => {
     const server = new CeramicAnchorServer();
 
     await server.buildCtx();

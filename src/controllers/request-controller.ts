@@ -48,7 +48,7 @@ export default class RequestController implements Contextual {
       }
 
       switch (request.status) {
-        case RequestStatus.COMPLETED:
+        case RequestStatus.COMPLETED: {
           const anchor: Anchor = await this.anchorService.findByRequest(request);
 
           return res.status(OK).json({
@@ -68,7 +68,8 @@ export default class RequestController implements Contextual {
               },
             },
           });
-        case RequestStatus.PENDING:
+        }
+        case RequestStatus.PENDING: {
           const interval = parser.parseExpression(config.cronExpression);
 
           return res.status(OK).json({
@@ -81,6 +82,7 @@ export default class RequestController implements Contextual {
             updatedAt: Utils.convertToUnixTimestamp(request.updatedAt),
             scheduledAt: Utils.convertToUnixTimestamp(interval.next().toDate()),
           });
+        }
         case RequestStatus.PROCESSING:
           return res.status(OK).json({
             id: request.id,
@@ -125,7 +127,7 @@ export default class RequestController implements Contextual {
 
       if (docId == null) {
         return res.status(BAD_REQUEST).send({
-          error: "Document ID is empty"
+          error: 'Document ID is empty',
         });
       }
 

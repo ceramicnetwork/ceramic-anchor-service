@@ -1,13 +1,13 @@
-import CID from 'cids'
-import { BaseProvider, Block, TransactionReceipt, TransactionResponse } from "ethers/providers";
+import CID from 'cids';
+import { BaseProvider, Block, TransactionReceipt, TransactionResponse } from 'ethers/providers';
 
-import { ethers, utils } from "ethers";
-import { config } from "node-config-ts";
-import { Logger as logger } from "@overnightjs/logger/lib/Logger";
+import { ethers, utils } from 'ethers';
+import { config } from 'node-config-ts';
+import { Logger as logger } from '@overnightjs/logger/lib/Logger';
 
-import Context from "../../../context";
-import Transaction from "../../../models/transaction";
-import { BlockchainService } from "../blockchain-service";
+import Context from '../../../context';
+import Transaction from '../../../models/transaction';
+import { BlockchainService } from '../blockchain-service';
 
 /**
  * Ethereum blockchain service

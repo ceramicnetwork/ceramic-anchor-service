@@ -39,6 +39,6 @@ export default class Utils {
    * @param date - Date obj
    */
   static convertToUnixTimestamp(date: Date): number {
-    return Math.round(new Date().getTime() / 1000);
+    return Math.round(date.getTime() / 1000);
   }
 }

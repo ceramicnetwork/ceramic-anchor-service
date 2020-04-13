@@ -1,9 +1,8 @@
 import CID from 'cids';
-import Transaction from "../../models/transaction";
-import Contextual from "../../contextual";
+import Transaction from '../../models/transaction';
+import Contextual from '../../contextual';
 
 export interface BlockchainService extends Contextual {
-
   /**
    * Connects to specific blockchain
    */
@@ -13,5 +12,4 @@ export interface BlockchainService extends Contextual {
    * Sends transaction with root CID as data
    */
   sendTransaction(rootCid: CID): Promise<Transaction>;
-
 }

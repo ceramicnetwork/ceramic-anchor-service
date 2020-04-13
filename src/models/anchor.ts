@@ -15,7 +15,7 @@ export class Anchor {
   @PrimaryGeneratedColumn('uuid')
   id: number;
 
-  @OneToOne((type) => Request)
+  @OneToOne(() => Request)
   @JoinColumn({ name: 'request_id ' })
   request: Request;
 
