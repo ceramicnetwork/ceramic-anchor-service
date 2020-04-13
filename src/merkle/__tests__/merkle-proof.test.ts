@@ -1,9 +1,7 @@
-import { assert } from 'chai';
-
 import * as crypto from 'crypto';
 
 import Proof from '../proof';
-import { MergeFunction, Node } from '../merkle';
+import { MergeFunction, Node } from "../merkle";
 import { MerkleTree } from '../merkle-tree';
 
 class StringConcat implements MergeFunction<string> {
@@ -77,7 +75,8 @@ describe('Merkle tree proofs tests', () => {
           `${JSON.stringify(lettersProof, null, 2)}`,
         );
       }
-      assert.equal(hashedProof, root);
+
+      expect(hashedProof).toStrictEqual(root);
     });
   });
 });

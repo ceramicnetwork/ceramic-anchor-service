@@ -1,5 +1,3 @@
-import { assert } from "chai";
-
 import { MergeFunction, Node } from "../merkle";
 import { MerkleTree } from "../merkle-tree";
 
@@ -25,7 +23,7 @@ describe("Merkle tree proof verification", () => {
         const index = leaves.indexOf(leaf);
         const proof = tree.getProof(index);
         const verified = await tree.verifyProof(proof, leaves[index]);
-        assert.equal(verified, true);
+        expect(verified).toBeTruthy();
       });
     });
 
@@ -34,7 +32,7 @@ describe("Merkle tree proof verification", () => {
         test("should not verify the proof", async () => {
           const proof = tree.getProof(2);
           const verified = await tree.verifyProof(proof, leaves[3]);
-          assert.equal(verified, false);
+          expect(verified).toBeFalsy();
         });
       });
     });

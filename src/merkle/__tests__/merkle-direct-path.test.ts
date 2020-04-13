@@ -1,5 +1,3 @@
-import { assert } from 'chai';
-
 import { Node, PathDirection, MergeFunction } from '../merkle';
 import { MerkleTree } from '../merkle-tree';
 
@@ -16,7 +14,7 @@ describe('Merkle tree direct path tests',  () => {
     await merkleTree.build(leaves);
 
     const directPath = await merkleTree.getDirectPathFromRoot(0);
-    assert.deepEqual(directPath, []);
+    expect(directPath).toStrictEqual([]);
   });
 
   test('should handle the case: [A]', async () => {
@@ -25,7 +23,7 @@ describe('Merkle tree direct path tests',  () => {
     await merkleTree.build(leaves);
 
     const directPath = await merkleTree.getDirectPathFromRoot(0);
-    assert.deepEqual(directPath, [PathDirection.L, PathDirection.L]);
+    expect(directPath).toStrictEqual([PathDirection.L, PathDirection.L]);
   });
 
   test('should handle the case: [A]', async () => {
@@ -34,7 +32,7 @@ describe('Merkle tree direct path tests',  () => {
     await merkleTree.build(leaves);
 
     const directPath = await merkleTree.getDirectPathFromRoot(0);
-    assert.deepEqual(directPath, [PathDirection.L, PathDirection.L, PathDirection.L]);
+    expect(directPath).toStrictEqual([PathDirection.L, PathDirection.L, PathDirection.L]);
   });
 
   test('should handle the case: [B]', async () => {
@@ -43,7 +41,7 @@ describe('Merkle tree direct path tests',  () => {
     await merkleTree.build(leaves);
 
     const directPath = await merkleTree.getDirectPathFromRoot(1);
-    assert.deepEqual(directPath, [PathDirection.L, PathDirection.L, PathDirection.R]);
+    expect(directPath).toStrictEqual([PathDirection.L, PathDirection.L, PathDirection.R]);
   });
 
   test('should handle the case: [H]', async () => {
@@ -52,7 +50,7 @@ describe('Merkle tree direct path tests',  () => {
     await merkleTree.build(leaves);
 
     const directPath = await merkleTree.getDirectPathFromRoot(7);
-    assert.deepEqual(directPath, [PathDirection.R, PathDirection.R, PathDirection.R]);
+    expect(directPath).toStrictEqual([PathDirection.R, PathDirection.R, PathDirection.R]);
   });
 
   test('should handle the case: [G]', async () => {
@@ -61,7 +59,7 @@ describe('Merkle tree direct path tests',  () => {
     await merkleTree.build(leaves);
 
     const directPath = await merkleTree.getDirectPathFromRoot(6);
-    assert.deepEqual(directPath, [PathDirection.R, PathDirection.R, PathDirection.L]);
+    expect(directPath).toStrictEqual([PathDirection.R, PathDirection.R, PathDirection.L]);
   });
 
   test('should handle the case: [J]', async () => {
@@ -70,6 +68,6 @@ describe('Merkle tree direct path tests',  () => {
     await merkleTree.build(leaves);
 
     const directPath = await merkleTree.getDirectPathFromRoot(8);
-    assert.deepEqual(directPath, [PathDirection.R]);
+    expect(directPath).toStrictEqual([PathDirection.R]);
   });
 });

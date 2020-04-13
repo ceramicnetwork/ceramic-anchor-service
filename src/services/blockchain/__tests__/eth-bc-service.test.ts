@@ -1,5 +1,3 @@
-import { assert } from 'chai';
-
 import CID from 'cids';
 import Ganache from 'ganache-core'
 
@@ -48,7 +46,7 @@ describe('ETH service',  () => {
     try {
       await ethBc.connect();
     } catch (err) {
-      assert.fail('Failed to connect to local ganache server. Error ' + err)
+      expect(false).toBe(true);
     }
   });
 
@@ -56,10 +54,10 @@ describe('ETH service',  () => {
     try {
       const cid = new CID('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni');
       const tx = await ethBc.sendTransaction(cid);
-      assert.isNotNull(tx);
+      expect(tx).toBeDefined();
       expect(tx).toMatchSnapshot();
     } catch (err) {
-      assert.fail('Failed to send CID to local ganache server. Error ' + err)
+      expect(false).toBe(true);
     }
   });
 
