@@ -1,5 +1,5 @@
 import { Request } from '../models/request';
-import { getManager, UpdateResult } from 'typeorm';
+import { getManager } from 'typeorm';
 
 import CID from 'cids';
 import Context from '../context';

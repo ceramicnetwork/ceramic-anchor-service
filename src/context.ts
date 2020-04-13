@@ -20,7 +20,7 @@ export default class Context {
    * Build context by scanning directories
    * @param paths - directory with classes
    */
-  public async build(...paths: string[]) {
+  public async build(...paths: string[]): Promise<void> {
     for (const dir of paths) {
       const filenames: string[] = await Utils.listDir(path.resolve(__dirname, dir));
       for (const absFilename of filenames) {

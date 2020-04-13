@@ -16,6 +16,7 @@ import { Ipfs } from 'ipfs';
 import ipfsClient from 'ipfs-http-client';
 
 import { config } from 'node-config-ts';
+import { Response } from "express-serve-static-core";
 
 @Controller('api/v0/anchors')
 @ClassMiddleware([cors()])
@@ -34,7 +35,7 @@ export default class AnchorController implements Contextual {
   }
 
   @Get(':number') // TODO - remove TESTING PURPOSES ONLY
-  private async anchor(req: ExpReq, res: ExpRes) {
+  private async anchor(req: ExpReq, res: ExpRes): Promise<Response> {
     try {
       logger.Imp('Create ' + req.params.number + ' CIDs and anchor them to blockchain');
 

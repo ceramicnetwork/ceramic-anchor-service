@@ -20,6 +20,49 @@ import Transaction from '../models/transaction';
 import Utils from '../utils';
 
 /**
+ * Paris CID with docId
+ */
+class CidDocPair {
+  public cid: CID;
+  public docId: string;
+
+  constructor(cid: CID, docId?: string) {
+    this.cid = cid;
+    this.docId = docId;
+  }
+}
+
+/**
+ * Implements IPFS merge CIDs
+ */
+class IpfsMerge implements MergeFunction<CidDocPair> {
+  private ipfs: Ipfs;
+
+  constructor(ipfs: Ipfs) {
+    this.ipfs = ipfs;
+  }
+
+  async merge(left: Node<CidDocPair>, right: Node<CidDocPair>): Promise<Node<CidDocPair>> {
+    const merged = {
+      L: left.data.cid,
+      R: right.data.cid,
+    };
+
+    const mergedCid = await this.ipfs.dag.put(merged);
+    return new Node<CidDocPair>(new CidDocPair(mergedCid), left, right);
+  }
+}
+
+/**
+ * Implements IPFS merge CIDs
+ */
+class IpfsCompare implements CompareFunction<CidDocPair> {
+  compare(left: Node<CidDocPair>, right: Node<CidDocPair>): number {
+    return left.data.docId.localeCompare(right.data.docId);
+  }
+}
+
+/**
  * Anchors CIDs to blockchain
  */
 export default class AnchorService implements Contextual {
@@ -159,51 +202,5 @@ export default class AnchorService implements Contextual {
     const merkleTree: MerkleTree<CidDocPair> = new MerkleTree<CidDocPair>(this.ipfsMerge, this.ipfsCompare);
     await merkleTree.build(pairs);
     return merkleTree;
-  }
-}
-
-/**
- * Paris CID with docId
- */
-// tslint:disable-next-line:max-classes-per-file
-class CidDocPair {
-  public cid: CID;
-  public docId: string;
-
-  constructor(cid: CID, docId?: string) {
-    this.cid = cid;
-    this.docId = docId;
-  }
-}
-
-/**
- * Implements IPFS merge CIDs
- */
-// tslint:disable-next-line:max-classes-per-file
-class IpfsMerge implements MergeFunction<CidDocPair> {
-  private ipfs: Ipfs;
-
-  constructor(ipfs: Ipfs) {
-    this.ipfs = ipfs;
-  }
-
-  async merge(left: Node<CidDocPair>, right: Node<CidDocPair>): Promise<Node<CidDocPair>> {
-    const merged = {
-      L: left.data.cid,
-      R: right.data.cid,
-    };
-
-    const mergedCid = await this.ipfs.dag.put(merged);
-    return new Node<CidDocPair>(new CidDocPair(mergedCid), left, right);
-  }
-}
-
-/**
- * Implements IPFS merge CIDs
- */
-// tslint:disable-next-line:max-classes-per-file
-class IpfsCompare implements CompareFunction<CidDocPair> {
-  compare(left: Node<CidDocPair>, right: Node<CidDocPair>): number {
-    return left.data.docId.localeCompare(right.data.docId);
   }
 }
