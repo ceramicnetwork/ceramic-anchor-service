@@ -10,7 +10,7 @@
       "3box"
    ],
    "scripts": {
-      "test": "./node_modules/.bin/mocha -r ts-node/register src/**/*.test.ts ",
+      "test": "./node_modules/.bin/jest --coverage",
       "coverage": "nyc npm run test",
       "build": "./node_modules/.bin/tsc -p tsconfig.json",
       "format": "prettier --write 'src/**/*{.ts,.tsx,.js}'",
@@ -50,6 +50,10 @@
       "globby": "^11.0.0"
    },
    "devDependencies": {
+      "@babel/core": "^7.9.0",
+      "@babel/preset-env": "^7.8.4",
+      "@babel/preset-typescript": "^7.9.0",
+      "babel-jest": "^25.1.0",
       "@types/chai": "^4.2.11",
       "@types/cors": "^2.8.6",
       "@types/events": "^3.0.0",
@@ -59,7 +63,7 @@
       "@types/uuid": "^7.0.2",
       "chai": "^4.2.0",
       "ipfs": "^0.41.2",
-      "jest": "^25.1.0",
+      "jest": "^25.3.0",
       "mocha": "^7.1.1",
       "node-config-ts": "^3.0.4",
       "nyc": "^15.0.1",
