@@ -16,7 +16,7 @@ import { Ipfs } from 'ipfs';
 import ipfsClient from 'ipfs-http-client';
 
 import { config } from 'node-config-ts';
-import { Response } from "express-serve-static-core";
+import type { Response } from "express-serve-static-core";
 
 @Controller('api/v0/anchors')
 @ClassMiddleware([cors()])
