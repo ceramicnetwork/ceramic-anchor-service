@@ -1,0 +1,10 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ETH service should send CID to local ganache server 1`] = `
+Transaction {
+  "blockNumber": 1,
+  "blockTimestamp": 1586784004,
+  "chain": "eip155:5777",
+  "txHash": "0x7b26bfb3d7514336428e58839e9547c5ce9a37f5d6898839f3ad465a223dc310",
+}
+`;
