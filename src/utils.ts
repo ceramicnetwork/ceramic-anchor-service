@@ -1,15 +1,16 @@
 import CID from 'cids';
-import { promises as fsPromises } from 'fs';
+import globby from 'globby';
 
 import { encode } from 'typestub-multihashes';
 
 export default class Utils {
   /**
-   * List directory files
-   * @param path - Directory path
+   * List directory files recursively
+   * @param dir - Directory path
+   * @return Promise<string[]> - file absolute paths
    */
-  static async listDir(path: string): Promise<string[]> {
-    return fsPromises.readdir(path);
+  static async listDir(dir: string): Promise<string[]> {
+    return globby(`${dir}/**/*`);
   }
 
   /**
@@ -37,7 +38,7 @@ export default class Utils {
    * Converts date to unix timestamp
    * @param date - Date obj
    */
-  static convertToUnixTimestamp(date:Date): number {
-    return Math.round((new Date()).getTime() / 1000);
+  static convertToUnixTimestamp(date: Date): number {
+    return Math.round(date.getTime() / 1000);
   }
 }

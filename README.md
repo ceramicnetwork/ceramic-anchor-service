@@ -55,11 +55,12 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
      {
          "id": "06a483c9-eb73-4e08-a019-7b5665588172",
          "status": "PENDING",
+         "message": "Request is pending.",
          "cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
          "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
-         "createdAt": "2020-04-08T12:46:37.000Z",
-         "updatedAt": "2020-04-08T12:46:37.000Z",
-         "scheduledAt": "2020-04-08T13:00:00.000Z"
+         "createdAt": 1586438625,
+         "updatedAt": 1586438625,
+         "scheduledAt": 1586438625
      }
      ```
 
@@ -94,11 +95,12 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
     {
         "id": "06a483c9-eb73-4e08-a019-7b5665588172",
         "status": "PENDING",
+        "message": "Request is pending.",
         "cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
         "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
-        "createdAt": "2020-04-08T12:10:06.000Z",
-        "updatedAt": "2020-04-08T12:10:07.000Z",
-        "scheduledAt": "2020-04-08T13:00:00.000Z"
+        "createdAt": 1586438625,
+        "updatedAt": 1586438625,
+        "scheduledAt": 1586438625
     }
     ```
 * **Success Response - `PROCESSING`:**
@@ -109,10 +111,27 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
     {
         "id": "06a483c9-eb73-4e08-a019-7b5665588172",
         "status": "PROCESSING",
+        "message": "Request is processing.",
         "cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
         "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
         "createdAt": "2020-04-08T12:10:06.000Z",
         "updatedAt": "2020-04-08T12:10:07.000Z"
+    }
+    ```
+
+* **Success Response - `FAILED`:**
+
+  * **Code:** 200 <br />
+    **Content:** 
+    ```json
+    {
+        "id": "06a483c9-eb73-4e08-a019-7b5665588172",
+        "status": "FAILED",
+        "message": "Request failed. Staled request.",
+        "cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
+        "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
+        "createdAt": 1586438625,
+        "updatedAt": 1586438625
     }
     ```
 
@@ -124,10 +143,11 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
     {
         "id": "06a483c9-eb73-4e08-a019-7b5665588172",
         "status": "COMPLETED",
+        "message": "CID successfully anchored.",
         "cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
         "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
-        "createdAt": "2020-04-08T12:10:06.000Z",
-        "updatedAt": "2020-04-08T12:10:07.000Z",
+        "createdAt": 1586438625,
+        "updatedAt": 1586438625,
         "anchorRecord": {
             "cid": "bafyreicq6rwooyi2dk24p52nutgysi4gpu2lvoeilooekqypk4h4f32wpy",
             "content": {

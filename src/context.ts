@@ -1,6 +1,9 @@
 import * as path from 'path';
 
+import { config } from 'node-config-ts';
+
 import Utils from './utils';
+import { BlockchainService } from './services/blockchain/blockchain-service';
 
 /**
  * Builds application context (services, controllers, etc.)
@@ -17,22 +20,36 @@ export default class Context {
    * Build context by scanning directories
    * @param paths - directory with classes
    */
-  public async build(...paths: string[]) {
+  public async build(...paths: string[]): Promise<void> {
     for (const dir of paths) {
       const filenames: string[] = await Utils.listDir(path.resolve(__dirname, dir));
-      for (const filename of filenames) {
-        if (filename.endsWith('.map')) {
+      for (const absFilename of filenames) {
+        if (absFilename.endsWith('.map')) {
           continue;
         }
-        const absFilename = path.resolve(__dirname, dir, filename);
-        const clazz = require(absFilename).default;
-        this.register(new clazz());
+        try {
+          // get default exported class
+          const clazz = require(absFilename).default;
+          this.register(new clazz());
+        } catch (e) {
+          // do nothing
+        }
       }
     }
 
     for (const item of this.instances.values()) {
       item.setContext(this);
     }
+  }
+
+  /**
+   * Gets the blockchain service instance
+   */
+  public getSelectedBlockchainService(): BlockchainService {
+    const sc = config.blockchain.selectedConnector;
+
+    const className = sc[0].toUpperCase() + sc.slice(1) + 'BlockchainService';
+    return this.lookup<BlockchainService>(className);
   }
 
   /**
@@ -50,10 +67,14 @@ export default class Context {
 
   /**
    * Registers single class instance
+   * @param name - instance name
    * @param instance - Class instance
    */
-  private register<T>(instance: T): void {
-    this.instances.set(instance.constructor.name, instance);
+  private register<T>(instance: T, name?: string): void {
+    if (name == null) {
+      name = instance.constructor.name;
+    }
+    this.instances.set(name, instance);
   }
 
   /**

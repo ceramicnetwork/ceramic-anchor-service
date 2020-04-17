@@ -1,8 +1,5 @@
-import { assert } from 'chai';
-import { describe, it } from 'mocha';
-
-import { MergeFunction, Node, CompareFunction } from '../../src/merkle/merkle';
-import { MerkleTree } from '../../src/merkle/merkle-tree';
+import { MergeFunction, Node, CompareFunction } from '../merkle';
+import { MerkleTree } from '../merkle-tree';
 
 class StringConcat implements MergeFunction<string> {
   async merge(n1: Node<string>, n2: Node<string>): Promise<Node<string>> {
@@ -17,80 +14,80 @@ class StringCompare implements CompareFunction<string> {
   }
 }
 
-describe('Merkle tree layers tests', async () => {
-  it('should handle null case', async () => {
+describe('Merkle tree layers tests',  () => {
+  test('should handle null case', async () => {
     try {
       // tslint:disable-next-line:no-unused-expression
       const merkleTree = new MerkleTree<string>(new StringConcat());
       await merkleTree.build(null);
 
-      assert.fail('Should not happen');
+      expect(false).toBe(true);
     } catch (e) {
-      assert.equal(e.toString(), 'Error: Cannot generate Merkle structure with no elements');
+      expect(e.toString()).toBe('Error: Cannot generate Merkle structure with no elements');
     }
   });
 
-  it('should handle the base case: [A]', async () => {
+  test('should handle the base case: [A]', async () => {
     const leaves = ['A'];
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
 
-    assert.equal(merkleTree.getRoot().data, 'A');
+    expect(merkleTree.getRoot().data).toBe('A');
   });
 
-  it('should create a root from two leaves: [A,B]', async () => {
+  test('should create a root from two leaves: [A,B]', async () => {
     const leaves = ['A', 'B'];
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
 
-    assert.equal(merkleTree.getRoot().data, 'Hash(A + B)');
+    expect(merkleTree.getRoot().data).toBe('Hash(A + B)');
   });
 
-  it('should create a root from four leaves: [A,B,C,D]', async () => {
+  test('should create a root from four leaves: [A,B,C,D]', async () => {
     const leaves = ['A', 'B', 'C', 'D'];
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
 
-    assert.equal(merkleTree.getRoot().data, 'Hash(Hash(A + B) + Hash(C + D))');
+    expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + Hash(C + D))');
   });
 
-  it('should create a root from four leaves: [B,D,A,C]', async () => {
+  test('should create a root from four leaves: [B,D,A,C]', async () => {
     const leaves = ['B', 'D', 'A', 'C'];
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
 
-    assert.equal(merkleTree.getRoot().data, 'Hash(Hash(B + D) + Hash(A + C))');
+    expect(merkleTree.getRoot().data).toBe('Hash(Hash(B + D) + Hash(A + C))');
   });
 
-  it('should create a root from four leaves (sorted): [B,D,A,C]', async () => {
+  test('should create a root from four leaves (sorted): [B,D,A,C]', async () => {
     const leaves = ['B', 'D', 'A', 'C'];
     const merkleTree = new MerkleTree<string>(new StringConcat(), new StringCompare());
     await merkleTree.build(leaves);
 
-    assert.equal(merkleTree.getRoot().data, 'Hash(Hash(A + B) + Hash(C + D))');
+    expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + Hash(C + D))');
   });
 
-  it('should create a root from three leaves: [A,B,C]', async () => {
+  test('should create a root from three leaves: [A,B,C]', async () => {
     const leaves = ['A', 'B', 'C'];
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
 
-    assert.equal(merkleTree.getRoot().data, 'Hash(Hash(A + B) + C)');
+    expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + C)');
   });
 
-  it('should create a root from five leaves: [A,B,C,D,E]', async () => {
+  test('should create a root from five leaves: [A,B,C,D,E]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E'];
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
 
-    assert.equal(merkleTree.getRoot().data, 'Hash(Hash(Hash(A + B) + Hash(C + D)) + E)');
+    expect(merkleTree.getRoot().data).toBe('Hash(Hash(Hash(A + B) + Hash(C + D)) + E)');
   });
 
-  it('should create a root from seven leaves: [A,B,C,D,E,F,G]', async () => {
+  test('should create a root from seven leaves: [A,B,C,D,E,F,G]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
 
-    assert.equal(merkleTree.getRoot().data, 'Hash(Hash(Hash(A + B) + Hash(C + D)) + Hash(Hash(E + F) + G))');
+    expect(merkleTree.getRoot().data).toBe('Hash(Hash(Hash(A + B) + Hash(C + D)) + Hash(Hash(E + F) + G))');
   });
 });
