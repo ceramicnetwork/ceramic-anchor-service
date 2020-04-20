@@ -18,6 +18,14 @@ services:
 #      - "127.0.0.1:8080:8080"
 #      - "127.0.0.1:8081:8081"
 #      - "127.0.0.1:5001:5001"
+  database:
+    image: "postgres" # use latest official postgres version
+    env_file:
+      - database.env # configure postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data/ # persist data even if container shuts down
   ganache:
     image: trufflesuite/ganache-cli:latest
     ports:

@@ -52,7 +52,8 @@
       "typeorm": "^0.2.24",
       "typestub-multibase": "^0.0.5",
       "typestub-multihashes": "^0.0.1",
-      "uuid": "^7.0.3"
+      "uuid": "^7.0.3",
+      "pg": "^8.0.2"
    },
    "devDependencies": {
       "@babel/core": "^7.9.0",
