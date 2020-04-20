@@ -25,3 +25,11 @@ export class Request {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }
+
+/**
+ * Request update  fields
+ */
+export interface RequestUpdateFields {
+  message: string;
+  status: RequestStatus;
+}

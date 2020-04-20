@@ -16,6 +16,7 @@ import { RequestStatus } from '../models/request-status';
 import AnchorService from '../services/anchor-service';
 import { Anchor } from '../models/anchor';
 import Utils from '../utils';
+import { Request } from "../models/request";
 
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
@@ -132,22 +133,28 @@ export default class RequestController implements Contextual {
       }
 
       const cidObj = new CID(cid);
-      const request = await this.requestService.findByCid(cidObj);
+      let request: Request = await this.requestService.findByCid(cidObj);
       if (request != null) {
         return res.status(BAD_REQUEST).send('CID has already been submitted');
       }
 
-      const created = await this.requestService.create(cid, docId);
+      request = new Request();
+      request.cid = cid.toString();
+      request.docId = docId;
+      request.status = RequestStatus.PENDING;
+      request.message = 'Request is pending.';
+
+      request = await this.requestService.createOrUpdate(request);
       const interval = parser.parseExpression(config.cronExpression);
 
       return res.status(CREATED).json({
-        id: created.id,
-        status: RequestStatus[created.status],
-        cid: created.cid,
-        docId: created.docId,
-        message: created.message,
-        createdAt: Utils.convertToUnixTimestamp(created.createdAt),
-        updatedAt: Utils.convertToUnixTimestamp(created.updatedAt),
+        id: request.id,
+        status: RequestStatus[request.status],
+        cid: request.cid,
+        docId: request.docId,
+        message: request.message,
+        createdAt: Utils.convertToUnixTimestamp(request.createdAt),
+        updatedAt: Utils.convertToUnixTimestamp(request.updatedAt),
         scheduledAt: Utils.convertToUnixTimestamp(interval.next().toDate()),
       });
     } catch (err) {
