@@ -24,6 +24,10 @@ export default class RequestController implements Contextual {
   private anchorService: AnchorService;
   private requestService: RequestService;
 
+  /**
+   * Set application context
+   * @param context
+   */
   setContext(context: Context): void {
     this.anchorService = context.lookup('AnchorService');
     this.requestService = context.lookup('RequestService');
@@ -31,7 +35,7 @@ export default class RequestController implements Contextual {
 
   @Get(':cid')
   private async get(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
-    logger.Info(req.params.cid);
+    logger.Info(`Get info for ${req.params.cid}`);
 
     try {
       const cid = new CID(req.params.cid);
@@ -116,7 +120,7 @@ export default class RequestController implements Contextual {
   @Post()
   private async create(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     try {
-      logger.Info(req.body, true);
+      logger.Info(`Create request ${JSON.stringify(req.body)}`);
 
       const { cid, docId } = req.body;
 

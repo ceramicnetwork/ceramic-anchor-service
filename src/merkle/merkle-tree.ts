@@ -73,6 +73,13 @@ export class MerkleTree<T> {
   }
 
   /**
+   * Gets leaves (sorted or not)
+   */
+  public getLeaves(): T[] {
+    return this.levels[0].map(n => n.data);
+  }
+
+  /**
    * Get proof for particular element by index
    * @param elemIndex - Element index
    * @param levelIndex - Level index (defaults to 0)

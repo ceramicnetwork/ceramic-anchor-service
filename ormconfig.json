@@ -8,7 +8,7 @@
    "database": "anchor_db",
    "autoSchemaSync": true,
    "synchronize": true,
-   "logging": true,
+   "logging": false,
    "entities": [
       "build/models/**/*.js"
    ],
