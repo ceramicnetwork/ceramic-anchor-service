@@ -148,13 +148,14 @@ export default class AnchorService implements Contextual {
       }, oldReqs.map(r => r.id));
     }
 
-    const pairs: CidDocPair[] = [];
+    let leaves: CidDocPair[] = [];
     for (const req of validReqs) {
-      pairs.push(new CidDocPair(new CID(req.cid), req.docId));
+      leaves.push(new CidDocPair(new CID(req.cid), req.docId));
     }
 
     // create merkle tree
-    const merkleTree: MerkleTree<CidDocPair> = await this._createMerkleTree(pairs);
+    const merkleTree: MerkleTree<CidDocPair> = await this._createMerkleTree(leaves);
+    leaves = merkleTree.getLeaves();
 
     // make a blockchain transaction
     const tx: Transaction = await this.blockchainService.sendTransaction(merkleTree.getRoot().data.cid);
@@ -173,8 +174,8 @@ export default class AnchorService implements Contextual {
       const ipfsProofCid = await this.ipfs.dag.put(ipfsAnchorProof);
 
       const anchors: Anchor[] = [];
-      for (let index = 0; index < pairs.length; index++) {
-        const request: Request = validReqs[index];
+      for (let index = 0; index < leaves.length; index++) {
+        const request: Request = validReqs.find(r => r.cid === leaves[index].cid.toString());
 
         const anchor: Anchor = new Anchor();
         anchor.request = request;
