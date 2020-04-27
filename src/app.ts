@@ -1,6 +1,5 @@
 import 'reflect-metadata';
-
-require('dotenv').config()
+require('dotenv');
 
 import { LoggerModes } from '@overnightjs/logger';
 

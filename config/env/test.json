@@ -1,22 +1,18 @@
 {
-  "port": "@@APP_PORT",
-  "cronExpression": "@@ANCHOR_SCHEDULE_EXPRESSION",
-  "ipfsConfig": {
-    "host": "@@IPFS_API_URL"
-  },
+  "cronExpression": "*/10 * * * * *",
   "blockchain": {
-    "selectedConnector": "@@BLOCKCHAIN_CONNECTOR",
+    "selectedConnector": "ethereum",
     "connectors": {
       "ethereum": {
-        "network": "@@ETH_NETWORK",
-        "gasLimit": "@@ETH_GAS_LIMIT",
-        "gasPrice": "@@ETH_GAS_PRICE",
+        "network": "ganache",
+        "gasLimit": 4712388,
+        "gasPrice": "100000000000",
         "rpc": {
-          "host": "@@ETH_RPC_HOST",
-          "port": "@@ETH_RPC_PORT"
+          "host": "http://localhost",
+          "port": "6000"
         },
         "account": {
-          "privateKey": "@@ETH_WALLET_PK"
+          "privateKey": "0x06dd0990d19001c57eeea6d32e8fdeee40d3945962caf18c18c3930baa5a6ec9"
         }
       }
     }
