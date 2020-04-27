@@ -5,7 +5,7 @@ version: '3.4'
 # Define services
 services:
 #### Uncomment section bellow if you want to start the latest go-ipfs instance
-
+#
 #  ipfs:
 #    image: ipfs/go-ipfs:latest
 #    environment:
@@ -18,36 +18,61 @@ services:
 #      - "127.0.0.1:8080:8080"
 #      - "127.0.0.1:8081:8081"
 #      - "127.0.0.1:5001:5001"
-  database:
-    image: "postgres" # use latest official postgres version
-    env_file:
-      - database.env # configure postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - ./data/postgres:/var/lib/postgresql/data/ # persist data even if container shuts down
-  ganache:
-    image: trufflesuite/ganache-cli:latest
-    ports:
-      - "8545:8545"
-    volumes:
-      - ./data/ganache:/ganache_data
-    entrypoint:
-      - node
-      - /app/ganache-core.docker.cli.js
-      - --deterministic
-      - --db=/ganache_data
-      - --mnemonic
-      - 'move sense much taxi wave hurry recall stairs thank brother nut woman'
-      - --networkId
-      - '5777'
-      - --hostname
-      - '0.0.0.0'
-      - -l
-      - '80000000'
-      - --quiet
-    networks:
-      - internal
-networks:
-  internal:
-    driver: bridge
+#
+#### Uncomment section bellow if you want to start the Postgres database
+#
+#  database:
+#    image: "postgres" # use latest official postgres version
+#    env_file:
+#      - database.env # configure postgres
+#    ports:
+#      - "5432:5432"
+#    volumes:
+#      - ./data/postgres:/var/lib/postgresql/data/ # persist data even if container shuts down
+#    networks:
+#      - internal
+#
+#### Uncomment section bellow if you want to start the Ganache ethereum blockchain
+#
+#  ganache:
+#    image: trufflesuite/ganache-cli:latest
+#    ports:
+#      - "8545:8545"
+#    volumes:
+#      - ./data/ganache:/ganache_data
+#    entrypoint:
+#      - node
+#      - /app/ganache-core.docker.cli.js
+#      - --deterministic
+#      - --db=/ganache_data
+#      - --mnemonic
+#      - 'move sense much taxi wave hurry recall stairs thank brother nut woman'
+#      - --networkId
+#      - '5777'
+#      - --hostname
+#      - '0.0.0.0'
+#      - -l
+#      - '80000000'
+#      - --quiet
+#    networks:
+#      - internal
+#
+#  localstack:
+#    image: localstack/localstack:latest
+#    container_name: localstack_demo
+#    ports:
+#      - '4563-4584:4563-4584'
+#      - '8055:8080'
+#    environment:
+#      - SERVICES=s3,rds
+#      - DEBUG=1
+#      - DATA_DIR=/tmp/localstack/data
+#    volumes:
+#      - './.localstack:/tmp/localstack'
+#      - '/var/run/docker.sock:/var/run/docker.sock'
+
+#### Uncomment section bellow to enable networks
+#
+#networks:
+#  internal:
+#    driver: bridge

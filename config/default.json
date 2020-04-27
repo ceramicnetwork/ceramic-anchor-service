@@ -1,5 +1,5 @@
 {
-  "port": 3000,
+  "port": 8081,
   "cronExpression": "0 0 */1 * * *",
   "ipfsConfig": {
     "host": "http://localhost:5001"

@@ -38,7 +38,7 @@ export default class CeramicAnchorServer extends Server {
     const schedulerSrv: SchedulerService = this.ctx.lookup('SchedulerService');
     schedulerSrv.start(); // start the scheduler
 
-    port = port || 3000;
+    port = port || 8081;
     this.app.listen(port, () => {
       logger.Imp('Ceramic anchor service started on port ' + port);
     });
