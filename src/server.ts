@@ -27,10 +27,10 @@ export default class CeramicAnchorServer extends Server {
   public async start(port?: number): Promise<void> {
     this.addControllers(this.ctx.getControllers());
 
-    const blockchainService: BlockchainService = this.ctx.getSelectedBlockchainService();
-    await blockchainService.connect();
-
     if (config.mode === "bundled") {
+      const blockchainService: BlockchainService = this.ctx.getSelectedBlockchainService();
+      await blockchainService.connect();
+
       const schedulerSrv: SchedulerService = this.ctx.lookup('SchedulerService');
       schedulerSrv.start(); // start the scheduler
     }
