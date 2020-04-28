@@ -10,7 +10,6 @@ services:
     build:
       context: . # Use an image built from the specified dockerfile in the current directory.
       dockerfile: Dockerfile
-    command: npm start
     restart: unless-stopped
     environment: # Pass environment variables to the service
       - NODE_ENV=dev
