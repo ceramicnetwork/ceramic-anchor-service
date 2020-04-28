@@ -12,7 +12,7 @@ import Contextual from '../contextual';
 
 @Controller('api/v0/healthcheck')
 @ClassMiddleware([cors()])
-export default class RequestController implements Contextual {
+export default class HealthcheckController implements Contextual {
 
   /**
    * Set application context
