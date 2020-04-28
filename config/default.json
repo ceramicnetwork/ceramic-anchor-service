@@ -1,4 +1,5 @@
 {
+  "mode": "server",
   "port": 8081,
   "cronExpression": "0 0 */1 * * *",
   "ipfsConfig": {

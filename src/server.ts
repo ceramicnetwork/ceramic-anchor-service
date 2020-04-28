@@ -6,25 +6,17 @@ import Context from './context';
 import SchedulerService from './services/scheduler-service';
 import { BlockchainService } from './services/blockchain/blockchain-service';
 
+const DEFAULT_SERVER_PORT = 8081;
+
 export default class CeramicAnchorServer extends Server {
   private readonly ctx: Context;
 
-  constructor() {
+  constructor(ctx: Context) {
     super(true);
 
-    this.ctx = new Context();
+    this.ctx = ctx;
     this.app.use(bodyParser.json());
     this.app.use(bodyParser.urlencoded({ extended: true }));
-  }
-
-  /**
-   * Builds application context
-   */
-  public async buildCtx(): Promise<void> {
-    await this.ctx.build('services', 'controllers');
-
-    // registers controllers
-    this.addControllers(this.ctx.getControllers());
   }
 
   /**
@@ -32,15 +24,17 @@ export default class CeramicAnchorServer extends Server {
    * @param port - Server listening port
    */
   public async start(port?: number): Promise<void> {
-    const blockchainSrv: BlockchainService = this.ctx.getSelectedBlockchainService();
-    await blockchainSrv.connect();
+    this.addControllers(this.ctx.getControllers());
+
+    const blockchainService: BlockchainService = this.ctx.getSelectedBlockchainService();
+    await blockchainService.connect();
 
     const schedulerSrv: SchedulerService = this.ctx.lookup('SchedulerService');
     schedulerSrv.start(); // start the scheduler
 
-    port = port || 8081;
+    port = port || DEFAULT_SERVER_PORT;
     this.app.listen(port, () => {
-      logger.Imp('Ceramic anchor service started on port ' + port);
+      logger.Imp(`Ceramic anchor service started on port ${port}`);
     });
   }
 }

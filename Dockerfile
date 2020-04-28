@@ -15,5 +15,3 @@ RUN npm run build
 COPY build ./build
 
 EXPOSE 8081
-
-CMD npm run start

@@ -1,4 +1,6 @@
 {
+  "mode": "@@APP_MODE",
+  "port": "@@APP_PORT",
   "cronExpression": "@@ANCHOR_SCHEDULE_EXPRESSION",
   "ipfsConfig": {
     "host": "@@IPFS_API_URL"
