@@ -18,8 +18,9 @@ import { createConnection } from 'typeorm';
 import Context from "./context";
 import AnchorService from "./services/anchor-service";
 
-const DEFAULT_MODE = 'server';
-
+/**
+ * Ceramic Anchor Service application
+ */
 export default class CeramicAnchorApp {
   private readonly ctx: Context;
 
@@ -31,22 +32,22 @@ export default class CeramicAnchorApp {
    * Start application
    */
   public async start(): Promise<void> {
-    const mode: string = config.mode || DEFAULT_MODE;
+    const mode: string = config.mode;
 
     await this.buildCtx();
 
-    switch (config.mode) {
-      case "server": {
-        return this.startServer();
-      }
-      case "anchor": {
-        return this.executeAnchor();
-      }
-      default: {
-        console.log(`Unknown application mode ${mode}`);
-        process.exit(1);
-      }
+    if (config.mode === 'server') {
+      // start in server mode
+      return this.startServer();
     }
+
+    if (config.mode === 'anchor') {
+      // start in anchor mode (batch anchor processing)
+      return this.executeAnchor();
+    }
+
+    console.log(`Unknown application mode ${mode}`);
+    process.exit(1);
   }
 
   /**

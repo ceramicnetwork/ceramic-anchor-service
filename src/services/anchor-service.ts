@@ -202,7 +202,7 @@ export default class AnchorService implements Contextual {
         message: 'CID successfully anchored.',
       }, validReqs.map(r => r.id), txEntityManager);
 
-      logger.Info(`Service successfully anchored ${validReqs.length} CIDs.`);
+      logger.Imp(`Service successfully anchored ${validReqs.length} CIDs.`);
     });
   }
 

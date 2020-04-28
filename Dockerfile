@@ -6,12 +6,10 @@ ENV CODE_VERSION=${CODE_VERSION}
 
 WORKDIR /ceramic-anchor-service
 
-COPY package.json package-lock.json ./
+COPY . /ceramic-anchor-service
 
 RUN npm install
 
 RUN npm run build
-
-COPY build ./build
 
 EXPOSE 8081

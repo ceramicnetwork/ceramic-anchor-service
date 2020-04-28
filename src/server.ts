@@ -5,6 +5,7 @@ import { Logger as logger } from '@overnightjs/logger';
 import Context from './context';
 import SchedulerService from './services/scheduler-service';
 import { BlockchainService } from './services/blockchain/blockchain-service';
+import { config } from "node-config-ts";
 
 const DEFAULT_SERVER_PORT = 8081;
 
@@ -29,8 +30,10 @@ export default class CeramicAnchorServer extends Server {
     const blockchainService: BlockchainService = this.ctx.getSelectedBlockchainService();
     await blockchainService.connect();
 
-    const schedulerSrv: SchedulerService = this.ctx.lookup('SchedulerService');
-    schedulerSrv.start(); // start the scheduler
+    if (config.mode === "bundled") {
+      const schedulerSrv: SchedulerService = this.ctx.lookup('SchedulerService');
+      schedulerSrv.start(); // start the scheduler
+    }
 
     port = port || DEFAULT_SERVER_PORT;
     this.app.listen(port, () => {

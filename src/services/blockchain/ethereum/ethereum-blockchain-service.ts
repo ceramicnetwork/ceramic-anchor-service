@@ -40,6 +40,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     }
 
     await this.provider.getNetwork();
+    logger.Imp('Connected to ' + config.blockchain.connectors.ethereum.network + ' blockchain.');
   }
 
   /**

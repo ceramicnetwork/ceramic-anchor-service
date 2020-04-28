@@ -59,6 +59,11 @@ export default class Context {
     const controllers: any[] = [];
     for (const key of this.instances.keys()) {
       if (key.endsWith('Controller')) {
+        if (config.mode === 'server' && key === 'InternalController') {
+          // skip adding internal controller for 'server' mode
+          // it's included only for 'bundled' mode
+          continue;
+        }
         controllers.push(this.instances.get(key));
       }
     }
