@@ -17,6 +17,8 @@ import CeramicAnchorServer from './server';
 import { createConnection } from 'typeorm';
 import Context from "./context";
 import AnchorService from "./services/anchor-service";
+import { BlockchainService } from "./services/blockchain/blockchain-service";
+import SchedulerService from "./services/scheduler-service";
 
 /**
  * Ceramic Anchor Service application
@@ -36,14 +38,21 @@ export default class CeramicAnchorApp {
 
     await this.buildCtx();
 
-    if (config.mode === 'server') {
-      // start in server mode
+    if (config.mode === 'server') { // start in server mode
       return this.startServer();
     }
 
-    if (config.mode === 'anchor') {
-      // start in anchor mode (batch anchor processing)
+    const blockchainService: BlockchainService = this.ctx.getSelectedBlockchainService();
+    await blockchainService.connect();
+
+    if (config.mode === 'anchor') { // start in anchor mode (batch anchor processing)
       return this.executeAnchor();
+    }
+
+    if (config.mode === "bundled") { // start in bundled mode (server + anchor)
+      const schedulerSrv: SchedulerService = this.ctx.lookup('SchedulerService');
+      schedulerSrv.start(); // start the scheduler
+      return this.startServer()
     }
 
     console.log(`Unknown application mode ${mode}`);
