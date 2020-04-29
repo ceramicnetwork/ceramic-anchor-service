@@ -34,11 +34,4 @@ export default class Utils {
     return new CID(cidVersion, codec, multihash);
   }
 
-  /**
-   * Converts date to unix timestamp
-   * @param date - Date obj
-   */
-  static convertToUnixTimestamp(date: Date): number {
-    return Math.round(date.getTime() / 1000);
-  }
 }
