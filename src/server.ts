@@ -3,9 +3,6 @@ import { Server } from '@overnightjs/core';
 import { Logger as logger } from '@overnightjs/logger';
 
 import Context from './context';
-import SchedulerService from './services/scheduler-service';
-import { BlockchainService } from './services/blockchain/blockchain-service';
-import { config } from "node-config-ts";
 
 const DEFAULT_SERVER_PORT = 8081;
 
