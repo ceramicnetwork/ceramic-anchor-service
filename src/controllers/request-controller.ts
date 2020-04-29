@@ -15,7 +15,6 @@ import Contextual from '../contextual';
 import { RequestStatus } from '../models/request-status';
 import AnchorService from '../services/anchor-service';
 import { Anchor } from '../models/anchor';
-import Utils from '../utils';
 import { Request } from "../models/request";
 
 @Controller('api/v0/requests')
