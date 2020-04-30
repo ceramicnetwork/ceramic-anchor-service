@@ -34,28 +34,35 @@ export default class CeramicAnchorApp {
    * Start application
    */
   public async start(): Promise<void> {
-    const mode: string = config.mode;
+    const mode: string = config.mode.trim().toLowerCase();
 
     await this.buildCtx();
 
-    if (config.mode === 'server') { // start in server mode
+    if (config.mode === 'server') {
+      // start in server mode
+
       return this.startServer();
     }
 
+    // connect to blockchain
     const blockchainService: BlockchainService = this.ctx.getSelectedBlockchainService();
     await blockchainService.connect();
 
-    if (config.mode === 'anchor') { // start in anchor mode (batch anchor processing)
+    if (config.mode === 'anchor') {
+      // start in anchor mode (batch anchor processing)
+
       return this.executeAnchor();
     }
 
-    if (config.mode === "bundled") { // start in bundled mode (server + anchor)
-      const schedulerSrv: SchedulerService = this.ctx.lookup('SchedulerService');
-      schedulerSrv.start(); // start the scheduler
+    if (config.mode === "bundled") {
+      // start in bundled mode (server + anchor)
+
+      const schedulerService: SchedulerService = this.ctx.lookup('SchedulerService');
+      schedulerService.start(); // start the scheduler
       return this.startServer()
     }
 
-    console.log(`Unknown application mode ${mode}`);
+    logger.Imp(`Unknown application mode ${mode}`);
     process.exit(1);
   }
 
@@ -75,7 +82,7 @@ export default class CeramicAnchorApp {
     // note that it's not active database connection
     // typeorm creates connection pools and uses them for requests
     createConnection().then(async () => await fn()).catch((e) => {
-      console.error(`Failed to start Ceramic Anchor Service. Error ${e.message}`)
+      logger.Err(`Failed to start Ceramic Anchor Service. Error ${e.message}`)
       process.exit(1)
     });
   }
@@ -102,5 +109,5 @@ export default class CeramicAnchorApp {
 }
 
 const app = new CeramicAnchorApp();
-app.start().then(() => console.log("Ceramic Anchor Service started..."));
+app.start().then(() => logger.Imp("Ceramic Anchor Service started..."));
 
