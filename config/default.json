@@ -1,5 +1,5 @@
 {
-  "mode": "server",
+  "mode": "bundled",
   "port": 8081,
   "cronExpression": "0 0 */1 * * *",
   "ipfsConfig": {
