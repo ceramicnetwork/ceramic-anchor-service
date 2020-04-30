@@ -59,11 +59,6 @@ export default class Context {
     const controllers: any[] = [];
     for (const key of this.instances.keys()) {
       if (key.endsWith('Controller')) {
-        if (config.mode === 'server' && key === 'InternalController') {
-          // skip adding internal controller for 'server' mode
-          // it's included only for 'bundled' mode
-          continue;
-        }
         controllers.push(this.instances.get(key));
       }
     }
@@ -79,6 +74,34 @@ export default class Context {
     if (name == null) {
       name = instance.constructor.name;
     }
+
+    // put exclusion in conf
+    if (config.mode === 'server') {
+      if (name === 'InternalController') {
+        // skip adding internal controller for 'server' mode
+        // it's included only for 'bundled' mode
+        return;
+      }
+
+      if (name === 'AnchorService' || name === 'SchedulerService') {
+        // skip adding services for 'server' mode
+        return
+      }
+    }
+
+    // put exclusion in conf
+    if (config.mode === 'anchor') {
+      if (name.endsWith('Controller')) {
+        // skip adding controllers for 'anchor' mode
+        return;
+      }
+
+      if (name === 'SchedulerService') {
+        // skip adding services for 'server' mode
+        return
+      }
+    }
+
     this.instances.set(name, instance);
   }
 

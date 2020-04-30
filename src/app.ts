@@ -41,7 +41,9 @@ export default class CeramicAnchorApp {
     if (config.mode === 'server') {
       // start in server mode
 
-      return this.startServer();
+      await this.startServer();
+      logger.Imp(`Ceramic Anchor Service started in server mode`);
+      return;
     }
 
     // connect to blockchain
@@ -51,7 +53,9 @@ export default class CeramicAnchorApp {
     if (config.mode === 'anchor') {
       // start in anchor mode (batch anchor processing)
 
-      return this.executeAnchor();
+      await this.executeAnchor();
+      logger.Imp(`Ceramic Anchor Service started in anchor mode`);
+      return;
     }
 
     if (config.mode === "bundled") {
@@ -59,7 +63,9 @@ export default class CeramicAnchorApp {
 
       const schedulerService: SchedulerService = this.ctx.lookup('SchedulerService');
       schedulerService.start(); // start the scheduler
-      return this.startServer()
+      await this.startServer();
+      logger.Imp(`Ceramic Anchor Service started in bundled mode`);
+      return;
     }
 
     logger.Imp(`Unknown application mode ${mode}`);
