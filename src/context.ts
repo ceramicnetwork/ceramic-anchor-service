@@ -82,11 +82,6 @@ export default class Context {
         // it's included only for 'bundled' mode
         return false;
       }
-
-      if (name === 'AnchorService' || name === 'SchedulerService') {
-        // skip adding services for 'server' mode
-        return false;
-      }
     }
 
     // put exclusion in conf
@@ -94,11 +89,6 @@ export default class Context {
       if (name.endsWith('Controller')) {
         // skip adding controllers for 'anchor' mode
         return false;
-      }
-
-      if (name === 'SchedulerService') {
-        // skip adding services for 'server' mode
-        return false
       }
     }
 
