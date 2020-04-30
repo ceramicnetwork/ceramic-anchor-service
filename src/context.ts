@@ -70,7 +70,7 @@ export default class Context {
    * @param name - instance name
    * @param instance - Class instance
    */
-  private register<T>(instance: T, name?: string): void {
+  private register<T>(instance: T, name?: string): boolean {
     if (name == null) {
       name = instance.constructor.name;
     }
@@ -80,12 +80,12 @@ export default class Context {
       if (name === 'InternalController') {
         // skip adding internal controller for 'server' mode
         // it's included only for 'bundled' mode
-        return;
+        return false;
       }
 
       if (name === 'AnchorService' || name === 'SchedulerService') {
         // skip adding services for 'server' mode
-        return
+        return false;
       }
     }
 
@@ -93,16 +93,17 @@ export default class Context {
     if (config.mode === 'anchor') {
       if (name.endsWith('Controller')) {
         // skip adding controllers for 'anchor' mode
-        return;
+        return false;
       }
 
       if (name === 'SchedulerService') {
         // skip adding services for 'server' mode
-        return
+        return false
       }
     }
 
     this.instances.set(name, instance);
+    return true
   }
 
   /**
