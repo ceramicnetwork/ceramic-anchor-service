@@ -74,7 +74,7 @@ export default class RequestService implements Contextual {
   public async findNextToProcess(providedManager?: EntityManager): Promise<Request[]> {
     const manager = providedManager ? providedManager : getManager();
 
-    const now: number = new Date().getUTCMilliseconds();
+    const now: number = new Date().getTime();
     const deadlineDate = new Date(now - config.expirationPeriod);
 
     return await manager.getRepository(Request)
