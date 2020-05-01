@@ -61,8 +61,8 @@ export default class RequestController implements Contextual {
             cid: request.cid,
             docId: request.docId,
             message: request.message,
-            createdAt: request.createdAt.getTime(),
-            updatedAt: request.updatedAt.getTime(),
+            createdAt: request.createdAt.getUTCMilliseconds(),
+            updatedAt: request.updatedAt.getUTCMilliseconds(),
             anchorRecord: {
               cid: anchor.cid,
               content: {
@@ -82,9 +82,9 @@ export default class RequestController implements Contextual {
             cid: request.cid,
             docId: request.docId,
             message: request.message,
-            createdAt: request.createdAt.getTime(),
-            updatedAt: request.updatedAt.getTime(),
-            scheduledAt: interval.next().toDate().getTime(),
+            createdAt: request.createdAt.getUTCMilliseconds(),
+            updatedAt: request.updatedAt.getUTCMilliseconds(),
+            scheduledAt: interval.next().toDate().getUTCMilliseconds(),
           });
         }
         case RequestStatus.PROCESSING:
@@ -94,8 +94,8 @@ export default class RequestController implements Contextual {
             cid: request.cid,
             docId: request.docId,
             message: request.message,
-            createdAt: request.createdAt.getTime(),
-            updatedAt: request.updatedAt.getTime(),
+            createdAt: request.createdAt.getUTCMilliseconds(),
+            updatedAt: request.updatedAt.getUTCMilliseconds(),
           });
         case RequestStatus.FAILED:
           return res.status(OK).json({
@@ -104,8 +104,8 @@ export default class RequestController implements Contextual {
             cid: request.cid,
             docId: request.docId,
             message: request.message,
-            createdAt: request.createdAt.getTime(),
-            updatedAt: request.updatedAt.getTime(),
+            createdAt: request.createdAt.getUTCMilliseconds(),
+            updatedAt: request.updatedAt.getUTCMilliseconds(),
           });
       }
     } catch (err) {
@@ -156,9 +156,9 @@ export default class RequestController implements Contextual {
         cid: request.cid,
         docId: request.docId,
         message: request.message,
-        createdAt: request.createdAt.getTime(),
-        updatedAt: request.updatedAt.getTime(),
-        scheduledAt: interval.next().toDate().getTime(),
+        createdAt: request.createdAt.getUTCMilliseconds(),
+        updatedAt: request.updatedAt.getUTCMilliseconds(),
+        scheduledAt: interval.next().toDate().getUTCMilliseconds(),
       });
     } catch (err) {
       Logger.Err(err, true);

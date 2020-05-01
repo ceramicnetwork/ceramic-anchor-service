@@ -107,7 +107,7 @@ export default class AnchorService implements Contextual {
   public async anchorRequests(): Promise<void> {
     let reqs: Request[] = [];
     await getManager().transaction(async txEntityManager => {
-      reqs = await this.requestService.findByStatus(RS.PENDING, txEntityManager);
+      reqs = await this.requestService.findNextToProcess(txEntityManager);
       if (reqs.length === 0) {
         return;
       }

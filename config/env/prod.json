@@ -2,6 +2,7 @@
   "mode": "@@APP_MODE",
   "port": "@@APP_PORT",
   "cronExpression": "@@ANCHOR_SCHEDULE_EXPRESSION",
+  "expirationPeriod": "@@ANCHOR_EXPIRATION_PERIOD",
   "ipfsConfig": {
     "host": "@@IPFS_API_URL"
   },
@@ -10,6 +11,7 @@
     "connectors": {
       "ethereum": {
         "network": "@@ETH_NETWORK",
+        "overrideGasConfig": "@@ETH_OVERRIDE_GAS_CONFIG",
         "gasLimit": "@@ETH_GAS_LIMIT",
         "gasPrice": "@@ETH_GAS_PRICE",
         "rpc": {

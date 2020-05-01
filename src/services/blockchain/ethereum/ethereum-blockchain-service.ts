@@ -55,11 +55,22 @@ export default class EthereumBlockchainService implements BlockchainService {
 
     const { network } = config.blockchain.connectors.ethereum;
     logger.Imp(`Sending transaction to Ethereum ${network} network...`);
+
+    const txData = {
+      to: wallet.address,
+      data: hexEncoded,
+    };
+
+    if (config.blockchain.connectors.ethereum.overrideGasConfig) {
+      Object.assign(txData, {
+        gasLimit: +config.blockchain.connectors.ethereum.gasLimit,
+        gasPrice: utils.bigNumberify(config.blockchain.connectors.ethereum.gasPrice),
+      });
+    }
+
     const txResponse: TransactionResponse = await wallet.sendTransaction({
       to: wallet.address,
       data: hexEncoded,
-      gasLimit: +config.blockchain.connectors.ethereum.gasLimit,
-      gasPrice: utils.bigNumberify(config.blockchain.connectors.ethereum.gasPrice),
     });
 
     const txReceipt: TransactionReceipt = await this.provider.waitForTransaction(txResponse.hash);
