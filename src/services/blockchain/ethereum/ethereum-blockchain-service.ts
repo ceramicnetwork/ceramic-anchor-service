@@ -68,10 +68,7 @@ export default class EthereumBlockchainService implements BlockchainService {
       });
     }
 
-    const txResponse: TransactionResponse = await wallet.sendTransaction({
-      to: wallet.address,
-      data: hexEncoded,
-    });
+    const txResponse: TransactionResponse = await wallet.sendTransaction(txData);
 
     const txReceipt: TransactionReceipt = await this.provider.waitForTransaction(txResponse.hash);
     const block: Block = await this.provider.getBlock(txReceipt.blockHash);
