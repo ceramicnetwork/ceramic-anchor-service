@@ -24,8 +24,12 @@ jobs:
             npm i
 
       - run:
+          name: build cas
+          command: sudo npm run build
+
+      - run:
           name: test
-          command: npm test && codecov
+          command: npm run test && codecov
 
       - run:
           name: lint
