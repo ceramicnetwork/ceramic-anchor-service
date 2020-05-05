@@ -1,0 +1,117 @@
+version: 2.1
+
+orbs:
+  aws-ecr: circleci/aws-ecr@6.8.1
+  aws-cli: circleci/aws-cli@1.0.0
+  slack: circleci/slack@3.4.2
+
+jobs:
+  test:
+    working_directory: ~/ceramic-anchor-service
+    docker:
+      - image: circleci/node:10
+    steps:
+      - checkout
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+            - dependencies-cache-{{ checksum "package.json" }}
+
+      - run:
+          name: install dependencies
+          command: |
+            sudo npm i -g  codecov node-gyp
+            npm i
+
+      - run:
+          name: test
+          command: npm test && codecov
+
+      - run:
+          name: lint
+          command: npm run lint
+
+      - run:
+          name: code-coverage
+          command: bash <(curl -s https://codecov.io/bash)
+
+      - save_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+          paths:
+            - ./node_modules
+
+  deploy-dev:
+    working_directory: ~/ceramic-anchor-service
+    docker:
+      - image: circleci/python:3.7.1
+    environment:
+      AWS_PAGER: ''
+    steps:
+      - aws-cli/install
+      - aws-cli/setup
+      - run:
+          name: Deploy CAS API Service
+          command: aws ecs update-service --force-new-deployment --cluster  cas-ecs-cluster-dev  --service cas-api-ecs-service-dev
+      - run:
+          name: Deploy CAS Anchor Service
+          command: aws ecs update-service --force-new-deployment --cluster  cas-ecs-cluster-dev  --service cas-anchor-ecs-service-dev
+
+  deploy-prod:
+    working_directory: ~/3box-pinning-server
+    docker:
+      - image: circleci/python:3.7.1
+    environment:
+      AWS_PAGER: ''
+    steps:
+      - aws-cli/install
+      - aws-cli/setup
+      - run:
+          name: Deploy CAS API Service
+          command: aws ecs update-service --force-new-deployment --cluster cas-ecs-cluster-prod  --service cas-api-ecs-service-prod
+      - run:
+          name: Deploy CAS Anchor Service
+          command: aws ecs update-service --force-new-deployment --cluster cas-ecs-cluster-prod  --service cas-anchor-ecs-service-prod
+
+workflows:
+  build-deploy:
+    jobs:
+      - test
+      - aws-ecr/build-and-push-image:
+          name: push-dev-image
+          repo: ceramic-anchor-service
+          tag: develop
+          requires:
+            - test
+          extra-build-args: --build-arg CODE_VERSION=${CIRCLE_SHA1:0:7}
+          filters:
+            branches:
+              only: develop
+      - aws-ecr/build-and-push-image:
+          name: push-prod-image
+          repo: ceramic-anchor-service
+          tag: latest
+          requires:
+            - test
+          extra-build-args: --build-arg CODE_VERSION=${CIRCLE_SHA1:0:7}
+          filters:
+            branches:
+              only: master
+      - deploy-dev:
+          requires:
+            - push-dev-image
+          filters:
+            branches:
+              only: develop
+      - run-smoke-test:
+          requires:
+            - deploy-dev
+          filters:
+            branches:
+              only: develop
+      - deploy-prod:
+          requires:
+            - push-prod-image
+          filters:
+            branches:
+              only: master
