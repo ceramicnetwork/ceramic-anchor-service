@@ -10,7 +10,7 @@
       "3box"
    ],
    "scripts": {
-      "test": "./node_modules/.bin/jest",
+      "test": "./node_modules/.bin/jest --forceExit --detectOpenHandles --coverage --runInBand",
       "coverage": "nyc npm run test",
       "build": "./node_modules/.bin/tsc -p tsconfig.json",
       "format": "prettier --write 'src/**/*{.ts,.tsx,.js}'",
@@ -85,6 +85,7 @@
       "prettier": "^2.0.2",
       "sqlite3": "^4.1.1",
       "tmp-promise": "^2.0.2",
+      "ts-jest": "^25.4.0",
       "ts-node": "^8.8.1",
       "tsconfig-paths": "^3.9.0",
       "typescript": "^3.8.3"
