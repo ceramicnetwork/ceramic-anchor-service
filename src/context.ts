@@ -70,11 +70,30 @@ export default class Context {
    * @param name - instance name
    * @param instance - Class instance
    */
-  private register<T>(instance: T, name?: string): void {
+  private register<T>(instance: T, name?: string): boolean {
     if (name == null) {
       name = instance.constructor.name;
     }
+
+    // put exclusion in conf
+    if (config.mode === 'server') {
+      if (name === 'InternalController') {
+        // skip adding internal controller for 'server' mode
+        // it's included only for 'bundled' mode
+        return false;
+      }
+    }
+
+    // put exclusion in conf
+    if (config.mode === 'anchor') {
+      if (name.endsWith('Controller')) {
+        // skip adding controllers for 'anchor' mode
+        return false;
+      }
+    }
+
     this.instances.set(name, instance);
+    return true
   }
 
   /**

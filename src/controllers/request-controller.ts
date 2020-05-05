@@ -15,7 +15,6 @@ import Contextual from '../contextual';
 import { RequestStatus } from '../models/request-status';
 import AnchorService from '../services/anchor-service';
 import { Anchor } from '../models/anchor';
-import Utils from '../utils';
 import { Request } from "../models/request";
 
 @Controller('api/v0/requests')
@@ -62,8 +61,8 @@ export default class RequestController implements Contextual {
             cid: request.cid,
             docId: request.docId,
             message: request.message,
-            createdAt: Utils.convertToUnixTimestamp(request.createdAt),
-            updatedAt: Utils.convertToUnixTimestamp(request.updatedAt),
+            createdAt: request.createdAt.getTime(),
+            updatedAt: request.updatedAt.getTime(),
             anchorRecord: {
               cid: anchor.cid,
               content: {
@@ -83,9 +82,9 @@ export default class RequestController implements Contextual {
             cid: request.cid,
             docId: request.docId,
             message: request.message,
-            createdAt: Utils.convertToUnixTimestamp(request.createdAt),
-            updatedAt: Utils.convertToUnixTimestamp(request.updatedAt),
-            scheduledAt: Utils.convertToUnixTimestamp(interval.next().toDate()),
+            createdAt: request.createdAt.getTime(),
+            updatedAt: request.updatedAt.getTime(),
+            scheduledAt: interval.next().toDate().getTime(),
           });
         }
         case RequestStatus.PROCESSING:
@@ -95,8 +94,8 @@ export default class RequestController implements Contextual {
             cid: request.cid,
             docId: request.docId,
             message: request.message,
-            createdAt: Utils.convertToUnixTimestamp(request.createdAt),
-            updatedAt: Utils.convertToUnixTimestamp(request.updatedAt),
+            createdAt: request.createdAt.getTime(),
+            updatedAt: request.updatedAt.getTime(),
           });
         case RequestStatus.FAILED:
           return res.status(OK).json({
@@ -105,8 +104,8 @@ export default class RequestController implements Contextual {
             cid: request.cid,
             docId: request.docId,
             message: request.message,
-            createdAt: Utils.convertToUnixTimestamp(request.createdAt),
-            updatedAt: Utils.convertToUnixTimestamp(request.updatedAt),
+            createdAt: request.createdAt.getTime(),
+            updatedAt: request.updatedAt.getTime(),
           });
       }
     } catch (err) {
@@ -157,9 +156,9 @@ export default class RequestController implements Contextual {
         cid: request.cid,
         docId: request.docId,
         message: request.message,
-        createdAt: Utils.convertToUnixTimestamp(request.createdAt),
-        updatedAt: Utils.convertToUnixTimestamp(request.updatedAt),
-        scheduledAt: Utils.convertToUnixTimestamp(interval.next().toDate()),
+        createdAt: request.createdAt.getTime(),
+        updatedAt: request.updatedAt.getTime(),
+        scheduledAt: interval.next().toDate().getTime(),
       });
     } catch (err) {
       Logger.Err(err, true);

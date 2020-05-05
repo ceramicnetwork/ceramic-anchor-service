@@ -5,27 +5,67 @@ version: '3.4'
 # Define services
 services:
 #### Uncomment section bellow if you want to start the latest go-ipfs instance
-
-#  ipfs:
-#    image: ipfs/go-ipfs:latest
-#    environment:
-#      - IPFS_PROFILE=server
-#      - IPFS_PATH=/ipfsdata
-#    volumes:
-#      - ./data/ipfs:/ipfsdata
-#    ports:
-#      - "4001:4001"
-#      - "127.0.0.1:8080:8080"
-#      - "127.0.0.1:8081:8081"
-#      - "127.0.0.1:5001:5001"
-  database:
-    image: "postgres" # use latest official postgres version
-    env_file:
-      - database.env # configure postgres
-    ports:
-      - "5432:5432"
+  cas:
+    # Configuration for building the docker image for the service
+    build:
+      context: . # Use an image built from the specified dockerfile in the current directory.
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment: # Pass environment variables to the service
+      - NODE_ENV=dev
+      - APP_MODE=server
+      - APP_PORT=8081
+      - ANCHOR_SCHEDULE_EXPRESSION=0 0 */1 * * *
+      - IPFS_API_URL=ipfs:5001
+      - BLOCKCHAIN_CONNECTOR=ethereum
+      - ETH_NETWORK=ganache
+      - ETH_GAS_LIMIT=4712388
+      - ETH_GAS_PRICE=100000000000
+      - ETH_RPC_HOST=http://ganache
+      - ETH_RPC_PORT=8545
+      - ETH_WALLET_PK=0x06dd0990d19001c57eeea6d32e8fdeee40d3945962caf18c18c3930baa5a6ec9
+      - TYPEORM_CONNECTION=sqlite
+      - TYPEORM_HOST=localhost
+      - TYPEORM_USERNAME=root
+      - TYPEORM_PASSWORD=root
+      - TYPEORM_DATABASE=./anchor.db.sq3
+      - TYPEORM_PORT=5432
+      - TYPEORM_SYNCHRONIZE=true
+      - TYPEORM_LOGGING=true
+      - TYPEORM_ENTITIES=build/models/**/*.js
+    depends_on:
+      - ipfs
+      - ganache
+    networks:
+      - internal
+  ipfs:
+    image: ipfs/go-ipfs:latest
+    hostname: ipfs_host
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data/ # persist data even if container shuts down
+      - "./export:/export"
+      - "./data/ipfs:/data/ipfs"
+    ports:
+      - "5001:5001"
+      - "4001:4001"
+      - "8080:8080"
+    networks:
+      - internal
+#
+#### Uncomment section bellow if you want to start the Postgres database
+#
+#  database:
+#    image: "postgres" # use latest official postgres version
+#    env_file:
+#      - database.env # configure postgres
+#    ports:
+#      - "5432:5432"
+#    volumes:
+#      - ./data/postgres:/var/lib/postgresql/data/ # persist data even if container shuts down
+#    networks:
+#      - internal
+#
+#### Uncomment section bellow if you want to start the Ganache ethereum blockchain
+#
   ganache:
     image: trufflesuite/ganache-cli:latest
     ports:
@@ -48,6 +88,23 @@ services:
       - --quiet
     networks:
       - internal
+#
+#  localstack:
+#    image: localstack/localstack:latest
+#    container_name: localstack_demo
+#    ports:
+#      - '4563-4584:4563-4584'
+#      - '8055:8080'
+#    environment:
+#      - SERVICES=s3,rds
+#      - DEBUG=1
+#      - DATA_DIR=/tmp/localstack/data
+#    volumes:
+#      - './.localstack:/tmp/localstack'
+#      - '/var/run/docker.sock:/var/run/docker.sock'
+
+#### Uncomment section bellow to enable networks
+#
 networks:
   internal:
     driver: bridge

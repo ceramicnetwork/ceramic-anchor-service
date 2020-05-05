@@ -40,6 +40,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     }
 
     await this.provider.getNetwork();
+    logger.Imp('Connected to ' + config.blockchain.connectors.ethereum.network + ' blockchain.');
   }
 
   /**
@@ -54,12 +55,20 @@ export default class EthereumBlockchainService implements BlockchainService {
 
     const { network } = config.blockchain.connectors.ethereum;
     logger.Imp(`Sending transaction to Ethereum ${network} network...`);
-    const txResponse: TransactionResponse = await wallet.sendTransaction({
+
+    const txData = {
       to: wallet.address,
       data: hexEncoded,
-      gasLimit: config.blockchain.connectors.ethereum.gasLimit,
-      gasPrice: utils.bigNumberify(config.blockchain.connectors.ethereum.gasPrice),
-    });
+    };
+
+    if (config.blockchain.connectors.ethereum.overrideGasConfig) {
+      Object.assign(txData, {
+        gasLimit: +config.blockchain.connectors.ethereum.gasLimit,
+        gasPrice: utils.bigNumberify(config.blockchain.connectors.ethereum.gasPrice),
+      });
+    }
+
+    const txResponse: TransactionResponse = await wallet.sendTransaction(txData);
 
     const txReceipt: TransactionReceipt = await this.provider.waitForTransaction(txResponse.hash);
     const block: Block = await this.provider.getBlock(txReceipt.blockHash);

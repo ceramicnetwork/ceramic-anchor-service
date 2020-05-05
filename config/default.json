@@ -1,6 +1,8 @@
 {
-  "port": 3000,
+  "mode": "bundled",
+  "port": 8081,
   "cronExpression": "0 0 */1 * * *",
+  "expirationPeriod": 5400000,
   "ipfsConfig": {
     "host": "http://localhost:5001"
   },
@@ -9,6 +11,7 @@
     "connectors": {
       "ethereum": {
         "network": "ganache",
+        "overrideGasConfig": false,
         "gasLimit": 4712388,
         "gasPrice": "100000000000",
         "rpc": {

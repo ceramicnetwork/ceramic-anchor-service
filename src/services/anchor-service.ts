@@ -107,7 +107,7 @@ export default class AnchorService implements Contextual {
   public async anchorRequests(): Promise<void> {
     let reqs: Request[] = [];
     await getManager().transaction(async txEntityManager => {
-      reqs = await this.requestService.findByStatus(RS.PENDING, txEntityManager);
+      reqs = await this.requestService.findNextToProcess(txEntityManager);
       if (reqs.length === 0) {
         return;
       }
@@ -202,7 +202,7 @@ export default class AnchorService implements Contextual {
         message: 'CID successfully anchored.',
       }, validReqs.map(r => r.id), txEntityManager);
 
-      logger.Info(`Service successfully anchored ${validReqs.length} CIDs.`);
+      logger.Imp(`Service successfully anchored ${validReqs.length} CIDs.`);
     });
   }
 
