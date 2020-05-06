@@ -60,29 +60,13 @@ jobs:
           name: Deploy CAS Anchor Service
           command: aws ecs update-service --force-new-deployment --cluster  cas-ecs-cluster-dev  --service cas-anchor-ecs-service-dev
 
-  deploy-prod:
-    working_directory: ~/3box-pinning-server
-    docker:
-      - image: circleci/python:3.7.1
-    environment:
-      AWS_PAGER: ''
-    steps:
-      - aws-cli/install
-      - aws-cli/setup
-      - run:
-          name: Deploy CAS API Service
-          command: aws ecs update-service --force-new-deployment --cluster cas-ecs-cluster-prod  --service cas-api-ecs-service-prod
-      - run:
-          name: Deploy CAS Anchor Service
-          command: aws ecs update-service --force-new-deployment --cluster cas-ecs-cluster-prod  --service cas-anchor-ecs-service-prod
-
 workflows:
   build-deploy:
     jobs:
       - test
       - aws-ecr/build-and-push-image:
           name: push-dev-image
-          repo: ceramic-anchor-service
+          repo: cas
           tag: develop
           requires:
             - test
@@ -90,25 +74,9 @@ workflows:
           filters:
             branches:
               only: develop
-      - aws-ecr/build-and-push-image:
-          name: push-prod-image
-          repo: ceramic-anchor-service
-          tag: latest
-          requires:
-            - test
-          extra-build-args: --build-arg CODE_VERSION=${CIRCLE_SHA1:0:7}
-          filters:
-            branches:
-              only: master
       - deploy-dev:
           requires:
             - push-dev-image
           filters:
             branches:
               only: develop
-      - deploy-prod:
-          requires:
-            - push-prod-image
-          filters:
-            branches:
-              only: master
