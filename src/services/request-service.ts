@@ -1,65 +1,105 @@
-import { Request } from '../models/request';
-import { getManager } from 'typeorm';
+import { Request, RequestUpdateFields } from "../models/request";
+import {
+  EntityManager,
+  getManager,
+  InsertResult,
+  UpdateResult
+} from "typeorm";
 
-import CID from 'cids';
-import Context from '../context';
-import { RequestStatus } from '../models/request-status';
-import Contextual from '../contextual';
+import CID from "cids";
+import Context from "../context";
+import { RequestStatus } from "../models/request-status";
+import Contextual from "../contextual";
+import { config } from "node-config-ts";
 
 export default class RequestService implements Contextual {
   private ctx: Context;
 
+  /**
+   * Set application context
+   * @param context
+   */
   setContext(context: Context): void {
     this.ctx = context;
   }
 
   /**
-   * Creates new client request
-   * @param cid - CID info
-   * @param docId - Genesis document ID
+   * Create/updates client request
+   * @param request - Request
+   * @param providedManager - Provided EntityManager instance
    */
-  public async create(cid: string, docId: string): Promise<Request> {
-    const req: Request = new Request();
-    req.cid = cid;
-    req.docId = docId;
-    req.status = RequestStatus.PENDING;
-    req.message = 'Request is pending.';
+  public async createOrUpdate(request: Request, providedManager?: EntityManager): Promise<Request> {
+    const manager = providedManager ? providedManager : getManager();
 
-    const reqRepository = getManager().getRepository(Request);
-    return reqRepository.save(req);
+    return manager.getRepository(Request).save(request);
   }
 
   /**
-   * Updates client request
-   * @param request - Request
+   * Creates client requests
+   * @param requests - Requests
+   * @param providedManager - Provided EntityManager instance
    */
-  public async save(request: Request): Promise<Request> {
-    const reqRepository = getManager().getRepository(Request);
-    return reqRepository.save(request);
+  public async insert(requests: Array<Request>, providedManager?: EntityManager): Promise<InsertResult> {
+    const manager = providedManager ? providedManager : getManager();
+
+    return manager.getRepository(Request)
+      .createQueryBuilder()
+      .insert()
+      .into(Request)
+      .values(requests)
+      .execute();
+  }
+
+  /**
+   * Create/updates client requests
+   * @param ids - Request IDs
+   * @param fields - Fields to update
+   * @param providedManager - Provided EntityManager instance
+   */
+  public async update(fields: RequestUpdateFields, ids: number[], providedManager?: EntityManager): Promise<UpdateResult> {
+    const manager = providedManager ? providedManager : getManager();
+
+    return manager.getRepository(Request)
+      .createQueryBuilder()
+      .update(Request)
+      .set(fields)
+      .whereInIds(ids)
+      .execute();
   }
 
   /**
    * Gets all requests by status
-   * @param status - Status of the client request
+   * @param providedManager - Provided EntityManager instance
    */
-  public async findByStatus(status: RequestStatus): Promise<Request[]> {
-    return await getManager()
-      .getRepository(Request)
-      .createQueryBuilder('request')
-      .orderBy('request.createdAt', 'DESC')
-      .where('request.status = :status', { status })
+  public async findNextToProcess(providedManager?: EntityManager): Promise<Request[]> {
+    const manager = providedManager ? providedManager : getManager();
+
+    const now: number = new Date().getTime();
+    const deadlineDate = new Date(now - config.expirationPeriod);
+
+    return await manager.getRepository(Request)
+      .createQueryBuilder("request")
+      .orderBy("request.createdAt", "DESC")
+      .where("request.status = :pendingStatus", { pendingStatus: RequestStatus.PENDING })
+      .orWhere("request.status = :processingStatus AND request.updatedAt > :deadlineDate",
+        {
+          processingStatus: RequestStatus.PROCESSING,
+          deadlineDate
+        })
       .getMany();
   }
 
   /**
    * Creates new client request
    * @param cid: Client request CID
+   * @param providedManager - Provided EntityManager instance
    */
-  public async findByCid(cid: CID): Promise<Request> {
-    return await getManager()
-      .getRepository(Request)
-      .createQueryBuilder('request')
-      .where('request.cid = :cid', { cid: cid.toString() })
+  public async findByCid(cid: CID, providedManager?: EntityManager): Promise<Request> {
+    const manager = providedManager ? providedManager : getManager();
+
+    return await manager.getRepository(Request)
+      .createQueryBuilder("request")
+      .where("request.cid = :cid", { cid: cid.toString() })
       .getOne();
   }
 }

@@ -105,13 +105,22 @@ export default class AnchorService implements Contextual {
    * Creates anchors for client requests
    */
   public async anchorRequests(): Promise<void> {
-    const reqs = await this.requestService.findByStatus(RS.PENDING);
+    let reqs: Request[] = [];
+    await getManager().transaction(async txEntityManager => {
+      reqs = await this.requestService.findNextToProcess(txEntityManager);
+      if (reqs.length === 0) {
+        return;
+      }
+      await this.requestService.update({
+        status: RS.PROCESSING,
+        message: 'Request is processing.'
+      }, reqs.map(r => r.id), txEntityManager);
+    });
+
     if (reqs.length === 0) {
       logger.Info('No pending CID requests found. Skipping anchor.');
       return;
     }
-    // set to processing
-    await this.updateReqs(RS.PROCESSING, 'Request is processing.', ...reqs);
 
     // filter old updates for same docIds
     const docReqMapping = new Map<string, Request>();
@@ -130,67 +139,71 @@ export default class AnchorService implements Contextual {
     }
 
     const oldReqs = reqs.filter((r) => !validReqs.includes(r));
-    await this.updateReqs(RS.FAILED, 'Request failed. Staled request.', ...oldReqs);
 
-    const pairs: CidDocPair[] = [];
+    if (oldReqs.length > 0) {
+      // update failed requests
+      await this.requestService.update({
+        status: RS.FAILED,
+        message: 'Request failed. Staled request.',
+      }, oldReqs.map(r => r.id));
+    }
+
+    let leaves: CidDocPair[] = [];
     for (const req of validReqs) {
-      pairs.push(new CidDocPair(new CID(req.cid), req.docId));
+      leaves.push(new CidDocPair(new CID(req.cid), req.docId));
     }
 
     // create merkle tree
-    const merkleTree: MerkleTree<CidDocPair> = await this._createMerkleTree(pairs);
+    const merkleTree: MerkleTree<CidDocPair> = await this._createMerkleTree(leaves);
+    leaves = merkleTree.getLeaves();
 
     // make a blockchain transaction
     const tx: Transaction = await this.blockchainService.sendTransaction(merkleTree.getRoot().data.cid);
     const txHashCid = Utils.convertEthHashToCid('eth-tx', tx.txHash.slice(2));
 
-    const anchorRepository = getManager().getRepository(Anchor);
-    const ipfsAnchorProof = {
-      blockNumber: tx.blockNumber,
-      blockTimestamp: tx.blockTimestamp,
-      root: merkleTree.getRoot().data.cid,
-      chainId: tx.chain,
-      txHash: txHashCid,
-    };
-    const ipfsProofCid = await this.ipfs.dag.put(ipfsAnchorProof);
-
-    for (let index = 0; index < pairs.length; index++) {
-      const request: Request = reqs[index];
-
-      const anchor: Anchor = new Anchor();
-      anchor.request = request;
-      anchor.proofCid = ipfsProofCid.toString();
-
-      const path = await merkleTree.getDirectPathFromRoot(index);
-      anchor.path = path.map((p) => PathDirection[p].toString()).join('/');
-
-      const ipfsAnchorRecord = {
-        prev: new CID(request.cid),
-        proof: ipfsProofCid,
-        path: anchor.path,
+    // run in transaction
+    await getManager().transaction(async txEntityManager => {
+      const anchorRepository = txEntityManager.getRepository(Anchor);
+      const ipfsAnchorProof = {
+        blockNumber: tx.blockNumber,
+        blockTimestamp: tx.blockTimestamp,
+        root: merkleTree.getRoot().data.cid,
+        chainId: tx.chain,
+        txHash: txHashCid,
       };
-      const anchorCid = await this.ipfs.dag.put(ipfsAnchorRecord);
+      const ipfsProofCid = await this.ipfs.dag.put(ipfsAnchorProof);
 
-      anchor.cid = anchorCid.toString();
-      await anchorRepository.save(anchor);
-      await this.updateReqs(RS.COMPLETED, 'CID successfully anchored.', request);
-    }
+      const anchors: Anchor[] = [];
+      for (let index = 0; index < leaves.length; index++) {
+        const request: Request = validReqs.find(r => r.cid === leaves[index].cid.toString());
 
-    logger.Info('Anchoring successfully completed.');
-  }
+        const anchor: Anchor = new Anchor();
+        anchor.request = request;
+        anchor.proofCid = ipfsProofCid.toString();
 
-  /**
-   * Updates one or more requests
-   * @param reqs - one or more requests
-   * @param status - request status
-   * @param message - request message
-   */
-  private async updateReqs(status: RS, message: string, ...reqs: Request[]): Promise<void> {
-    for (const req of reqs) {
-      req.status = status;
-      req.message = message;
-      await this.requestService.save(req);
-    }
+        const path = await merkleTree.getDirectPathFromRoot(index);
+        anchor.path = path.map((p) => PathDirection[p].toString()).join('/');
+
+        const ipfsAnchorRecord = {
+          prev: new CID(request.cid),
+          proof: ipfsProofCid,
+          path: anchor.path,
+        };
+        const anchorCid = await this.ipfs.dag.put(ipfsAnchorRecord);
+
+        anchor.cid = anchorCid.toString();
+        anchors.push(anchor);
+      }
+      // create anchor records
+      await anchorRepository.save(anchors);
+
+      await this.requestService.update({
+        status: RS.COMPLETED,
+        message: 'CID successfully anchored.',
+      }, validReqs.map(r => r.id), txEntityManager);
+
+      logger.Imp(`Service successfully anchored ${validReqs.length} CIDs.`);
+    });
   }
 
   /**

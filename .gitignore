@@ -10,3 +10,4 @@ coverage
 lib
 config/Config.d.ts
 data
+.env

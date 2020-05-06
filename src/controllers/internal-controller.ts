@@ -17,10 +17,12 @@ import ipfsClient from 'ipfs-http-client';
 
 import { config } from 'node-config-ts';
 import type { Response } from "express-serve-static-core";
+import { Request } from "../models/request";
+import { RequestStatus } from "../models/request-status";
 
-@Controller('api/v0/anchors')
+@Controller('api/v0/internal')
 @ClassMiddleware([cors()])
-export default class AnchorController implements Contextual {
+export default class InternalController implements Contextual {
   private anchorService: AnchorService;
   private requestService: RequestService;
   private ipfs: Ipfs;
@@ -29,29 +31,59 @@ export default class AnchorController implements Contextual {
     this.ipfs = ipfsClient(config.ipfsConfig.host);
   }
 
+  /**
+   * Set application context
+   * @param context - app context
+   */
   setContext(context: Context): void {
     this.anchorService = context.lookup('AnchorService');
     this.requestService = context.lookup('RequestService');
   }
 
-  @Get(':number') // TODO - remove TESTING PURPOSES ONLY
-  private async anchor(req: ExpReq, res: ExpRes): Promise<Response> {
+  @Get(':number')
+  private async create(req: ExpReq, res: ExpRes): Promise<Response> {
     try {
-      logger.Imp('Create ' + req.params.number + ' CIDs and anchor them to blockchain');
+      logger.Imp(`Create ${req.params.number} updates`);
 
+      const requests: Request[] = [];
       for (let i = 0; i < +req.params.number; i++) {
         const cid = await this.ipfs.dag.put({
-          test: 'test_' + uuid() + i,
+          someField: 'some_value_' + uuid(),
         });
 
-        const docId = 'doc_' + uuid();
-        await this.requestService.create(cid.string, docId);
+        const docId = 'some_doc_' + uuid();
+
+        const request: Request = new Request();
+        request.cid = cid.toString();
+        request.docId = docId;
+        request.status = RequestStatus.PENDING;
+        request.message = 'Request is pending.';
+
+        requests.push(request);
       }
+
+      await this.requestService.insert(requests);
+
+      return res.status(OK).json({
+        message: `generated ${req.params.number} updates`,
+      });
+    } catch (err) {
+      Logger.Err(err, true);
+      return res.status(BAD_REQUEST).json({
+        error: err.message,
+      });
+    }
+  }
+
+  @Get()
+  private async anchor(req: ExpReq, res: ExpRes): Promise<Response> {
+    try {
+      logger.Imp('Create anchors');
 
       await this.anchorService.anchorRequests();
 
       return res.status(OK).json({
-        message: 'generated and anchored',
+        message: 'anchored pending documents',
       });
     } catch (err) {
       Logger.Err(err, true);

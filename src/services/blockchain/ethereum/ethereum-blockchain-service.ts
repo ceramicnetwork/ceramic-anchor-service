@@ -40,6 +40,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     }
 
     await this.provider.getNetwork();
+    logger.Imp('Connected to ' + config.blockchain.connectors.ethereum.network + ' blockchain.');
   }
 
   /**
@@ -48,19 +49,33 @@ export default class EthereumBlockchainService implements BlockchainService {
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
     const wallet = new ethers.Wallet(config.blockchain.connectors.ethereum.account.privateKey, this.provider);
 
-    const hexEncoded = '0x' + rootCid.toBaseEncodedString('base16');
+    const rootStrHex = rootCid.toString('base16');
+    const hexEncoded = '0x' + (rootStrHex.length % 2 == 0 ? rootStrHex : '0' + rootStrHex);
+    logger.Imp(`Hex encoded root CID ${hexEncoded}`);
 
-    const txResponse: TransactionResponse = await wallet.sendTransaction({
+    const { network } = config.blockchain.connectors.ethereum;
+    logger.Imp(`Sending transaction to Ethereum ${network} network...`);
+
+    const txData = {
       to: wallet.address,
       data: hexEncoded,
-      gasLimit: config.blockchain.connectors.ethereum.gasLimit,
-      gasPrice: utils.bigNumberify(config.blockchain.connectors.ethereum.gasPrice),
-    });
+    };
+
+    if (config.blockchain.connectors.ethereum.overrideGasConfig) {
+      Object.assign(txData, {
+        gasLimit: +config.blockchain.connectors.ethereum.gasLimit,
+        gasPrice: utils.bigNumberify(config.blockchain.connectors.ethereum.gasPrice),
+      });
+    }
+
+    const txResponse: TransactionResponse = await wallet.sendTransaction(txData);
 
     const txReceipt: TransactionReceipt = await this.provider.waitForTransaction(txResponse.hash);
     const block: Block = await this.provider.getBlock(txReceipt.blockHash);
 
     const caip2ChainId = 'eip155:' + txResponse.chainId;
+
+    logger.Imp(`Transaction successfully written to Ethereum ${network} network. Transaction hash ${txReceipt.transactionHash}`);
     return new Transaction(caip2ChainId, txReceipt.transactionHash, txReceipt.blockNumber, block.timestamp);
   }
 }

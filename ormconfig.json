@@ -1,7 +1,11 @@
 {
    "name": "default",
-   "type": "sqlite",
-   "database": "./anchor.db.sq3",
+   "type": "postgres",
+   "host": "localhost",
+   "port": 5432,
+   "username": "root",
+   "password": "root",
+   "database": "anchor_db",
    "autoSchemaSync": true,
    "synchronize": true,
    "logging": true,

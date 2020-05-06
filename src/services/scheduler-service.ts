@@ -13,6 +13,10 @@ import Contextual from '../contextual';
 export default class SchedulerService implements Contextual {
   private anchorService: AnchorService;
 
+  /**
+   * Set application context
+   * @param context
+   */
   setContext(context: Context): void {
     this.anchorService = context.lookup('AnchorService');
   }
