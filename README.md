@@ -194,6 +194,9 @@ In order to run tests with coverage run:
 
 ```npm run coverage```
 
+## Maintainers
+[@simonovic86](https://github.com/simonovic86)
+
 ## Built With
 
 * [Node.js - v13.7.0](https://nodejs.org)
