@@ -36,7 +36,7 @@
       "cors": "^2.8.5",
       "cron-parser": "^2.13.0",
       "ejs": "^2.6.1",
-      "ethers": "^4.0.46",
+      "ethers": "^4.0.47",
       "ethers-typescript-typings": "0.0.4",
       "express": "^4.17.1",
       "express-async-handler": "^1.1.4",
