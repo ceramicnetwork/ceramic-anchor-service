@@ -54,7 +54,7 @@
       "typestub-multihashes": "^0.0.1",
       "uuid": "^7.0.3",
       "pg": "^8.0.2",
-      "dotenv": "^6.2.0",
+      "dotenv": "^8.2.0",
       "os-utils": "latest"
    },
    "devDependencies": {
