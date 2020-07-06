@@ -51,7 +51,7 @@
       "simple-color-print": "^1.0.4",
       "typeorm": "^0.2.25",
       "typestub-multibase": "^0.0.5",
-      "typestub-multihashes": "^0.0.1",
+      "typestub-multihashes": "^0.0.4",
       "uuid": "^8.1.0",
       "pg": "^8.2.1",
       "dotenv": "^8.2.0",
