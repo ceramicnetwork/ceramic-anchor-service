@@ -14,6 +14,7 @@ let ganacheServer: any = null;
 let ethBc: BlockchainService = null;
 
 describe('ETH service',  () => {
+  jest.setTimeout(25000)
   beforeAll(async (done) => {
     ctx = new Context();
 
