@@ -1,4 +1,6 @@
 # Ceramic anchor service - PoC
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fceramicnetwork%2Fceramic-anchor-service.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fceramicnetwork%2Fceramic-anchor-service?ref=badge_shield)
+
 
 Ceramic anchor service is a PoC of anchor service according to the Ceramic [specification](https://github.com/ceramicnetwork/specs).
 
@@ -207,6 +209,9 @@ In order to run tests with coverage run:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fceramicnetwork%2Fceramic-anchor-service.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fceramicnetwork%2Fceramic-anchor-service?ref=badge_large)
+
 ## Team
 
-Built with  <img src="./resources/heart.png" width="20"/>  from [3Box](https://3box.io) team. 
+Built with  <img src="./resources/heart.png" width="20"/>  from [3Box](https://3box.io) team.
