@@ -53,7 +53,7 @@
       "typestub-multibase": "^0.0.5",
       "typestub-multihashes": "^0.0.4",
       "uuid": "^8.2.0",
-      "pg": "^8.3.0",
+      "pg": "^8.3.3",
       "dotenv": "^8.2.0",
       "os-utils": "latest"
    },
