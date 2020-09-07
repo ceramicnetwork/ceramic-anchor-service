@@ -30,7 +30,7 @@ describe('ETH service',  () => {
       debug: true,
       blockTime: 2,
       // eslint-disable-next-line @typescript-eslint/camelcase
-      network_id: 5777,
+      network_id: 1337,
     });
 
     const localPort = config.blockchain.connectors.ethereum.rpc.port;
