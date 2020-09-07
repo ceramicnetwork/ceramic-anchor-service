@@ -14,6 +14,7 @@ let ganacheServer: any = null;
 let ethBc: BlockchainService = null;
 
 describe('ETH service',  () => {
+  jest.setTimeout(25000)
   beforeAll(async (done) => {
     ctx = new Context();
 
@@ -28,7 +29,8 @@ describe('ETH service',  () => {
       default_balance_ether: 100,
       debug: true,
       blockTime: 2,
-      networkId: 5777,
+      // eslint-disable-next-line @typescript-eslint/camelcase
+      network_id: 1337,
     });
 
     const localPort = config.blockchain.connectors.ethereum.rpc.port;
@@ -49,16 +51,16 @@ describe('ETH service',  () => {
     }
   });
 
-  // test('should send CID to local ganache server', async () => {
-  //   try {
-  //     const cid = new CID('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni');
-  //     const tx = await ethBc.sendTransaction(cid);
-  //     expect(tx).toBeDefined();
-  //     expect(tx).toMatchSnapshot();
-  //   } catch (err) {
-  //     expect(false).toBe(true);
-  //   }
-  // });
+  test('should send CID to local ganache server', async () => {
+    try {
+      const cid = new CID('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni');
+      const tx = await ethBc.sendTransaction(cid);
+      expect(tx).toBeDefined();
+      expect(tx).toMatchSnapshot();
+    } catch (err) {
+      expect(false).toBe(true);
+    }
+  });
 
   afterAll(async (done) => {
     logger.Imp(`Closing local Ethereum blockchain instance...`);
