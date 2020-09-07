@@ -43,7 +43,7 @@
       "express-validator": "^6.6.1",
       "globby": "^11.0.1",
       "http-status-codes": "^2.1.2",
-      "ipfs-http-client": "^45.0.0",
+      "ipfs-http-client": "^46.0.1",
       "multihashes": "^3.0.1",
       "node-cron": "^2.0.3",
       "reflect-metadata": "^0.1.10",
