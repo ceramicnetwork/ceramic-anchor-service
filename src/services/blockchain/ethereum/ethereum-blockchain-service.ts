@@ -1,7 +1,8 @@
 import CID from 'cids';
-import { BaseProvider, Block, TransactionReceipt, TransactionResponse } from 'ethers/providers';
 
-import { ethers, utils } from 'ethers';
+import * as providers from "@ethersproject/providers"
+
+import { BigNumber, ethers } from "ethers";
 import { config } from 'node-config-ts';
 import { Logger as logger } from '@overnightjs/logger/lib/Logger';
 
@@ -14,7 +15,7 @@ import { BlockchainService } from '../blockchain-service';
  */
 export default class EthereumBlockchainService implements BlockchainService {
   private ctx: Context;
-  private provider: BaseProvider;
+  private provider: providers.BaseProvider;
 
   /**
    * Set application context
@@ -64,14 +65,14 @@ export default class EthereumBlockchainService implements BlockchainService {
     if (config.blockchain.connectors.ethereum.overrideGasConfig) {
       Object.assign(txData, {
         gasLimit: +config.blockchain.connectors.ethereum.gasLimit,
-        gasPrice: utils.bigNumberify(config.blockchain.connectors.ethereum.gasPrice),
+        gasPrice: BigNumber.from(config.blockchain.connectors.ethereum.gasPrice),
       });
     }
 
-    const txResponse: TransactionResponse = await wallet.sendTransaction(txData);
+    const txResponse: providers.TransactionResponse = await wallet.sendTransaction(txData);
 
-    const txReceipt: TransactionReceipt = await this.provider.waitForTransaction(txResponse.hash);
-    const block: Block = await this.provider.getBlock(txReceipt.blockHash);
+    const txReceipt: providers.TransactionReceipt = await this.provider.waitForTransaction(txResponse.hash);
+    const block: providers.Block = await this.provider.getBlock(txReceipt.blockHash);
 
     const caip2ChainId = 'eip155:' + txResponse.chainId;
 
