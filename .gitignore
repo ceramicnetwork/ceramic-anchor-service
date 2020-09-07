@@ -11,3 +11,4 @@ lib
 config/Config.d.ts
 data
 .env
+store.db
