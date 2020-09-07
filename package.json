@@ -40,7 +40,7 @@
       "express": "^4.17.1",
       "express-async-handler": "^1.1.4",
       "express-promise-router": "^4.0.1",
-      "express-validator": "^6.6.0",
+      "express-validator": "^6.6.1",
       "globby": "^11.0.1",
       "http-status-codes": "^2.1.2",
       "ipfs-http-client": "^45.0.0",
