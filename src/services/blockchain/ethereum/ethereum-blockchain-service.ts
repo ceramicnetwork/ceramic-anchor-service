@@ -35,9 +35,9 @@ export default class EthereumBlockchainService implements BlockchainService {
     if (network === 'ganache') {
       const { host, port } = config.blockchain.connectors.ethereum.rpc;
       const url = `${host}:${port}`;
-      this.provider = new providers.JsonRpcProvider(url);
+      this.provider = new ethers.providers.JsonRpcProvider(url);
     } else {
-      this.provider = providers.getDefaultProvider(network);
+      this.provider = ethers.getDefaultProvider(network);
     }
 
     await this.provider.getNetwork();

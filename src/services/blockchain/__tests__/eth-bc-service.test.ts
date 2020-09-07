@@ -58,6 +58,7 @@ describe('ETH service',  () => {
       expect(tx).toBeDefined();
       expect(tx).toMatchSnapshot();
     } catch (err) {
+      console.error(err)
       expect(false).toBe(true);
     }
   });
