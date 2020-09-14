@@ -1,4 +1,4 @@
-FROM node:12
+FROM node:10
 
 ARG CODE_VERSION="00000"
 
@@ -9,6 +9,8 @@ WORKDIR /ceramic-anchor-service
 COPY . /ceramic-anchor-service
 
 RUN npm install
+
+RUN npm run postinstall
 
 RUN npm run build
 
