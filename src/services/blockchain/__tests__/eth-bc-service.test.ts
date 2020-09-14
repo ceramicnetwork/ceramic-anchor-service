@@ -14,6 +14,7 @@ let ganacheServer: any = null;
 let ethBc: BlockchainService = null;
 
 describe('ETH service',  () => {
+  jest.setTimeout(25000)
   beforeAll(async (done) => {
     ctx = new Context();
 
@@ -29,7 +30,7 @@ describe('ETH service',  () => {
       debug: true,
       blockTime: 2,
       // eslint-disable-next-line @typescript-eslint/camelcase
-      network_id: 5777,
+      network_id: 1337,
     });
 
     const localPort = config.blockchain.connectors.ethereum.rpc.port;
