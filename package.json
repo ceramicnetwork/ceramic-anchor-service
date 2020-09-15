@@ -48,7 +48,7 @@
       "node-cron": "^2.0.3",
       "reflect-metadata": "^0.1.10",
       "simple-color-print": "^1.0.4",
-      "typeorm": "^0.2.25",
+      "typeorm": "^0.2.26",
       "typestub-multibase": "^0.0.5",
       "typestub-multihashes": "^0.0.4",
       "uuid": "^8.3.0",
