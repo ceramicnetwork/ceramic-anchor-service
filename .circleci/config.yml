@@ -67,7 +67,7 @@ workflows:
       - aws-ecr/build-and-push-image:
           name: push-dev-image
           repo: cas
-          tag: latest
+          tag: develop
           requires:
             - test
           extra-build-args: --build-arg CODE_VERSION=${CIRCLE_SHA1:0:7}
