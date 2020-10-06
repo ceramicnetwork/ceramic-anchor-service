@@ -51,7 +51,7 @@
       "typeorm": "^0.2.28",
       "typestub-multibase": "^0.0.5",
       "typestub-multihashes": "^0.0.4",
-      "uuid": "^8.3.0",
+      "uuid": "^8.3.1",
       "pg": "^8.4.0",
       "dotenv": "^8.2.0",
       "os-utils": "latest"
