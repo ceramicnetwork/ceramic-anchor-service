@@ -9,6 +9,12 @@ import ipfsClient from 'ipfs-http-client';
 import { Logger as logger } from '@overnightjs/logger';
 import { RequestStatus as RS } from '../models/request-status';
 
+import dagJose from 'dag-jose'
+// @ts-ignore
+import multiformats from 'multiformats/basics'
+// @ts-ignore
+import legacy from 'multiformats/legacy'
+
 import { config } from 'node-config-ts';
 import { CompareFunction, MergeFunction, Node, PathDirection } from '../merkle/merkle';
 import { MerkleTree } from '../merkle/merkle-tree';
@@ -66,7 +72,7 @@ class IpfsCompare implements CompareFunction<CidDocPair> {
  * Anchors CIDs to blockchain
  */
 export default class AnchorService implements Contextual {
-  private readonly ipfs: Ipfs;
+  public ipfs: Ipfs;
   private readonly ipfsMerge: IpfsMerge;
   private readonly ipfsCompare: IpfsCompare;
 
@@ -74,9 +80,18 @@ export default class AnchorService implements Contextual {
   private blockchainService: BlockchainService;
 
   constructor() {
-    this.ipfs = ipfsClient(config.ipfsConfig.host);
     this.ipfsMerge = new IpfsMerge(this.ipfs);
     this.ipfsCompare = new IpfsCompare();
+  }
+
+  /**
+   * Initialize the service
+   */
+  public async init(): Promise<void> {
+    multiformats.multicodec.add(dagJose);
+    const format = legacy(multiformats, dagJose.name);
+
+    this.ipfs = ipfsClient({ url: config.ipfsConfig.host, ipld: { formats: [format] } })
   }
 
   /**

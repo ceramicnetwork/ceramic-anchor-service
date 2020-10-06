@@ -52,6 +52,8 @@ export default class CeramicAnchorApp {
 
     if (config.mode === 'anchor') {
       // start in anchor mode (batch anchor processing)
+      const anchorService: AnchorService = this.ctx.lookup('AnchorService');
+      await anchorService.init();
 
       await this.executeAnchor();
       logger.Imp(`Ceramic Anchor Service started in anchor mode`);
@@ -61,6 +63,8 @@ export default class CeramicAnchorApp {
     if (config.mode === "bundled") {
       // start in bundled mode (server + anchor)
 
+      const anchorService: AnchorService = this.ctx.lookup('AnchorService');
+      await anchorService.init();
       const schedulerService: SchedulerService = this.ctx.lookup('SchedulerService');
       schedulerService.start(); // start the scheduler
       await this.startServer();
@@ -88,7 +92,7 @@ export default class CeramicAnchorApp {
     // note that it's not active database connection
     // typeorm creates connection pools and uses them for requests
     createConnection().then(async () => await fn()).catch((e) => {
-      logger.Err(`Failed to start Ceramic Anchor Service. Error ${e.message}`)
+      logger.Err(`Failed to start Ceramic Anchor Service. Error ${e.message}`);
       process.exit(1)
     });
   }
