@@ -6,7 +6,7 @@ orbs:
 
 jobs:
   test:
-    working_directory: ~/ceramic-anchor-service
+    working_directory: ~/cas
     docker:
       - image: circleci/node:12
     steps:
@@ -45,7 +45,7 @@ jobs:
             - ./node_modules
 
   deploy-dev:
-    working_directory: ~/ceramic-anchor-service
+    working_directory: ~/cas
     docker:
       - image: circleci/python:3.7.1
     environment:

@@ -4,11 +4,13 @@ ARG CODE_VERSION="00000"
 
 ENV CODE_VERSION=${CODE_VERSION}
 
-WORKDIR /ceramic-anchor-service
+WORKDIR /cas
 
-COPY . /ceramic-anchor-service
+COPY . /cas
 
 RUN npm install
+
+RUN npm run postinstall
 
 RUN npm run build
 
