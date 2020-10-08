@@ -73,16 +73,11 @@ class IpfsCompare implements CompareFunction<CidDocPair> {
  */
 export default class AnchorService implements Contextual {
   public ipfs: Ipfs;
-  private readonly ipfsMerge: IpfsMerge;
-  private readonly ipfsCompare: IpfsCompare;
+  private ipfsMerge: IpfsMerge;
+  private ipfsCompare: IpfsCompare;
 
   private requestService: RequestService;
   private blockchainService: BlockchainService;
-
-  constructor() {
-    this.ipfsMerge = new IpfsMerge(this.ipfs);
-    this.ipfsCompare = new IpfsCompare();
-  }
 
   /**
    * Initialize the service
@@ -92,6 +87,8 @@ export default class AnchorService implements Contextual {
     const format = legacy(multiformats, dagJose.name);
 
     this.ipfs = ipfsClient({ url: config.ipfsConfig.host, ipld: { formats: [format] } })
+    this.ipfsMerge = new IpfsMerge(this.ipfs);
+    this.ipfsCompare = new IpfsCompare();
   }
 
   /**
