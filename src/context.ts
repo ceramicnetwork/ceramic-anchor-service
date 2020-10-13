@@ -76,15 +76,6 @@ export default class Context {
     }
 
     // put exclusion in conf
-    if (config.mode === 'server') {
-      if (name === 'InternalController') {
-        // skip adding internal controller for 'server' mode
-        // it's included only for 'bundled' mode
-        return false;
-      }
-    }
-
-    // put exclusion in conf
     if (config.mode === 'anchor') {
       if (name.endsWith('Controller')) {
         // skip adding controllers for 'anchor' mode
