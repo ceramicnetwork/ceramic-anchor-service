@@ -57,7 +57,7 @@
       "dotenv": "^8.2.0",
       "os-utils": "^0.0.14",
       "dag-jose": "^0.3.0",
-      "multiformats": "^3.0.3"
+      "multiformats": "^4.2.0"
    },
    "devDependencies": {
       "@babel/core": "^7.9.0",
