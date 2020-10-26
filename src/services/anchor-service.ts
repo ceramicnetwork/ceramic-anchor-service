@@ -6,6 +6,7 @@ import Contextual from '../contextual';
 import CID from 'cids';
 import { Ipfs } from 'ipfs';
 import ipfsClient from 'ipfs-http-client';
+import { DoctypeUtils } from '@ceramicnetwork/ceramic-common';
 import { Logger as logger } from '@overnightjs/logger';
 import { RequestStatus as RS } from '../models/request-status';
 
@@ -135,29 +136,16 @@ export default class AnchorService implements Contextual {
     }
 
     // filter old updates for same docIds
-    const docReqMapping = new Map<string, Request>();
-    for (const req of reqs) {
-      const old = docReqMapping.get(req.docId);
-      if (old == null) {
-        docReqMapping.set(req.docId, req);
-        continue;
-      }
-      docReqMapping.set(req.docId, old.createdAt < req.createdAt ? req : old);
-    }
+    const docReqMapping = await this._filterByDocs(reqs);
+    const validReqs: Request[] = Object.values(docReqMapping);
+    const discardedReqs = reqs.filter((r) => !validReqs.includes(r));
 
-    const validReqs: Request[] = [];
-    for (const req of docReqMapping.values()) {
-      validReqs.push(req);
-    }
-
-    const oldReqs = reqs.filter((r) => !validReqs.includes(r));
-
-    if (oldReqs.length > 0) {
-      // update failed requests
+    if (discardedReqs.length > 0) {
+      // update discarded requests
       await this.requestService.update({
         status: RS.FAILED,
-        message: 'Request failed. Staled request.',
-      }, oldReqs.map(r => r.id));
+        message: 'Request has failed. There are newer requests for the same docId or the request is invalid.',
+      }, discardedReqs.map(r => r.id));
     }
 
     let leaves: CidDocPair[] = [];
@@ -216,6 +204,45 @@ export default class AnchorService implements Contextual {
 
       logger.Imp(`Service successfully anchored ${validReqs.length} CIDs.`);
     });
+  }
+
+  /**
+   * Filter requests by document and nonces
+   * @private
+   */
+  async _filterByDocs(requests: Request[]): Promise<Record<string, Request>> {
+    const result: Record<string, Request> = {};
+
+    const groupedByDocIds = requests.reduce( (r: Record<string, Request[]>, a: Request) => {
+      r[a.docId] = r[a.docId] || [];
+      r[a.docId].push(a);
+      return r;
+    }, {});
+
+    for (const docId of Object.keys(groupedByDocIds)) {
+      const groupedReqs = groupedByDocIds[docId];
+
+      let nonce = 0;
+      let selectedReq = null;
+
+      for (const req of groupedReqs) {
+        const anchorRecord = (await this.ipfs.dag.get(req.cid)).value;
+
+        let currentNonce;
+        if (DoctypeUtils.isSignedRecord(anchorRecord)) {
+          const payload = (await this.ipfs.dag.get(anchorRecord.link)).value();
+          currentNonce = payload.header?.nonce || 0
+        } else {
+          currentNonce = anchorRecord.header?.nonce || 0
+        }
+        if (selectedReq == null || currentNonce > nonce) {
+          selectedReq = req;
+          nonce = currentNonce;
+        }
+      }
+      result[selectedReq.docId] = selectedReq
+    }
+    return result
   }
 
   /**
