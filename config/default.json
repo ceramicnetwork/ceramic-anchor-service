@@ -7,7 +7,7 @@
     "host": "http://localhost:5001"
   },
   "ceramic": {
-    "apiUrl": "http://localhost:7777",
+    "apiUrl": "http://localhost:7007",
     "validateRecords": false
   },
   "blockchain": {

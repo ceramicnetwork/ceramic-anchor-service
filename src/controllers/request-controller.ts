@@ -45,15 +45,6 @@ export default class RequestController implements Contextual {
         });
       }
 
-      let docId = null;
-      try {
-        docId = DocID.fromString(req.params.docId)
-      } catch (e) {
-        return res.status(BAD_REQUEST).send({
-          error: "Invalid DocId",
-        });
-      }
-
       const request = await this.requestService.findByCid(cid);
       if (request == null) {
         return res.status(NOT_FOUND).send({
@@ -69,7 +60,7 @@ export default class RequestController implements Contextual {
             id: request.id,
             status: RequestStatus[request.status],
             cid: request.cid,
-            docId,
+            docId: request.docId,
             message: request.message,
             createdAt: request.createdAt.getTime(),
             updatedAt: request.updatedAt.getTime(),
