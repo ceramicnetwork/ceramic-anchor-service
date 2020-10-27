@@ -9,7 +9,6 @@ import cors from 'cors';
 import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core';
 
 import CID from 'cids';
-import DocID from "@ceramicnetwork/docid";
 import Context from '../context';
 import RequestService from '../services/request-service';
 import Contextual from '../contextual';
