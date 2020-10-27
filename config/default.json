@@ -6,6 +6,10 @@
   "ipfsConfig": {
     "host": "http://localhost:5001"
   },
+  "ceramic": {
+    "apiUrl": "http://localhost:7777",
+    "validateRecords": false
+  },
   "blockchain": {
     "selectedConnector": "ethereum",
     "connectors": {
