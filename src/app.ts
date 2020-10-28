@@ -19,6 +19,7 @@ import Context from "./context";
 import AnchorService from "./services/anchor-service";
 import { BlockchainService } from "./services/blockchain/blockchain-service";
 import SchedulerService from "./services/scheduler-service";
+import CeramicService from "./services/ceramic-service";
 
 /**
  * Ceramic Anchor Service application
@@ -52,6 +53,9 @@ export default class CeramicAnchorApp {
 
     if (config.mode === 'anchor') {
       // start in anchor mode (batch anchor processing)
+      const ceramicService: CeramicService = this.ctx.lookup('CeramicService');
+      await ceramicService.init();
+
       const anchorService: AnchorService = this.ctx.lookup('AnchorService');
       await anchorService.init();
 
@@ -62,9 +66,12 @@ export default class CeramicAnchorApp {
 
     if (config.mode === "bundled") {
       // start in bundled mode (server + anchor)
+      const ceramicService: CeramicService = this.ctx.lookup('CeramicService');
+      await ceramicService.init();
 
       const anchorService: AnchorService = this.ctx.lookup('AnchorService');
       await anchorService.init();
+
       const schedulerService: SchedulerService = this.ctx.lookup('SchedulerService');
       schedulerService.start(); // start the scheduler
       await this.startServer();

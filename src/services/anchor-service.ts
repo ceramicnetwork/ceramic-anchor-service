@@ -5,17 +5,11 @@ import Contextual from '../contextual';
 
 import CID from 'cids';
 import { Ipfs } from 'ipfs';
-import ipfsClient from 'ipfs-http-client';
+import { DoctypeUtils } from '@ceramicnetwork/ceramic-common';
 import { Logger as logger } from '@overnightjs/logger';
 import { RequestStatus as RS } from '../models/request-status';
 
-import dagJose from 'dag-jose'
-// @ts-ignore
-import multiformats from 'multiformats/basics'
-// @ts-ignore
-import legacy from 'multiformats/legacy'
-
-import { config } from 'node-config-ts';
+import CeramicService from "./ceramic-service";
 import { CompareFunction, MergeFunction, Node, PathDirection } from '../merkle/merkle';
 import { MerkleTree } from '../merkle/merkle-tree';
 import { Anchor } from '../models/anchor';
@@ -24,47 +18,55 @@ import { Request } from '../models/request';
 import { BlockchainService } from './blockchain/blockchain-service';
 import Transaction from '../models/transaction';
 import Utils from '../utils';
+import { config } from "node-config-ts";
 
-/**
- * Paris CID with docId
- */
-class CidDocPair {
+class Candidate {
   public cid: CID;
   public docId: string;
 
-  constructor(cid: CID, docId?: string) {
+  public did: string;
+  public reqId: number;
+
+  constructor(cid: CID, docId?: string, did?: string, reqId?: number) {
     this.cid = cid;
     this.docId = docId;
+    this.did = did;
+    this.reqId = reqId;
   }
+
+  get key(): string {
+    return this.docId + (this.did != null ? this.did : "");
+  }
+
 }
 
 /**
  * Implements IPFS merge CIDs
  */
-class IpfsMerge implements MergeFunction<CidDocPair> {
+class IpfsMerge implements MergeFunction<Candidate> {
   private ipfs: Ipfs;
 
   constructor(ipfs: Ipfs) {
     this.ipfs = ipfs;
   }
 
-  async merge(left: Node<CidDocPair>, right: Node<CidDocPair>): Promise<Node<CidDocPair>> {
+  async merge(left: Node<Candidate>, right: Node<Candidate>): Promise<Node<Candidate>> {
     const merged = {
       L: left.data.cid,
       R: right.data.cid,
     };
 
     const mergedCid = await this.ipfs.dag.put(merged);
-    return new Node<CidDocPair>(new CidDocPair(mergedCid), left, right);
+    return new Node<Candidate>(new Candidate(mergedCid), left, right);
   }
 }
 
 /**
  * Implements IPFS merge CIDs
  */
-class IpfsCompare implements CompareFunction<CidDocPair> {
-  compare(left: Node<CidDocPair>, right: Node<CidDocPair>): number {
-    return left.data.docId.localeCompare(right.data.docId);
+class IpfsLeafCompare implements CompareFunction<Candidate> {
+  compare(left: Node<Candidate>, right: Node<Candidate>): number {
+    return left.data.key.localeCompare(right.data.key);
   }
 }
 
@@ -72,23 +74,19 @@ class IpfsCompare implements CompareFunction<CidDocPair> {
  * Anchors CIDs to blockchain
  */
 export default class AnchorService implements Contextual {
-  public ipfs: Ipfs;
   private ipfsMerge: IpfsMerge;
-  private ipfsCompare: IpfsCompare;
+  private ipfsCompare: IpfsLeafCompare;
 
   private requestService: RequestService;
+  private ceramicService: CeramicService;
   private blockchainService: BlockchainService;
 
   /**
    * Initialize the service
    */
   public async init(): Promise<void> {
-    multiformats.multicodec.add(dagJose);
-    const format = legacy(multiformats, dagJose.name);
-
-    this.ipfs = ipfsClient({ url: config.ipfsConfig.host, ipld: { formats: [format] } })
-    this.ipfsMerge = new IpfsMerge(this.ipfs);
-    this.ipfsCompare = new IpfsCompare();
+    this.ipfsMerge = new IpfsMerge(this.ceramicService.ipfs);
+    this.ipfsCompare = new IpfsLeafCompare();
   }
 
   /**
@@ -97,6 +95,8 @@ export default class AnchorService implements Contextual {
    */
   setContext(context: Context): void {
     this.blockchainService = context.getSelectedBlockchainService();
+
+    this.ceramicService = context.lookup('CeramicService');
     this.requestService = context.lookup('RequestService');
   }
 
@@ -135,39 +135,21 @@ export default class AnchorService implements Contextual {
     }
 
     // filter old updates for same docIds
-    const docReqMapping = new Map<string, Request>();
-    for (const req of reqs) {
-      const old = docReqMapping.get(req.docId);
-      if (old == null) {
-        docReqMapping.set(req.docId, req);
-        continue;
-      }
-      docReqMapping.set(req.docId, old.createdAt < req.createdAt ? req : old);
-    }
+    let candidates = await this._findCandidates(reqs);
+    const validReqIds = candidates.map(p => p.reqId);
+    const discardedReqs = reqs.filter(r => !validReqIds.includes(r.id));
 
-    const validReqs: Request[] = [];
-    for (const req of docReqMapping.values()) {
-      validReqs.push(req);
-    }
-
-    const oldReqs = reqs.filter((r) => !validReqs.includes(r));
-
-    if (oldReqs.length > 0) {
-      // update failed requests
+    if (discardedReqs.length > 0) {
+      // update discarded requests
       await this.requestService.update({
         status: RS.FAILED,
-        message: 'Request failed. Staled request.',
-      }, oldReqs.map(r => r.id));
-    }
-
-    let leaves: CidDocPair[] = [];
-    for (const req of validReqs) {
-      leaves.push(new CidDocPair(new CID(req.cid), req.docId));
+        message: 'Request has failed. There are conflicts with other requests for the same document and DID.',
+      }, discardedReqs.map(r => r.id));
     }
 
     // create merkle tree
-    const merkleTree: MerkleTree<CidDocPair> = await this._createMerkleTree(leaves);
-    leaves = merkleTree.getLeaves();
+    const merkleTree: MerkleTree<Candidate> = await this._createMerkleTree(candidates);
+    candidates = merkleTree.getLeaves();
 
     // make a blockchain transaction
     const tx: Transaction = await this.blockchainService.sendTransaction(merkleTree.getRoot().data.cid);
@@ -183,11 +165,11 @@ export default class AnchorService implements Contextual {
         chainId: tx.chain,
         txHash: txHashCid,
       };
-      const ipfsProofCid = await this.ipfs.dag.put(ipfsAnchorProof);
+      const ipfsProofCid = await this.ceramicService.ipfs.dag.put(ipfsAnchorProof);
 
       const anchors: Anchor[] = [];
-      for (let index = 0; index < leaves.length; index++) {
-        const request: Request = validReqs.find(r => r.cid === leaves[index].cid.toString());
+      for (let index = 0; index < candidates.length; index++) {
+        const request: Request = reqs.find(r => r.id === candidates[index].reqId);
 
         const anchor: Anchor = new Anchor();
         anchor.request = request;
@@ -201,7 +183,7 @@ export default class AnchorService implements Contextual {
           proof: ipfsProofCid,
           path: anchor.path,
         };
-        const anchorCid = await this.ipfs.dag.put(ipfsAnchorRecord);
+        const anchorCid = await this.ceramicService.ipfs.dag.put(ipfsAnchorRecord);
 
         anchor.cid = anchorCid.toString();
         anchors.push(anchor);
@@ -212,10 +194,65 @@ export default class AnchorService implements Contextual {
       await this.requestService.update({
         status: RS.COMPLETED,
         message: 'CID successfully anchored.',
-      }, validReqs.map(r => r.id), txEntityManager);
+      }, validReqIds, txEntityManager);
 
-      logger.Imp(`Service successfully anchored ${validReqs.length} CIDs.`);
+      logger.Imp(`Service successfully anchored ${validReqIds.length} CIDs.`);
     });
+  }
+
+  /**
+   * Find candidates for the anchoring
+   * @private
+   */
+  async _findCandidates(requests: Request[]): Promise<Candidate[]> {
+    const result: Candidate[] = [];
+    const group: Record<string, Candidate[]> = {};
+
+    let req = null;
+    for (let index = 0; index < requests.length; index++) {
+      try {
+        req = requests[index];
+        let did = null;
+        if (config.ceramic.validateRecords) {
+          const record = (await this.ceramicService.ipfs.dag.get(req.cid)).value;
+          did = await this.ceramicService.verifySignedRecord(record);
+        }
+
+        const candidate = new Candidate(new CID(req.cid), req.docId, did, req.id);
+        if (!group[candidate.key]) {
+          group[candidate.key] = []
+        }
+        group[candidate.key].push(candidate)
+      } catch (e) {
+        logger.Err(e, true);
+        await this.requestService.update({ status: RS.FAILED, message: 'Request has failed. Invalid signature.'}, [req.id]);
+      }
+    }
+
+    for (const key of Object.keys(group)) {
+      const candidates: Candidate[] = group[key];
+
+      let nonce = 0;
+      let selected: Candidate = null;
+
+      for (const pair of candidates) {
+        const record = (await this.ceramicService.ipfs.dag.get(pair.cid)).value;
+
+        let currentNonce;
+        if (DoctypeUtils.isSignedRecord(record)) {
+          const payload = (await this.ceramicService.ipfs.dag.get(record.link)).value;
+          currentNonce = payload.header?.nonce || 0;
+        } else {
+          currentNonce = record.header?.nonce || 0;
+        }
+        if (selected == null || currentNonce > nonce) {
+          selected = pair;
+          nonce = currentNonce;
+        }
+      }
+      result.push(selected);
+    }
+    return result
   }
 
   /**
@@ -223,8 +260,8 @@ export default class AnchorService implements Contextual {
    * @param pairs - CID-docId pairs
    * @private
    */
-  private async _createMerkleTree(pairs: CidDocPair[]): Promise<MerkleTree<CidDocPair>> {
-    const merkleTree: MerkleTree<CidDocPair> = new MerkleTree<CidDocPair>(this.ipfsMerge, this.ipfsCompare);
+  private async _createMerkleTree(pairs: Candidate[]): Promise<MerkleTree<Candidate>> {
+    const merkleTree: MerkleTree<Candidate> = new MerkleTree<Candidate>(this.ipfsMerge, this.ipfsCompare);
     await merkleTree.build(pairs);
     return merkleTree;
   }
