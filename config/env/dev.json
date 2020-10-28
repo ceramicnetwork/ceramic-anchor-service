@@ -6,6 +6,10 @@
   "ipfsConfig": {
     "host": "@@IPFS_API_URL"
   },
+  "ceramic": {
+    "apiUrl": "@@CERAMIC_API_URL",
+    "validateRecords": "@@VALIDATE_RECORDS"
+  },
   "blockchain": {
     "selectedConnector": "@@BLOCKCHAIN_CONNECTOR",
     "connectors": {
