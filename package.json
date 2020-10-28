@@ -44,7 +44,7 @@
       "dids": "^0.7.0",
       "dotenv": "^8.2.0",
       "ejs": "^3.1.5",
-      "ethers": "^5.0.17",
+      "ethers": "^5.0.19",
       "ethers-typescript-typings": "0.0.4",
       "express": "^4.17.1",
       "express-async-handler": "^1.1.4",
@@ -57,13 +57,13 @@
       "multihashes": "^3.0.1",
       "node-cron": "^2.0.3",
       "os-utils": "^0.0.14",
-      "pg": "^8.4.1",
       "reflect-metadata": "^0.1.10",
       "simple-color-print": "^1.0.4",
       "typeorm": "^0.2.28",
       "typestub-multibase": "^0.0.5",
       "typestub-multihashes": "^0.0.4",
       "uuid": "^8.3.1",
+      "pg": "^8.4.2",
       "base64url": "^3.0.1"
    },
    "devDependencies": {
