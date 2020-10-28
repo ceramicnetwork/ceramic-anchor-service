@@ -22,6 +22,8 @@ import multiformats from 'multiformats/basics'
 // @ts-ignore
 import legacy from 'multiformats/legacy'
 
+const DID_MATCHER = '^(did:([a-zA-Z0-9_]+):([a-zA-Z0-9_.-]+(:[a-zA-Z0-9_.-]+)*)((;[a-zA-Z0-9_.:%-]+=[a-zA-Z0-9_.:%-]*)*)(/[^#?]*)?)([?][^#]*)?(#.*)?';
+
 export default class CeramicService implements Contextual {
 
   private _ipfs: Ipfs;
@@ -79,7 +81,7 @@ export default class CeramicService implements Contextual {
     const didDoc = await this._resolver.resolve(kid);
     const jws = [_protected, payload, signature].join(".");
     await didJwt.verifyJWS(jws, didDoc.publicKey);
-    return kid;
+    return kid.match(RegExp(DID_MATCHER))[1];
   }
 
 }
