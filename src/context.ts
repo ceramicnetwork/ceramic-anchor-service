@@ -29,6 +29,7 @@ export default class Context {
         }
         try {
           // get default exported class
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
           const clazz = require(absFilename).default;
           this.register(new clazz());
         } catch (e) {

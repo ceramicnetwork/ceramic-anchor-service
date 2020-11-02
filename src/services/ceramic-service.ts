@@ -12,8 +12,8 @@ import Context from "../context";
 
 import base64url from "base64url"
 
-import { Ipfs } from 'ipfs';
 import ipfsClient from "ipfs-http-client";
+import { IPFSApi } from "../declarations";
 import { config } from "node-config-ts";
 
 import dagJose from 'dag-jose'
@@ -26,8 +26,7 @@ const DID_MATCHER = '^(did:([a-zA-Z0-9_]+):([a-zA-Z0-9_.-]+(:[a-zA-Z0-9_.-]+)*)(
 
 export default class CeramicService implements Contextual {
 
-  private _ipfs: Ipfs;
-
+  private _ipfs: IPFSApi;
   private _client: CeramicApi;
   private _resolver: Resolver;
 
@@ -61,7 +60,7 @@ export default class CeramicService implements Contextual {
   /**
    * Get IPFS client
    */
-  get ipfs(): Ipfs {
+  get ipfs(): IPFSApi {
     return this._ipfs
   }
 

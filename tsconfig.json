@@ -1,21 +1,19 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "lib": [
-      "dom",
-      "es2017",
-      "es6"
-    ],
+    "lib": ["es6", "dom", "esnext"],
+    "target": "ES2018",
+    "declaration": true,
+    "declarationMap": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "removeComments": true,
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "target": "es6",
-    "noImplicitAny": true,
-    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
     "sourceMap": true,
     "rootDir": "src",
     "outDir": "build",
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
     "inlineSources": true,
     "pretty":true
   },

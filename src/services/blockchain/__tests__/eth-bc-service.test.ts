@@ -1,8 +1,6 @@
 import CID from 'cids';
 import Ganache from 'ganache-core'
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-// @ts-ignore
 import { config } from 'node-config-ts';
 
 import Context from "../../../context";
@@ -25,11 +23,9 @@ describe('ETH service',  () => {
       gasLimit: 7000000,
       time: new Date(1586784002855),
       mnemonic: 'move sense much taxi wave hurry recall stairs thank brother nut woman',
-      // eslint-disable-next-line @typescript-eslint/camelcase
       default_balance_ether: 100,
       debug: true,
       blockTime: 2,
-      // eslint-disable-next-line @typescript-eslint/camelcase
       network_id: 1337,
     });
 
