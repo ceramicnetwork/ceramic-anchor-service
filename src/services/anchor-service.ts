@@ -3,8 +3,9 @@ import RequestService from './request-service';
 
 import Contextual from '../contextual';
 
+import { IPFSApi } from "../declarations";
+
 import CID from 'cids';
-import { Ipfs } from 'ipfs';
 import { DoctypeUtils } from '@ceramicnetwork/ceramic-common';
 import { Logger as logger } from '@overnightjs/logger';
 import { RequestStatus as RS } from '../models/request-status';
@@ -44,9 +45,9 @@ class Candidate {
  * Implements IPFS merge CIDs
  */
 class IpfsMerge implements MergeFunction<Candidate> {
-  private ipfs: Ipfs;
+  private ipfs: IPFSApi;
 
-  constructor(ipfs: Ipfs) {
+  constructor(ipfs: IPFSApi) {
     this.ipfs = ipfs;
   }
 

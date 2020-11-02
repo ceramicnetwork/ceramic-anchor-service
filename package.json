@@ -52,7 +52,8 @@
       "express-validator": "^6.6.1",
       "globby": "^11.0.1",
       "http-status-codes": "^2.1.4",
-      "ipfs-http-client": "github:simonovic86/ipfs-http-client",
+      "ipfs-core": "^0.1.0",
+      "ipfs-http-client": "^48.0.0",
       "multiformats": "^3.0.3",
       "multihashes": "^3.0.1",
       "node-cron": "^2.0.3",
@@ -67,9 +68,11 @@
       "base64url": "^3.0.1"
    },
    "devDependencies": {
-      "@babel/core": "^7.9.0",
-      "@babel/preset-env": "^7.8.4",
-      "@babel/preset-typescript": "^7.9.0",
+      "@babel/core": "^7.12.3",
+      "@babel/preset-env": "^7.12.1",
+      "@babel/preset-typescript": "^7.12.1",
+      "@babel/plugin-proposal-decorators": "^7.12.1",
+      "@babel/plugin-transform-modules-commonjs": "^7.12.1",
       "@types/cors": "^2.8.6",
       "@types/dotenv": "^8.2.0",
       "@types/events": "^3.0.0",
@@ -80,14 +83,13 @@
       "@types/node-cron": "^2.0.3",
       "@types/os-utils": "0.0.0",
       "@types/uuid": "^7.0.2",
-      "@typescript-eslint/eslint-plugin": "^2.19.0",
-      "@typescript-eslint/parser": "^2.19.0",
+      "@typescript-eslint/eslint-plugin": "^4.6.0",
+      "@typescript-eslint/parser": "^4.6.0",
       "babel-jest": "^25.1.0",
       "eslint": "^6.8.0",
       "eslint-plugin-jest": "^23.8.2",
       "ganache-core": "^2.10.2",
       "husky": "^4.2.5",
-      "ipfs-http-client": "github:simonovic86/ipfs",
       "jest": "^25.3.0",
       "node-config-ts": "^3.0.4",
       "nyc": "^15.0.1",
@@ -95,8 +97,8 @@
       "sqlite3": "^4.2.0",
       "tmp-promise": "^2.0.2",
       "ts-jest": "^25.4.0",
-      "ts-node": "^8.8.1",
+      "ts-node": "^9.0.0",
       "tsconfig-paths": "^3.9.0",
-      "typescript": "^3.8.3"
+      "typescript": "^4.0.5"
    }
 }
