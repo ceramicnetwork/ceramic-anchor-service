@@ -62,7 +62,7 @@ export default class EthereumBlockchainService implements BlockchainService {
       data: hexEncoded,
     };
 
-    if (config.blockchain.connectors.ethereum.overrideGasConfig) {
+    if (config.blockchain.connectors.ethereum.overrideGasConfig === true) {
       Object.assign(txData, {
         gasLimit: +config.blockchain.connectors.ethereum.gasLimit,
         gasPrice: BigNumber.from(config.blockchain.connectors.ethereum.gasPrice),
