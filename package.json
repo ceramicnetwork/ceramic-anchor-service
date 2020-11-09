@@ -54,7 +54,7 @@
       "http-status-codes": "^2.1.4",
       "ipfs-core": "^0.1.0",
       "ipfs-http-client": "^48.0.0",
-      "multiformats": "^3.0.3",
+      "multiformats": "^4.3.4",
       "multihashes": "^3.0.1",
       "node-cron": "^2.0.3",
       "os-utils": "^0.0.14",
