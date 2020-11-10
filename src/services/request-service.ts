@@ -81,7 +81,7 @@ export default class RequestService implements Contextual {
       .createQueryBuilder("request")
       .orderBy("request.createdAt", "DESC")
       .where("request.status = :pendingStatus", { pendingStatus: RequestStatus.PENDING })
-      .orWhere("request.status = :processingStatus AND request.updatedAt > :deadlineDate",
+      .orWhere("request.status = :processingStatus AND request.updatedAt < :deadlineDate",
         {
           processingStatus: RequestStatus.PROCESSING,
           deadlineDate
