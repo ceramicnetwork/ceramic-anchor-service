@@ -10,6 +10,8 @@ import Context from '../../../context';
 import Transaction from '../../../models/transaction';
 import { BlockchainService } from '../blockchain-service';
 
+const BASE_CHAIN_ID = "eip155"
+
 /**
  * Ethereum blockchain service
  */
@@ -45,6 +47,15 @@ export default class EthereumBlockchainService implements BlockchainService {
   }
 
   /**
+   * Returns a string representing the CAIP-2 ID of the configured blockchain.
+   */
+  public async getChainId(): Promise<string> {
+    const wallet = new ethers.Wallet(config.blockchain.connectors.ethereum.account.privateKey, this.provider);
+    const idnum = await wallet.getChainId()
+    return BASE_CHAIN_ID + ':' + idnum
+  }
+
+  /**
    * Sends transaction with root CID as data
    */
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
@@ -74,7 +85,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     const txReceipt: providers.TransactionReceipt = await this.provider.waitForTransaction(txResponse.hash);
     const block: providers.Block = await this.provider.getBlock(txReceipt.blockHash);
 
-    const caip2ChainId = 'eip155:' + txResponse.chainId;
+    const caip2ChainId = BASE_CHAIN_ID + ':' + txResponse.chainId;
 
     logger.Imp(`Transaction successfully written to Ethereum ${network} network. Transaction hash ${txReceipt.transactionHash}`);
     return new Transaction(caip2ChainId, txReceipt.transactionHash, txReceipt.blockNumber, block.timestamp);

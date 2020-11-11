@@ -12,4 +12,9 @@ export interface BlockchainService extends Contextual {
    * Sends transaction with root CID as data
    */
   sendTransaction(rootCid: CID): Promise<Transaction>;
+
+  /**
+   * Returns a string representing the CAIP-2 ID of the configured blockchain.
+   */
+  getChainId(): Promise<string>;
 }
