@@ -61,6 +61,10 @@ export default class CeramicService implements Contextual {
     return this._ipfs
   }
 
+  /**
+   * Set IPFS client
+   * @param ipfs - IPFS client
+   */
   set ipfs(ipfs: IPFSApi) {
     this._ipfs = ipfs
   }
