@@ -7,7 +7,7 @@ const sqliteConf : ConnectionOptions = {
   database: ":memory:",
   entities: [Request, Anchor],
   synchronize: true,
-  logging: true,
+  logging: false,
   dropSchema: true,
 };
 

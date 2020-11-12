@@ -10,7 +10,7 @@
       "3box"
    ],
    "scripts": {
-      "test": "./node_modules/.bin/jest test.ts --forceExit --detectOpenHandles --coverage --runInBand",
+      "test": "./node_modules/.bin/jest --forceExit --detectOpenHandles --coverage --runInBand",
       "coverage": "nyc npm run test",
       "build": "./node_modules/.bin/tsc -p tsconfig.json",
       "format": "prettier --write 'src/**/*{.ts,.tsx,.js}'",
