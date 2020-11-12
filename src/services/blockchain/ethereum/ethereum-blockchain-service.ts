@@ -66,13 +66,22 @@ export default class EthereumBlockchainService implements BlockchainService {
       data: hexEncoded
     };
 
-    const { overrideGasConfig } = config.blockchain.connectors.ethereum;
-    if (overrideGasConfig === false) {
+    let { overrideGasConfig } = config.blockchain.connectors.ethereum;
+    if (typeof overrideGasConfig === "string") {
+      overrideGasConfig = overrideGasConfig as string === 'true'
+    }
+    if (!overrideGasConfig) {
       txData.gasPrice = await this.provider.getGasPrice();
+      logger.Info('Estimated Gas price: ' + txData.gasPrice.toString());
+
       txData.gasLimit = await this.provider.estimateGas(txData);
+      logger.Info('Estimated Gas limit: ' + txData.gasLimit.toString());
     } else {
       txData.gasPrice = BigNumber.from(config.blockchain.connectors.ethereum.gasPrice);
+      logger.Info('Overriding Gas price: ' + txData.gasPrice.toString());
+
       txData.gasLimit = BigNumber.from(config.blockchain.connectors.ethereum.gasLimit);
+      logger.Info('Overriding Gas limit: ' + txData.gasLimit.toString());
     }
 
     let retryTimes = 3;
@@ -90,6 +99,8 @@ export default class EthereumBlockchainService implements BlockchainService {
         logger.Imp(`Transaction successfully written to Ethereum ${network} network. Transaction hash ${txReceipt.transactionHash}`);
         return new Transaction(caip2ChainId, txReceipt.transactionHash, txReceipt.blockNumber, block.timestamp);
       } catch (err) {
+        logger.Err(err, true);
+
         const { code } = err;
         if (code) {
           if (code === ErrorCode.INSUFFICIENT_FUNDS) {
@@ -102,7 +113,6 @@ export default class EthereumBlockchainService implements BlockchainService {
           }
         }
 
-        logger.Err(err, true);
         retryTimes--;
         if (retryTimes === 0) {
           throw new Error("Failed to send transaction");
