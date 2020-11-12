@@ -4,6 +4,7 @@ import { config } from 'node-config-ts';
 
 import Utils from './utils';
 import { BlockchainService } from './services/blockchain/blockchain-service';
+import Contextual from "./contextual";
 
 /**
  * Builds application context (services, controllers, etc.)
@@ -20,21 +21,26 @@ export default class Context {
    * Build context by scanning directories
    * @param paths - directory with classes
    */
-  public async build(...paths: string[]): Promise<void> {
-    for (const dir of paths) {
-      const filenames: string[] = await Utils.listDir(path.resolve(__dirname, dir));
-      for (const absFilename of filenames) {
-        if (absFilename.endsWith('.map')) {
-          continue;
+  public async build(...paths: (Contextual | string)[]): Promise<void> {
+    for (const elem of paths) {
+      if (typeof elem === 'string') {
+        const filenames: string[] = await Utils.listDir(path.resolve(__dirname, elem));
+        for (const absFilename of filenames) {
+          if (absFilename.endsWith('.map')) {
+            continue;
+          }
+          try {
+            // get default exported class
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const clazz = require(absFilename).default;
+            this.register(new clazz());
+          } catch (e) {
+            // do nothing
+          }
         }
-        try {
-          // get default exported class
-          // eslint-disable-next-line @typescript-eslint/no-var-requires
-          const clazz = require(absFilename).default;
-          this.register(new clazz());
-        } catch (e) {
-          // do nothing
-        }
+      } else {
+        // @ts-ignore
+        this.register(elem);
       }
     }
 

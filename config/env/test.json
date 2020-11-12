@@ -1,5 +1,9 @@
 {
   "cronExpression": "*/10 * * * * *",
+  "expirationPeriod": 0,
+  "ceramic": {
+    "validateRecords": false
+  },
   "blockchain": {
     "selectedConnector": "ethereum",
     "connectors": {
