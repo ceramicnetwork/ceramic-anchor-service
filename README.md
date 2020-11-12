@@ -195,7 +195,7 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
     **Content:** 
      ```json
      {
-         "chainid": "eip155:1",
+         "chainId": "eip155:1"
      }
      ```
 ----

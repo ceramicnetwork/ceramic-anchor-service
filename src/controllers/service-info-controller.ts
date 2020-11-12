@@ -29,7 +29,7 @@ export default class ServiceInfoController implements Contextual {
   @Get('chainid')
   private async getChainId(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     try {
-      return res.status(OK).json({chainid: await this.anchorService.getChainId()})
+      return res.status(OK).json({chainId: await this.anchorService.getChainId()})
     } catch (err) {
       Logger.Err(err, true);
       return res.status(SERVICE_UNAVAILABLE).send()
