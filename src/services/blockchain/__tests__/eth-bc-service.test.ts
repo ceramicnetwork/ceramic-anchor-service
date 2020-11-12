@@ -13,7 +13,7 @@ let ethBc: BlockchainService = null;
 
 describe('ETH service',  () => {
   jest.setTimeout(25000);
-  beforeAll(async (done) => {
+  beforeAll(async () => {
     ctx = new Context();
 
     await ctx.build('services');
@@ -30,13 +30,16 @@ describe('ETH service',  () => {
     });
 
     const localPort = config.blockchain.connectors.ethereum.rpc.port;
-    ganacheServer.listen(localPort, async (err: Error) => {
-      if (err) {
-        throw new Error(`Failed to start local blockchain on port ${localPort}`);
-      }
-      logger.Imp(`Local Ethereum blockchain is up at http://localhost:${localPort}/`);
-      done();
+    const done = new Promise((resolve, reject) => {
+      ganacheServer.listen(localPort, async (err: Error) => {
+        if (err) {
+          reject(err);
+          return
+        }
+        resolve()
+      });
     });
+    await done
   });
 
   test('should connect to local ganache server', async () => {

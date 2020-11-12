@@ -26,7 +26,7 @@ export default class Context {
       if (typeof elem === 'string') {
         const filenames: string[] = await Utils.listDir(path.resolve(__dirname, elem));
         for (const absFilename of filenames) {
-          if (absFilename.endsWith('.map')) {
+          if (!absFilename.endsWith('-service.ts')) {
             continue;
           }
           try {
