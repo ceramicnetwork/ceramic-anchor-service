@@ -27,6 +27,7 @@ describe('ETH service',  () => {
       debug: true,
       blockTime: 2,
       network_id: 1337,
+      networkId: 1337,
     });
 
     const localPort = config.blockchain.connectors.ethereum.rpc.port;
