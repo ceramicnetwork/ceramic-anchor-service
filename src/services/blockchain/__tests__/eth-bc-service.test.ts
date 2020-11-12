@@ -16,7 +16,7 @@ describe('ETH service',  () => {
   beforeAll(async () => {
     ctx = new Context();
 
-    await ctx.build('services');
+    await ctx.build('services', 'repositories');
     ethBc = ctx.getSelectedBlockchainService();
 
     ganacheServer = Ganache.server({
