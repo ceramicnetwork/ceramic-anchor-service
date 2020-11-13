@@ -39,7 +39,6 @@ export default class Context {
           }
         }
       } else {
-        // @ts-ignore
         this.register(elem);
       }
     }
