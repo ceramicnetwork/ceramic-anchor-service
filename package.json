@@ -64,7 +64,7 @@
       "typestub-multibase": "^0.0.5",
       "typestub-multihashes": "^0.0.4",
       "uuid": "^8.3.1",
-      "pg": "^8.4.2",
+      "pg": "^8.5.1",
       "base64url": "^3.0.1"
    },
    "devDependencies": {
