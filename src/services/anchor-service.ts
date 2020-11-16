@@ -101,10 +101,6 @@ export default class AnchorService implements Contextual {
     this.requestService = context.lookup('RequestService');
   }
 
-  public async getChainId(): Promise<string> {
-    return this.blockchainService.chainId
-  }
-
   /**
    * Gets anchor metadata
    * @param request - Request id
