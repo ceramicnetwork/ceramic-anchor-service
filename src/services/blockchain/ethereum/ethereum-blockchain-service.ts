@@ -18,6 +18,7 @@ const BASE_CHAIN_ID = "eip155"
 export default class EthereumBlockchainService implements BlockchainService {
   private ctx: Context;
   private provider: providers.BaseProvider;
+  private _chainId: string;
 
   /**
    * Set application context
@@ -43,16 +44,25 @@ export default class EthereumBlockchainService implements BlockchainService {
     }
 
     await this.provider.getNetwork();
-    logger.Imp('Connected to ' + config.blockchain.connectors.ethereum.network + ' blockchain.');
+    await this._loadChainId()
+    logger.Imp('Connected to ' + config.blockchain.connectors.ethereum.network + ' blockchain with chain ID ' + this.chainId);
   }
 
   /**
-   * Returns a string representing the CAIP-2 ID of the configured blockchain.
+   * Returns a string representing the CAIP-2 ID of the configured blockchain by querying the
+   * connected blockchain to ask for it.
    */
-  public async getChainId(): Promise<string> {
+  private async _loadChainId(): Promise<void> {
     const wallet = new ethers.Wallet(config.blockchain.connectors.ethereum.account.privateKey, this.provider);
     const idnum = await wallet.getChainId()
-    return BASE_CHAIN_ID + ':' + idnum
+    this._chainId = BASE_CHAIN_ID + ':' + idnum
+  }
+
+  /**
+   * Returns the cached 'chainId' representing the CAIP-2 ID of the configured blockchain.
+   */
+  public get chainId() {
+    return this._chainId
   }
 
   /**
@@ -86,6 +96,10 @@ export default class EthereumBlockchainService implements BlockchainService {
     const block: providers.Block = await this.provider.getBlock(txReceipt.blockHash);
 
     const caip2ChainId = BASE_CHAIN_ID + ':' + txResponse.chainId;
+    if (caip2ChainId != this.chainId) {
+      // TODO: this should be process-fatal
+      throw new Error("Chain ID of connected blockchain changed from " + this.chainId + " to " + caip2ChainId)
+    }
 
     logger.Imp(`Transaction successfully written to Ethereum ${network} network. Transaction hash ${txReceipt.transactionHash}`);
     return new Transaction(caip2ChainId, txReceipt.transactionHash, txReceipt.blockNumber, block.timestamp);

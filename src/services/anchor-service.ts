@@ -102,7 +102,7 @@ export default class AnchorService implements Contextual {
   }
 
   public async getChainId(): Promise<string> {
-    return await this.blockchainService.getChainId()
+    return this.blockchainService.chainId
   }
 
   /**

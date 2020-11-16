@@ -51,7 +51,7 @@ describe('ETH service',  () => {
   });
 
   test('can fetch chainId properly', async () => {
-    const chainId = await ethBc.getChainId()
+    const chainId = ethBc.chainId
     expect(chainId).toEqual("eip155:1337")
   });
 
