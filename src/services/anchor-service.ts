@@ -1,25 +1,29 @@
-import Context from '../context';
-import RequestService from './request-service';
+import CID from 'cids';
 
+import Context from '../context';
 import Contextual from '../contextual';
 
 import { IPFSApi } from "../declarations";
 
-import CID from 'cids';
 import { DoctypeUtils } from '@ceramicnetwork/ceramic-common';
 import { Logger as logger } from '@overnightjs/logger';
 import { RequestStatus as RS } from '../models/request-status';
 
-import CeramicService from "./ceramic-service";
-import { CompareFunction, MergeFunction, Node, PathDirection } from '../merkle/merkle';
 import { MerkleTree } from '../merkle/merkle-tree';
-import { Anchor } from '../models/anchor';
-import { getManager } from 'typeorm';
-import { Request } from '../models/request';
-import { BlockchainService } from './blockchain/blockchain-service';
-import Transaction from '../models/transaction';
+import { CompareFunction, MergeFunction, Node, PathDirection } from '../merkle/merkle';
+
 import Utils from '../utils';
 import { config } from "node-config-ts";
+import { Transactional } from "typeorm-transactional-cls-hooked";
+
+import { Anchor } from '../models/anchor';
+import { Request } from '../models/request';
+import Transaction from '../models/transaction';
+import AnchorRepository from "../repositories/anchor-repository";
+
+import RequestService from './request-service';
+import CeramicService from "./ceramic-service";
+import { BlockchainService } from './blockchain/blockchain-service';
 
 class Candidate {
   public cid: CID;
@@ -82,6 +86,8 @@ export default class AnchorService implements Contextual {
   private ceramicService: CeramicService;
   private blockchainService: BlockchainService;
 
+  private anchorRepository: AnchorRepository;
+
   /**
    * Initialize the service
    */
@@ -99,106 +105,92 @@ export default class AnchorService implements Contextual {
 
     this.ceramicService = context.lookup('CeramicService');
     this.requestService = context.lookup('RequestService');
+    this.anchorRepository = context.lookup('AnchorRepository')
   }
 
   /**
-   * Gets anchor metadata
-   * @param request - Request id
+   * Finds anchor by request
+   * @param request - Request instance
    */
   public async findByRequest(request: Request): Promise<Anchor> {
-    return await getManager()
-      .getRepository(Anchor)
-      .createQueryBuilder('anchor')
-      .leftJoinAndSelect('anchor.request', 'request')
-      .where('request.id = :requestId', { requestId: request.id })
-      .getOne();
+    return this.anchorRepository.findByRequest(request)
   }
 
   /**
    * Creates anchors for client requests
    */
   public async anchorRequests(): Promise<void> {
-    let reqs: Request[] = [];
-    await getManager().transaction(async txEntityManager => {
-      reqs = await this.requestService.findNextToProcess(txEntityManager);
-      if (reqs.length === 0) {
-        return;
-      }
-      await this.requestService.update({
-        status: RS.PROCESSING,
-        message: 'Request is processing.'
-      }, reqs.map(r => r.id), txEntityManager);
-    });
-
+    const reqs: Request[] = await this.requestService.findNextToProcess();
     if (reqs.length === 0) {
       logger.Info('No pending CID requests found. Skipping anchor.');
       return;
     }
 
     // filter old updates for same docIds
-    let candidates = await this._findCandidates(reqs);
+    let candidates: Candidate[] = await this._findCandidates(reqs);
     const validReqIds = candidates.map(p => p.reqId);
     const discardedReqs = reqs.filter(r => !validReqIds.includes(r.id));
 
     if (discardedReqs.length > 0) {
       // update discarded requests
-      await this.requestService.update({
-        status: RS.FAILED,
-        message: 'Request has failed. There are conflicts with other requests for the same document and DID.',
-      }, discardedReqs.map(r => r.id));
+      await this.requestService.updateReqs({ status: RS.FAILED, message: 'Request has failed. There are conflicts with other requests for the same document and DID.', }, discardedReqs.map(r => r.id));
     }
 
     // create merkle tree
     const merkleTree: MerkleTree<Candidate> = await this._createMerkleTree(candidates);
     candidates = merkleTree.getLeaves();
 
-    // make a blockchain transaction
+    // create and send ETH transaction
     const tx: Transaction = await this.blockchainService.sendTransaction(merkleTree.getRoot().data.cid);
     const txHashCid = Utils.convertEthHashToCid('eth-tx', tx.txHash.slice(2));
 
-    // run in transaction
-    await getManager().transaction(async txEntityManager => {
-      const anchorRepository = txEntityManager.getRepository(Anchor);
-      const ipfsAnchorProof = {
-        blockNumber: tx.blockNumber,
-        blockTimestamp: tx.blockTimestamp,
-        root: merkleTree.getRoot().data.cid,
-        chainId: tx.chain,
-        txHash: txHashCid,
-      };
-      const ipfsProofCid = await this.ceramicService.ipfs.dag.put(ipfsAnchorProof);
+    // create proofs on IPFS
+    await this._createIPFSProofs(tx, txHashCid, merkleTree, candidates, reqs, validReqIds);
+  }
 
-      const anchors: Anchor[] = [];
-      for (let index = 0; index < candidates.length; index++) {
-        const request: Request = reqs.find(r => r.id === candidates[index].reqId);
+  /**
+   * Creates IPFS record proofs
+   * @param tx - ETH transaction
+   * @param txHashCid - Transaction hash CID
+   * @param merkleTree - Merkle tree instance
+   * @param candidates - Merkle tree candidates
+   * @param reqs - All available requests
+   * @param validReqIds - Valid request IDs
+   * @private
+   */
+  @Transactional()
+  async _createIPFSProofs(tx: Transaction, txHashCid: CID, merkleTree: MerkleTree<Candidate>, candidates: Candidate[], reqs: Request[], validReqIds: number[]): Promise<void> {
+    const ipfsAnchorProof = {
+      blockNumber: tx.blockNumber,
+      blockTimestamp: tx.blockTimestamp,
+      root: merkleTree.getRoot().data.cid,
+      chainId: tx.chain,
+      txHash: txHashCid
+    };
+    const ipfsProofCid = await this.ceramicService.ipfs.dag.put(ipfsAnchorProof);
 
-        const anchor: Anchor = new Anchor();
-        anchor.request = request;
-        anchor.proofCid = ipfsProofCid.toString();
+    const anchors: Anchor[] = [];
+    for (let index = 0; index < candidates.length; index++) {
+      const req: Request = reqs.find(r => r.id === candidates[index].reqId);
 
-        const path = await merkleTree.getDirectPathFromRoot(index);
-        anchor.path = path.map((p) => PathDirection[p].toString()).join('/');
+      const anchor: Anchor = new Anchor();
+      anchor.request = req;
+      anchor.proofCid = ipfsProofCid.toString();
 
-        const ipfsAnchorRecord = {
-          prev: new CID(request.cid),
-          proof: ipfsProofCid,
-          path: anchor.path,
-        };
-        const anchorCid = await this.ceramicService.ipfs.dag.put(ipfsAnchorRecord);
+      const path = await merkleTree.getDirectPathFromRoot(index);
+      anchor.path = path.map((p) => PathDirection[p].toString()).join("/");
 
-        anchor.cid = anchorCid.toString();
-        anchors.push(anchor);
-      }
-      // create anchor records
-      await anchorRepository.save(anchors);
+      const ipfsAnchorRecord = { prev: new CID(req.cid), proof: ipfsProofCid, path: anchor.path };
+      const anchorCid = await this.ceramicService.ipfs.dag.put(ipfsAnchorRecord);
 
-      await this.requestService.update({
-        status: RS.COMPLETED,
-        message: 'CID successfully anchored.',
-      }, validReqIds, txEntityManager);
+      anchor.cid = anchorCid.toString();
+      anchors.push(anchor);
+    }
+    // create anchor records
+    await this.anchorRepository.createAnchors(anchors);
 
-      logger.Imp(`Service successfully anchored ${validReqIds.length} CIDs.`);
-    });
+    await this.requestService.updateReqs({ status: RS.COMPLETED, message: "CID successfully anchored." }, validReqIds);
+    logger.Imp(`Service successfully anchored ${validReqIds.length} CIDs.`);
   }
 
   /**
@@ -226,7 +218,7 @@ export default class AnchorService implements Contextual {
         group[candidate.key].push(candidate)
       } catch (e) {
         logger.Err(e, true);
-        await this.requestService.update({ status: RS.FAILED, message: 'Request has failed. Invalid signature.'}, [req.id]);
+        await this.requestService.updateReqs({ status: RS.FAILED, message: 'Request has failed. Invalid signature.'}, [req.id]);
       }
     }
 
