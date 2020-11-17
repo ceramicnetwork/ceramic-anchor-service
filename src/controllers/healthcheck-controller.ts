@@ -30,7 +30,6 @@ export default class HealthcheckController implements Contextual {
       const freeMem = freememPercentage()
       if (freeCpu < 0.05 || freeMem < 0.20) {
         logger.Err(`Ceramic Anchor Service failed a healthcheck. Info: (freeCpu=${freeCpu}, freeMem=${freeMem})`);
-
         return res.status(SERVICE_UNAVAILABLE).send()
       }
 

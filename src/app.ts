@@ -8,11 +8,8 @@ import { LoggerModes } from '@overnightjs/logger';
 process.env.OVERNIGHT_LOGGER_MODE = LoggerModes.Console;
 process.env.OVERNIGHT_LOGGER_RM_TIMESTAMP = 'false';
 
-import { Logger as logger } from '@overnightjs/logger';
-
-logger.Imp(`Ceramic Anchor Service running in ${process.env.NODE_ENV} mode`);
-
 import { config } from 'node-config-ts';
+import { Logger as logger } from '@overnightjs/logger';
 
 import CeramicAnchorServer from './server';
 import { createConnection } from 'typeorm';
@@ -21,6 +18,10 @@ import AnchorService from "./services/anchor-service";
 import { BlockchainService } from "./services/blockchain/blockchain-service";
 import SchedulerService from "./services/scheduler-service";
 import CeramicService from "./services/ceramic-service";
+
+import { initializeTransactionalContext } from 'typeorm-transactional-cls-hooked';
+
+initializeTransactionalContext();
 
 /**
  * Ceramic Anchor Service application
@@ -88,7 +89,7 @@ export default class CeramicAnchorApp {
    * Builds application context
    */
   public async buildCtx(): Promise<void> {
-    await this.ctx.build('services', 'controllers');
+    await this.ctx.build('services', 'controllers', 'repositories');
   }
 
   /**

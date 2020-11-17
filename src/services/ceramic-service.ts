@@ -8,7 +8,6 @@ import ThreeIdResolver from '@ceramicnetwork/3id-did-resolver';
 import { CeramicApi  } from "@ceramicnetwork/ceramic-common";
 
 import Contextual from "../contextual";
-import Context from "../context";
 
 import base64url from "base64url"
 
@@ -32,10 +31,8 @@ export default class CeramicService implements Contextual {
 
   /**
    * Sets dependencies
-   * @param context - Application context
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  setContext(context: Context): void {
+  setContext(): void {
     if (config.ceramic.validateRecords) {
       this._client = new CeramicClient(config.ceramic.apiUrl);
 
@@ -65,12 +62,20 @@ export default class CeramicService implements Contextual {
   }
 
   /**
+   * Set IPFS client
+   * @param ipfs - IPFS client
+   */
+  set ipfs(ipfs: IPFSApi) {
+    this._ipfs = ipfs
+  }
+
+  /**
    * Verifies record signature
    * @param record - Record data
    * @return DID
    * @private
    */
-  async verifySignedRecord(record: any): Promise<string> {
+  async verifySignedRecord(record: Record<string, unknown>): Promise<string> {
     const { payload, signatures } = record;
     const { signature, protected: _protected } = signatures[0];
 
