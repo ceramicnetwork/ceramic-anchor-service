@@ -33,7 +33,7 @@ export default class RequestController implements Contextual {
   }
 
   @Get(':cid')
-  private async getStatusForCid(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
+  private async get(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     logger.Info(`Get info for ${req.params.cid}`);
 
     try {
@@ -117,7 +117,7 @@ export default class RequestController implements Contextual {
   }
 
   @Post()
-  private async createRequest(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
+  private async create(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     try {
       logger.Info(`Create request ${JSON.stringify(req.body)}`);
 

@@ -44,19 +44,22 @@ describe('ETH service',  () => {
   });
 
   test('should connect to local ganache server', async () => {
-    await ethBc.connect();
+    try {
+      await ethBc.connect();
+    } catch (err) {
+      expect(false).toBe(true);
+    }
   });
 
   test('should send CID to local ganache server', async () => {
-    const cid = new CID('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni');
-    const tx = await ethBc.sendTransaction(cid);
-    expect(tx).toBeDefined();
-    expect(tx).toMatchSnapshot();
-  });
-
-  test('can fetch chainId properly', async () => {
-    const chainId = ethBc.chainId
-    expect(chainId).toEqual("eip155:1337")
+    try {
+      const cid = new CID('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni');
+      const tx = await ethBc.sendTransaction(cid);
+      expect(tx).toBeDefined();
+      expect(tx).toMatchSnapshot();
+    } catch (err) {
+      expect(false).toBe(true);
+    }
   });
 
   afterAll(async (done) => {
