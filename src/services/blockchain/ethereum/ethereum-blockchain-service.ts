@@ -66,7 +66,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     const txData: TransactionRequest = {
       to: wallet.address,
       data: hexEncoded,
-      nonce: baseNonce + 1,
+      nonce: baseNonce,
     };
 
     let { overrideGasConfig } = config.blockchain.connectors.ethereum;
