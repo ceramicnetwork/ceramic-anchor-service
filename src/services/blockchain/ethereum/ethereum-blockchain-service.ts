@@ -12,12 +12,15 @@ import Transaction from "../../../models/transaction";
 import { BlockchainService } from "../blockchain-service";
 import { TransactionRequest } from "@ethersproject/abstract-provider";
 
+const BASE_CHAIN_ID = "eip155"
+
 /**
  * Ethereum blockchain service
  */
 export default class EthereumBlockchainService implements BlockchainService {
   private ctx: Context;
   private provider: providers.BaseProvider;
+  private _chainId: string;
 
   /**
    * Set application context
@@ -43,7 +46,25 @@ export default class EthereumBlockchainService implements BlockchainService {
     }
 
     await this.provider.getNetwork();
-    logger.Imp("Connected to " + config.blockchain.connectors.ethereum.network + " blockchain.");
+    await this._loadChainId()
+    logger.Imp('Connected to ' + config.blockchain.connectors.ethereum.network + ' blockchain with chain ID ' + this.chainId);
+  }
+
+  /**
+   * Returns a string representing the CAIP-2 ID of the configured blockchain by querying the
+   * connected blockchain to ask for it.
+   */
+  private async _loadChainId(): Promise<void> {
+    const wallet = new ethers.Wallet(config.blockchain.connectors.ethereum.account.privateKey, this.provider);
+    const idnum = await wallet.getChainId()
+    this._chainId = BASE_CHAIN_ID + ':' + idnum
+  }
+
+  /**
+   * Returns the cached 'chainId' representing the CAIP-2 ID of the configured blockchain.
+   */
+  public get chainId() {
+    return this._chainId
   }
 
   /**
@@ -98,6 +119,11 @@ export default class EthereumBlockchainService implements BlockchainService {
         const txResponse: providers.TransactionResponse = await this.provider.sendTransaction(signedTransaction);
 
         const caip2ChainId = "eip155:" + txResponse.chainId;
+        if (caip2ChainId != this.chainId) {
+          // TODO: This should be process-fatal
+          throw new Error("Chain ID of connected blockchain changed from " + this.chainId + " to " + caip2ChainId)
+        }
+
         const txReceipt: providers.TransactionReceipt = await this.provider.waitForTransaction(txResponse.hash);
         const block: providers.Block = await this.provider.getBlock(txReceipt.blockHash);
 
