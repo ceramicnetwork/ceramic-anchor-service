@@ -2,9 +2,9 @@
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fceramicnetwork%2Fceramic-anchor-service.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fceramicnetwork%2Fceramic-anchor-service?ref=badge_shield)
 
 
-Ceramic anchor service is a PoC of anchor service according to the Ceramic [specification](https://github.com/ceramicnetwork/specs).
+Ceramic anchor service is a PoC implementation of an anchor service according to the Ceramic [specification](https://github.com/ceramicnetwork/specs).
 
-This implementation uses Ethereum blockchain but is built in order to be blockchain agnostic. It is fairly easy to add more modules to support other blockchains as well.  
+This implementation currently uses the Ethereum blockchain but is built in order to be blockchain agnostic. It is fairly easy to add more modules to support other blockchains as well.  
 
 ### Prerequisites
 
@@ -161,10 +161,65 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
     }
     ```
  
+* **Error Response - `NOT FOUND`:**
+
+  * **Code:** 404 (NOT FOUND) <br />
+    **Content:** `{ error : "Request doesn't exist" }`
+    
+    Indicates that no anchor request was found for the given CID.
+
+* **Error Response - `BAD REQUEST`:**
+
+  * **Code:** 400 (BAD REQUEST) <br />
+    **Content:** `{ error : "error message" }`
+    
+    Indicates that the request was malformed or missing necessary arguments like the CID.
+
+
+----
+  #### Get Chain ID
+  
+  Returns the CAIP-2 chain id of the configured blockchain.
+
+* **URL**
+
+  `/service-info/chainid`
+
+* **Method:**
+
+  `GET`
+
+* **Success Response:**
+
+  * **Code:** 200 <br />
+    **Content:** 
+     ```json
+     {
+         "chainId": "eip155:1"
+     }
+     ```
+----
+  #### Healthcheck
+  
+  Perform a healthcheck against the anchor service itself
+
+* **URL**
+
+  `/healthcheck`
+
+* **Method:**
+
+  `GET`
+
+* **Success Response:**
+
+  * **Code:** 200 <br />
+  
 * **Error Response:**
 
-  * **Code:** 404 NOT FOUND <br />
-    **Content:** `{ error : "Request doesn't exist" }`
+  * **Code:** 503 <br />
+
+----
 
 ## IPFS explorer visualization
 
