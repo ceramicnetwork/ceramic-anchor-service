@@ -26,10 +26,10 @@ export default class ServiceInfoController implements Contextual {
     this.blockchainService = context.getSelectedBlockchainService();
   }
 
-  @Get('chainid')
-  private async getChainId(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
+  @Get('supported_chains')
+  private async getSupportedChains(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     try {
-      return res.status(OK).json({chainId: this.blockchainService.chainId})
+      return res.status(OK).json({supportedChains: [this.blockchainService.chainId]})
     } catch (err) {
       Logger.Err(err, true);
       return res.status(SERVICE_UNAVAILABLE).send()
