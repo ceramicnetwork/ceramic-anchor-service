@@ -4,7 +4,7 @@ exports[`ETH service should send CID to local ganache server 1`] = `
 Transaction {
   "blockNumber": 1,
   "blockTimestamp": 1586784004,
-  "chain": "eip155:0",
-  "txHash": "0x0ca40eebe20e298ad413355a95eeecc6f15774034486ede047b81e9c2675042f",
+  "chain": "eip155:1337",
+  "txHash": "0x873417e4596dbf4f2c262986f0bf4431e7a0c6aa9b9639496dc5de81423d206f",
 }
 `;

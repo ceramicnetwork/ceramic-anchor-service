@@ -115,8 +115,7 @@ export default class EthereumBlockchainService implements BlockchainService {
 
         logger.Imp("Transaction data:" + JSON.stringify(txData));
 
-        const signedTransaction = await wallet.signTransaction(txData);
-        const txResponse: providers.TransactionResponse = await this.provider.sendTransaction(signedTransaction);
+        const txResponse: providers.TransactionResponse = await wallet.sendTransaction(txData);
 
         const caip2ChainId = "eip155:" + txResponse.chainId;
         if (caip2ChainId != this.chainId) {
