@@ -55,13 +55,13 @@ export default class EthereumBlockchainService implements BlockchainService {
    * connected blockchain to ask for it.
    */
   private async _loadChainId(): Promise<void> {
-    const wallet = new ethers.Wallet(config.blockchain.connectors.ethereum.account.privateKey, this.provider);
-    const idnum = await wallet.getChainId()
+    const idnum = (await this.provider.getNetwork()).chainId
     this._chainId = BASE_CHAIN_ID + ':' + idnum
   }
 
   /**
    * Returns the cached 'chainId' representing the CAIP-2 ID of the configured blockchain.
+   * Invalid to call before calling connect()
    */
   public get chainId() {
     return this._chainId
