@@ -33,7 +33,7 @@ export default class CeramicService implements Contextual {
    * Sets dependencies
    */
   setContext(): void {
-    if (config.ceramic.validateRecords) {
+    if (config.ceramic.validateRecords === true) {
       this._client = new CeramicClient(config.ceramic.apiUrl);
 
       const keyDidResolver = KeyDidResolver.getResolver();
