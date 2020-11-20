@@ -63,7 +63,7 @@ export default class EthereumBlockchainService implements BlockchainService {
    * Returns the cached 'chainId' representing the CAIP-2 ID of the configured blockchain.
    * Invalid to call before calling connect()
    */
-  public get chainId() {
+  public get chainId(): string {
     return this._chainId
   }
 
