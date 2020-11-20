@@ -51,7 +51,14 @@ export default class CeramicService implements Contextual {
     multiformats.multicodec.add(dagJose);
     const format = legacy(multiformats, dagJose.name);
 
-    this._ipfs = ipfsClient({ url: config.ipfsConfig.host, ipld: { formats: [format] } })
+    this._ipfs = ipfsClient({
+      host: config.ipfsConfig.host,
+      port: config.ipfsConfig.port,
+      timeout: config.ipfsConfig.timeout,
+      ipld: {
+        formats: [format],
+      },
+    });
   }
 
   /**

@@ -4,7 +4,9 @@
   "cronExpression": "0 0 */1 * * *",
   "expirationPeriod": 5400000,
   "ipfsConfig": {
-    "host": "http://localhost:5001"
+    "host": "localhost",
+    "port": 5001,
+    "timeout": 120000
   },
   "ceramic": {
     "apiUrl": "http://localhost:7007",
