@@ -28,17 +28,18 @@ export default class CeramicService implements Contextual {
   private _ipfs: IPFSApi;
   private _client: CeramicApi;
   private _resolver: Resolver;
+  private _validateRecords: boolean;
 
   /**
    * Sets dependencies
    */
   setContext(): void {
-    let { validateRecords } = config.ceramic;
-    if (typeof validateRecords === "string") {
-      validateRecords = validateRecords as string === 'true'
+    this._validateRecords = config.ceramic.validateRecords;
+    if (typeof this._validateRecords === "string") {
+      this._validateRecords = this._validateRecords as string === 'true'
     }
 
-    if (validateRecords) {
+    if (this._validateRecords) {
       this._client = new CeramicClient(config.ceramic.apiUrl);
 
       const keyDidResolver = KeyDidResolver.getResolver();
@@ -88,16 +89,19 @@ export default class CeramicService implements Contextual {
    * @private
    */
   async verifySignedRecord(record: Record<string, unknown>): Promise<string> {
-    const { payload, signatures } = record;
-    const { signature, protected: _protected } = signatures[0];
+    if (this._validateRecords) {
+      const { payload, signatures } = record;
+      const { signature, protected: _protected } = signatures[0];
 
-    const decodedHeader = JSON.parse(base64url.decode(_protected));
-    const { kid } = decodedHeader;
+      const decodedHeader = JSON.parse(base64url.decode(_protected));
+      const { kid } = decodedHeader;
 
-    const didDoc = await this._resolver.resolve(kid);
-    const jws = [_protected, payload, signature].join(".");
-    await didJwt.verifyJWS(jws, didDoc.publicKey);
-    return kid.match(RegExp(DID_MATCHER))[1];
+      const didDoc = await this._resolver.resolve(kid);
+      const jws = [_protected, payload, signature].join(".");
+      await didJwt.verifyJWS(jws, didDoc.publicKey);
+      return kid.match(RegExp(DID_MATCHER))[1];
+    }
+    return null;
   }
 
 }
