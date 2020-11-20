@@ -4,7 +4,9 @@
   "cronExpression": "@@ANCHOR_SCHEDULE_EXPRESSION",
   "expirationPeriod": "@@ANCHOR_EXPIRATION_PERIOD",
   "ipfsConfig": {
-    "host": "@@IPFS_API_URL"
+    "host": "@@IPFS_API_HOST",
+    "port": "@@IPFS_API_PORT",
+    "timeout": "@@IPFS_API_TIMEOUT"
   },
   "ceramic": {
     "apiUrl": "@@CERAMIC_API_URL",
