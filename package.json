@@ -52,7 +52,7 @@
       "express-validator": "^6.6.1",
       "globby": "^11.0.1",
       "http-status-codes": "^2.1.4",
-      "ipfs-core": "^0.2.0",
+      "ipfs-core": "^0.2.1",
       "ipfs-http-client": "^48.1.0",
       "multiformats": "^3.0.3",
       "multihashes": "^3.0.1",
