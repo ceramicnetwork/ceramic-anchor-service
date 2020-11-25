@@ -80,9 +80,9 @@ export class MerkleTree<T> {
 
   /**
    * Get proof for particular element by index.  The proof is an array of nodes representing
-   * the various subtree that do *not* contain the element at elemIndex. The idea is that
+   * the various subtrees that do *not* contain the given element. The idea is that
    * by repeatedly merging the element with successive nodes from the proof array, you eventually
-   * should get the root node of the tree.
+   * should get the root node of the original merkle tree.
    * @param elemIndex - Element index
    * @returns Array of proof Nodes.
    */
@@ -90,10 +90,6 @@ export class MerkleTree<T> {
     return (await this._getProofHelper(this.levels[0][elemIndex])).reverse()
   }
 
-  /**
-   * Helper method for getProof that can be called recursively to move up the tree
-   * @param elem - Element whose proof we are constructing
-   */
   async _getProofHelper(elem: Node<T>): Promise<Node<T>[]> {
     const parent = elem.parent
     if (!parent) {
@@ -148,39 +144,5 @@ export class MerkleTree<T> {
     const result = await this._getDirectPathFromRootHelper(parent)
     result.push(parent.left === elem ? PathDirection.L : PathDirection.R);
     return result
-  }
-
-  /**
-   * Get direct path for particular element by index
-   * @param elemIndex - Element index
-   * @param levelIndex - Level index (defaults to 0)
-   * @param isOdd - Skip adding last element if it's an odd tree (defaults to false)
-   * @returns {*[]|*}
-   */
-  public async getDirectPathFromRootOld(elemIndex: number, levelIndex = 0, isOdd = false): Promise<PathDirection[]> {
-    if (levelIndex === this.levels.length - 1) {
-      return [];
-    }
-
-    let left;
-    let last = false;
-    if (elemIndex % 2 === 1) {
-      left = false;
-    } else if (elemIndex + 1 < this.levels[levelIndex].length) {
-      left = true;
-    } else {
-      left = true;
-      last = true;
-      isOdd = true;
-    }
-
-    const nextElemIndex = Math.trunc(elemIndex / 2);
-    const sub = await this.getDirectPathFromRootOld(nextElemIndex, levelIndex + 1, isOdd);
-    if (last && isOdd) {
-      return sub;
-    }
-
-    sub.push(left ? PathDirection.L : PathDirection.R);
-    return sub;
   }
 }
