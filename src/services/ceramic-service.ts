@@ -2,10 +2,10 @@ import * as didJwt from 'did-jwt'
 
 import { Resolver } from "did-resolver"
 
-import CeramicClient from '@ceramicnetwork/ceramic-http-client';
+import CeramicClient from '@ceramicnetwork/http-client';
 import KeyDidResolver from '@ceramicnetwork/key-did-resolver';
 import ThreeIdResolver from '@ceramicnetwork/3id-did-resolver';
-import { CeramicApi  } from "@ceramicnetwork/ceramic-common";
+import { CeramicApi  } from "@ceramicnetwork/common";
 
 import Contextual from "../contextual";
 
