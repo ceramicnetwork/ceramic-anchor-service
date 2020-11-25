@@ -6,7 +6,7 @@ import { MerkleTree } from '../merkle-tree';
 
 class StringConcat implements MergeFunction<string> {
   async merge(n1: Node<string>, n2: Node<string>): Promise<Node<string>> {
-    return new Node(`Hash(${n1} + ${n2})`);
+    return new Node(`Hash(${n1} + ${n2})`, n1, n2);
   }
 }
 
@@ -24,7 +24,7 @@ class HashConcat implements MergeFunction<Uint8Array> {
     if (!n2) {
       throw new Error('The concat function expects two hash arguments, the second was not received.');
     }
-    return new Node(sha256(Buffer.concat([n1.data, n2.data])));
+    return new Node(sha256(Buffer.concat([n1.data, n2.data])), n1, n2);
   }
 }
 

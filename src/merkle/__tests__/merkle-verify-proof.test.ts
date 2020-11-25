@@ -3,7 +3,7 @@ import { MerkleTree } from "../merkle-tree";
 
 class StringConcat implements MergeFunction<string> {
   async merge(n1: Node<string>, n2: Node<string>): Promise<Node<string>> {
-    return new Node(`Hash(${n1} + ${n2})`);
+    return new Node(`Hash(${n1} + ${n2})`, n1, n2);
   }
 }
 

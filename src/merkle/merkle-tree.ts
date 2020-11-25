@@ -6,7 +6,6 @@ import { CompareFunction, MergeFunction, Node, PathDirection } from './merkle';
  * Merkle tree structure
  */
 export class MerkleTree<T> {
-  private leaves: Node<T>[];
   private readonly levels: Node<T>[][];
   private readonly mergeFn: MergeFunction<T>;
   private readonly compareFn: CompareFunction<T> | undefined;
@@ -31,11 +30,11 @@ export class MerkleTree<T> {
       throw new Error('Cannot generate Merkle structure with no elements');
     }
 
-    this.leaves = leaves.map((leaf) => new Node(leaf));
+    const leafNodes = leaves.map((leaf) => new Node(leaf, null, null));
     if (this.compareFn) {
-      this.leaves.sort(this.compareFn.compare);
+      leafNodes.sort(this.compareFn.compare);
     }
-    await this._build(this.leaves);
+    await this._build(leafNodes);
   }
 
   /**
@@ -55,6 +54,8 @@ export class MerkleTree<T> {
     const nextLevelElements = [];
     for (let i = 0; i < elements.length - 1; i += 2) {
       const merged = await this.mergeFn.merge(elements[i], elements[i + 1]);
+      elements[i].parent = merged
+      elements[i + 1].parent = merged
       nextLevelElements.push(merged);
     }
     if (elements.length % 2 === 1) {
@@ -80,44 +81,36 @@ export class MerkleTree<T> {
   }
 
   /**
-   * Get proof for particular element by index
+   * Get proof for particular element by index.  The proof is an array of nodes representing
+   * the various subtree that do *not* contain the element at elemIndex. The idea is that
+   * by repeatedly merging the element with successive nodes from the proof array, you eventually
+   * should get the root node of the tree.
    * @param elemIndex - Element index
-   * @param levelIndex - Level index (defaults to 0)
-   * @param isOdd - Skip adding last element if it's an odd tree (defaults to false)
-   * @returns {*[]|*}
+   * @returns Array of Proofs, which are pairs of Nodes and a bool indicating whether that node
+   * represents the left or right subtree of its parent.
    */
-  public getProof(elemIndex: number, levelIndex = 0, isOdd = false): Proof<T>[] {
-    if (levelIndex === this.levels.length - 1) {
-      return [];
+  public getProof(elemIndex: number): Proof<T>[] {
+    return this._getProofHelper(this.levels[0][elemIndex]).reverse()
+  }
+
+  /**
+   * Helper method for getProof that can be called recursively to move up the tree
+   * @param elem - Element whose proof we are constructing
+   */
+  _getProofHelper(elem: Node<T>): Proof<T>[] {
+    const parent = elem.parent
+    if (!parent) {
+      // We're at the root
+      return []
     }
 
-    let left;
-    let data;
-    let last = false;
-    if (elemIndex % 2 === 1) {
-      left = true;
-      data = this.levels[levelIndex][elemIndex - 1];
-    } else if (elemIndex + 1 < this.levels[levelIndex].length) {
-      left = false;
-      data = this.levels[levelIndex][elemIndex + 1];
-    } else {
-      left = false;
-      data = this.levels[levelIndex][elemIndex];
-      last = true;
-      isOdd = true;
-    }
+    const left = parent.left === elem ? false : true
+    const data = left ? parent.left : parent.right
 
-    const nextLevelIndex = levelIndex + 1;
-    const nextElemIndex = Math.trunc(elemIndex / 2);
-    const sub = this.getProof(nextElemIndex, nextLevelIndex, isOdd);
-    if (last && isOdd) {
-      // skip adding the most right leaf
-      return sub;
-    }
+    const result = this._getProofHelper(parent);
 
-    const result = [[new Proof(data, left)]];
-    result.push(sub);
-    return Utils.flattenArray(result);
+    result.push(new Proof(data, left))
+    return result
   }
 
   /**
@@ -127,7 +120,7 @@ export class MerkleTree<T> {
    * @returns {Promise<boolean>}
    */
   public async verifyProof(proof: Proof<T>[], element: any): Promise<boolean> {
-    let current = new Node(element);
+    let current = new Node(element, null, null);
     for (const p of proof) {
       if (p.left) {
         current = await this.mergeFn.merge(p.node, current);
