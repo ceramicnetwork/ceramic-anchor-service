@@ -1,5 +1,3 @@
-import Proof from './proof';
-import Utils from '../utils';
 import { CompareFunction, MergeFunction, Node, PathDirection } from './merkle';
 
 /**
@@ -86,10 +84,9 @@ export class MerkleTree<T> {
    * by repeatedly merging the element with successive nodes from the proof array, you eventually
    * should get the root node of the tree.
    * @param elemIndex - Element index
-   * @returns Array of Proofs, which are pairs of Nodes and a bool indicating whether that node
-   * represents the left or right subtree of its parent.
+   * @returns Array of proof Nodes.
    */
-  public getProof(elemIndex: number): Proof<T>[] {
+  public getProof(elemIndex: number): Node<T>[] {
     return this._getProofHelper(this.levels[0][elemIndex]).reverse()
   }
 
@@ -97,7 +94,7 @@ export class MerkleTree<T> {
    * Helper method for getProof that can be called recursively to move up the tree
    * @param elem - Element whose proof we are constructing
    */
-  _getProofHelper(elem: Node<T>): Proof<T>[] {
+  _getProofHelper(elem: Node<T>): Node<T>[] {
     const parent = elem.parent
     if (!parent) {
       // We're at the root
@@ -106,8 +103,8 @@ export class MerkleTree<T> {
 
     const result = this._getProofHelper(parent);
 
-    const data = parent.left === elem ? parent.right : parent.left
-    result.push(new Proof(data))
+    const proofNode = parent.left === elem ? parent.right : parent.left
+    result.push(proofNode)
 
     return result
   }
@@ -118,14 +115,14 @@ export class MerkleTree<T> {
    * @param element - Node element
    * @returns {Promise<boolean>}
    */
-  public async verifyProof(proof: Proof<T>[], element: any): Promise<boolean> {
+  public async verifyProof(proof: Node<T>[], element: any): Promise<boolean> {
     let current = new Node(element, null, null);
     for (const p of proof) {
-      const left = p.node.parent.left == p.node
+      const left = p.parent.left == p
       if (left) {
-        current = await this.mergeFn.merge(p.node, current);
+        current = await this.mergeFn.merge(p, current);
       } else {
-        current = await this.mergeFn.merge(current, p.node);
+        current = await this.mergeFn.merge(current, p);
       }
     }
     return this.getRoot().data === current.data;

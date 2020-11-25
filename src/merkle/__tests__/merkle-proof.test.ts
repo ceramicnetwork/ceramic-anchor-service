@@ -1,6 +1,5 @@
 import * as crypto from 'crypto';
 
-import Proof from '../proof';
 import { MergeFunction, Node } from "../merkle";
 import { MerkleTree } from '../merkle-tree';
 
@@ -29,15 +28,15 @@ class HashConcat implements MergeFunction<Uint8Array> {
 }
 
 // given a proof, finds the merkle root
-const hashProof = (value: any, proof: Proof<Uint8Array>[]): any => {
+const hashProof = (value: any, proof: Node<Uint8Array>[]): any => {
   let data: Uint8Array = sha256(value);
   for (let i = 0; i < proof.length; i++) {
     let buffers: Uint8Array[];
-    const left = proof[i].node.parent.left === proof[i].node
+    const left = proof[i].parent.left === proof[i]
     if (left) {
-      buffers = new Array<Uint8Array>(proof[i].node.data, data);
+      buffers = new Array<Uint8Array>(proof[i].data, data);
     } else {
-      buffers = new Array<Uint8Array>(data, proof[i].node.data);
+      buffers = new Array<Uint8Array>(data, proof[i].data);
     }
     data = sha256(Buffer.concat(buffers));
   }
