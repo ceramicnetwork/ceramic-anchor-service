@@ -72,7 +72,7 @@ describe('Merkle tree layers tests',  () => {
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
 
-    expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + C)');
+    expect(merkleTree.getRoot().data).toBe('Hash(A + Hash(B + C))');
   });
 
   test('should create a root from five leaves: [A,B,C,D,E]', async () => {
@@ -80,7 +80,15 @@ describe('Merkle tree layers tests',  () => {
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
 
-    expect(merkleTree.getRoot().data).toBe('Hash(Hash(Hash(A + B) + Hash(C + D)) + E)');
+    expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + Hash(C + Hash(D + E)))');
+  });
+
+  test('should create a root from six leaves: [A,B,C,D,E,F]', async () => {
+    const leaves = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const merkleTree = new MerkleTree<string>(new StringConcat());
+    await merkleTree.build(leaves);
+
+    expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + Hash(B + C)) + Hash(D + Hash(E + F)))');
   });
 
   test('should create a root from seven leaves: [A,B,C,D,E,F,G]', async () => {
@@ -88,6 +96,56 @@ describe('Merkle tree layers tests',  () => {
     const merkleTree = new MerkleTree<string>(new StringConcat());
     await merkleTree.build(leaves);
 
-    expect(merkleTree.getRoot().data).toBe('Hash(Hash(Hash(A + B) + Hash(C + D)) + Hash(Hash(E + F) + G))');
+    expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + Hash(B + C)) + Hash(Hash(D + E) + Hash(F + G)))');
+  });
+});
+
+const findNodeDepth = async (node: Node<any>): Promise<number> => {
+  if (!node) {
+    return 0
+  }
+
+  let depth = 0
+  while (node) {
+    node = node.parent
+    depth++
+  }
+  return depth
+};
+
+const findMinAndMaxNodeDepth = async(tree: MerkleTree<any>): Promise<[number, number]> => {
+  let minDepth = tree.getLeaves().length
+  let maxDepth = 0
+
+  for (const node of tree._getLeafNodes()) {
+    const depth = await findNodeDepth(node)
+    if (depth < minDepth) {
+      minDepth = depth
+    }
+    if (depth > maxDepth) {
+      maxDepth = depth
+    }
+  }
+  return [minDepth, maxDepth]
+}
+
+describe('Balance test',  () => {
+
+  test('Tree should be balanced', async () => {
+    const inputs = []
+    for (let i = 1; i < 100; i++) {
+      // Create an array of numbers from 0-i in increasing order
+      const arr = Array.from(Array(i).keys())
+      inputs.push(arr.map(i => i.toString()))
+    }
+
+    for (const leaves of inputs) {
+      const merkleTree = new MerkleTree<string>(new StringConcat());
+      await merkleTree.build(leaves);
+
+      const [minDepth, maxDepth] = await findMinAndMaxNodeDepth(merkleTree)
+      // There shouldn't be more than 1 level difference between the deepest and shallowest nodes in the tree
+      expect(maxDepth - minDepth).toBeLessThanOrEqual(1)
+    }
   });
 });

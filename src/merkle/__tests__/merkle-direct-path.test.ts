@@ -68,6 +68,6 @@ describe('Merkle tree direct path tests',  () => {
     await merkleTree.build(leaves);
 
     const directPath = await merkleTree.getDirectPathFromRoot(8);
-    expect(directPath).toStrictEqual([PathDirection.R]);
+    expect(directPath).toStrictEqual([PathDirection.R, PathDirection.R, PathDirection.R, PathDirection.R]);
   });
 });

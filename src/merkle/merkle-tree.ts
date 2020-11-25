@@ -4,7 +4,8 @@ import { CompareFunction, MergeFunction, Node, PathDirection } from './merkle';
  * Merkle tree structure
  */
 export class MerkleTree<T> {
-  private readonly levels: Node<T>[][];
+  private root: Node<T>;
+  private leaves: Node<T>[];
   private readonly mergeFn: MergeFunction<T>;
   private readonly compareFn: CompareFunction<T> | undefined;
 
@@ -14,7 +15,6 @@ export class MerkleTree<T> {
    * @param compareFn
    */
   constructor(mergeFn: MergeFunction<T>, compareFn?: CompareFunction<T>) {
-    this.levels = [];
     this.mergeFn = mergeFn;
     this.compareFn = compareFn;
   }
@@ -23,59 +23,64 @@ export class MerkleTree<T> {
    * Initialize Merkle structure
    * @private
    */
-  public async build(leaves: any[] | undefined): Promise<void> {
-    if (leaves == null) {
+  public async build(leaves: T[] | undefined): Promise<void> {
+    if (!leaves || !leaves.length) {
       throw new Error('Cannot generate Merkle structure with no elements');
     }
 
-    const leafNodes = leaves.map((leaf) => new Node(leaf, null, null));
+    this.leaves = leaves.map((leaf) => new Node(leaf, null, null));
     if (this.compareFn) {
-      leafNodes.sort(this.compareFn.compare);
+      this.leaves.sort(this.compareFn.compare);
     }
-    await this._build(leafNodes);
+    this.root = await this._buildHelper(this.leaves);
   }
 
   /**
    * Get Merkle root node
-   * @param elements - Array of elements
-   * @returns {void}
+   * @param elements - Sorted array of elements
+   * @returns root of the merkle tree for the given elements
    */
-  private async _build(elements: any[]): Promise<void> {
+  private async _buildHelper(elements: Node<T>[]): Promise<Node<T>> {
     if (elements == null) {
       throw new Error('Cannot generate Merkle structure with no elements');
     }
-    this.levels.push(elements);
 
     if (elements.length === 1) {
-      return; // Merkle structure generated
+      return elements[0];
     }
-    const nextLevelElements = [];
-    for (let i = 0; i < elements.length - 1; i += 2) {
-      const merged = await this.mergeFn.merge(elements[i], elements[i + 1]);
-      elements[i].parent = merged
-      elements[i + 1].parent = merged
-      nextLevelElements.push(merged);
-    }
-    if (elements.length % 2 === 1) {
-      // if it's an odd level
-      nextLevelElements.push(elements[elements.length - 1]);
-    }
-    await this._build(nextLevelElements);
+
+    const middleIndex = Math.trunc(elements.length / 2)
+    const leftElements = elements.slice(0, middleIndex)
+    const rightElements = elements.slice(middleIndex)
+    const leftNode = await this._buildHelper(leftElements)
+    const rightNode = await this._buildHelper(rightElements)
+    const merged = await this.mergeFn.merge(leftNode, rightNode);
+    leftNode.parent = merged
+    rightNode.parent = merged
+    return merged
   }
 
   /**
    * Get root element
-   * @returns {*}
+   * @returns Node corresponding to the root of the merkle tree
    */
   public getRoot(): Node<T> {
-    return this.levels[this.levels.length - 1][0];
+    return this.root
   }
 
   /**
-   * Gets leaves (sorted or not)
+   * Gets leaves
    */
   public getLeaves(): T[] {
-    return this.levels[0].map(n => n.data);
+    return this.leaves.map(n => n.data);
+  }
+
+  /**
+   * Testing-only method to inspect the raw leaf nodes of the tree
+   * @private
+   */
+  public _getLeafNodes(): Node<T>[] {
+    return this.leaves
   }
 
   /**
@@ -87,10 +92,10 @@ export class MerkleTree<T> {
    * @returns Array of proof Nodes.
    */
   public async getProof(elemIndex: number): Promise<Node<T>[]> {
-    return (await this._getProofHelper(this.levels[0][elemIndex])).reverse()
+    return (await this._getProofHelper(this.leaves[elemIndex])).reverse()
   }
 
-  async _getProofHelper(elem: Node<T>): Promise<Node<T>[]> {
+  private async _getProofHelper(elem: Node<T>): Promise<Node<T>[]> {
     const parent = elem.parent
     if (!parent) {
       // We're at the root
@@ -131,10 +136,10 @@ export class MerkleTree<T> {
    * the element requested
    */
   public async getDirectPathFromRoot(elemIndex: number): Promise<PathDirection[]> {
-    return (await this._getDirectPathFromRootHelper(this.levels[0][elemIndex]))
+    return (await this._getDirectPathFromRootHelper(this.leaves[elemIndex]))
   }
 
-  async _getDirectPathFromRootHelper(elem: Node<T>) : Promise<PathDirection[]> {
+  private async _getDirectPathFromRootHelper(elem: Node<T>) : Promise<PathDirection[]> {
     const parent = elem.parent
     if (!parent) {
       // We're at the root

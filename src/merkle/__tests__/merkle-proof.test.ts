@@ -47,7 +47,7 @@ const leaves: string[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
 let lettersTree: MerkleTree<string>;
 let hashTree: MerkleTree<Uint8Array>;
 
-const root = 'eb100814abc896ab18bcf6c37b6550eeadeae0c312532286a4cf4be132ace526';
+const root = '1b0e895690b99d3bb2138f5ea55424f004901039763c420bc126ec8aa3bbca39';
 
 describe('Merkle tree proofs tests', () => {
   beforeAll(async (done) => {
@@ -72,7 +72,7 @@ describe('Merkle tree proofs tests', () => {
           `We were expecting: ${root} \n` +
           `We received: ${hashedProof} \n` +
           `In ${leaves.join('')} Merkle tree, the proof of ${leaves[i]} you gave us is: \n` +
-          `${JSON.stringify(lettersProof, null, 2)}`,
+          lettersProof.map(node => node.data).join('->')
         );
       }
 
