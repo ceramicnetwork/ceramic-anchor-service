@@ -62,10 +62,10 @@ describe('Merkle tree proofs tests', () => {
   describe('for each leaf', () => {
     test.each(leaves)(`should return a proof that calculates the root from leaf %p`, async (leaf) => {
       const i = leaves.indexOf(leaf);
-      const proof = hashTree.getProof(i);
+      const proof = await hashTree.getProof(i);
       const hashedProof = hashProof(leaf, proof).toString('hex');
       if (hashedProof !== root) {
-        const lettersProof = lettersTree.getProof(i);
+        const lettersProof = await lettersTree.getProof(i);
         // tslint:disable-next-line:no-console
         console.log(
           'The resulting hash of your proof is wrong. \n' +

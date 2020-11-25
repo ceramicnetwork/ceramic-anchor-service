@@ -86,22 +86,22 @@ export class MerkleTree<T> {
    * @param elemIndex - Element index
    * @returns Array of proof Nodes.
    */
-  public getProof(elemIndex: number): Node<T>[] {
-    return this._getProofHelper(this.levels[0][elemIndex]).reverse()
+  public async getProof(elemIndex: number): Promise<Node<T>[]> {
+    return (await this._getProofHelper(this.levels[0][elemIndex])).reverse()
   }
 
   /**
    * Helper method for getProof that can be called recursively to move up the tree
    * @param elem - Element whose proof we are constructing
    */
-  _getProofHelper(elem: Node<T>): Node<T>[] {
+  async _getProofHelper(elem: Node<T>): Promise<Node<T>[]> {
     const parent = elem.parent
     if (!parent) {
       // We're at the root
       return []
     }
 
-    const result = this._getProofHelper(parent);
+    const result = await this._getProofHelper(parent);
 
     const proofNode = parent.left === elem ? parent.right : parent.left
     result.push(proofNode)
