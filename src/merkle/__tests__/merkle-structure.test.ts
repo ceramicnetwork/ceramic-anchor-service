@@ -14,7 +14,7 @@ class StringCompare implements CompareFunction<string> {
   }
 }
 
-describe('Merkle tree layers tests',  () => {
+describe('Merkle tree structure tests',  () => {
   test('should handle null case', async () => {
     try {
       // tslint:disable-next-line:no-unused-expression
@@ -129,8 +129,7 @@ const findMinAndMaxNodeDepth = async(tree: MerkleTree<any>): Promise<[number, nu
   return [minDepth, maxDepth]
 }
 
-describe('Balance test',  () => {
-
+describe('Merkle tree balance test',  () => {
   test('Tree should be balanced', async () => {
     const inputs = []
     for (let i = 1; i < 100; i++) {
