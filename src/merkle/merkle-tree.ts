@@ -104,12 +104,11 @@ export class MerkleTree<T> {
       return []
     }
 
-    const left = parent.left === elem ? false : true
-    const data = left ? parent.left : parent.right
-
     const result = this._getProofHelper(parent);
 
-    result.push(new Proof(data, left))
+    const data = parent.left === elem ? parent.right : parent.left
+    result.push(new Proof(data))
+
     return result
   }
 
@@ -122,7 +121,8 @@ export class MerkleTree<T> {
   public async verifyProof(proof: Proof<T>[], element: any): Promise<boolean> {
     let current = new Node(element, null, null);
     for (const p of proof) {
-      if (p.left) {
+      const left = p.node.parent.left == p.node
+      if (left) {
         current = await this.mergeFn.merge(p.node, current);
       } else {
         current = await this.mergeFn.merge(current, p.node);

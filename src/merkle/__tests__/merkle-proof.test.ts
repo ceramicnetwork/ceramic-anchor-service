@@ -33,7 +33,8 @@ const hashProof = (value: any, proof: Proof<Uint8Array>[]): any => {
   let data: Uint8Array = sha256(value);
   for (let i = 0; i < proof.length; i++) {
     let buffers: Uint8Array[];
-    if (proof[i].left) {
+    const left = proof[i].node.parent.left === proof[i].node
+    if (left) {
       buffers = new Array<Uint8Array>(proof[i].node.data, data);
     } else {
       buffers = new Array<Uint8Array>(data, proof[i].node.data);
