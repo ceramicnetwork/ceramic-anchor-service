@@ -91,21 +91,3 @@ describe('Merkle tree layers tests',  () => {
     expect(merkleTree.getRoot().data).toBe('Hash(Hash(Hash(A + B) + Hash(C + D)) + Hash(Hash(E + F) + G))');
   });
 });
-
-describe('Balance test',  () => {
-  test('Tree should be balanced', async () => {
-    const inputs = []
-    for (let i = 0; i < 100; i++) {
-      // Create an array of numbers from 0-i in increasing order
-      const arr = Array.from(Array(i).keys())
-      inputs.push(arr.map(i => i.toString()))
-    }
-
-    for (const leaves in inputs) {
-      const merkleTree = new MerkleTree<string>(new StringConcat());
-      //await merkleTree.build(leaves);
-
-      //expect(merkleTree.getRoot().data).toBe('Hash(Hash(Hash(A + B) + Hash(C + D)) + Hash(Hash(E + F) + G))');
-    }
-  });
-});
