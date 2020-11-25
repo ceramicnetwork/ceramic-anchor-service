@@ -5,7 +5,7 @@ import Contextual from '../contextual';
 
 import { IPFSApi } from "../declarations";
 
-import { DoctypeUtils } from '@ceramicnetwork/ceramic-common';
+import { DoctypeUtils } from '@ceramicnetwork/common';
 import { Logger as logger } from '@overnightjs/logger';
 import { RequestStatus as RS } from '../models/request-status';
 
