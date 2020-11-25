@@ -131,11 +131,33 @@ export class MerkleTree<T> {
   /**
    * Get direct path for particular element by index
    * @param elemIndex - Element index
+   * @returns Array of PathDirection objects representing the path from the root of the tree to
+   * the element requested
+   */
+  public async getDirectPathFromRoot(elemIndex: number): Promise<PathDirection[]> {
+    return (await this._getDirectPathFromRootHelper(this.levels[0][elemIndex]))
+  }
+
+  async _getDirectPathFromRootHelper(elem: Node<T>) : Promise<PathDirection[]> {
+    const parent = elem.parent
+    if (!parent) {
+      // We're at the root
+      return []
+    }
+
+    const result = await this._getDirectPathFromRootHelper(parent)
+    result.push(parent.left === elem ? PathDirection.L : PathDirection.R);
+    return result
+  }
+
+  /**
+   * Get direct path for particular element by index
+   * @param elemIndex - Element index
    * @param levelIndex - Level index (defaults to 0)
    * @param isOdd - Skip adding last element if it's an odd tree (defaults to false)
    * @returns {*[]|*}
    */
-  public async getDirectPathFromRoot(elemIndex: number, levelIndex = 0, isOdd = false): Promise<PathDirection[]> {
+  public async getDirectPathFromRootOld(elemIndex: number, levelIndex = 0, isOdd = false): Promise<PathDirection[]> {
     if (levelIndex === this.levels.length - 1) {
       return [];
     }
@@ -153,7 +175,7 @@ export class MerkleTree<T> {
     }
 
     const nextElemIndex = Math.trunc(elemIndex / 2);
-    const sub = await this.getDirectPathFromRoot(nextElemIndex, levelIndex + 1, isOdd);
+    const sub = await this.getDirectPathFromRootOld(nextElemIndex, levelIndex + 1, isOdd);
     if (last && isOdd) {
       return sub;
     }
