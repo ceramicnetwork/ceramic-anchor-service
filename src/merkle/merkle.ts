@@ -20,7 +20,9 @@ interface CompareFunction<T> {
  * Interface of one Merkle node
  */
 class Node<T> {
-  constructor(public data: T, public left?: Node<T>, public right?: Node<T>) {}
+  public parent?: Node<T>;
+
+  constructor(public data: T, public left: Node<T>, public right: Node<T>) {}
 
   public toString = (): string => {
     return '' + this.data;

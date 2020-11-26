@@ -1,12 +1,11 @@
 import * as crypto from 'crypto';
 
-import Proof from '../proof';
 import { MergeFunction, Node } from "../merkle";
 import { MerkleTree } from '../merkle-tree';
 
 class StringConcat implements MergeFunction<string> {
   async merge(n1: Node<string>, n2: Node<string>): Promise<Node<string>> {
-    return new Node(`Hash(${n1} + ${n2})`);
+    return new Node(`Hash(${n1} + ${n2})`, n1, n2);
   }
 }
 
@@ -24,19 +23,20 @@ class HashConcat implements MergeFunction<Uint8Array> {
     if (!n2) {
       throw new Error('The concat function expects two hash arguments, the second was not received.');
     }
-    return new Node(sha256(Buffer.concat([n1.data, n2.data])));
+    return new Node(sha256(Buffer.concat([n1.data, n2.data])), n1, n2);
   }
 }
 
 // given a proof, finds the merkle root
-const hashProof = (value: any, proof: Proof<Uint8Array>[]): any => {
+const hashProof = (value: any, proof: Node<Uint8Array>[]): any => {
   let data: Uint8Array = sha256(value);
   for (let i = 0; i < proof.length; i++) {
     let buffers: Uint8Array[];
-    if (proof[i].left) {
-      buffers = new Array<Uint8Array>(proof[i].node.data, data);
+    const left = proof[i].parent.left === proof[i]
+    if (left) {
+      buffers = new Array<Uint8Array>(proof[i].data, data);
     } else {
-      buffers = new Array<Uint8Array>(data, proof[i].node.data);
+      buffers = new Array<Uint8Array>(data, proof[i].data);
     }
     data = sha256(Buffer.concat(buffers));
   }
@@ -62,10 +62,10 @@ describe('Merkle tree proofs tests', () => {
   describe('for each leaf', () => {
     test.each(leaves)(`should return a proof that calculates the root from leaf %p`, async (leaf) => {
       const i = leaves.indexOf(leaf);
-      const proof = hashTree.getProof(i);
+      const proof = await hashTree.getProof(i);
       const hashedProof = hashProof(leaf, proof).toString('hex');
       if (hashedProof !== root) {
-        const lettersProof = lettersTree.getProof(i);
+        const lettersProof = await lettersTree.getProof(i);
         // tslint:disable-next-line:no-console
         console.log(
           'The resulting hash of your proof is wrong. \n' +
