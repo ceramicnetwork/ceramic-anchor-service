@@ -14,4 +14,3 @@ data
 .env
 store.db
 src/controllers/internal-controller.ts
-
