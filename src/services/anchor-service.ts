@@ -1,29 +1,28 @@
-import CID from 'cids';
+import CID from "cids";
 
-import Context from '../context';
-import Contextual from '../contextual';
+import Context from "../context";
+import Contextual from "../contextual";
 
-import { IPFSApi } from "../declarations";
+import { DoctypeUtils } from "@ceramicnetwork/common";
+import { Logger as logger } from "@overnightjs/logger";
+import { RequestStatus as RS } from "../models/request-status";
 
-import { DoctypeUtils } from '@ceramicnetwork/common';
-import { Logger as logger } from '@overnightjs/logger';
-import { RequestStatus as RS } from '../models/request-status';
+import { MerkleTree } from "../merkle/merkle-tree";
+import { CompareFunction, MergeFunction, Node, PathDirection } from "../merkle/merkle";
 
-import { MerkleTree } from '../merkle/merkle-tree';
-import { CompareFunction, MergeFunction, Node, PathDirection } from '../merkle/merkle';
-
-import Utils from '../utils';
 import { config } from "node-config-ts";
 import { Transactional } from "typeorm-transactional-cls-hooked";
 
-import { Anchor } from '../models/anchor';
-import { Request } from '../models/request';
-import Transaction from '../models/transaction';
+import Utils from "../utils";
+import { Anchor } from "../models/anchor";
+import { Request } from "../models/request";
+import Transaction from "../models/transaction";
 import AnchorRepository from "../repositories/anchor-repository";
 
-import RequestService from './request-service';
+import IpfsService from "./ipfs-service";
+import RequestService from "./request-service";
 import CeramicService from "./ceramic-service";
-import { BlockchainService } from './blockchain/blockchain-service';
+import BlockchainService from "./blockchain/blockchain-service";
 
 class Candidate {
   public cid: CID;
@@ -49,19 +48,19 @@ class Candidate {
  * Implements IPFS merge CIDs
  */
 class IpfsMerge implements MergeFunction<Candidate> {
-  private ipfs: IPFSApi;
+  private ipfsService: IpfsService;
 
-  constructor(ipfs: IPFSApi) {
-    this.ipfs = ipfs;
+  constructor(ipfsService: IpfsService) {
+    this.ipfsService = ipfsService;
   }
 
   async merge(left: Node<Candidate>, right: Node<Candidate>): Promise<Node<Candidate>> {
     const merged = {
       L: left.data.cid,
-      R: right.data.cid,
+      R: right.data.cid
     };
 
-    const mergedCid = await this.ipfs.dag.put(merged);
+    const mergedCid = await this.ipfsService.storeRecord(merged);
     return new Node<Candidate>(new Candidate(mergedCid), left, right);
   }
 }
@@ -82,19 +81,12 @@ export default class AnchorService implements Contextual {
   private ipfsMerge: IpfsMerge;
   private ipfsCompare: IpfsLeafCompare;
 
+  private ipfsService: IpfsService;
   private requestService: RequestService;
   private ceramicService: CeramicService;
   private blockchainService: BlockchainService;
 
   private anchorRepository: AnchorRepository;
-
-  /**
-   * Initialize the service
-   */
-  public async init(): Promise<void> {
-    this.ipfsMerge = new IpfsMerge(this.ceramicService.ipfs);
-    this.ipfsCompare = new IpfsLeafCompare();
-  }
 
   /**
    * Sets dependencies
@@ -103,9 +95,13 @@ export default class AnchorService implements Contextual {
   setContext(context: Context): void {
     this.blockchainService = context.getSelectedBlockchainService();
 
-    this.ceramicService = context.lookup('CeramicService');
-    this.requestService = context.lookup('RequestService');
-    this.anchorRepository = context.lookup('AnchorRepository')
+    this.ipfsService = context.lookup("IpfsService");
+    this.ceramicService = context.lookup("CeramicService");
+    this.requestService = context.lookup("RequestService");
+    this.anchorRepository = context.lookup("AnchorRepository");
+
+    this.ipfsMerge = new IpfsMerge(this.ipfsService);
+    this.ipfsCompare = new IpfsLeafCompare();
   }
 
   /**
@@ -113,27 +109,48 @@ export default class AnchorService implements Contextual {
    * @param request - Request instance
    */
   public async findByRequest(request: Request): Promise<Anchor> {
-    return this.anchorRepository.findByRequest(request)
+    return this.anchorRepository.findByRequest(request);
   }
 
   /**
    * Creates anchors for client requests
    */
   public async anchorRequests(): Promise<void> {
-    const reqs: Request[] = await this.requestService.findNextToProcess();
-    if (reqs.length === 0) {
-      logger.Info('No pending CID requests found. Skipping anchor.');
+    let requests: Request[] = await this.requestService.findNextToProcess();
+    if (requests.length === 0) {
+      logger.Info("No pending CID requests found. Skipping anchor.");
       return;
     }
 
-    // filter old updates for same docIds
-    let candidates: Candidate[] = await this._findCandidates(reqs);
-    const validReqIds = candidates.map(p => p.reqId);
-    const discardedReqs = reqs.filter(r => !validReqIds.includes(r.id));
+    const nonReachableRequestIds = await this.ipfsService.tryToFetchByCIDs(requests);
+    if (nonReachableRequestIds.length === 0) {
+      logger.Imp("All CIDs are reachable by this CAS.");
+    } else {
+      // discard non reachable ones
+      await this.requestService.updateRequests({
+        status: RS.FAILED,
+        message: "Request has failed. Record is not reachable by CAS IPFS service."
+      }, nonReachableRequestIds);
+    }
 
-    if (discardedReqs.length > 0) {
-      // update discarded requests
-      await this.requestService.updateReqs({ status: RS.FAILED, message: 'Request has failed. There are conflicts with other requests for the same document and DID.', }, discardedReqs.map(r => r.id));
+    // filter valid requests
+    requests = requests.filter(r => !nonReachableRequestIds.includes(r.id));
+
+    let candidates: Candidate[] = await this._findCandidates(requests);
+    const clashingRequestIds = requests.filter(r => !candidates.map(p => p.reqId).includes(r.id)).map(r => r.id);
+    if (clashingRequestIds.length > 0) {
+      // discard clashing ones
+      await this.requestService.updateRequests({
+        status: RS.FAILED,
+        message: "Request has failed. There are conflicts with other requests for the same document and DID."
+      }, clashingRequestIds);
+    }
+
+    // filter valid requests
+    requests = requests.filter(r => !clashingRequestIds.includes(r.id));
+    if (requests.length === 0) {
+      logger.Info("No pending CID requests found. Skipping anchor.");
+      return;
     }
 
     // create merkle tree
@@ -142,10 +159,10 @@ export default class AnchorService implements Contextual {
 
     // create and send ETH transaction
     const tx: Transaction = await this.blockchainService.sendTransaction(merkleTree.getRoot().data.cid);
-    const txHashCid = Utils.convertEthHashToCid('eth-tx', tx.txHash.slice(2));
+    const txHashCid = Utils.convertEthHashToCid("eth-tx", tx.txHash.slice(2));
 
     // create proofs on IPFS
-    await this._createIPFSProofs(tx, txHashCid, merkleTree, candidates, reqs, validReqIds);
+    await this._createIPFSProofs(tx, txHashCid, merkleTree, candidates, requests);
   }
 
   /**
@@ -154,12 +171,11 @@ export default class AnchorService implements Contextual {
    * @param txHashCid - Transaction hash CID
    * @param merkleTree - Merkle tree instance
    * @param candidates - Merkle tree candidates
-   * @param reqs - All available requests
-   * @param validReqIds - Valid request IDs
+   * @param requests - Valid requests
    * @private
    */
   @Transactional()
-  async _createIPFSProofs(tx: Transaction, txHashCid: CID, merkleTree: MerkleTree<Candidate>, candidates: Candidate[], reqs: Request[], validReqIds: number[]): Promise<void> {
+  async _createIPFSProofs(tx: Transaction, txHashCid: CID, merkleTree: MerkleTree<Candidate>, candidates: Candidate[], requests: Request[]): Promise<void> {
     const ipfsAnchorProof = {
       blockNumber: tx.blockNumber,
       blockTimestamp: tx.blockTimestamp,
@@ -167,11 +183,11 @@ export default class AnchorService implements Contextual {
       chainId: tx.chain,
       txHash: txHashCid
     };
-    const ipfsProofCid = await this.ceramicService.ipfs.dag.put(ipfsAnchorProof);
+    const ipfsProofCid = await this.ipfsService.storeRecord(ipfsAnchorProof);
 
     const anchors: Anchor[] = [];
     for (let index = 0; index < candidates.length; index++) {
-      const req: Request = reqs.find(r => r.id === candidates[index].reqId);
+      const req: Request = requests.find(r => r.id === candidates[index].reqId);
 
       const anchor: Anchor = new Anchor();
       anchor.request = req;
@@ -181,7 +197,7 @@ export default class AnchorService implements Contextual {
       anchor.path = path.map((p) => PathDirection[p].toString()).join("/");
 
       const ipfsAnchorRecord = { prev: new CID(req.cid), proof: ipfsProofCid, path: anchor.path };
-      const anchorCid = await this.ceramicService.ipfs.dag.put(ipfsAnchorRecord);
+      const anchorCid = await this.ipfsService.storeRecord(ipfsAnchorRecord);
 
       anchor.cid = anchorCid.toString();
       anchors.push(anchor);
@@ -189,8 +205,14 @@ export default class AnchorService implements Contextual {
     // create anchor records
     await this.anchorRepository.createAnchors(anchors);
 
-    await this.requestService.updateReqs({ status: RS.COMPLETED, message: "CID successfully anchored." }, validReqIds);
-    logger.Imp(`Service successfully anchored ${validReqIds.length} CIDs.`);
+    await this.requestService.updateRequests(
+      {
+        status: RS.COMPLETED,
+        message: "CID successfully anchored."
+      },
+      requests.map(r => r.id));
+
+    logger.Imp(`Service successfully anchored ${requests.length} CIDs.`);
   }
 
   /**
@@ -201,24 +223,23 @@ export default class AnchorService implements Contextual {
     const result: Candidate[] = [];
     const group: Record<string, Candidate[]> = {};
 
-    let req = null;
+    let request = null;
     for (let index = 0; index < requests.length; index++) {
       try {
-        req = requests[index];
-        let did = null;
-        if (config.ceramic.validateRecords) {
-          const record = (await this.ceramicService.ipfs.dag.get(req.cid)).value;
-          did = await this.ceramicService.verifySignedRecord(record);
-        }
+        request = requests[index];
+        const record = await this.ipfsService.retrieveRecord(request.cid);
+        const did = config.ceramic.validateRecords ? await this.ceramicService.verifySignedRecord(record) : null;
 
-        const candidate = new Candidate(new CID(req.cid), req.docId, did, req.id);
-        if (!group[candidate.key]) {
-          group[candidate.key] = []
-        }
-        group[candidate.key].push(candidate)
+        const candidate = new Candidate(new CID(request.cid), request.docId, did, request.id);
+        group[candidate.key] = group[candidate.key] ? [...group[candidate.key], candidate] : [candidate];
       } catch (e) {
         logger.Err(e, true);
-        await this.requestService.updateReqs({ status: RS.FAILED, message: 'Request has failed. Invalid signature.'}, [req.id]);
+        await this.requestService.updateRequests(
+          {
+            status: RS.FAILED,
+            message: "Request has failed. Invalid signature."
+          },
+          [request.id]);
       }
     }
 
@@ -229,11 +250,11 @@ export default class AnchorService implements Contextual {
       let selected: Candidate = null;
 
       for (const pair of candidates) {
-        const record = (await this.ceramicService.ipfs.dag.get(pair.cid)).value;
+        const record = await this.ipfsService.retrieveRecord(pair.cid);
 
         let currentNonce;
         if (DoctypeUtils.isSignedRecord(record)) {
-          const payload = (await this.ceramicService.ipfs.dag.get(record.link)).value;
+          const payload = await this.ipfsService.retrieveRecord(record.link);
           currentNonce = payload.header?.nonce || 0;
         } else {
           currentNonce = record.header?.nonce || 0;
@@ -243,9 +264,11 @@ export default class AnchorService implements Contextual {
           nonce = currentNonce;
         }
       }
-      result.push(selected);
+      if (selected) {
+        result.push(selected);
+      }
     }
-    return result
+    return result;
   }
 
   /**

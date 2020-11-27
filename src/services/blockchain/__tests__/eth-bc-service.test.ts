@@ -2,10 +2,10 @@ import CID from 'cids';
 import Ganache from 'ganache-core'
 
 import { config } from 'node-config-ts';
+import { Logger as logger } from '@overnightjs/logger/lib/Logger';
 
 import Context from "../../../context";
-import { BlockchainService } from "../blockchain-service";
-import { Logger as logger } from '@overnightjs/logger/lib/Logger';
+import BlockchainService from "../blockchain-service";
 
 let ctx: Context = null;
 let ganacheServer: any = null;

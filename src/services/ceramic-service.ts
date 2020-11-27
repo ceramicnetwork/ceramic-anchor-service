@@ -11,21 +11,12 @@ import Contextual from "../contextual";
 
 import base64url from "base64url"
 
-import ipfsClient from "ipfs-http-client";
-import { IPFSApi } from "../declarations";
 import { config } from "node-config-ts";
-
-import dagJose from 'dag-jose'
-// @ts-ignore
-import multiformats from 'multiformats/basics'
-// @ts-ignore
-import legacy from 'multiformats/legacy'
 
 const DID_MATCHER = '^(did:([a-zA-Z0-9_]+):([a-zA-Z0-9_.-]+(:[a-zA-Z0-9_.-]+)*)((;[a-zA-Z0-9_.:%-]+=[a-zA-Z0-9_.:%-]*)*)(/[^#?]*)?)([?][^#]*)?(#.*)?';
 
 export default class CeramicService implements Contextual {
 
-  private _ipfs: IPFSApi;
   private _client: CeramicApi;
   private _resolver: Resolver;
   private _validateRecords: boolean;
@@ -48,38 +39,6 @@ export default class CeramicService implements Contextual {
         ...threeIdResolver, ...keyDidResolver,
       })
     }
-  }
-
-  /**
-   * Initialize the service
-   */
-  public async init(): Promise<void> {
-    multiformats.multicodec.add(dagJose);
-    const format = legacy(multiformats, dagJose.name);
-
-    this._ipfs = ipfsClient({
-      host: config.ipfsConfig.host,
-      port: config.ipfsConfig.port,
-      timeout: config.ipfsConfig.timeout,
-      ipld: {
-        formats: [format],
-      },
-    });
-  }
-
-  /**
-   * Get IPFS client
-   */
-  get ipfs(): IPFSApi {
-    return this._ipfs
-  }
-
-  /**
-   * Set IPFS client
-   * @param ipfs - IPFS client
-   */
-  set ipfs(ipfs: IPFSApi) {
-    this._ipfs = ipfs
   }
 
   /**
