@@ -7,7 +7,7 @@ import { ClassMiddleware, Controller, Get } from '@overnightjs/core';
 
 import Context from '../context';
 import Contextual from '../contextual';
-import { BlockchainService } from '../services/blockchain/blockchain-service';
+import BlockchainService from '../services/blockchain/blockchain-service';
 
 /**
  * The ServiceInfoController class defines an API endpoint for requests for information about the

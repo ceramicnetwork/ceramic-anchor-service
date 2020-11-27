@@ -5,6 +5,7 @@ build/
 tmp/
 temp/
 anchor.db.sq3
+anchor.db.sqbpro
 coverage
 .nyc_output
 lib
@@ -12,3 +13,5 @@ config/Config.d.ts
 data
 .env
 store.db
+src/controllers/internal-controller.ts
+
