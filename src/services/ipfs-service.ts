@@ -17,7 +17,7 @@ import { Logger as logger } from '@overnightjs/logger';
 
 import { Request } from "../models/request";
 
-const MAX_FETCH_ITERATIONS = 4;
+const MAX_FETCH_ITERATIONS = 10;
 import { IPFSApi } from "../declarations";
 
 export default class IpfsService implements Contextual {
@@ -53,7 +53,7 @@ export default class IpfsService implements Contextual {
 
     let start = 0;
     let oneFail = true;
-    while (oneFail && start++ < MAX_FETCH_ITERATIONS) {
+    while (oneFail || start++ < MAX_FETCH_ITERATIONS) {
       oneFail = false;
       for (const obj of objs) {
         try {
