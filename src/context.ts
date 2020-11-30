@@ -3,8 +3,8 @@ import * as path from 'path';
 import { config } from 'node-config-ts';
 
 import Utils from './utils';
+import { BlockchainService } from './services/blockchain/blockchain-service';
 import Contextual from "./contextual";
-import BlockchainService from './services/blockchain/blockchain-service';
 
 /**
  * Builds application context (services, controllers, etc.)
