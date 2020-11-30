@@ -59,7 +59,7 @@ class IpfsMerge implements MergeFunction<Candidate> {
     };
 
     const mergedCid = await this.ipfsService.storeRecord(merged);
-    logger.Info('Created Merkle node ' + mergedCid);
+    logger.Info('Merkle node ' + mergedCid + ' created.');
     return new Node<Candidate>(new Candidate(mergedCid), left, right);
   }
 }
@@ -173,7 +173,6 @@ export default class AnchorService {
    */
   @Transactional()
   async _createIPFSProofs(tx: Transaction, txHashCid: CID, merkleTree: MerkleTree<Candidate>, candidates: Candidate[], requests: Request[]): Promise<void> {
-    logger.Imp('Create IPFS proofs.');
     const ipfsAnchorProof = {
       blockNumber: tx.blockNumber,
       blockTimestamp: tx.blockTimestamp,
