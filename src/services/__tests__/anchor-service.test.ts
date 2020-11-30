@@ -30,7 +30,7 @@ class MockIpfsService {
     }
   }
 
-  async tryToFetchByCIDs(requests: Array<Request>): Promise<Array<number>> {
+  async findUnreachableCids(requests: Array<Request>): Promise<Array<number>> {
     return []
   }
 

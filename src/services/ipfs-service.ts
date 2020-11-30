@@ -9,6 +9,13 @@ import { Logger as logger } from '@overnightjs/logger';
 
 import { Request } from "../models/request";
 
+// @ts-ignore
+import dagJose from 'dag-jose'
+// @ts-ignore
+import multiformats from 'multiformats/basics'
+// @ts-ignore
+import legacy from 'multiformats/legacy'
+
 const MAX_FETCH_ITERATIONS = 4;
 import { IPFSApi } from "../declarations";
 import { singleton } from "tsyringe";
@@ -47,13 +54,6 @@ export class IpfsServiceImpl implements IpfsService {
    * Initialize the service
    */
   public async init(): Promise<void> {
-    // @ts-ignore
-    import dagJose from 'dag-jose'
-    // @ts-ignore
-    import multiformats from 'multiformats/basics'
-    // @ts-ignore
-    import legacy from 'multiformats/legacy'
-
     multiformats.multicodec.add(dagJose);
     const format = legacy(multiformats, dagJose.name);
 
