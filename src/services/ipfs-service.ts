@@ -3,7 +3,7 @@ import CID from 'cids';
 import ipfsClient from "ipfs-http-client";
 import { config } from "node-config-ts";
 
-const DEFAULT_GET_TIMEOUT = 10000; // 30 seconds
+const DEFAULT_GET_TIMEOUT = 30000; // 30 seconds
 
 import { Logger as logger } from '@overnightjs/logger';
 
@@ -75,10 +75,13 @@ export class IpfsServiceImpl implements IpfsService {
   public async findUnreachableCids(requests: Array<Request>): Promise<Array<number>> {
     return (await Promise.all(requests.map(async (r) => {
       try {
-        await this.retrieveRecord(r.cid);
+        const record = await this.retrieveRecord(r.cid);
+        if (record.link) {
+          await this.retrieveRecord(record.link);
+        }
         return null;
       } catch (e) {
-        logger.Err(e);
+        logger.Err('Failed to retrieve record. ' + e.message);
         return r.id;
       }
     }))).filter(id => id != null);
