@@ -3,7 +3,7 @@ import CID from 'cids';
 import ipfsClient from "ipfs-http-client";
 import { config } from "node-config-ts";
 
-const DEFAULT_GET_TIMEOUT = 30000; // 10 seconds
+const DEFAULT_GET_TIMEOUT = 10000; // 30 seconds
 
 import { Logger as logger } from '@overnightjs/logger';
 
@@ -20,8 +20,6 @@ import legacy from 'multiformats/legacy'
 import type { IPFSAPI as IPFSApi } from 'ipfs-core/dist/src/components'
 
 import { singleton } from "tsyringe";
-
-const MAX_FETCH_ITERATIONS = 2;
 
 export interface IpfsService {
   /**
@@ -75,31 +73,15 @@ export class IpfsServiceImpl implements IpfsService {
    * @param requests - Request list
    */
   public async findUnreachableCids(requests: Array<Request>): Promise<Array<number>> {
-    const objs = requests.map(r => {
-      return { fails: 0, ok: false, r: r.id, cid: r.cid };
-    });
-
-    let start = 0;
-    let oneFail = true;
-    while (oneFail && start++ < MAX_FETCH_ITERATIONS) {
-      oneFail = false;
-      for (const obj of objs) {
-        try {
-          if (obj.ok) {
-            continue;
-          }
-          await this.retrieveRecord(obj.cid);
-          logger.Info("Found value for " + obj.cid);
-          obj.ok = true;
-        } catch (e) {
-          logger.Err(obj.cid + " failed");
-          oneFail = true;
-          obj.fails = obj.fails + 1;
-        }
+    return (await Promise.all(requests.map(async (r) => {
+      try {
+        await this.retrieveRecord(r.cid);
+        return null;
+      } catch (e) {
+        logger.Err(e);
+        return r.id;
       }
-    }
-
-    return objs.filter(o => !o.ok).map(o => o.r);
+    }))).filter(id => id != null);
   }
 
   /**
@@ -107,12 +89,20 @@ export class IpfsServiceImpl implements IpfsService {
    * @param cid - CID value
    */
   public async retrieveRecord(cid: CID | string): Promise<any> {
-    logger.Info("Retrieve record " + cid);
-
-    const record = await this._ipfs.dag.get(cid, {
-      timeout: DEFAULT_GET_TIMEOUT
-    });
-    return record.value;
+    let retryTimes = 2;
+    while (retryTimes > 0) {
+      try {
+        const record = await this._ipfs.dag.get(cid, {
+          timeout: DEFAULT_GET_TIMEOUT
+        });
+        logger.Imp('Successfully retrieved ' + cid);
+        return record.value;
+      } catch (e) {
+        logger.Err(e, true)
+        retryTimes--
+      }
+    }
+    throw new Error("Failed to retrieve record " + cid)
   }
 
   /**

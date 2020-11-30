@@ -59,6 +59,7 @@ class IpfsMerge implements MergeFunction<Candidate> {
     };
 
     const mergedCid = await this.ipfsService.storeRecord(merged);
+    logger.Info('Created Merkle node ' + mergedCid);
     return new Node<Candidate>(new Candidate(mergedCid), left, right);
   }
 }
@@ -110,9 +111,8 @@ export default class AnchorService {
     }
 
     const nonReachableRequestIds = await this.ipfsService.findUnreachableCids(requests);
-    if (nonReachableRequestIds.length === 0) {
-      logger.Imp("All CIDs are reachable by this CAS.");
-    } else {
+    if (nonReachableRequestIds.length !== 0) {
+      logger.Err("Some of the records will be discarded since they cannot be retrieved.");
       // discard non reachable ones
       await this.requestService.updateRequests({
         status: RS.FAILED,
@@ -122,6 +122,10 @@ export default class AnchorService {
 
     // filter valid requests
     requests = requests.filter(r => !nonReachableRequestIds.includes(r.id));
+    if (requests.length === 0) {
+      logger.Info("No CID to request. Skipping anchor.");
+      return;
+    }
 
     let candidates: Candidate[] = await this._findCandidates(requests);
     const clashingRequestIds = requests.filter(r => !candidates.map(p => p.reqId).includes(r.id)).map(r => r.id);
@@ -136,13 +140,19 @@ export default class AnchorService {
     // filter valid requests
     requests = requests.filter(r => !clashingRequestIds.includes(r.id));
     if (requests.length === 0) {
-      logger.Info("No pending CID requests found. Skipping anchor.");
+      logger.Info("No CID to request. Skipping anchor.");
       return;
     }
 
-    // create merkle tree
-    const merkleTree: MerkleTree<Candidate> = await this._createMerkleTree(candidates);
-    candidates = merkleTree.getLeaves();
+    let merkleTree: MerkleTree<Candidate>;
+    try {
+      logger.Imp('Creating Merkle tree from selected records.');
+      merkleTree = new MerkleTree<Candidate>(this.ipfsMerge, this.ipfsCompare);
+      await merkleTree.build(candidates);
+      candidates = merkleTree.getLeaves();
+    } catch (e) {
+      throw new Error('Merkle tree cannot be created. ' + e.message);
+    }
 
     // create and send ETH transaction
     const tx: Transaction = await this.blockchainService.sendTransaction(merkleTree.getRoot().data.cid);
@@ -163,6 +173,7 @@ export default class AnchorService {
    */
   @Transactional()
   async _createIPFSProofs(tx: Transaction, txHashCid: CID, merkleTree: MerkleTree<Candidate>, candidates: Candidate[], requests: Request[]): Promise<void> {
+    logger.Imp('Create IPFS proofs.');
     const ipfsAnchorProof = {
       blockNumber: tx.blockNumber,
       blockTimestamp: tx.blockTimestamp,
@@ -256,16 +267,5 @@ export default class AnchorService {
       }
     }
     return result;
-  }
-
-  /**
-   * Creates Merkle tree and adds merged docs to IPFS
-   * @param pairs - CID-docId pairs
-   * @private
-   */
-  private async _createMerkleTree(pairs: Candidate[]): Promise<MerkleTree<Candidate>> {
-    const merkleTree: MerkleTree<Candidate> = new MerkleTree<Candidate>(this.ipfsMerge, this.ipfsCompare);
-    await merkleTree.build(pairs);
-    return merkleTree;
   }
 }

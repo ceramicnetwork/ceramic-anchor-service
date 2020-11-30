@@ -39,49 +39,25 @@ initializeTransactionalContext();
 export default class CeramicAnchorApp {
   constructor() {
     // register repositories
-    container.register("anchorRepository", {
-      useClass: AnchorRepository,
-    });
-    container.register("requestRepository", {
-      useClass: RequestRepository,
-    });
+    container.registerSingleton('anchorRepository', AnchorRepository);
+    container.registerSingleton("requestRepository", RequestRepository);
 
     // register services
-    container.register("blockchainService", {
-      useClass: EthereumBlockchainService
-    });
-    container.register("anchorService", {
-      useClass: AnchorService
-    });
-    container.register("ceramicService", {
-      useClass: CeramicService,
-    });
-    container.register("ipfsService", {
-      useClass: IpfsServiceImpl,
-    });
-    container.register("requestService", {
-      useClass: RequestService,
-    });
-    container.register("schedulerService", {
-      useClass: SchedulerService,
-    });
+    container.registerSingleton("blockchainService", EthereumBlockchainService);
+    container.registerSingleton("anchorService", AnchorService);
+    container.registerSingleton("ceramicService", CeramicService);
+    container.registerSingleton("ipfsService", IpfsServiceImpl);
+    container.registerSingleton("requestService", RequestService);
+    container.registerSingleton("schedulerService", SchedulerService);
 
     // register controllers
-    container.register("healthcheckController", {
-      useClass: HealthcheckController
-    });
+    container.registerSingleton("healthcheckController", HealthcheckController);
     // register controllers
-    container.register("internalController", {
-      useClass: InternalController
-    });
+    container.registerSingleton("internalController", InternalController);
     // register controllers
-    container.register("requestController", {
-      useClass: RequestController
-    });
+    container.registerSingleton("requestController", RequestController);
     // register controllers
-    container.register("serviceInfoController", {
-      useClass: ServiceInfoController
-    });
+    container.registerSingleton("serviceInfoController", ServiceInfoController);
   }
 
   /**
