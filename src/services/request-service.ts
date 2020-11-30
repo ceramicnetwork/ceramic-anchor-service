@@ -9,10 +9,8 @@ import { inject, singleton } from "tsyringe";
 
 @singleton()
 export default class RequestService {
-  private requestRepository: RequestRepository;
-
   constructor(
-    @inject('requestRepository') requestRepository?: RequestRepository) {
+    @inject('requestRepository') private requestRepository?: RequestRepository) {
   }
 
   /**
