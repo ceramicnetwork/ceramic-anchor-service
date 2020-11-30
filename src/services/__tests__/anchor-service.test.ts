@@ -10,24 +10,11 @@ import { RequestStatus } from "../../models/request-status";
 import RequestService from "../request-service";
 import AnchorService from "../anchor-service";
 
-class IpfsService implements Contextual {
+class CeramicService implements Contextual {
   public ipfs: any;
 
   setContext(): void {
     this.ipfs = createIPFS();
-  }
-
-  async tryToFetchByCIDs(requests: Array<Request>): Promise<Array<number>> {
-    return []
-  }
-
-  async retrieveRecord(cid: CID | string): Promise<any> {
-    const record = await this.ipfs.dag.get(cid);
-    return record.value;
-  }
-
-  async storeRecord(record: Record<string, unknown>): Promise<CID> {
-    return this.ipfs.dag.put(record);
   }
 }
 
@@ -40,7 +27,6 @@ import { initializeTransactionalContext } from 'typeorm-transactional-cls-hooked
 initializeTransactionalContext();
 
 import Contextual from "../../contextual";
-import { Logger as logger } from "@overnightjs/logger/lib/Logger";
 
 const createIPFS = () => {
   return {
@@ -81,7 +67,7 @@ describe('ETH service',  () => {
     });
 
     const ctx = new Context();
-    await ctx.build('services', 'repositories', new IpfsService());
+    await ctx.build('services', 'repositories', new CeramicService());
 
     const docId = '/ceramic/bagjqcgzaday6dzalvmy5ady2m5a5legq5zrbsnlxfc2bfxej532ds7htpova';
     const cid = new CID('bafybeig6xv5nwphfmvcnektpnojts33jqcuam7bmye2pb54adnrtccjlsu');
@@ -95,7 +81,7 @@ describe('ETH service',  () => {
     const requestService: RequestService = ctx.lookup('RequestService');
     await requestService.createOrUpdate(request);
 
-    const ceramicService: IpfsService = ctx.lookup('IpfsService');
+    const ceramicService: CeramicService = ctx.lookup('CeramicService');
     ceramicService.ipfs = createIPFS();
 
     const anchorService: AnchorService = ctx.lookup('AnchorService');
