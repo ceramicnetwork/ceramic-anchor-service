@@ -16,9 +16,12 @@ import multiformats from 'multiformats/basics'
 // @ts-ignore
 import legacy from 'multiformats/legacy'
 
-const MAX_FETCH_ITERATIONS = 4;
-import { IPFSApi } from "../declarations";
+// @ts-ignore
+import type { IPFSAPI as IPFSApi } from 'ipfs-core/dist/src/components'
+
 import { singleton } from "tsyringe";
+
+const MAX_FETCH_ITERATIONS = 2;
 
 export interface IpfsService {
   /**
