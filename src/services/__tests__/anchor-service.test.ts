@@ -60,27 +60,15 @@ describe('ETH service',  () => {
   beforeAll(async () => {
     await DBConnection.create();
 
-    container.register("anchorRepository", {
-      useClass: RequestRepository
-    });
-    container.register("requestRepository", {
-      useClass: RequestRepository
-    });
-    container.register("blockchainService", {
-      useClass: EthereumBlockchainService
-    });
+    container.registerSingleton("anchorRepository", RequestRepository);
+    container.registerSingleton("requestRepository", RequestRepository);
+    container.registerSingleton("blockchainService", EthereumBlockchainService);
     container.register("ipfsService", {
       useValue: new MockIpfsService()
     });
-    container.register("ceramicService", {
-      useClass: CeramicService
-    });
-    container.register("anchorService", {
-      useClass: AnchorService
-    });
-    container.register("requestService", {
-      useClass: RequestService
-    });
+    container.registerSingleton("ceramicService", CeramicService);
+    container.registerSingleton("anchorService", AnchorService);
+    container.registerSingleton("requestService", RequestService);
   });
 
   beforeEach(async () => {
