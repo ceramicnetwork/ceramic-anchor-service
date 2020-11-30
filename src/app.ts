@@ -26,7 +26,6 @@ import RequestRepository from "./repositories/request-repository";
 import CeramicService from "./services/ceramic-service";
 import RequestService from "./services/request-service";
 import HealthcheckController from "./controllers/healthcheck-controller";
-import InternalController from "./controllers/internal-controller";
 import RequestController from "./controllers/request-controller";
 import ServiceInfoController from "./controllers/service-info-controller";
 import EthereumBlockchainService from "./services/blockchain/ethereum/ethereum-blockchain-service";
@@ -52,8 +51,6 @@ export default class CeramicAnchorApp {
 
     // register controllers
     container.registerSingleton("healthcheckController", HealthcheckController);
-    // register controllers
-    container.registerSingleton("internalController", InternalController);
     // register controllers
     container.registerSingleton("requestController", RequestController);
     // register controllers

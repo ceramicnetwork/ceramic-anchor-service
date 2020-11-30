@@ -3,7 +3,6 @@ import { Server } from '@overnightjs/core';
 import { Logger as logger } from '@overnightjs/logger';
 
 import DependencyContainer from "tsyringe/dist/typings/types/dependency-container";
-import InternalController from "./controllers/internal-controller";
 import RequestController from "./controllers/request-controller";
 import ServiceInfoController from "./controllers/service-info-controller";
 import HealthcheckController from "./controllers/healthcheck-controller";
@@ -24,12 +23,11 @@ export default class CeramicAnchorServer extends Server {
    * @param port - Server listening port
    */
   public async start(port?: number): Promise<void> {
-    const internalController = this.container.resolve<InternalController>('internalController');
     const requestController = this.container.resolve<RequestController>('requestController');
     const serviceInfoController = this.container.resolve<ServiceInfoController>('serviceInfoController');
     const healthcheckController = this.container.resolve<HealthcheckController>('healthcheckController');
 
-    this.addControllers([internalController, requestController, serviceInfoController, healthcheckController]);
+    this.addControllers([requestController, serviceInfoController, healthcheckController]);
 
     port = port || DEFAULT_SERVER_PORT;
     this.app.listen(port, () => {
