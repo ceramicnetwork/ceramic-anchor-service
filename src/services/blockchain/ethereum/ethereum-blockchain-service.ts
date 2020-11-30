@@ -7,7 +7,6 @@ import { BigNumber, ethers } from "ethers";
 import { config } from "node-config-ts";
 import { Logger as logger } from "@overnightjs/logger/lib/Logger";
 
-import Context from "../../../context";
 import Transaction from "../../../models/transaction";
 import BlockchainService from "../blockchain-service";
 import { TransactionRequest } from "@ethersproject/abstract-provider";
@@ -18,17 +17,8 @@ const BASE_CHAIN_ID = "eip155";
  * Ethereum blockchain service
  */
 export default class EthereumBlockchainService implements BlockchainService {
-  private ctx: Context;
-  private provider: providers.BaseProvider;
   private _chainId: string;
-
-  /**
-   * Set application context
-   * @param context
-   */
-  setContext(context: Context): void {
-    this.ctx = context;
-  }
+  private provider: providers.BaseProvider;
 
   /**
    * Connects to blockchain

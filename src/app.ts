@@ -11,15 +11,25 @@ process.env.OVERNIGHT_LOGGER_RM_TIMESTAMP = 'false';
 import { config } from 'node-config-ts';
 import { Logger as logger } from '@overnightjs/logger';
 
+import { container } from "tsyringe";
+
 import CeramicAnchorServer from './server';
 import { createConnection } from 'typeorm';
-import Context from "./context";
 import IpfsService from "./services/ipfs-service";
 import AnchorService from "./services/anchor-service";
 import SchedulerService from "./services/scheduler-service";
 import BlockchainService from "./services/blockchain/blockchain-service";
 
 import { initializeTransactionalContext } from 'typeorm-transactional-cls-hooked';
+import AnchorRepository from "./repositories/anchor-repository";
+import RequestRepository from "./repositories/request-repository";
+import CeramicService from "./services/ceramic-service";
+import RequestService from "./services/request-service";
+import HealthcheckController from "./controllers/healthcheck-controller";
+import InternalController from "./controllers/internal-controller";
+import RequestController from "./controllers/request-controller";
+import ServiceInfoController from "./controllers/service-info-controller";
+import EthereumBlockchainService from "./services/blockchain/ethereum/ethereum-blockchain-service";
 
 initializeTransactionalContext();
 
@@ -27,19 +37,58 @@ initializeTransactionalContext();
  * Ceramic Anchor Service application
  */
 export default class CeramicAnchorApp {
-  private readonly ctx: Context;
-
   constructor() {
-    this.ctx = new Context();
+    // register repositories
+    container.register("anchorRepository", {
+      useClass: AnchorRepository,
+    });
+    container.register("requestRepository", {
+      useClass: RequestRepository,
+    });
+
+    // register services
+    container.register("blockchainService", {
+      useClass: EthereumBlockchainService
+    });
+    container.register("anchorService", {
+      useClass: AnchorService
+    });
+    container.register("ceramicService", {
+      useClass: CeramicService,
+    });
+    container.register("ipfsService", {
+      useClass: IpfsService,
+    });
+    container.register("requestService", {
+      useClass: RequestService,
+    });
+    container.register("schedulerService", {
+      useClass: SchedulerService,
+    });
+
+    // register controllers
+    container.register("healthcheckController", {
+      useClass: HealthcheckController
+    });
+    // register controllers
+    container.register("internalController", {
+      useClass: InternalController
+    });
+    // register controllers
+    container.register("requestController", {
+      useClass: RequestController
+    });
+    // register controllers
+    container.register("serviceInfoController", {
+      useClass: ServiceInfoController
+    });
   }
 
   /**
    * Start application
    */
   public async start(): Promise<void> {
-    await this.buildCtx();
-
-    const blockchainService: BlockchainService = this.ctx.getSelectedBlockchainService();
+    const blockchainService: BlockchainService = container.resolve<BlockchainService>('blockchainService');
     await blockchainService.connect();
 
     const mode = config.mode.trim().toLowerCase();
@@ -69,10 +118,10 @@ export default class CeramicAnchorApp {
    * @private
    */
   private async _startBundled(): Promise<void> {
-    const ipfsService: IpfsService = this.ctx.lookup('IpfsService');
+    const ipfsService: IpfsService = container.resolve<IpfsService>('ipfsService');
     await ipfsService.init();
 
-    const schedulerService: SchedulerService = this.ctx.lookup('SchedulerService');
+    const schedulerService: SchedulerService = container.resolve<SchedulerService>('schedulerService');
     schedulerService.start();
     await this._startServer();
   }
@@ -83,7 +132,7 @@ export default class CeramicAnchorApp {
    */
   private async _startServer(): Promise<void> {
     this.startWithConnectionHandling(async () => {
-      const server = new CeramicAnchorServer(this.ctx);
+      const server = new CeramicAnchorServer(container);
       await server.start(config.port);
     });
   }
@@ -93,17 +142,10 @@ export default class CeramicAnchorApp {
    * @private
    */
   private async _startAnchor(): Promise<void> {
-    const ipfsService: IpfsService = this.ctx.lookup('IpfsService');
+    const ipfsService: IpfsService = container.resolve<IpfsService>('ipfsService');
     await ipfsService.init();
 
     await this._executeAnchor();
-  }
-
-  /**
-   * Builds application context
-   */
-  public async buildCtx(): Promise<void> {
-    await this.ctx.build('services', 'controllers', 'repositories');
   }
 
   /**
@@ -125,7 +167,7 @@ export default class CeramicAnchorApp {
    */
   private async _executeAnchor(): Promise<void> {
     this.startWithConnectionHandling(async () => {
-      const anchorService: AnchorService = this.ctx.lookup('AnchorService');
+      const anchorService: AnchorService = container.resolve<AnchorService>('anchorService');
       await anchorService.anchorRequests();
     });
   }

@@ -2,23 +2,17 @@ import { Request, RequestUpdateFields } from "../models/request";
 import { UpdateResult } from "typeorm";
 
 import CID from "cids";
-import Context from "../context";
-import Contextual from "../contextual";
 import RequestRepository from "../repositories/request-repository";
 import { RequestStatus as RS } from "../models/request-status";
 import { Transactional } from "typeorm-transactional-cls-hooked";
+import { inject, singleton } from "tsyringe";
 
-export default class RequestService implements Contextual {
-  private ctx: Context;
+@singleton()
+export default class RequestService {
   private requestRepository: RequestRepository;
 
-  /**
-   * Set application context
-   * @param context
-   */
-  setContext(context: Context): void {
-    this.ctx = context;
-    this.requestRepository = this.ctx.lookup('RequestRepository')
+  constructor(
+    @inject('requestRepository') requestRepository?: RequestRepository) {
   }
 
   /**

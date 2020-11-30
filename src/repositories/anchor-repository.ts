@@ -1,15 +1,13 @@
 import { EntityRepository, InsertResult } from "typeorm";
 import { BaseRepository } from "typeorm-transactional-cls-hooked";
 
-import Context from "../context";
-import Contextual from "../contextual";
 import { Anchor } from "../models/anchor";
 import { Request } from "../models/request";
+import { singleton } from "tsyringe";
 
+@singleton()
 @EntityRepository(Anchor)
-export default class AnchorRepository extends BaseRepository<Anchor> implements Contextual {
-
-  setContext(context: Context): void {}
+export default class AnchorRepository extends BaseRepository<Anchor> {
 
   /**
    * Creates anchors

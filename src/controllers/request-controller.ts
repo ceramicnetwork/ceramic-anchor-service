@@ -9,27 +9,20 @@ import cors from 'cors';
 import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core';
 
 import CID from 'cids';
-import Context from '../context';
 import RequestService from '../services/request-service';
-import Contextual from '../contextual';
 import { RequestStatus } from '../models/request-status';
 import AnchorService from '../services/anchor-service';
 import { Anchor } from '../models/anchor';
 import { Request } from "../models/request";
+import { inject, singleton } from "tsyringe";
 
+@singleton()
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
-export default class RequestController implements Contextual {
-  private anchorService: AnchorService;
-  private requestService: RequestService;
+export default class RequestController {
 
-  /**
-   * Set application context
-   * @param context
-   */
-  setContext(context: Context): void {
-    this.anchorService = context.lookup('AnchorService');
-    this.requestService = context.lookup('RequestService');
+  constructor(@inject('anchorService') private anchorService?: AnchorService,
+              @inject('requestService') private requestService?: RequestService, ) {
   }
 
   @Get(':cid')

@@ -5,25 +5,20 @@ import { Logger } from '@overnightjs/logger';
 import cors from 'cors';
 import { ClassMiddleware, Controller, Get } from '@overnightjs/core';
 
-import Context from '../context';
-import Contextual from '../contextual';
 import BlockchainService from '../services/blockchain/blockchain-service';
+import { inject, singleton } from "tsyringe";
 
 /**
  * The ServiceInfoController class defines an API endpoint for requests for information about the
  * CeramicAnchorService itself.
  */
+@singleton()
 @Controller('api/v0/service-info')
 @ClassMiddleware([cors()])
-export default class ServiceInfoController implements Contextual {
-  private blockchainService: BlockchainService;
+export default class ServiceInfoController {
 
-  /**
-   * Set application context
-   * @param context
-   */
-  setContext(context: Context): void {
-    this.blockchainService = context.getSelectedBlockchainService();
+  constructor(
+    @inject("blockchainService") private blockchainService?: BlockchainService) {
   }
 
   @Get('supported_chains')

@@ -63,6 +63,7 @@
       "reflect-metadata": "^0.1.10",
       "simple-color-print": "^1.0.4",
       "sqlite3": "^4.2.0",
+      "tsyringe": "^4.4.0",
       "typeorm": "^0.2.29",
       "typeorm-transactional-cls-hooked": "^0.1.12",
       "typestub-multibase": "^0.0.5",

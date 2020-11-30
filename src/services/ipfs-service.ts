@@ -1,7 +1,5 @@
 import CID from 'cids';
 
-import Contextual from "../contextual";
-
 import ipfsClient from "ipfs-http-client";
 import { config } from "node-config-ts";
 
@@ -19,15 +17,12 @@ import { Request } from "../models/request";
 
 const MAX_FETCH_ITERATIONS = 4;
 import { IPFSApi } from "../declarations";
+import { singleton } from "tsyringe";
 
-export default class IpfsService implements Contextual {
+@singleton()
+export default class IpfsService {
 
   private _ipfs: IPFSApi;
-
-  /**
-   * Sets dependencies
-   */
-  setContext(): void {}
 
   /**
    * Initialize the service

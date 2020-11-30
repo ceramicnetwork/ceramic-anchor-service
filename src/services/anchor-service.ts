@@ -1,8 +1,5 @@
 import CID from "cids";
 
-import Context from "../context";
-import Contextual from "../contextual";
-
 import { DoctypeUtils } from "@ceramicnetwork/common";
 import { Logger as logger } from "@overnightjs/logger";
 import { RequestStatus as RS } from "../models/request-status";
@@ -23,6 +20,7 @@ import IpfsService from "./ipfs-service";
 import RequestService from "./request-service";
 import CeramicService from "./ceramic-service";
 import BlockchainService from "./blockchain/blockchain-service";
+import { inject, singleton } from "tsyringe";
 
 class Candidate {
   public cid: CID;
@@ -77,28 +75,17 @@ class IpfsLeafCompare implements CompareFunction<Candidate> {
 /**
  * Anchors CIDs to blockchain
  */
-export default class AnchorService implements Contextual {
-  private ipfsMerge: IpfsMerge;
-  private ipfsCompare: IpfsLeafCompare;
+@singleton()
+export default class AnchorService {
+  private readonly ipfsMerge: IpfsMerge;
+  private readonly ipfsCompare: IpfsLeafCompare;
 
-  private ipfsService: IpfsService;
-  private requestService: RequestService;
-  private ceramicService: CeramicService;
-  private blockchainService: BlockchainService;
-
-  private anchorRepository: AnchorRepository;
-
-  /**
-   * Sets dependencies
-   * @param context - Application context
-   */
-  setContext(context: Context): void {
-    this.blockchainService = context.getSelectedBlockchainService();
-
-    this.ipfsService = context.lookup("IpfsService");
-    this.ceramicService = context.lookup("CeramicService");
-    this.requestService = context.lookup("RequestService");
-    this.anchorRepository = context.lookup("AnchorRepository");
+  constructor(
+    @inject('blockchainService') private blockchainService?: BlockchainService,
+    @inject('ipfsService') private ipfsService?: IpfsService,
+    @inject('requestService') private requestService?: RequestService,
+    @inject('ceramicService') private ceramicService?: CeramicService,
+    @inject('anchorRepository') private anchorRepository?: AnchorRepository) {
 
     this.ipfsMerge = new IpfsMerge(this.ipfsService);
     this.ipfsCompare = new IpfsLeafCompare();

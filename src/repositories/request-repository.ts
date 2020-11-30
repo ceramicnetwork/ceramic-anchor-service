@@ -2,16 +2,14 @@ import CID from "cids";
 import { EntityRepository, InsertResult, UpdateResult } from "typeorm";
 import { BaseRepository } from 'typeorm-transactional-cls-hooked';
 
-import Context from "../context";
-import Contextual from "../contextual";
 import { Request, RequestUpdateFields } from "../models/request";
 import { RequestStatus } from "../models/request-status";
 import { config } from "node-config-ts";
+import { singleton } from "tsyringe";
 
+@singleton()
 @EntityRepository(Request)
-export default class RequestRepository extends BaseRepository<Request> implements Contextual {
-
-  setContext(context: Context): void {}
+export default class RequestRepository extends BaseRepository<Request> {
 
   /**
    * Create/updates client request

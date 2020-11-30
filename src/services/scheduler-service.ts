@@ -3,22 +3,17 @@ import * as cron from 'node-cron';
 import { config } from 'node-config-ts';
 import { Logger as logger } from '@overnightjs/logger';
 
-import Context from '../context';
 import AnchorService from './anchor-service';
-import Contextual from '../contextual';
+import { inject, singleton } from "tsyringe";
 
 /**
  * Schedules anchor operations
  */
-export default class SchedulerService implements Contextual {
-  private anchorService: AnchorService;
+@singleton()
+export default class SchedulerService {
 
-  /**
-   * Set application context
-   * @param context
-   */
-  setContext(context: Context): void {
-    this.anchorService = context.lookup('AnchorService');
+  constructor(
+    @inject("anchorService") private anchorService?: AnchorService) {
   }
 
   /**

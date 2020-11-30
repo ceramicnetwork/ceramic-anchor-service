@@ -7,24 +7,24 @@ import KeyDidResolver from '@ceramicnetwork/key-did-resolver';
 import ThreeIdResolver from '@ceramicnetwork/3id-did-resolver';
 import { CeramicApi  } from "@ceramicnetwork/common";
 
-import Contextual from "../contextual";
-
 import base64url from "base64url"
 
 import { config } from "node-config-ts";
+import { singleton } from "tsyringe";
 
 const DID_MATCHER = '^(did:([a-zA-Z0-9_]+):([a-zA-Z0-9_.-]+(:[a-zA-Z0-9_.-]+)*)((;[a-zA-Z0-9_.:%-]+=[a-zA-Z0-9_.:%-]*)*)(/[^#?]*)?)([?][^#]*)?(#.*)?';
 
-export default class CeramicService implements Contextual {
+@singleton()
+export default class CeramicService {
 
-  private _client: CeramicApi;
-  private _resolver: Resolver;
-  private _validateRecords: boolean;
+  private readonly _client: CeramicApi;
+  private readonly _resolver: Resolver;
+  private readonly _validateRecords: boolean;
 
   /**
    * Sets dependencies
    */
-  setContext(): void {
+  constructor() {
     this._validateRecords = config.ceramic.validateRecords;
     if (typeof this._validateRecords === "string") {
       this._validateRecords = this._validateRecords as string === 'true'
