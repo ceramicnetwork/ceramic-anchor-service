@@ -3,12 +3,6 @@ import CID from 'cids';
 import ipfsClient from "ipfs-http-client";
 import { config } from "node-config-ts";
 
-import dagJose from 'dag-jose'
-// @ts-ignore
-import multiformats from 'multiformats/basics'
-// @ts-ignore
-import legacy from 'multiformats/legacy'
-
 const DEFAULT_GET_TIMEOUT = 30000; // 10 seconds
 
 import { Logger as logger } from '@overnightjs/logger';
@@ -19,8 +13,33 @@ const MAX_FETCH_ITERATIONS = 4;
 import { IPFSApi } from "../declarations";
 import { singleton } from "tsyringe";
 
+export interface IpfsService {
+  /**
+   * Initialize the service
+   */
+  init(): Promise<void>;
+
+  /**
+   * Finds CIDs which cannot be fetched
+   * @param requests - Request list
+   */
+  findUnreachableCids(requests: Array<Request>): Promise<Array<number>>;
+
+  /**
+   * Gets the record by its CID value
+   * @param cid - CID value
+   */
+  retrieveRecord(cid: CID | string): Promise<any>;
+
+  /**
+   * Sets the record and returns its CID
+   * @param record - Record value
+   */
+  storeRecord(record: Record<string, unknown>): Promise<CID>;
+}
+
 @singleton()
-export default class IpfsService {
+export class IpfsServiceImpl implements IpfsService {
 
   private _ipfs: IPFSApi;
 
@@ -28,6 +47,13 @@ export default class IpfsService {
    * Initialize the service
    */
   public async init(): Promise<void> {
+    // @ts-ignore
+    import dagJose from 'dag-jose'
+    // @ts-ignore
+    import multiformats from 'multiformats/basics'
+    // @ts-ignore
+    import legacy from 'multiformats/legacy'
+
     multiformats.multicodec.add(dagJose);
     const format = legacy(multiformats, dagJose.name);
 
@@ -41,7 +67,11 @@ export default class IpfsService {
     });
   }
 
-  public async tryToFetchByCIDs(requests: Array<Request>): Promise<Array<number>> {
+  /**
+   * Finds CIDs which cannot be fetched
+   * @param requests - Request list
+   */
+  public async findUnreachableCids(requests: Array<Request>): Promise<Array<number>> {
     const objs = requests.map(r => {
       return { fails: 0, ok: false, r: r.id, cid: r.cid };
     });

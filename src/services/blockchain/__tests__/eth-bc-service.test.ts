@@ -1,23 +1,27 @@
+import "reflect-metadata"
+
 import CID from 'cids';
 import Ganache from 'ganache-core'
 
 import { config } from 'node-config-ts';
 import { Logger as logger } from '@overnightjs/logger/lib/Logger';
 
-import Context from "../../../context";
-import BlockchainService from "../blockchain-service";
+import { container } from "tsyringe";
 
-let ctx: Context = null;
+import BlockchainService from "../blockchain-service";
+import EthereumBlockchainService from "../ethereum/ethereum-blockchain-service";
+
 let ganacheServer: any = null;
 let ethBc: BlockchainService = null;
 
 describe('ETH service',  () => {
   jest.setTimeout(25000);
   beforeAll(async () => {
-    ctx = new Context();
+    container.register("blockchainService", {
+      useClass: EthereumBlockchainService
+    });
 
-    await ctx.build('services', 'repositories');
-    ethBc = ctx.getSelectedBlockchainService();
+    ethBc = container.resolve<BlockchainService>('blockchainService');
 
     ganacheServer = Ganache.server({
       gasLimit: 7000000,

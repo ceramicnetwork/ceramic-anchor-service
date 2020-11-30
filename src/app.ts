@@ -15,7 +15,7 @@ import { container } from "tsyringe";
 
 import CeramicAnchorServer from './server';
 import { createConnection } from 'typeorm';
-import IpfsService from "./services/ipfs-service";
+import { IpfsServiceImpl} from "./services/ipfs-service";
 import AnchorService from "./services/anchor-service";
 import SchedulerService from "./services/scheduler-service";
 import BlockchainService from "./services/blockchain/blockchain-service";
@@ -57,7 +57,7 @@ export default class CeramicAnchorApp {
       useClass: CeramicService,
     });
     container.register("ipfsService", {
-      useClass: IpfsService,
+      useClass: IpfsServiceImpl,
     });
     container.register("requestService", {
       useClass: RequestService,
@@ -118,7 +118,7 @@ export default class CeramicAnchorApp {
    * @private
    */
   private async _startBundled(): Promise<void> {
-    const ipfsService: IpfsService = container.resolve<IpfsService>('ipfsService');
+    const ipfsService: IpfsServiceImpl = container.resolve<IpfsServiceImpl>('ipfsService');
     await ipfsService.init();
 
     const schedulerService: SchedulerService = container.resolve<SchedulerService>('schedulerService');
@@ -142,7 +142,7 @@ export default class CeramicAnchorApp {
    * @private
    */
   private async _startAnchor(): Promise<void> {
-    const ipfsService: IpfsService = container.resolve<IpfsService>('ipfsService');
+    const ipfsService: IpfsServiceImpl = container.resolve<IpfsServiceImpl>('ipfsService');
     await ipfsService.init();
 
     await this._executeAnchor();

@@ -16,7 +16,7 @@ import { Request } from "../models/request";
 import Transaction from "../models/transaction";
 import AnchorRepository from "../repositories/anchor-repository";
 
-import IpfsService from "./ipfs-service";
+import { IpfsService } from "./ipfs-service";
 import RequestService from "./request-service";
 import CeramicService from "./ceramic-service";
 import BlockchainService from "./blockchain/blockchain-service";
@@ -109,7 +109,7 @@ export default class AnchorService {
       return;
     }
 
-    const nonReachableRequestIds = await this.ipfsService.tryToFetchByCIDs(requests);
+    const nonReachableRequestIds = await this.ipfsService.findUnreachableCids(requests);
     if (nonReachableRequestIds.length === 0) {
       logger.Imp("All CIDs are reachable by this CAS.");
     } else {
