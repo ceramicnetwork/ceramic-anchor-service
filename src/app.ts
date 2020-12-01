@@ -41,6 +41,10 @@ export default class CeramicAnchorApp {
 
     await this.buildCtx();
 
+    // connect to blockchain
+    const blockchainService: BlockchainService = this.ctx.getSelectedBlockchainService();
+    await blockchainService.connect();
+
     if (config.mode === 'server') {
       // start in server mode
 
@@ -48,10 +52,6 @@ export default class CeramicAnchorApp {
       logger.Imp(`Ceramic Anchor Service started in server mode`);
       return;
     }
-
-    // connect to blockchain
-    const blockchainService: BlockchainService = this.ctx.getSelectedBlockchainService();
-    await blockchainService.connect();
 
     if (config.mode === 'anchor') {
       // start in anchor mode (batch anchor processing)
