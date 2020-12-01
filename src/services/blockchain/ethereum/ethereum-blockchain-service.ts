@@ -9,10 +9,10 @@ import { Logger as logger } from "@overnightjs/logger/lib/Logger";
 
 import Context from "../../../context";
 import Transaction from "../../../models/transaction";
-import BlockchainService from "../blockchain-service";
+import { BlockchainService } from "../blockchain-service";
 import { TransactionRequest } from "@ethersproject/abstract-provider";
 
-const BASE_CHAIN_ID = "eip155";
+const BASE_CHAIN_ID = "eip155"
 
 /**
  * Ethereum blockchain service
@@ -55,7 +55,7 @@ export default class EthereumBlockchainService implements BlockchainService {
    * connected blockchain to ask for it.
    */
   private async _loadChainId(): Promise<void> {
-    const idnum = (await this.provider.getNetwork()).chainId;
+    const idnum = (await this.provider.getNetwork()).chainId
     this._chainId = BASE_CHAIN_ID + ':' + idnum
   }
 
