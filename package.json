@@ -29,9 +29,9 @@
       }
    },
    "dependencies": {
-      "@ceramicnetwork/http-client": "^0.8.1",
-      "@ceramicnetwork/3id-did-resolver": "^0.5.1",
-      "@ceramicnetwork/common": "^0.13.1",
+      "@ceramicnetwork/http-client": "^0.8.3",
+      "@ceramicnetwork/3id-did-resolver": "^0.5.2",
+      "@ceramicnetwork/common": "^0.13.2",
       "@ceramicnetwork/key-did-resolver": "^0.2.0",
       "@ceramicnetwork/docid": "^0.3.0",
       "@overnightjs/core": "^1.7.5",
