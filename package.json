@@ -65,7 +65,7 @@
       "sqlite3": "^4.2.0",
       "tsyringe": "^4.4.0",
       "typeorm": "^0.2.29",
-      "typeorm-transactional-cls-hooked": "^0.1.17",
+      "typeorm-transactional-cls-hooked": "0.1.12",
       "typestub-multibase": "^0.0.5",
       "typestub-multihashes": "^0.0.4",
       "uuid": "^8.3.1"
