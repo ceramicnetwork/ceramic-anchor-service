@@ -95,7 +95,7 @@
       "node-config-ts": "^3.0.4",
       "nyc": "^15.0.1",
       "prettier": "^2.0.2",
-      "sqlite3": "^4.2.0",
+      "sqlite3": "^5.0.0",
       "tmp-promise": "^2.0.2",
       "ts-jest": "^26.4.4",
       "ts-node": "^9.0.0",
