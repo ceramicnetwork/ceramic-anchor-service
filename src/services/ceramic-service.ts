@@ -1,3 +1,5 @@
+import CID from "cids";
+
 import * as didJwt from 'did-jwt'
 
 import { Resolver } from "did-resolver"
@@ -10,7 +12,9 @@ import { CeramicApi  } from "@ceramicnetwork/common";
 import base64url from "base64url"
 
 import { config } from "node-config-ts";
-import { singleton } from "tsyringe";
+import { inject, singleton } from "tsyringe";
+import BlockchainService from "./blockchain/blockchain-service";
+import { IpfsService } from "./ipfs-service";
 
 const DID_MATCHER = '^(did:([a-zA-Z0-9_]+):([a-zA-Z0-9_.-]+(:[a-zA-Z0-9_.-]+)*)((;[a-zA-Z0-9_.:%-]+=[a-zA-Z0-9_.:%-]*)*)(/[^#?]*)?)([?][^#]*)?(#.*)?';
 
@@ -23,7 +27,7 @@ export default class CeramicService {
   /**
    * Sets dependencies
    */
-  constructor() {
+  constructor(@inject('ipfsService') private ipfsService?: IpfsService) {
     if (config.ceramic.validateRecords) {
       this._client = new CeramicClient(config.ceramic.apiUrl);
 
@@ -37,12 +41,17 @@ export default class CeramicService {
 
   /**
    * Verifies record signature
-   * @param record - Record data
+   * @param cid - CID of the record
    * @return DID
    * @private
    */
-  async verifySignedRecord(record: Record<string, unknown>): Promise<string> {
-    if (config.ceramic.validateRecords) {
+  async verifySignedRecord(cid: string | CID): Promise<string> {
+    if (!config.ceramic.validateRecords) {
+      return null; // return "empty" DID
+    }
+
+    try {
+      const record = await this.ipfsService.retrieveRecord(cid);
       const { payload, signatures } = record;
       const { signature, protected: _protected } = signatures[0];
 
@@ -53,8 +62,9 @@ export default class CeramicService {
       const jws = [_protected, payload, signature].join(".");
       await didJwt.verifyJWS(jws, didDoc.publicKey);
       return kid.match(RegExp(DID_MATCHER))[1];
+    } catch (e) {
+      throw new Error("Failed to verify record for " + cid.toString + ". " + e.message);
     }
-    return null;
   }
 
 }

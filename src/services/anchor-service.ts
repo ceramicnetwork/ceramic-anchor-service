@@ -247,8 +247,7 @@ export default class AnchorService {
     for (let index = 0; index < requests.length; index++) {
       try {
         request = requests[index];
-        const record = await this.ipfsService.retrieveRecord(request.cid);
-        const did = config.ceramic.validateRecords ? await this.ceramicService.verifySignedRecord(record) : null;
+        const did = config.ceramic.validateRecords ? await this.ceramicService.verifySignedRecord(request.cid) : null;
 
         const candidate = new Candidate(new CID(request.cid), request.docId, did, request.id);
         group[candidate.key] = group[candidate.key] ? [...group[candidate.key], candidate] : [candidate];
@@ -257,7 +256,7 @@ export default class AnchorService {
         await this.requestService.updateRequests(
           {
             status: RS.FAILED,
-            message: "Request has failed. Invalid signature."
+            message: "Request has failed. " + e.message,
           },
           [request.id]);
       }
