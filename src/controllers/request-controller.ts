@@ -4,9 +4,10 @@ import { Logger, Logger as logger } from '@overnightjs/logger';
 
 import parser from 'cron-parser';
 import { config } from 'node-config-ts';
+import morgan from 'morgan';
 
 import cors from 'cors';
-import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core';
+import { ClassMiddleware, ClassErrorMiddleware, Controller, Get, Post } from '@overnightjs/core';
 
 import CID from 'cids';
 import RequestService from '../services/request-service';
@@ -15,10 +16,11 @@ import AnchorService from '../services/anchor-service';
 import { Anchor } from '../models/anchor';
 import { Request } from "../models/request";
 import { inject, singleton } from "tsyringe";
+import { accessLogStream, logWrite } from '../logger';
 
 @singleton()
 @Controller('api/v0/requests')
-@ClassMiddleware([cors()])
+@ClassMiddleware([cors(), morgan('combined', {stream: logWrite}), morgan('combined', {stream: accessLogStream})])
 export default class RequestController {
 
   constructor(@inject('anchorService') private anchorService?: AnchorService,

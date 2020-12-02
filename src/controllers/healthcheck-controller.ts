@@ -1,6 +1,7 @@
 import { OK, SERVICE_UNAVAILABLE } from "http-status-codes";
 import { Request as ExpReq, Response as ExpRes } from 'express';
 import { Logger, Logger as logger } from '@overnightjs/logger';
+import morgan from 'morgan'
 
 import cors from 'cors';
 import { ClassMiddleware, Controller, Get } from '@overnightjs/core';
@@ -10,7 +11,7 @@ import { singleton } from "tsyringe";
 
 @singleton()
 @Controller('api/v0/healthcheck')
-@ClassMiddleware([cors()])
+@ClassMiddleware([cors(), morgan('combined', {stream: logWrite}), morgan('combined', {stream: accessLogStream})])
 export default class HealthcheckController {
 
   @Get()
