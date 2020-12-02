@@ -11,7 +11,7 @@ import { RequestStatus } from "../../models/request-status";
 import RequestService from "../request-service";
 import AnchorService from "../anchor-service";
 
-class MockIpfsService {
+class MockIpfsService implements IpfsService {
   public ipfs: any;
 
   constructor() {
@@ -30,8 +30,8 @@ class MockIpfsService {
     }
   }
 
-  async findUnreachableCids(requests: Array<Request>): Promise<Array<number>> {
-    return []
+  async init(): Promise<void> {
+    return null;
   }
 
   async retrieveRecord(cid: CID | string): Promise<any> {
@@ -52,6 +52,7 @@ jest.mock("../blockchain/ethereum/ethereum-blockchain-service");
 import { initializeTransactionalContext } from 'typeorm-transactional-cls-hooked';
 import RequestRepository from "../../repositories/request-repository";
 import CeramicService from "../ceramic-service";
+import { IpfsService } from "../ipfs-service";
 initializeTransactionalContext();
 
 describe('ETH service',  () => {

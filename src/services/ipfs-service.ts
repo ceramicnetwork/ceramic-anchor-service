@@ -28,12 +28,6 @@ export interface IpfsService {
   init(): Promise<void>;
 
   /**
-   * Finds CIDs which cannot be fetched
-   * @param requests - Request list
-   */
-  findUnreachableCids(requests: Array<Request>): Promise<Array<number>>;
-
-  /**
    * Gets the record by its CID value
    * @param cid - CID value
    */
@@ -66,25 +60,6 @@ export class IpfsServiceImpl implements IpfsService {
         formats: [format],
       },
     });
-  }
-
-  /**
-   * Finds CIDs which cannot be fetched
-   * @param requests - Request list
-   */
-  public async findUnreachableCids(requests: Array<Request>): Promise<Array<number>> {
-    return (await Promise.all(requests.map(async (r) => {
-      try {
-        const record = await this.retrieveRecord(r.cid);
-        if (record.link) {
-          await this.retrieveRecord(record.link);
-        }
-        return null;
-      } catch (e) {
-        logger.Err('Failed to retrieve record. ' + e.message);
-        return r.id;
-      }
-    }))).filter(id => id != null);
   }
 
   /**

@@ -112,7 +112,7 @@ export default class AnchorService {
       return;
     }
 
-    const nonReachableRequestIds = await this.ipfsService.findUnreachableCids(requests);
+    const nonReachableRequestIds = await this._findUnreachableCids(requests);
     if (nonReachableRequestIds.length !== 0) {
       logger.Err("Some of the records will be discarded since they cannot be retrieved.");
       // discard non reachable ones
@@ -162,6 +162,27 @@ export default class AnchorService {
 
     // create proofs on IPFS
     await this._createIPFSProofs(tx, txHashCid, merkleTree, candidates, requests);
+  }
+
+  /**
+   * Finds CIDs which cannot be fetched.
+   *
+   * Note: if the record is signed, check its link as well
+   * @param requests - Request list
+   */
+  public async _findUnreachableCids(requests: Array<Request>): Promise<Array<number>> {
+    return (await Promise.all(requests.map(async (r) => {
+      try {
+        const record = await this.ipfsService.retrieveRecord(r.cid);
+        if (record.link) {
+          await this.ipfsService.retrieveRecord(record.link);
+        }
+        return null;
+      } catch (e) {
+        logger.Err('Failed to retrieve record. ' + e.message);
+        return r.id;
+      }
+    }))).filter(id => id != null);
   }
 
   /**
