@@ -160,7 +160,7 @@ export default class CeramicAnchorApp {
   }
 
   /**
-   * Execute anchor process
+   * Execute a single anchor process
    */
   private async _executeAnchor(): Promise<void> {
     this.startWithConnectionHandling(async () => {
