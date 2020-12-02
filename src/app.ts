@@ -135,7 +135,7 @@ export default class CeramicAnchorApp {
   }
 
   /**
-   * Starts application in anchoring mode (Anchor without the Server)
+   * Starts application in anchoring mode, without the API server. This will cause the process to startup, read the database for pending anchors requests, and perform a single anchor on chain before shutting down.
    * @private
    */
   private async _startAnchor(): Promise<void> {
@@ -160,7 +160,7 @@ export default class CeramicAnchorApp {
   }
 
   /**
-   * Execute anchor process
+   * Execute a single anchor process
    */
   private async _executeAnchor(): Promise<void> {
     this.startWithConnectionHandling(async () => {
