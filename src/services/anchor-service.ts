@@ -130,7 +130,7 @@ export default class AnchorService {
     }
 
     let candidates: Candidate[] = await this._findCandidates(requests);
-    const clashingRequestIds = requests.filter(r => !candidates.map(p => p.reqId).includes(r.id)).map(r => r.id);
+    const clashingRequestIds = requests.filter(r => !candidates.map(c => c.reqId).includes(r.id)).map(r => r.id);
     if (clashingRequestIds.length > 0) {
       // discard clashing ones
       await this.requestService.updateRequests({
@@ -248,8 +248,8 @@ export default class AnchorService {
       let nonce = 0;
       let selected: Candidate = null;
 
-      for (const pair of candidates) {
-        const record = await this.ipfsService.retrieveRecord(pair.cid);
+      for (const candidate of candidates) {
+        const record = await this.ipfsService.retrieveRecord(candidate.cid);
 
         let currentNonce;
         if (DoctypeUtils.isSignedRecord(record)) {
@@ -259,7 +259,7 @@ export default class AnchorService {
           currentNonce = record.header?.nonce || 0;
         }
         if (selected == null || currentNonce > nonce) {
-          selected = pair;
+          selected = candidate;
           nonce = currentNonce;
         }
       }
