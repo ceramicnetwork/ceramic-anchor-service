@@ -53,10 +53,7 @@ class IpfsMerge implements MergeFunction<Candidate> {
   }
 
   async merge(left: Node<Candidate>, right: Node<Candidate>): Promise<Node<Candidate>> {
-    const merged = {
-      L: left.data.cid,
-      R: right.data.cid
-    };
+    const merged = [left.data.cid, right.data.cid];
 
     const mergedCid = await this.ipfsService.storeRecord(merged);
     logger.Info('Merkle node ' + mergedCid + ' created.');
@@ -240,7 +237,7 @@ export default class AnchorService {
       anchor.proofCid = ipfsProofCid.toString();
 
       const path = await merkleTree.getDirectPathFromRoot(index);
-      anchor.path = path.map((p) => PathDirection[p].toString()).join("/");
+      anchor.path = path.map((p) => p === PathDirection.L ? 0 : 1).join("/");
 
       const ipfsAnchorRecord = { prev: new CID(req.cid), proof: ipfsProofCid, path: anchor.path };
       const anchorCid = await this.ipfsService.storeRecord(ipfsAnchorRecord);

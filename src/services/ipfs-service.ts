@@ -37,7 +37,7 @@ export interface IpfsService {
    * Sets the record and returns its CID
    * @param record - Record value
    */
-  storeRecord(record: Record<string, unknown>): Promise<CID>;
+  storeRecord(record: any): Promise<CID>;
 }
 
 @singleton()
@@ -87,7 +87,7 @@ export class IpfsServiceImpl implements IpfsService {
    * Sets the record and returns its CID
    * @param record - Record value
    */
-  public async storeRecord(record: Record<string, unknown>): Promise<CID> {
+  public async storeRecord(record: any): Promise<CID> {
     return this._ipfs.dag.put(record);
   }
 }
