@@ -53,6 +53,7 @@ import { initializeTransactionalContext } from 'typeorm-transactional-cls-hooked
 import RequestRepository from "../../repositories/request-repository";
 import CeramicService from "../ceramic-service";
 import { IpfsService } from "../ipfs-service";
+import AnchorRepository from "../../repositories/anchor-repository";
 initializeTransactionalContext();
 
 describe('ETH service',  () => {
@@ -61,7 +62,7 @@ describe('ETH service',  () => {
   beforeAll(async () => {
     await DBConnection.create();
 
-    container.registerSingleton("anchorRepository", RequestRepository);
+    container.registerSingleton("anchorRepository", AnchorRepository);
     container.registerSingleton("requestRepository", RequestRepository);
     container.registerSingleton("blockchainService", EthereumBlockchainService);
     container.register("ipfsService", {
