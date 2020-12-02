@@ -19,18 +19,12 @@ export default class CeramicService {
 
   private readonly _client: CeramicApi;
   private readonly _resolver: Resolver;
-  private readonly _validateRecords: boolean;
 
   /**
    * Sets dependencies
    */
   constructor() {
-    this._validateRecords = config.ceramic.validateRecords;
-    if (typeof this._validateRecords === "string") {
-      this._validateRecords = this._validateRecords as string === 'true'
-    }
-
-    if (this._validateRecords) {
+    if (config.ceramic.validateRecords) {
       this._client = new CeramicClient(config.ceramic.apiUrl);
 
       const keyDidResolver = KeyDidResolver.getResolver();
@@ -48,7 +42,7 @@ export default class CeramicService {
    * @private
    */
   async verifySignedRecord(record: Record<string, unknown>): Promise<string> {
-    if (this._validateRecords) {
+    if (config.ceramic.validateRecords) {
       const { payload, signatures } = record;
       const { signature, protected: _protected } = signatures[0];
 

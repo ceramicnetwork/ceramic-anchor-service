@@ -36,7 +36,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     }
 
     await this.provider.getNetwork();
-    await this._loadChainId()
+    await this._loadChainId();
     logger.Imp('Connected to ' + config.blockchain.connectors.ethereum.network + ' blockchain with chain ID ' + this.chainId);
   }
 
@@ -80,11 +80,8 @@ export default class EthereumBlockchainService implements BlockchainService {
       nonce: baseNonce,
     };
 
-    let { overrideGasConfig } = config.blockchain.connectors.ethereum;
-    if (typeof overrideGasConfig === "string") {
-      overrideGasConfig = overrideGasConfig as string === 'true'
-    }
-    if (overrideGasConfig) {
+    const { overrideGasConfig } = config.blockchain.connectors.ethereum;
+    if (config.blockchain.connectors.ethereum.overrideGasConfig) {
       txData.gasPrice = BigNumber.from(config.blockchain.connectors.ethereum.gasPrice);
       logger.Info('Overriding Gas price: ' + txData.gasPrice.toString());
 

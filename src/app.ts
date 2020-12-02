@@ -10,7 +10,6 @@ process.env.OVERNIGHT_LOGGER_RM_TIMESTAMP = 'false';
 
 import { config } from 'node-config-ts';
 import { Logger as logger } from '@overnightjs/logger';
-
 import { container } from "tsyringe";
 
 import CeramicAnchorServer from './server';
@@ -26,6 +25,7 @@ import RequestRepository from "./repositories/request-repository";
 import CeramicService from "./services/ceramic-service";
 import RequestService from "./services/request-service";
 import HealthcheckController from "./controllers/healthcheck-controller";
+import AnchorController from "./controllers/anchor-controller";
 import RequestController from "./controllers/request-controller";
 import ServiceInfoController from "./controllers/service-info-controller";
 import EthereumBlockchainService from "./services/blockchain/ethereum/ethereum-blockchain-service";
@@ -37,6 +37,8 @@ initializeTransactionalContext();
  */
 export default class CeramicAnchorApp {
   constructor() {
+    CeramicAnchorApp._patchConfigTypes();
+
     // register repositories
     container.registerSingleton('anchorRepository', AnchorRepository);
     container.registerSingleton("requestRepository", RequestRepository);
@@ -51,10 +53,32 @@ export default class CeramicAnchorApp {
 
     // register controllers
     container.registerSingleton("healthcheckController", HealthcheckController);
-    // register controllers
     container.registerSingleton("requestController", RequestController);
-    // register controllers
     container.registerSingleton("serviceInfoController", ServiceInfoController);
+
+    if (config.anchorControllerEnabled) {
+      container.registerSingleton("anchorController", AnchorController);
+    }
+  }
+
+  /**
+   * Patches config variables.
+   *
+   * Note: sometimes strings are passed as booleans.
+   * @private
+   */
+  static _patchConfigTypes(): void {
+    const traverse = function(o) {
+      for (const prop in Object.keys(o)) {
+        if (o[prop] === 'true' || o[prop] === 'false') {
+          o[prop] = o[prop] === 'true'
+        }
+        if (o[prop] !== null && typeof o[prop] === "object") {
+          traverse(o[prop]);
+        }
+      }
+    };
+    traverse(config);
   }
 
   /**

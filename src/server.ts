@@ -2,10 +2,14 @@ import * as bodyParser from 'body-parser';
 import { Server } from '@overnightjs/core';
 import { Logger as logger } from '@overnightjs/logger';
 
-import DependencyContainer from "tsyringe/dist/typings/types/dependency-container";
+import { config } from "node-config-ts";
+
+import AnchorController from "./controllers/anchor-controller";
 import RequestController from "./controllers/request-controller";
 import ServiceInfoController from "./controllers/service-info-controller";
 import HealthcheckController from "./controllers/healthcheck-controller";
+
+import DependencyContainer from "tsyringe/dist/typings/types/dependency-container";
 
 const DEFAULT_SERVER_PORT = 8081;
 
@@ -27,7 +31,13 @@ export default class CeramicAnchorServer extends Server {
     const serviceInfoController = this.container.resolve<ServiceInfoController>('serviceInfoController');
     const healthcheckController = this.container.resolve<HealthcheckController>('healthcheckController');
 
-    this.addControllers([requestController, serviceInfoController, healthcheckController]);
+    const controllers: Array<any> = [requestController, serviceInfoController, healthcheckController];
+    if (config.anchorControllerEnabled) {
+      const anchorController = this.container.resolve<AnchorController>("anchorController");
+      controllers.push(anchorController);
+    }
+
+    this.addControllers(controllers);
 
     port = port || DEFAULT_SERVER_PORT;
     this.app.listen(port, () => {

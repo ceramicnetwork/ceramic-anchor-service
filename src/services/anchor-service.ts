@@ -104,6 +104,8 @@ export default class AnchorService {
    * Creates anchors for client requests
    */
   public async anchorRequests(): Promise<void> {
+    logger.Imp('Anchoring pending requests...');
+
     let requests: Request[] = await this.requestService.findNextToProcess();
     if (requests.length === 0) {
       logger.Info("No pending CID requests found. Skipping anchor.");
