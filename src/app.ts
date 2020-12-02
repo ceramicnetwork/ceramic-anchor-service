@@ -111,7 +111,7 @@ export default class CeramicAnchorApp {
   }
 
   /**
-   * Starts bundled application (API + Anchor)
+   * Starts bundled application (API + periodic anchoring)
    * @private
    */
   private async _startBundled(): Promise<void> {
@@ -124,7 +124,7 @@ export default class CeramicAnchorApp {
   }
 
   /**
-   * Start application in Server mode
+   * Start application in Server mode, which will accept and store anchor requests in a database, but not actually submit any anchors to the blockchain.
    * @private
    */
   private async _startServer(): Promise<void> {
