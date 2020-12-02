@@ -35,7 +35,7 @@ describe('ETH service',  () => {
     });
 
     const localPort = config.blockchain.connectors.ethereum.rpc.port;
-    const done = new Promise((resolve, reject) => {
+    const done = new Promise<void>((resolve, reject) => {
       ganacheServer.listen(localPort, async (err: Error) => {
         if (err) {
           reject(err);
