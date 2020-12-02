@@ -111,7 +111,7 @@ export default class CeramicAnchorApp {
   }
 
   /**
-   * Starts bundled application (API + Anchor)
+   * Starts bundled application (API + periodic anchoring)
    * @private
    */
   private async _startBundled(): Promise<void> {
