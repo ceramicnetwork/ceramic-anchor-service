@@ -38,10 +38,10 @@ export class CASLogger {
 
   // Used for stream interface
   public write(content: string | object): void {
-    this.info(content)
+    this.debug(content)
   }
 
-  public info(content: string | object): void {
+  public debug(content: string | object): void {
     if (this.logLevel > LogLevel.debug) return
     this.consoleLogger.info(content, this.includeStackTrace)
   }

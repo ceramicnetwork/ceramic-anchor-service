@@ -27,7 +27,7 @@ export default class RequestController {
 
   @Get(':cid')
   private async getStatusForCid(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
-    logger.info(`Get info for ${req.params.cid}`);
+    logger.debug(`Get info for ${req.params.cid}`);
 
     try {
       const cid = new CID(req.params.cid);
@@ -112,7 +112,7 @@ export default class RequestController {
   @Post()
   private async createRequest(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     try {
-      logger.info(`Create request ${JSON.stringify(req.body)}`);
+      logger.debug(`Create request ${JSON.stringify(req.body)}`);
 
       const { cid, docId } = req.body;
 

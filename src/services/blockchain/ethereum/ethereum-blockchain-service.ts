@@ -83,10 +83,10 @@ export default class EthereumBlockchainService implements BlockchainService {
     const { overrideGasConfig } = config.blockchain.connectors.ethereum;
     if (config.blockchain.connectors.ethereum.overrideGasConfig) {
       txData.gasPrice = BigNumber.from(config.blockchain.connectors.ethereum.gasPrice);
-      logger.info('Overriding Gas price: ' + txData.gasPrice.toString());
+      logger.debug('Overriding Gas price: ' + txData.gasPrice.toString());
 
       txData.gasLimit = BigNumber.from(config.blockchain.connectors.ethereum.gasLimit);
-      logger.info('Overriding Gas limit: ' + txData.gasLimit.toString());
+      logger.debug('Overriding Gas limit: ' + txData.gasLimit.toString());
     }
 
     let retryTimes = 3;
@@ -94,10 +94,10 @@ export default class EthereumBlockchainService implements BlockchainService {
       try {
         if (!overrideGasConfig) {
           txData.gasPrice = await this.provider.getGasPrice();
-          logger.info('Estimated Gas price: ' + txData.gasPrice.toString());
+          logger.debug('Estimated Gas price: ' + txData.gasPrice.toString());
 
           txData.gasLimit = await this.provider.estimateGas(txData);
-          logger.info('Estimated Gas limit: ' + txData.gasLimit.toString());
+          logger.debug('Estimated Gas limit: ' + txData.gasLimit.toString());
         }
 
         logger.imp("Transaction data:" + JSON.stringify(txData));

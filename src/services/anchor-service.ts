@@ -56,7 +56,7 @@ class IpfsMerge implements MergeFunction<Candidate> {
     const merged = [left.data.cid, right.data.cid];
 
     const mergedCid = await this.ipfsService.storeRecord(merged);
-    logger.info('Merkle node ' + mergedCid + ' created.');
+    logger.debug('Merkle node ' + mergedCid + ' created.');
     return new Node<Candidate>(new Candidate(mergedCid), left, right);
   }
 }
@@ -105,7 +105,7 @@ export default class AnchorService {
 
     let requests: Request[] = await this.requestRepository.findNextToProcess();
     if (requests.length === 0) {
-      logger.info("No pending CID requests found. Skipping anchor.");
+      logger.debug("No pending CID requests found. Skipping anchor.");
       return;
     }
     await this.requestRepository.updateRequests({ status: RS.PROCESSING, message: 'Request is processing.' }, requests.map(r => r.id))
@@ -123,7 +123,7 @@ export default class AnchorService {
     // filter valid requests
     requests = requests.filter(r => !nonReachableRequestIds.includes(r.id));
     if (requests.length === 0) {
-      logger.info("No CID to request. Skipping anchor.");
+      logger.debug("No CID to request. Skipping anchor.");
       return;
     }
 
@@ -140,7 +140,7 @@ export default class AnchorService {
     // filter valid requests
     requests = requests.filter(r => !clashingRequestIds.includes(r.id));
     if (requests.length === 0) {
-      logger.info("No CID to request. Skipping anchor.");
+      logger.debug("No CID to request. Skipping anchor.");
       return;
     }
 
