@@ -1,3 +1,5 @@
+import CID from "cids";
+
 import * as didJwt from 'did-jwt'
 
 import { Resolver } from "did-resolver"
@@ -7,39 +9,26 @@ import KeyDidResolver from '@ceramicnetwork/key-did-resolver';
 import ThreeIdResolver from '@ceramicnetwork/3id-did-resolver';
 import { CeramicApi  } from "@ceramicnetwork/common";
 
-import Contextual from "../contextual";
-
 import base64url from "base64url"
 
-import ipfsClient from "ipfs-http-client";
-import { IPFSApi } from "../declarations";
 import { config } from "node-config-ts";
-
-import dagJose from 'dag-jose'
-// @ts-ignore
-import multiformats from 'multiformats/basics'
-// @ts-ignore
-import legacy from 'multiformats/legacy'
+import { inject, singleton } from "tsyringe";
+import BlockchainService from "./blockchain/blockchain-service";
+import { IpfsService } from "./ipfs-service";
 
 const DID_MATCHER = '^(did:([a-zA-Z0-9_]+):([a-zA-Z0-9_.-]+(:[a-zA-Z0-9_.-]+)*)((;[a-zA-Z0-9_.:%-]+=[a-zA-Z0-9_.:%-]*)*)(/[^#?]*)?)([?][^#]*)?(#.*)?';
 
-export default class CeramicService implements Contextual {
+@singleton()
+export default class CeramicService {
 
-  private _ipfs: IPFSApi;
-  private _client: CeramicApi;
-  private _resolver: Resolver;
-  private _validateRecords: boolean;
+  private readonly _client: CeramicApi;
+  private readonly _resolver: Resolver;
 
   /**
    * Sets dependencies
    */
-  setContext(): void {
-    this._validateRecords = config.ceramic.validateRecords;
-    if (typeof this._validateRecords === "string") {
-      this._validateRecords = this._validateRecords as string === 'true'
-    }
-
-    if (this._validateRecords) {
+  constructor(@inject('ipfsService') private ipfsService?: IpfsService) {
+    if (config.ceramic.validateRecords) {
       this._client = new CeramicClient(config.ceramic.apiUrl);
 
       const keyDidResolver = KeyDidResolver.getResolver();
@@ -51,45 +40,18 @@ export default class CeramicService implements Contextual {
   }
 
   /**
-   * Initialize the service
-   */
-  public async init(): Promise<void> {
-    multiformats.multicodec.add(dagJose);
-    const format = legacy(multiformats, dagJose.name);
-
-    this._ipfs = ipfsClient({
-      host: config.ipfsConfig.host,
-      port: config.ipfsConfig.port,
-      timeout: config.ipfsConfig.timeout,
-      ipld: {
-        formats: [format],
-      },
-    });
-  }
-
-  /**
-   * Get IPFS client
-   */
-  get ipfs(): IPFSApi {
-    return this._ipfs
-  }
-
-  /**
-   * Set IPFS client
-   * @param ipfs - IPFS client
-   */
-  set ipfs(ipfs: IPFSApi) {
-    this._ipfs = ipfs
-  }
-
-  /**
    * Verifies record signature
-   * @param record - Record data
+   * @param cid - CID of the record
    * @return DID
    * @private
    */
-  async verifySignedRecord(record: Record<string, unknown>): Promise<string> {
-    if (this._validateRecords) {
+  async verifySignedRecord(cid: string | CID): Promise<string> {
+    if (!config.ceramic.validateRecords) {
+      return null; // return "empty" DID
+    }
+
+    try {
+      const record = await this.ipfsService.retrieveRecord(cid);
       const { payload, signatures } = record;
       const { signature, protected: _protected } = signatures[0];
 
@@ -100,8 +62,9 @@ export default class CeramicService implements Contextual {
       const jws = [_protected, payload, signature].join(".");
       await didJwt.verifyJWS(jws, didDoc.publicKey);
       return kid.match(RegExp(DID_MATCHER))[1];
+    } catch (e) {
+      throw new Error("Failed to verify record for " + cid.toString + ". " + e.message);
     }
-    return null;
   }
 
 }

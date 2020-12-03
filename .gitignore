@@ -5,6 +5,7 @@ build/
 tmp/
 temp/
 anchor.db.sq3
+anchor.db.sqbpro
 coverage
 .nyc_output
 lib

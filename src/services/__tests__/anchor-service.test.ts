@@ -4,17 +4,43 @@ process.env.NODE_ENV = 'test';
 
 import CID from 'cids';
 
-import Context from "../../context";
+import { container } from "tsyringe";
+
 import { Request } from "../../models/request";
 import { RequestStatus } from "../../models/request-status";
 import RequestService from "../request-service";
 import AnchorService from "../anchor-service";
 
-class CeramicService implements Contextual {
+class MockIpfsService implements IpfsService {
   public ipfs: any;
 
-  setContext(): void {
-    this.ipfs = createIPFS();
+  constructor() {
+    this.ipfs = {
+      dag: {
+        get(): any {
+          return {
+            value: {
+              header: {
+                nonce: 1
+              }
+            }
+          };
+        }
+      }
+    }
+  }
+
+  async init(): Promise<void> {
+    return null;
+  }
+
+  async retrieveRecord(cid: CID | string): Promise<any> {
+    const record = await this.ipfs.dag.get(cid);
+    return record.value;
+  }
+
+  async storeRecord(record: Record<string, unknown>): Promise<CID> {
+    return this.ipfs.dag.put(record);
   }
 }
 
@@ -24,31 +50,27 @@ import EthereumBlockchainService from "../blockchain/ethereum/ethereum-blockchai
 jest.mock("../blockchain/ethereum/ethereum-blockchain-service");
 
 import { initializeTransactionalContext } from 'typeorm-transactional-cls-hooked';
+import RequestRepository from "../../repositories/request-repository";
+import CeramicService from "../ceramic-service";
+import { IpfsService } from "../ipfs-service";
+import AnchorRepository from "../../repositories/anchor-repository";
 initializeTransactionalContext();
-
-import Contextual from "../../contextual";
-
-const createIPFS = () => {
-  return {
-    dag: {
-      get(): any {
-        return {
-          value: {
-            header: {
-              nonce: 1
-            }
-          }
-        };
-      }
-    }
-  };
-};
 
 describe('ETH service',  () => {
   jest.setTimeout(10000);
 
   beforeAll(async () => {
     await DBConnection.create();
+
+    container.registerSingleton("anchorRepository", AnchorRepository);
+    container.registerSingleton("requestRepository", RequestRepository);
+    container.registerSingleton("blockchainService", EthereumBlockchainService);
+    container.register("ipfsService", {
+      useValue: new MockIpfsService()
+    });
+    container.registerSingleton("ceramicService", CeramicService);
+    container.registerSingleton("anchorService", AnchorService);
+    container.registerSingleton("requestService", RequestService);
   });
 
   beforeEach(async () => {
@@ -66,9 +88,6 @@ describe('ETH service',  () => {
       throw new Error('Failed to send transaction!');
     });
 
-    const ctx = new Context();
-    await ctx.build('services', 'repositories', new CeramicService());
-
     const docId = '/ceramic/bagjqcgzaday6dzalvmy5ady2m5a5legq5zrbsnlxfc2bfxej532ds7htpova';
     const cid = new CID('bafybeig6xv5nwphfmvcnektpnojts33jqcuam7bmye2pb54adnrtccjlsu');
 
@@ -78,13 +97,10 @@ describe('ETH service',  () => {
     request.status = RequestStatus.PENDING;
     request.message = 'Request is pending.';
 
-    const requestService: RequestService = ctx.lookup('RequestService');
+    const requestService = container.resolve<RequestService>('requestService');
     await requestService.createOrUpdate(request);
 
-    const ceramicService: CeramicService = ctx.lookup('CeramicService');
-    ceramicService.ipfs = createIPFS();
-
-    const anchorService: AnchorService = ctx.lookup('AnchorService');
+    const anchorService = container.resolve<AnchorService>('anchorService');
     await expect(anchorService.anchorRequests()).rejects.toEqual(new Error('Failed to send transaction!'))
 
     request = await requestService.findByCid(cid);

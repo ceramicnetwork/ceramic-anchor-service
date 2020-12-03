@@ -7,28 +7,18 @@ import { BigNumber, ethers } from "ethers";
 import { config } from "node-config-ts";
 import { Logger as logger } from "@overnightjs/logger/lib/Logger";
 
-import Context from "../../../context";
 import Transaction from "../../../models/transaction";
-import { BlockchainService } from "../blockchain-service";
+import BlockchainService from "../blockchain-service";
 import { TransactionRequest } from "@ethersproject/abstract-provider";
 
-const BASE_CHAIN_ID = "eip155"
+const BASE_CHAIN_ID = "eip155";
 
 /**
  * Ethereum blockchain service
  */
 export default class EthereumBlockchainService implements BlockchainService {
-  private ctx: Context;
-  private provider: providers.BaseProvider;
   private _chainId: string;
-
-  /**
-   * Set application context
-   * @param context
-   */
-  setContext(context: Context): void {
-    this.ctx = context;
-  }
+  private provider: providers.BaseProvider;
 
   /**
    * Connects to blockchain
@@ -46,7 +36,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     }
 
     await this.provider.getNetwork();
-    await this._loadChainId()
+    await this._loadChainId();
     logger.Imp('Connected to ' + config.blockchain.connectors.ethereum.network + ' blockchain with chain ID ' + this.chainId);
   }
 
@@ -55,7 +45,7 @@ export default class EthereumBlockchainService implements BlockchainService {
    * connected blockchain to ask for it.
    */
   private async _loadChainId(): Promise<void> {
-    const idnum = (await this.provider.getNetwork()).chainId
+    const idnum = (await this.provider.getNetwork()).chainId;
     this._chainId = BASE_CHAIN_ID + ':' + idnum
   }
 
@@ -90,11 +80,8 @@ export default class EthereumBlockchainService implements BlockchainService {
       nonce: baseNonce,
     };
 
-    let { overrideGasConfig } = config.blockchain.connectors.ethereum;
-    if (typeof overrideGasConfig === "string") {
-      overrideGasConfig = overrideGasConfig as string === 'true'
-    }
-    if (overrideGasConfig) {
+    const { overrideGasConfig } = config.blockchain.connectors.ethereum;
+    if (config.blockchain.connectors.ethereum.overrideGasConfig) {
       txData.gasPrice = BigNumber.from(config.blockchain.connectors.ethereum.gasPrice);
       logger.Info('Overriding Gas price: ' + txData.gasPrice.toString());
 

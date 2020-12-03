@@ -1,6 +1,7 @@
 {
   "mode": "bundled",
   "port": 8081,
+  "anchorControllerEnabled": false,
   "cronExpression": "0 0 */1 * * *",
   "expirationPeriod": 5400000,
   "ipfsConfig": {

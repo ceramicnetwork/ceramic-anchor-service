@@ -6,22 +6,12 @@ import cors from 'cors';
 import { ClassMiddleware, Controller, Get } from '@overnightjs/core';
 
 import { cpuFree, freememPercentage } from "os-utils";
+import { singleton } from "tsyringe";
 
-import Context from '../context';
-import Contextual from '../contextual';
-
+@singleton()
 @Controller('api/v0/healthcheck')
 @ClassMiddleware([cors()])
-export default class HealthcheckController implements Contextual {
-
-  /**
-   * Set application context
-   * @param context
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  setContext(context: Context): void {
-    // no context needed
-  }
+export default class HealthcheckController {
 
   @Get()
   private async get(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {

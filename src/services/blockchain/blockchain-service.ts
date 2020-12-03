@@ -1,8 +1,7 @@
 import CID from 'cids';
 import Transaction from '../../models/transaction';
-import Contextual from '../../contextual';
 
-export interface BlockchainService extends Contextual {
+export default interface BlockchainService {
   /**
    * Connects to specific blockchain
    */

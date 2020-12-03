@@ -1,6 +1,7 @@
 {
   "mode": "@@APP_MODE",
   "port": "@@APP_PORT",
+  "anchorControllerEnabled": "@@ANCHOR_CONTROLLER_ENABLED",
   "cronExpression": "@@ANCHOR_SCHEDULE_EXPRESSION",
   "expirationPeriod": "@@ANCHOR_EXPIRATION_PERIOD",
   "ipfsConfig": {
