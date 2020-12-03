@@ -12,8 +12,9 @@ export class MerkleTree<T> {
 
   /**
    * Default constructor
-   * @param mergeFn
-   * @param compareFn
+   * @param mergeFn - fn that merges nodes at lower levels to produce nodes for higher levels of the tree
+   * @param compareFn - fn for sorting the leaves before building the tree
+   * @param depthLimit - limit to the number of levels the tree is allowed to have
    */
   constructor(mergeFn: MergeFunction<T>, compareFn?: CompareFunction<T>, depthLimit?: number) {
     this.mergeFn = mergeFn;
