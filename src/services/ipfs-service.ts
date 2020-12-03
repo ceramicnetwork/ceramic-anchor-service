@@ -91,7 +91,7 @@ export class IpfsServiceImpl implements IpfsService {
         retryTimes--
       }
     }
-    return null;
+    throw new Error("Failed to retrieve record " + cid)
   }
 
   /**
