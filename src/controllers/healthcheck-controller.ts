@@ -9,7 +9,7 @@ import { singleton } from "tsyringe";
 
 @singleton()
 @Controller('api/v0/healthcheck')
-@ClassMiddleware([cors(), express.json(), ...expressLoggers()])
+@ClassMiddleware([cors(), express.json(), ...expressLoggers])
 export default class HealthcheckController {
 
   @Get()
