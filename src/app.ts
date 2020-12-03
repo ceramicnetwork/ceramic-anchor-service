@@ -8,7 +8,7 @@ import { container } from "tsyringe";
 import { logger } from "./logger";
 import CeramicAnchorServer from './server';
 import { createConnection } from 'typeorm';
-import { IpfsServiceImpl} from "./services/ipfs-service";
+import { IpfsServiceImpl } from "./services/ipfs-service";
 import AnchorService from "./services/anchor-service";
 import SchedulerService from "./services/scheduler-service";
 import BlockchainService from "./services/blockchain/blockchain-service";
@@ -60,7 +60,7 @@ export default class CeramicAnchorApp {
    * @private
    */
   static _patchConfigTypes(): void {
-    const traverse = function(o) {
+    const traverse = function (o) {
       for (const prop in Object.keys(o)) {
         if (o[prop] === 'true' || o[prop] === 'false') {
           o[prop] = o[prop] === 'true'
@@ -146,14 +146,14 @@ export default class CeramicAnchorApp {
     // note that it's not active database connection
     // typeorm creates connection pools and uses them for requests
     try {
-        logger.imp('Connecting to database...');
-        const connection = await createConnection();
-        logger.imp(`Connected to database: ${connection.name}`);
-        await fn()
-    } catch(e) {
+      logger.imp('Connecting to database...');
+      const connection = await createConnection();
+      logger.imp(`Connected to database: ${connection.name}`);
+    } catch (e) {
       logger.err(`Database connection failed. Error: ${e.message}`);
-      process.exit(1)
+      process.exit(1);
     }
+    await fn();
   }
 
   /**
