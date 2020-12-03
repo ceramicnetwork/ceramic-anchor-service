@@ -1,8 +1,57 @@
+import { Logger, LoggerModes } from '@overnightjs/logger'
+import morgan from 'morgan'
+import { config } from 'node-config-ts'
 import rfs from 'rotating-file-stream'
-import { Logger as logger} from '@overnightjs/logger'
 
-const LOG_PATH = process.env.LOG_PATH || '/usr/local/var/log/cas'
-const METRICS_LOG_PATH = process.env.METRICS_LOG_PATH || LOG_PATH + '/metrics'
+enum LogLevel {
+  debug,
+  warn
+}
+
+const LOG_LEVEL = config.logger.level === 'debug' && LogLevel.debug || LogLevel.warn
+const LOG_TO_FILES = config.logger.logToFiles || false
+const LOG_PATH = config.logger.filePath || '/usr/local/var/log/cas'
+const METRICS_LOG_PATH = config.logger.metricsFilePath || LOG_PATH + '/metrics'
+
+/**
+ * Handles logging
+ * TODO: Update doc comments
+ */
+export class CASLogger {
+  public readonly logLevel: LogLevel
+  public readonly expressLoggers: any[]
+  private consoleLogger: Logger
+  private includeStackTrace: boolean
+
+  constructor(logLevel: LogLevel = LogLevel.warn) {
+    this.consoleLogger = new Logger(LoggerModes.Console, '', true)
+    this.logLevel = logLevel
+    this.includeStackTrace = this.logLevel == LogLevel.debug ? true : false
+  }
+
+  // Used for stream types
+  public write(content: any): void {
+    this.info(content)
+  }
+
+  public info(content: any): void {
+    if (this.logLevel != LogLevel.debug) return
+    this.consoleLogger.info(content, this.includeStackTrace)
+  }
+
+  public imp(content: any): void {
+    if (this.logLevel != LogLevel.debug) return
+    this.consoleLogger.imp(content, this.includeStackTrace)
+  }
+
+  public warn(content: any): void {
+    this.consoleLogger.warn(content, this.includeStackTrace)
+  }
+
+  public err(content: any): void {
+    this.consoleLogger.err(content, this.includeStackTrace)
+  }
+}
 
 export const accessLogStream = rfs.createStream(`${LOG_PATH}/access.log`, {
   size: "10M", // rotate every 10 MegaBytes written
@@ -28,6 +77,12 @@ export const metricsLogStream = rfs.createStream(`${METRICS_LOG_PATH}/out.log`, 
   compress: "gzip"
 })
 
-export const logWrite = {
-  write: logger.Info
+export const logger = new CASLogger(LOG_LEVEL);
+
+export function expressLoggers() {
+  const middleware = [morgan('combined', {stream: logger})]
+  if (LOG_TO_FILES) {
+    middleware.push(morgan('combined', {stream: accessLogStream}))
+  }
+  return middleware
 }
