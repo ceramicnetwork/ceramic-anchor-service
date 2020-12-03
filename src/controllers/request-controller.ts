@@ -8,13 +8,13 @@ import cors from 'cors';
 import { ClassMiddleware, ClassErrorMiddleware, Controller, Get, Post } from '@overnightjs/core';
 
 import CID from 'cids';
-import RequestService from '../services/request-service';
 import { RequestStatus } from '../models/request-status';
 import AnchorService from '../services/anchor-service';
 import { Anchor } from '../models/anchor';
 import { Request } from "../models/request";
 import { inject, singleton } from "tsyringe";
 import { expressLoggers, logger } from '../logger';
+import RequestRepository from '../repositories/request-repository';
 
 @singleton()
 @Controller('api/v0/requests')
@@ -22,7 +22,7 @@ import { expressLoggers, logger } from '../logger';
 export default class RequestController {
 
   constructor(@inject('anchorService') private anchorService?: AnchorService,
-              @inject('requestService') private requestService?: RequestService, ) {
+              @inject('requestRepository') private requestRepository?: RequestRepository, ) {
   }
 
   @Get(':cid')
@@ -37,7 +37,7 @@ export default class RequestController {
         });
       }
 
-      const request = await this.requestService.findByCid(cid);
+      const request = await this.requestRepository.findByCid(cid);
       if (request == null) {
         return res.status(NOT_FOUND).send({
           error: "Request doesn't exist",
@@ -129,7 +129,7 @@ export default class RequestController {
       }
 
       const cidObj = new CID(cid);
-      let request: Request = await this.requestService.findByCid(cidObj);
+      let request: Request = await this.requestRepository.findByCid(cidObj);
       if (request != null) {
         return res.status(BAD_REQUEST).send('CID has already been submitted');
       }
@@ -140,7 +140,7 @@ export default class RequestController {
       request.status = RequestStatus.PENDING;
       request.message = 'Request is pending.';
 
-      request = await this.requestService.createOrUpdate(request);
+      request = await this.requestRepository.createOrUpdate(request);
       const interval = parser.parseExpression(config.cronExpression);
 
       return res.status(CREATED).json({

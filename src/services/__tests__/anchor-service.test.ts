@@ -8,39 +8,51 @@ import { container } from "tsyringe";
 
 import { Request } from "../../models/request";
 import { RequestStatus } from "../../models/request-status";
-import RequestService from "../request-service";
 import AnchorService from "../anchor-service";
 
-class MockIpfsService implements IpfsService {
-  public ipfs: any;
+// A set of random valid CIDs to use in tests
+const randomCIDs = [
+  new CID("bafybeig6xv5nwphfmvcnektpnojts22jqcuam7bmye2pb54adnrtccjlsu"),
+  new CID("bafybeig6xv5nwphfmvcnektpnojts33jqcuam7bmye2pb54adnrtccjlsu"),
+  new CID("bafybeig6xv5nwphfmvcnektpnojts44jqcuam7bmye2pb54adnrtccjlsu"),
+  new CID("bafybeig6xv5nwphfmvcnektpnojts55jqcuam7bmye2pb54adnrtccjlsu"),
+  new CID("bafybeig6xv5nwphfmvcnektpnojts66jqcuam7bmye2pb54adnrtccjlsu"),
+  new CID("bafybeig6xv5nwphfmvcnektpnojts77jqcuam7bmye2pb54adnrtccjlsu"),
+  new CID("bagcqcera6jlmswuihr6fx6e5dmpkxsuh25acrgt4zg4xnajohfqhneawyvqa"),
+  new CID("bagcqceraetdzvhnw2jdjvoxbwufxwbw55n5xafd6z3o2emph3647uzdqaaia"),
+  new CID("bagcqceraxfvyjsaaepdgghfnbmow7hpylcs3azvjrmczcuaxxraow355ucba"),
+  new CID("bagcqcerak3cgizcpx6d6lzk6mduhbjnmuqaqoxlmscquqpy6hw72ocna54da"),
+  new CID("bagcqceracggxyb4tfbbzcmqtmvnosq355yiirvnexpj6uzv772dem3hgf7ca"),
+  new CID("bagcqceraxgc33kqes6d34cnkjcapy6jjo7yjzszvkwyclsdhey2ij3fxqjva"),
+  new CID("bagcqcera4gpni4oqh3q4npyxqpmvp7abo3uo6jdot4m2c3rsn7gdhrxks4wa"),
+  new CID("bagcqcera7h3h6frsr5mdb37zeozowti7do4tipmrof7f77su4vplyskz647q"),
+  new CID("bagcqcera7riqdpj7nlqoqzomkpvl77wkkti47esi53pih5mq6s3lvphngr6a"),
+];
 
-  constructor() {
-    this.ipfs = {
-      dag: {
-        get(): any {
-          return {
-            value: {
-              header: {
-                nonce: 1
-              }
-            }
-          };
-        }
-      }
-    }
-  }
+class MockIpfsService implements IpfsService {
+
+  constructor(private _docs: Record<string, any> = {}, private _cidIndex = 0) {}
 
   async init(): Promise<void> {
     return null;
   }
 
   async retrieveRecord(cid: CID | string): Promise<any> {
-    const record = await this.ipfs.dag.get(cid);
-    return record.value;
+    return this._docs[cid.toString()];
   }
 
   async storeRecord(record: Record<string, unknown>): Promise<CID> {
-    return this.ipfs.dag.put(record);
+    if (this._cidIndex >= randomCIDs.length) {
+      throw new Error("Used too many CIDs in a test!");
+    }
+    const cid = randomCIDs[this._cidIndex++];
+    this._docs[cid.toString()] = record;
+    return cid;
+  }
+
+  async reset(): Promise<void> {
+    this._cidIndex = 0
+    this._docs = {}
   }
 }
 
@@ -54,27 +66,40 @@ import RequestRepository from "../../repositories/request-repository";
 import CeramicService from "../ceramic-service";
 import { IpfsService } from "../ipfs-service";
 import AnchorRepository from "../../repositories/anchor-repository";
+
 initializeTransactionalContext();
+
+async function createRequest(docId: string, ipfsService: IpfsService): Promise<Request> {
+  const cid = await ipfsService.storeRecord({})
+  const request = new Request();
+  request.cid = cid.toString();
+  request.docId = docId;
+  request.status = RequestStatus.PENDING;
+  request.message = 'Request is pending.';
+  return request
+}
 
 describe('ETH service',  () => {
   jest.setTimeout(10000);
+  let ipfsService
 
   beforeAll(async () => {
     await DBConnection.create();
+    ipfsService = new MockIpfsService()
 
     container.registerSingleton("anchorRepository", AnchorRepository);
     container.registerSingleton("requestRepository", RequestRepository);
     container.registerSingleton("blockchainService", EthereumBlockchainService);
     container.register("ipfsService", {
-      useValue: new MockIpfsService()
+      useValue: ipfsService
     });
     container.registerSingleton("ceramicService", CeramicService);
     container.registerSingleton("anchorService", AnchorService);
-    container.registerSingleton("requestService", RequestService);
   });
 
   beforeEach(async () => {
     await DBConnection.clear();
+    await ipfsService.reset()
   });
 
   afterAll(async () => {
@@ -89,7 +114,7 @@ describe('ETH service',  () => {
     });
 
     const docId = '/ceramic/bagjqcgzaday6dzalvmy5ady2m5a5legq5zrbsnlxfc2bfxej532ds7htpova';
-    const cid = new CID('bafybeig6xv5nwphfmvcnektpnojts33jqcuam7bmye2pb54adnrtccjlsu');
+    const cid = await ipfsService.storeRecord({})
 
     let request = new Request();
     request.cid = cid.toString();
@@ -97,19 +122,58 @@ describe('ETH service',  () => {
     request.status = RequestStatus.PENDING;
     request.message = 'Request is pending.';
 
-    const requestService = container.resolve<RequestService>('requestService');
-    await requestService.createOrUpdate(request);
+    const requestRepository = container.resolve<RequestRepository>('requestRepository');
+    await requestRepository.createOrUpdate(request);
 
     const anchorService = container.resolve<AnchorService>('anchorService');
     await expect(anchorService.anchorRequests()).rejects.toEqual(new Error('Failed to send transaction!'))
 
-    request = await requestService.findByCid(cid);
+    request = await requestRepository.findByCid(cid);
     expect(request).toHaveProperty('status', RequestStatus.PROCESSING);
 
-    const requests = await requestService.findNextToProcess();
+    const requests = await requestRepository.findNextToProcess();
     expect(requests).toBeDefined();
     expect(requests).toBeInstanceOf(Array);
     expect(requests).toHaveLength(1);
+  });
+
+  test('create anchor records', async () => {
+    const requestRepository = container.resolve<RequestRepository>('requestRepository');
+    const anchorService = container.resolve<AnchorService>('anchorService');
+
+    // Create pending requests
+    const requests = []
+    const numRequests = 4
+    for (let i = 0; i < numRequests; i++) {
+      const request = await createRequest("docid" + i, ipfsService)
+      await requestRepository.createOrUpdate(request);
+      requests.push(request)
+    }
+
+    const candidates = await anchorService._findCandidates(requests)
+    const merkleTree = await anchorService._buildMerkleTree(candidates)
+    const ipfsProofCid = await ipfsService.storeRecord({})
+
+    const anchors = await anchorService._createAnchorRecords(ipfsProofCid, merkleTree, candidates, requests)
+
+    expect(candidates.length).toEqual(requests.length)
+    expect(anchors.length).toEqual(candidates.length)
+
+    for (const i in anchors) {
+      const anchor = anchors[i]
+      expect(anchor.proofCid).toEqual(ipfsProofCid.toString())
+      expect(anchor.request).toEqual(requests[i])
+
+      const anchorRecord = await ipfsService.retrieveRecord(anchor.cid)
+      expect(anchorRecord.prev.toString()).toEqual(requests[i].cid)
+      expect(anchorRecord.proof).toEqual(ipfsProofCid)
+      expect(anchorRecord.path).toEqual(anchor.path)
+    }
+
+    expect(anchors[0].path).toEqual("0/0")
+    expect(anchors[1].path).toEqual("0/1")
+    expect(anchors[2].path).toEqual("1/0")
+    expect(anchors[3].path).toEqual("1/1")
   });
 
 });

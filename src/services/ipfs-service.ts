@@ -1,13 +1,12 @@
 import CID from 'cids';
 
+import LRUCache from "lru-cache"
 import ipfsClient from "ipfs-http-client";
 import { config } from "node-config-ts";
 
 const DEFAULT_GET_TIMEOUT = 30000; // 30 seconds
 
 import { Logger as logger } from '@overnightjs/logger';
-
-import { Request } from "../models/request";
 
 // @ts-ignore
 import dagJose from 'dag-jose'
@@ -20,6 +19,8 @@ import legacy from 'multiformats/legacy'
 import type { IPFSAPI as IPFSApi } from 'ipfs-core/dist/src/components'
 
 import { singleton } from "tsyringe";
+
+const MAX_CACHE_ENTRIES = 100;
 
 export interface IpfsService {
   /**
@@ -37,13 +38,14 @@ export interface IpfsService {
    * Sets the record and returns its CID
    * @param record - Record value
    */
-  storeRecord(record: Record<string, unknown>): Promise<CID>;
+  storeRecord(record: any): Promise<CID>;
 }
 
 @singleton()
 export class IpfsServiceImpl implements IpfsService {
 
   private _ipfs: IPFSApi;
+  private _cache: LRUCache;
 
   /**
    * Initialize the service
@@ -60,6 +62,8 @@ export class IpfsServiceImpl implements IpfsService {
         formats: [format],
       },
     });
+
+    this._cache = new LRUCache(MAX_CACHE_ENTRIES);
   }
 
   /**
@@ -70,13 +74,20 @@ export class IpfsServiceImpl implements IpfsService {
     let retryTimes = 2;
     while (retryTimes > 0) {
       try {
+        let value = this._cache.get(cid.toString());
+        if (value != null) {
+          return value;
+        }
         const record = await this._ipfs.dag.get(cid, {
           timeout: DEFAULT_GET_TIMEOUT
         });
-        logger.Imp('Successfully retrieved ' + cid);
-        return record.value;
+        logger.Info('Successfully retrieved ' + cid);
+
+        value = record.value;
+        this._cache.set(cid.toString(), value);
+        return value;
       } catch (e) {
-        logger.Err(e, true)
+        logger.Err('Cannot retrieve record for ' + cid);
         retryTimes--
       }
     }
