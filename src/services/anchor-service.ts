@@ -1,7 +1,6 @@
 import CID from "cids";
 
 import { DoctypeUtils } from "@ceramicnetwork/common";
-import { Logger as logger } from "@overnightjs/logger";
 import { RequestStatus as RS } from "../models/request-status";
 
 import { MerkleTree } from "../merkle/merkle-tree";
@@ -10,6 +9,7 @@ import { CompareFunction, MergeFunction, Node, PathDirection } from "../merkle/m
 import { config } from "node-config-ts";
 import { Transactional } from "typeorm-transactional-cls-hooked";
 
+import { logger } from '../logger';
 import Utils from "../utils";
 import { Anchor } from "../models/anchor";
 import { Request } from "../models/request";
@@ -59,7 +59,7 @@ class IpfsMerge implements MergeFunction<Candidate> {
     };
 
     const mergedCid = await this.ipfsService.storeRecord(merged);
-    logger.Info('Merkle node ' + mergedCid + ' created.');
+    logger.info('Merkle node ' + mergedCid + ' created.');
     return new Node<Candidate>(new Candidate(mergedCid), left, right);
   }
 }
@@ -104,17 +104,17 @@ export default class AnchorService {
    * Creates anchors for client requests
    */
   public async anchorRequests(): Promise<void> {
-    logger.Imp('Anchoring pending requests...');
+    logger.imp('Anchoring pending requests...');
 
     let requests: Request[] = await this.requestService.findNextToProcess();
     if (requests.length === 0) {
-      logger.Info("No pending CID requests found. Skipping anchor.");
+      logger.info("No pending CID requests found. Skipping anchor.");
       return;
     }
 
     const nonReachableRequestIds = await this._findUnreachableCids(requests);
     if (nonReachableRequestIds.length !== 0) {
-      logger.Err("Some of the records will be discarded since they cannot be retrieved.");
+      logger.err("Some of the records will be discarded since they cannot be retrieved.");
       // discard non reachable ones
       await this.requestService.updateRequests({
         status: RS.FAILED,
@@ -125,7 +125,7 @@ export default class AnchorService {
     // filter valid requests
     requests = requests.filter(r => !nonReachableRequestIds.includes(r.id));
     if (requests.length === 0) {
-      logger.Info("No CID to request. Skipping anchor.");
+      logger.info("No CID to request. Skipping anchor.");
       return;
     }
 
@@ -142,13 +142,13 @@ export default class AnchorService {
     // filter valid requests
     requests = requests.filter(r => !clashingRequestIds.includes(r.id));
     if (requests.length === 0) {
-      logger.Info("No CID to request. Skipping anchor.");
+      logger.info("No CID to request. Skipping anchor.");
       return;
     }
 
     let merkleTree: MerkleTree<Candidate>;
     try {
-      logger.Imp('Creating Merkle tree from selected records.');
+      logger.imp('Creating Merkle tree from selected records.');
       merkleTree = new MerkleTree<Candidate>(this.ipfsMerge, this.ipfsCompare);
       await merkleTree.build(candidates);
       candidates = merkleTree.getLeaves();
@@ -179,7 +179,7 @@ export default class AnchorService {
         }
         return null;
       } catch (e) {
-        logger.Err('Failed to retrieve record. ' + e.message);
+        logger.err('Failed to retrieve record. ' + e.message);
         return r.id;
       }
     }))).filter(id => id != null);
@@ -232,7 +232,7 @@ export default class AnchorService {
       },
       requests.map(r => r.id));
 
-    logger.Imp(`Service successfully anchored ${requests.length} CIDs.`);
+    logger.imp(`Service successfully anchored ${requests.length} CIDs.`);
   }
 
   /**
@@ -252,7 +252,7 @@ export default class AnchorService {
         const candidate = new Candidate(new CID(request.cid), request.docId, did, request.id);
         group[candidate.key] = group[candidate.key] ? [...group[candidate.key], candidate] : [candidate];
       } catch (e) {
-        logger.Err(e, true);
+        logger.err(e);
         await this.requestService.updateRequests(
           {
             status: RS.FAILED,

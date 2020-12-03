@@ -1,10 +1,8 @@
 import { BAD_REQUEST, CREATED, NOT_FOUND, OK } from 'http-status-codes';
-import { Request as ExpReq, Response as ExpRes } from 'express';
-import { Logger, Logger as logger } from '@overnightjs/logger';
+import express, { Request as ExpReq, Response as ExpRes } from 'express';
 
 import parser from 'cron-parser';
 import { config } from 'node-config-ts';
-import morgan from 'morgan';
 
 import cors from 'cors';
 import { ClassMiddleware, ClassErrorMiddleware, Controller, Get, Post } from '@overnightjs/core';
@@ -16,11 +14,11 @@ import AnchorService from '../services/anchor-service';
 import { Anchor } from '../models/anchor';
 import { Request } from "../models/request";
 import { inject, singleton } from "tsyringe";
-import { accessLogStream, logWrite } from '../logger';
+import { expressLoggers, logger } from '../logger';
 
 @singleton()
 @Controller('api/v0/requests')
-@ClassMiddleware([cors(), morgan('combined', {stream: logWrite}), morgan('combined', {stream: accessLogStream})])
+@ClassMiddleware([cors(), express.json(), ...expressLoggers])
 export default class RequestController {
 
   constructor(@inject('anchorService') private anchorService?: AnchorService,
@@ -29,7 +27,7 @@ export default class RequestController {
 
   @Get(':cid')
   private async getStatusForCid(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
-    logger.Info(`Get info for ${req.params.cid}`);
+    logger.info(`Get info for ${req.params.cid}`);
 
     try {
       const cid = new CID(req.params.cid);
@@ -104,7 +102,7 @@ export default class RequestController {
           });
       }
     } catch (err) {
-      Logger.Err(err, true);
+      logger.err(err);
       return res.status(BAD_REQUEST).json({
         error: err.message,
       });
@@ -114,7 +112,7 @@ export default class RequestController {
   @Post()
   private async createRequest(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     try {
-      logger.Info(`Create request ${JSON.stringify(req.body)}`);
+      logger.info(`Create request ${JSON.stringify(req.body)}`);
 
       const { cid, docId } = req.body;
 
@@ -156,7 +154,7 @@ export default class RequestController {
         scheduledAt: interval.next().toDate().getTime(),
       });
     } catch (err) {
-      Logger.Err(err, true);
+      logger.err(err);
       return res.status(BAD_REQUEST).json({
         error: err.message,
       });

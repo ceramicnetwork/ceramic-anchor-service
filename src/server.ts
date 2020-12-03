@@ -1,6 +1,5 @@
 import * as bodyParser from 'body-parser';
 import { Server } from '@overnightjs/core';
-import { Logger as logger } from '@overnightjs/logger';
 
 import { config } from "node-config-ts";
 
@@ -8,6 +7,8 @@ import AnchorController from "./controllers/anchor-controller";
 import RequestController from "./controllers/request-controller";
 import ServiceInfoController from "./controllers/service-info-controller";
 import HealthcheckController from "./controllers/healthcheck-controller";
+
+import { logger } from './logger';
 
 import DependencyContainer from "tsyringe/dist/typings/types/dependency-container";
 
@@ -41,7 +42,7 @@ export default class CeramicAnchorServer extends Server {
 
     port = port || DEFAULT_SERVER_PORT;
     this.app.listen(port, () => {
-      logger.Imp(`Ceramic anchor service started on port ${port}`);
+      logger.imp(`Ceramic Anchor Server ready: Listening on port ${port}`);
     });
   }
 }

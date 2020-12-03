@@ -2,16 +2,10 @@ import 'reflect-metadata';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 require('dotenv').config();
 
-import { LoggerModes } from '@overnightjs/logger';
-
-// Set env variables
-process.env.OVERNIGHT_LOGGER_MODE = LoggerModes.Console;
-process.env.OVERNIGHT_LOGGER_RM_TIMESTAMP = 'false';
-
 import { config } from 'node-config-ts';
-import { Logger as logger } from '@overnightjs/logger';
 import { container } from "tsyringe";
 
+import { logger } from "./logger";
 import CeramicAnchorServer from './server';
 import { createConnection } from 'typeorm';
 import { IpfsServiceImpl} from "./services/ipfs-service";
@@ -103,11 +97,11 @@ export default class CeramicAnchorApp {
         break;
       }
       default: {
-        logger.Err(`Unknown application mode ${mode}`, true);
+        logger.err(`Unknown application mode ${mode}`);
         process.exit(1);
       }
     }
-    logger.Imp(`Ceramic Anchor Service started in ${mode} mode`);
+    logger.imp(`Ceramic Anchor Service initiated ${mode} mode`);
   }
 
   /**
@@ -154,7 +148,7 @@ export default class CeramicAnchorApp {
     // note that it's not active database connection
     // typeorm creates connection pools and uses them for requests
     createConnection().then(async () => await fn()).catch((e) => {
-      logger.Err(`Failed to start Ceramic Anchor Service. Error ${e.message}`);
+      logger.err(`Database connection failed. Error: ${e.message}`);
       process.exit(1)
     });
   }
@@ -172,8 +166,8 @@ export default class CeramicAnchorApp {
 
 const app = new CeramicAnchorApp();
 app.start()
-  .then(() => logger.Imp("Ceramic Anchor Service started..."))
+  .then(() => logger.imp("Ceramic Anchor Service started..."))
   .catch((e) => {
-    logger.Err(e, true);
+    logger.err(e);
     process.exit(1);
   });

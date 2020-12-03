@@ -1,9 +1,9 @@
 import * as cron from 'node-cron';
 
 import { config } from 'node-config-ts';
-import { Logger as logger } from '@overnightjs/logger';
 
 import AnchorService from './anchor-service';
+import { logger } from '../logger';
 import { inject, singleton } from "tsyringe";
 
 /**
@@ -22,10 +22,10 @@ export default class SchedulerService {
   public start(): void {
     cron.schedule(config.cronExpression, async () => {
       try {
-        logger.Imp('Anchor pending requests...');
+        logger.imp('Anchor pending requests...');
         await this.anchorService.anchorRequests();
       } catch (err) {
-        logger.Err('Failed to anchor CIDs... ' + err);
+        logger.err('Failed to anchor CIDs... ' + err);
       }
     });
   }
