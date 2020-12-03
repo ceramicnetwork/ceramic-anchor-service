@@ -22,7 +22,6 @@ const METRICS_LOG_PATH = config.logger.metricsFilePath || LOG_PATH + '/metrics'
 
 /**
  * Handles logging
- * TODO: Update doc comments
  */
 export class CASLogger {
   public readonly logLevel: LogLevel
@@ -30,7 +29,7 @@ export class CASLogger {
   private consoleLogger: Logger
   private includeStackTrace: boolean
 
-  constructor(logLevel: LogLevel = LogLevel.warn) {
+  constructor(logLevel: LogLevel) {
     this.consoleLogger = new Logger(LoggerModes.Console, '', true)
     this.logLevel = logLevel
     this.includeStackTrace = this.logLevel == LogLevel.debug ? true : false
