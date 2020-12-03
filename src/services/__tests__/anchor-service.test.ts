@@ -196,6 +196,7 @@ describe('ETH service',  () => {
 
     const candidates = await anchorService._findCandidates(requests)
     const merkleTree = await anchorService._buildMerkleTree(candidates)
+    // Should have trimmed the extra request so the number of leaves matches the configured limit
     expect(merkleTree.getLeaves().length).toEqual(nodeLimit)
   });
 

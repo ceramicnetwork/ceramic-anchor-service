@@ -1,6 +1,5 @@
 import { CompareFunction, MergeFunction, Node, PathDirection } from './merkle';
 
-
 /**
  * Merkle tree structure
  */
