@@ -64,7 +64,7 @@ export default class CeramicAnchorApp {
   /**
    * Patches config variables.
    *
-   * Note: sometimes strings are passed as booleans.
+   * Note: sometimes booleans are passed as strings.
    * @private
    */
   static _patchConfigTypes(): void {
