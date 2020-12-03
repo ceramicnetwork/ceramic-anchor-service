@@ -42,7 +42,7 @@ export default class CeramicAnchorServer extends Server {
 
     port = port || DEFAULT_SERVER_PORT;
     this.app.listen(port, () => {
-      logger.imp(`Ceramic Anchor Server ready: Listening on port ${port}`);
+      logger.imp(`Server ready: Listening on port ${port}`);
     });
   }
 }

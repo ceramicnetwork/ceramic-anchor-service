@@ -150,7 +150,7 @@ export default class CeramicAnchorApp {
     try {
         logger.imp('Connecting to database...');
         const connection = await createConnection();
-        logger.imp(`Connected to database driver ${connection.driver}`);
+        logger.imp(`Connected to database: ${connection.name}`);
         await fn()
     } catch(e) {
       logger.err(`Database connection failed. Error: ${e.message}`);
@@ -171,7 +171,6 @@ export default class CeramicAnchorApp {
 
 const app = new CeramicAnchorApp();
 app.start()
-  .then(() => logger.imp("Ceramic Anchor Service starting..."))
   .catch((e) => {
     logger.err(e);
     process.exit(1);
