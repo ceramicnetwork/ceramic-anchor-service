@@ -170,10 +170,10 @@ describe('ETH service',  () => {
       expect(anchorRecord.path).toEqual(anchor.path)
     }
 
-    expect(anchors[0].path).toEqual("L/L")
-    expect(anchors[1].path).toEqual("L/R")
-    expect(anchors[2].path).toEqual("R/L")
-    expect(anchors[3].path).toEqual("R/R")
+    expect(anchors[0].path).toEqual("0/0")
+    expect(anchors[1].path).toEqual("0/1")
+    expect(anchors[2].path).toEqual("1/0")
+    expect(anchors[3].path).toEqual("1/1")
   });
 
 });
