@@ -15,9 +15,9 @@ import { Anchor } from "../models/anchor";
 import { Request } from "../models/request";
 import Transaction from "../models/transaction";
 import AnchorRepository from "../repositories/anchor-repository";
+import RequestRepository from "../repositories/request-repository";
 
 import { IpfsService } from "./ipfs-service";
-import RequestService from "./request-service";
 import CeramicService from "./ceramic-service";
 import BlockchainService from "./blockchain/blockchain-service";
 import { inject, singleton } from "tsyringe";
@@ -84,7 +84,7 @@ export default class AnchorService {
   constructor(
     @inject('blockchainService') private blockchainService?: BlockchainService,
     @inject('ipfsService') private ipfsService?: IpfsService,
-    @inject('requestService') private requestService?: RequestService,
+    @inject('requestRepository') private requestRepository?: RequestRepository,
     @inject('ceramicService') private ceramicService?: CeramicService,
     @inject('anchorRepository') private anchorRepository?: AnchorRepository) {
 
@@ -106,17 +106,18 @@ export default class AnchorService {
   public async anchorRequests(): Promise<void> {
     logger.Imp('Anchoring pending requests...');
 
-    let requests: Request[] = await this.requestService.findNextToProcess();
+    let requests: Request[] = await this.requestRepository.findNextToProcess();
     if (requests.length === 0) {
       logger.Info("No pending CID requests found. Skipping anchor.");
       return;
     }
+    await this.requestRepository.updateRequests({ status: RS.PROCESSING, message: 'Request is processing.' }, requests.map(r => r.id))
 
     const nonReachableRequestIds = await this._findUnreachableCids(requests);
     if (nonReachableRequestIds.length !== 0) {
       logger.Err("Some of the records will be discarded since they cannot be retrieved.");
       // discard non reachable ones
-      await this.requestService.updateRequests({
+      await this.requestRepository.updateRequests({
         status: RS.FAILED,
         message: "Request has failed. Record is not reachable by CAS IPFS service."
       }, nonReachableRequestIds);
@@ -129,11 +130,11 @@ export default class AnchorService {
       return;
     }
 
-    let candidates: Candidate[] = await this._findCandidates(requests);
+    const candidates: Candidate[] = await this._findCandidates(requests);
     const clashingRequestIds = requests.filter(r => !candidates.map(c => c.reqId).includes(r.id)).map(r => r.id);
     if (clashingRequestIds.length > 0) {
       // discard clashing ones
-      await this.requestService.updateRequests({
+      await this.requestRepository.updateRequests({
         status: RS.FAILED,
         message: "Request has failed. There are conflicts with other requests for the same document and DID."
       }, clashingRequestIds);
@@ -146,22 +147,22 @@ export default class AnchorService {
       return;
     }
 
-    let merkleTree: MerkleTree<Candidate>;
-    try {
-      logger.Imp('Creating Merkle tree from selected records.');
-      merkleTree = new MerkleTree<Candidate>(this.ipfsMerge, this.ipfsCompare);
-      await merkleTree.build(candidates);
-      candidates = merkleTree.getLeaves();
-    } catch (e) {
-      throw new Error('Merkle tree cannot be created. ' + e.message);
-    }
+    logger.Imp('Creating Merkle tree from selected records.');
+    const merkleTree = await this._buildMerkleTree(candidates)
 
     // create and send ETH transaction
     const tx: Transaction = await this.blockchainService.sendTransaction(merkleTree.getRoot().data.cid);
-    const txHashCid = Utils.convertEthHashToCid("eth-tx", tx.txHash.slice(2));
 
-    // create proofs on IPFS
-    await this._createIPFSProofs(tx, txHashCid, merkleTree, candidates, requests);
+    // create proof on IPFS
+    const ipfsProofCid = await this._createIPFSProof(tx, merkleTree.getRoot().data.cid)
+
+    // create anchor records on IPFS
+    const anchors = await this._createAnchorRecords(ipfsProofCid, merkleTree, candidates, requests);
+
+    // Update the database to record the successful anchors
+    await this._persistAnchorResult(anchors)
+
+    logger.Imp(`Service successfully anchored ${anchors.length} CIDs.`);
   }
 
   /**
@@ -186,25 +187,50 @@ export default class AnchorService {
   }
 
   /**
-   * Creates IPFS record proofs
-   * @param tx - ETH transaction
-   * @param txHashCid - Transaction hash CID
-   * @param merkleTree - Merkle tree instance
-   * @param candidates - Merkle tree candidates
-   * @param requests - Valid requests
+   * Builds merkle tree
+   * @param candidates
    * @private
    */
-  @Transactional()
-  async _createIPFSProofs(tx: Transaction, txHashCid: CID, merkleTree: MerkleTree<Candidate>, candidates: Candidate[], requests: Request[]): Promise<void> {
+  async _buildMerkleTree(candidates: Candidate[]): Promise<MerkleTree<Candidate>> {
+    try {
+      const merkleTree = new MerkleTree<Candidate>(this.ipfsMerge, this.ipfsCompare);
+      await merkleTree.build(candidates);
+      return merkleTree
+    } catch (e) {
+      throw new Error('Merkle tree cannot be created: ' + e.message);
+    }
+  }
+
+  /**
+   * Creates a proof record for the entire merkle tree that was anchored in the given
+   * ethereum transaction, publishes that record to IPFS, and returns the CID.
+   * @param tx - ETH transaction
+   * @param merkleRootCid - CID of the root of the merkle tree that was anchored in 'tx'
+   */
+  async _createIPFSProof(tx: Transaction, merkleRootCid: CID): Promise<CID> {
+    const txHashCid = Utils.convertEthHashToCid("eth-tx", tx.txHash.slice(2));
     const ipfsAnchorProof = {
       blockNumber: tx.blockNumber,
       blockTimestamp: tx.blockTimestamp,
-      root: merkleTree.getRoot().data.cid,
+      root: merkleRootCid,
       chainId: tx.chain,
       txHash: txHashCid
     };
     const ipfsProofCid = await this.ipfsService.storeRecord(ipfsAnchorProof);
+    return ipfsProofCid
+  }
 
+  /**
+   * For each CID that was anchored, create a Ceramic AnchorRecord and publish it to IPFS.
+   * @param ipfsProofCid - CID of the anchor proof on IPFS
+   * @param merkleTree - Merkle tree instance
+   * @param candidates - Merkle tree candidates
+   * @param requests - Valid requests
+   * @returns An array of Anchor objects that can be persisted in the database with the result
+   * of each anchor request.
+   * @private
+   */
+  async _createAnchorRecords(ipfsProofCid: CID, merkleTree: MerkleTree<Candidate>, candidates: Candidate[], requests: Request[]): Promise<Anchor[]> {
     const anchors: Anchor[] = [];
     for (let index = 0; index < candidates.length; index++) {
       const req: Request = requests.find(r => r.id === candidates[index].reqId);
@@ -222,17 +248,25 @@ export default class AnchorService {
       anchor.cid = anchorCid.toString();
       anchors.push(anchor);
     }
-    // create anchor records
+    return anchors
+  }
+
+  /**
+   * Updates the anchor and request repositories in the local database with the results
+   * of the anchor
+   * @param anchors - Anchor objects to be persisted
+   * @private
+   */
+  @Transactional()
+  async _persistAnchorResult(anchors: Anchor[]): Promise<void> {
     await this.anchorRepository.createAnchors(anchors);
 
-    await this.requestService.updateRequests(
+    await this.requestRepository.updateRequests(
       {
         status: RS.COMPLETED,
         message: "CID successfully anchored."
       },
-      requests.map(r => r.id));
-
-    logger.Imp(`Service successfully anchored ${requests.length} CIDs.`);
+      anchors.map(a => a.request.id));
   }
 
   /**
@@ -253,7 +287,7 @@ export default class AnchorService {
         group[candidate.key] = group[candidate.key] ? [...group[candidate.key], candidate] : [candidate];
       } catch (e) {
         logger.Err(e, true);
-        await this.requestService.updateRequests(
+        await this.requestRepository.updateRequests(
           {
             status: RS.FAILED,
             message: "Request has failed. " + e.message,

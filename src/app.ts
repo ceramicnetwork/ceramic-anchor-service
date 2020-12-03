@@ -23,7 +23,6 @@ import { initializeTransactionalContext } from 'typeorm-transactional-cls-hooked
 import AnchorRepository from "./repositories/anchor-repository";
 import RequestRepository from "./repositories/request-repository";
 import CeramicService from "./services/ceramic-service";
-import RequestService from "./services/request-service";
 import HealthcheckController from "./controllers/healthcheck-controller";
 import AnchorController from "./controllers/anchor-controller";
 import RequestController from "./controllers/request-controller";
@@ -48,7 +47,6 @@ export default class CeramicAnchorApp {
     container.registerSingleton("anchorService", AnchorService);
     container.registerSingleton("ceramicService", CeramicService);
     container.registerSingleton("ipfsService", IpfsServiceImpl);
-    container.registerSingleton("requestService", RequestService);
     container.registerSingleton("schedulerService", SchedulerService);
 
     // register controllers
