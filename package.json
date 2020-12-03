@@ -29,11 +29,11 @@
       }
    },
    "dependencies": {
-      "@ceramicnetwork/http-client": "^0.8.3",
       "@ceramicnetwork/3id-did-resolver": "^0.5.2",
       "@ceramicnetwork/common": "^0.13.2",
-      "@ceramicnetwork/key-did-resolver": "^0.2.0",
       "@ceramicnetwork/docid": "^0.3.0",
+      "@ceramicnetwork/http-client": "^0.8.3",
+      "@ceramicnetwork/key-did-resolver": "^0.2.0",
       "@overnightjs/core": "^1.7.5",
       "@overnightjs/logger": "^1.2.0",
       "base64url": "^3.0.1",
@@ -55,6 +55,7 @@
       "http-status-codes": "^2.1.4",
       "ipfs-core": "^0.3.0",
       "ipfs-http-client": "^48.1.2",
+      "lru-cache": "^6.0.0",
       "multiformats": "^3.0.3",
       "multihashes": "^3.0.1",
       "node-cron": "^2.0.3",
