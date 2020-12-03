@@ -37,25 +37,25 @@ export class CASLogger {
   }
 
   // Used for stream interface
-  public write(content: any): void {
+  public write(content: string | object): void {
     this.info(content)
   }
 
-  public info(content: any): void {
+  public info(content: string | object): void {
     if (this.logLevel > LogLevel.debug) return
     this.consoleLogger.info(content, this.includeStackTrace)
   }
 
-  public imp(content: any): void {
+  public imp(content: string | object): void {
     if (this.logLevel > LogLevel.important) return
     this.consoleLogger.imp(content, this.includeStackTrace)
   }
 
-  public warn(content: any): void {
+  public warn(content: string | object): void {
     this.consoleLogger.warn(content, this.includeStackTrace)
   }
 
-  public err(content: any): void {
+  public err(content: string | object): void {
     this.consoleLogger.err(content, this.includeStackTrace)
   }
 }
