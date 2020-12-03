@@ -5,10 +5,17 @@ import * as rfs from 'rotating-file-stream'
 
 enum LogLevel {
   debug,
+  important,
   warn
 }
 
-const LOG_LEVEL = config.logger.level === 'debug' && LogLevel.debug || LogLevel.warn
+const logLevelMapping = {
+  'debug': LogLevel.debug,
+  'important': LogLevel.important,
+  'warn': LogLevel.warn
+}
+
+const LOG_LEVEL = logLevelMapping[config.logger.level] || LogLevel.important
 const LOG_TO_FILES = config.logger.logToFiles || false
 const LOG_PATH = config.logger.filePath || '/usr/local/var/log/cas'
 const METRICS_LOG_PATH = config.logger.metricsFilePath || LOG_PATH + '/metrics'
@@ -29,19 +36,18 @@ export class CASLogger {
     this.includeStackTrace = this.logLevel == LogLevel.debug ? true : false
   }
 
-  // Used for stream types
+  // Used for stream interface
   public write(content: any): void {
     this.info(content)
   }
 
   public info(content: any): void {
-    if (this.logLevel != LogLevel.debug) return
+    if (this.logLevel > LogLevel.debug) return
     this.consoleLogger.info(content, this.includeStackTrace)
   }
 
-  // TODO: Ensure essentials are logged
   public imp(content: any): void {
-    // if (this.logLevel != LogLevel.debug) return
+    if (this.logLevel > LogLevel.important) return
     this.consoleLogger.imp(content, this.includeStackTrace)
   }
 
@@ -81,9 +87,9 @@ export const metricsLogStream = rfs.createStream(`${METRICS_LOG_PATH}/out.log`, 
 export const logger = new CASLogger(LOG_LEVEL);
 
 function buildExpressMiddleware() {
-  const middleware = [morgan('combined', {stream: logger})]
+  const middleware = [morgan('combined', { stream: logger })]
   if (LOG_TO_FILES) {
-    middleware.push(morgan('combined', {stream: accessLogStream}))
+    middleware.push(morgan('combined', { stream: accessLogStream }))
   }
   return middleware
 }
