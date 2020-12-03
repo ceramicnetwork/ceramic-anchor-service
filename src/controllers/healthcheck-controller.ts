@@ -1,7 +1,5 @@
 import { OK, SERVICE_UNAVAILABLE } from "http-status-codes";
-import { Request as ExpReq, Response as ExpRes } from 'express';
-import { Logger, Logger as logger } from '@overnightjs/logger';
-import morgan from 'morgan'
+import express, { Request as ExpReq, Response as ExpRes } from 'express';
 
 import cors from 'cors';
 import { ClassMiddleware, Controller, Get } from '@overnightjs/core';
@@ -11,7 +9,7 @@ import { singleton } from "tsyringe";
 
 @singleton()
 @Controller('api/v0/healthcheck')
-@ClassMiddleware([cors(), morgan('combined', {stream: logWrite}), morgan('combined', {stream: accessLogStream})])
+@ClassMiddleware([cors(), express.json(), ...expressLoggers()])
 export default class HealthcheckController {
 
   @Get()
@@ -20,13 +18,13 @@ export default class HealthcheckController {
       const freeCpu = await new Promise((resolve) => cpuFree(resolve))
       const freeMem = freememPercentage()
       if (freeCpu < 0.05 || freeMem < 0.20) {
-        logger.Err(`Ceramic Anchor Service failed a healthcheck. Info: (freeCpu=${freeCpu}, freeMem=${freeMem})`);
+        logger.err(`Ceramic Anchor Service failed a healthcheck. Info: (freeCpu=${freeCpu}, freeMem=${freeMem})`);
         return res.status(SERVICE_UNAVAILABLE).send()
       }
 
       return res.status(OK).send()
     } catch (err) {
-      Logger.Err(err, true);
+      logger.err(err);
       return res.status(SERVICE_UNAVAILABLE).send()
     }
   }
