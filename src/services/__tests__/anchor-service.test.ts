@@ -11,6 +11,7 @@ import { RequestStatus } from "../../models/request-status";
 import AnchorService from "../anchor-service";
 
 // A set of random valid CIDs to use in tests
+// TODO write a random CID generator and use that instead of this list
 const randomCIDs = [
   new CID("bafybeig6xv5nwphfmvcnektpnojts22jqcuam7bmye2pb54adnrtccjlsu"),
   new CID("bafybeig6xv5nwphfmvcnektpnojts33jqcuam7bmye2pb54adnrtccjlsu"),
@@ -27,6 +28,18 @@ const randomCIDs = [
   new CID("bagcqcera4gpni4oqh3q4npyxqpmvp7abo3uo6jdot4m2c3rsn7gdhrxks4wa"),
   new CID("bagcqcera7h3h6frsr5mdb37zeozowti7do4tipmrof7f77su4vplyskz647q"),
   new CID("bagcqcera7riqdpj7nlqoqzomkpvl77wkkti47esi53pih5mq6s3lvphngr6a"),
+  new CID("bagcqcera2obsxj7olbjjjcsgae6yfd2i66k6ws25zrfgan4qnqchzfglbylq"),
+  new CID("bagcqceraxn27zerw7wpps2uonf6x2fkldfhhnwaulgspu65dbr3j5cltjw7q"),
+  new CID("bagcqcera6roxwdpjdocfv6lchvog4uo7algdbrh2tedp64u2o3dmrij4e64a"),
+  new CID("bagcqceraxj62ebctzvszj4smdeyrd2uukxrs3wmc4pdznimkrpx6l4bo4bjq"),
+  new CID("bagcqceragv2qvqka7k3od4wdqlamz6lej3i63fbkssxkovqbmvrqnmrwzwhq"),
+  new CID("bagcqcerab3b2hyts6caulbcgpal3cxtgsnkeuposp3wqr55zy5ih5bw65qka"),
+  new CID("bagcqcera7ridgjuj5yxu427jbv3yixmavl2mnwyta25xciqaeljpcgpbyq2a"),
+  new CID("bagcqceragvpqmxwopagdjy67xbcidn7uks467y7sdkenbfovszaz25tirycq"),
+  new CID("bagcqceraej5ixcmax6lv5f5zjol733hsaz3s6lb24qmokg5fb7j72dmghtja"),
+  new CID("bagcqcerankz427e6c4jvszhiaew6b26mwkuhx6nvdod6g36xohmsujxbvjma"),
+  new CID("bagcqceraj2psqqlu62bebwt5dnw3zswkyyquphv5zftz3bfn373xq7t53n3a"),
+  new CID("bagcqcerah4jjbqc5abgr5mlqbf6wm6juvmu6loqhegdyq6fxqn73dsxvse6a"),
 ];
 
 class MockIpfsService implements IpfsService {
@@ -184,20 +197,37 @@ describe('ETH service',  () => {
     const depthLimit = 2
     config.merkleDepthLimit = depthLimit
     const nodeLimit = Math.pow(2, depthLimit)
-    const numRequests = nodeLimit + 1 // one to many requests
+    const numRequests = nodeLimit * 2 // twice as many requests as can fit
 
     // Create pending requests
-    const requests = []
     for (let i = 0; i < numRequests; i++) {
       const request = await createRequest("docid" + i, ipfsService)
       await requestRepository.createOrUpdate(request);
-      requests.push(request)
     }
 
-    const candidates = await anchorService._findCandidates(requests)
-    const merkleTree = await anchorService._buildMerkleTree(candidates)
-    // Should have trimmed the extra request so the number of leaves matches the configured limit
-    expect(merkleTree.getLeaves().length).toEqual(nodeLimit)
+    // First pass anchors half the pending requests
+    let requests = await requestRepository.findNextToProcess()
+    expect(requests.length).toEqual(numRequests)
+    const anchorPendingRequests = async function(requests: Request[]): Promise<void> {
+      const candidates = await anchorService._findCandidates(requests)
+
+      const merkleTree = await anchorService._buildMerkleTree(candidates)
+      const ipfsProofCid = await ipfsService.storeRecord({})
+      const anchors = await anchorService._createAnchorRecords(ipfsProofCid, merkleTree, requests)
+
+      await anchorService._persistAnchorResult(anchors)
+    }
+    await anchorPendingRequests(requests)
+
+    requests = await requestRepository.findNextToProcess()
+    expect(requests.length).toEqual(numRequests / 2)
+
+    // // Second pass anchors the remaining half of the original requests
+    await anchorPendingRequests(requests)
+
+    // All requests should have been processed
+    requests = await requestRepository.findNextToProcess()
+    expect(requests.length).toEqual(0)
   });
 
 });
