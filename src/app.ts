@@ -169,7 +169,7 @@ export default class CeramicAnchorApp {
 
 const app = new CeramicAnchorApp();
 app.start()
-  .then(() => logger.imp("Ceramic Anchor Service started..."))
+  .then(() => logger.imp("Ceramic Anchor Service starting..."))
   .catch((e) => {
     logger.err(e);
     process.exit(1);
