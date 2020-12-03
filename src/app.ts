@@ -147,7 +147,10 @@ export default class CeramicAnchorApp {
     // create connection with database
     // note that it's not active database connection
     // typeorm creates connection pools and uses them for requests
-    createConnection().then(async () => await fn()).catch((e) => {
+    createConnection().then(async () => {
+        logger.imp('Connected to database');
+        return await fn()
+    }).catch((e) => {
       logger.err(`Database connection failed. Error: ${e.message}`);
       process.exit(1)
     });
@@ -157,7 +160,7 @@ export default class CeramicAnchorApp {
    * Execute a single anchor process
    */
   private async _executeAnchor(): Promise<void> {
-    this.startWithConnectionHandling(async () => {
+    await this.startWithConnectionHandling(async () => {
       const anchorService: AnchorService = container.resolve<AnchorService>('anchorService');
       await anchorService.anchorRequests();
     });
