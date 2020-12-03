@@ -147,13 +147,15 @@ export default class CeramicAnchorApp {
     // create connection with database
     // note that it's not active database connection
     // typeorm creates connection pools and uses them for requests
-    createConnection().then(async () => {
-        logger.imp('Connected to database');
-        return await fn()
-    }).catch((e) => {
+    try {
+        logger.imp('Connecting to database...');
+        const connection = await createConnection();
+        logger.imp(`Connected to database driver ${connection.driver}`);
+        await fn()
+    } catch(e) {
       logger.err(`Database connection failed. Error: ${e.message}`);
       process.exit(1)
-    });
+    }
   }
 
   /**
