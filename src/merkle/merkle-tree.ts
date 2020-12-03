@@ -1,7 +1,5 @@
 import { CompareFunction, MergeFunction, Node, PathDirection } from './merkle';
-import { config } from 'node-config-ts';
 
-const DEFAULT_MERKLE_TREE_DEPTH_LIMIT = 10; // 1024 nodes in the tree by default
 
 /**
  * Merkle tree structure

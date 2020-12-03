@@ -190,7 +190,19 @@ export default class AnchorService {
    */
   async _buildMerkleTree(candidates: Candidate[]): Promise<MerkleTree<Candidate>> {
     try {
-      const merkleTree = new MerkleTree<Candidate>(this.ipfsMerge, this.ipfsCompare);
+      if (config.merkleDepthLimit) {
+        const nodeLimit = Math.pow(2, config.merkleDepthLimit)
+        if (candidates.length > nodeLimit) {
+          logger.Warn('Found ' + candidates.length + ' valid candidates to anchor, but our '
+            + 'configured merkle tree depth limit of ' + config.merkleDepthLimit
+            + ' only permits ' + nodeLimit + ' nodes in a single merkle tree anchor proof. '
+            + 'Anchoring the first ' + nodeLimit + ' candidates and leaving the rest for a future anchor batch');
+          candidates = candidates.slice(0, nodeLimit)
+          // TODO: Should we trigger our next anchor faster than the normal interval when there
+          // are requests coming in faster than we can process?
+        }
+      }
+      const merkleTree = new MerkleTree<Candidate>(this.ipfsMerge, this.ipfsCompare, config.merkleDepthLimit);
       await merkleTree.build(candidates);
       return merkleTree
     } catch (e) {

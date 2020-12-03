@@ -66,6 +66,7 @@ import RequestRepository from "../../repositories/request-repository";
 import CeramicService from "../ceramic-service";
 import { IpfsService } from "../ipfs-service";
 import AnchorRepository from "../../repositories/anchor-repository";
+import { config } from 'node-config-ts';
 
 initializeTransactionalContext();
 
@@ -174,6 +175,28 @@ describe('ETH service',  () => {
     expect(anchors[1].path).toEqual("0/1")
     expect(anchors[2].path).toEqual("1/0")
     expect(anchors[3].path).toEqual("1/1")
+  });
+
+  test('Too many anchor requests', async () => {
+    const requestRepository = container.resolve<RequestRepository>('requestRepository');
+    const anchorService = container.resolve<AnchorService>('anchorService');
+
+    const depthLimit = 2
+    config.merkleDepthLimit = depthLimit
+    const nodeLimit = Math.pow(2, depthLimit)
+    const numRequests = nodeLimit + 1 // one to many requests
+
+    // Create pending requests
+    const requests = []
+    for (let i = 0; i < numRequests; i++) {
+      const request = await createRequest("docid" + i, ipfsService)
+      await requestRepository.createOrUpdate(request);
+      requests.push(request)
+    }
+
+    const candidates = await anchorService._findCandidates(requests)
+    const merkleTree = await anchorService._buildMerkleTree(candidates)
+    expect(merkleTree.getLeaves().length).toEqual(nodeLimit)
   });
 
 });
