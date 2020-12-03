@@ -7,6 +7,8 @@ import { ClassMiddleware, Controller, Get } from '@overnightjs/core';
 import { cpuFree, freememPercentage } from "os-utils";
 import { singleton } from "tsyringe";
 
+import { expressLoggers, logger } from "../logger";
+
 @singleton()
 @Controller('api/v0/healthcheck')
 @ClassMiddleware([cors(), express.json(), ...expressLoggers])
