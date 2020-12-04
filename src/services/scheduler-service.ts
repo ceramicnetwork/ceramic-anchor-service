@@ -18,6 +18,8 @@ export default class SchedulerService {
 
   /**
    * Start the scheduler
+   *
+   * Note: setInterval() can be refactored to consecutive setTimeout(s) to avoid anchoring clashing.
    */
   public start(): void {
     const cron = awsCronParser.parse(config.cronExpression);
