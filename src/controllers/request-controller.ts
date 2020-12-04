@@ -2,8 +2,8 @@ import { BAD_REQUEST, CREATED, NOT_FOUND, OK } from 'http-status-codes';
 import { Request as ExpReq, Response as ExpRes } from 'express';
 import { Logger, Logger as logger } from '@overnightjs/logger';
 
-import parser from 'cron-parser';
 import { config } from 'node-config-ts';
+import awsCronParser from "aws-cron-parser";
 
 import cors from 'cors';
 import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core';
@@ -67,7 +67,7 @@ export default class RequestController {
           });
         }
         case RequestStatus.PENDING: {
-          const interval = parser.parseExpression(config.cronExpression);
+          const cron = awsCronParser.parse(config.cronExpression);
 
           return res.status(OK).json({
             id: request.id,
@@ -77,7 +77,7 @@ export default class RequestController {
             message: request.message,
             createdAt: request.createdAt.getTime(),
             updatedAt: request.updatedAt.getTime(),
-            scheduledAt: interval.next().toDate().getTime(),
+            scheduledAt: awsCronParser.next(cron, new Date()),
           });
         }
         case RequestStatus.PROCESSING:
@@ -141,7 +141,8 @@ export default class RequestController {
       request.message = 'Request is pending.';
 
       request = await this.requestRepository.createOrUpdate(request);
-      const interval = parser.parseExpression(config.cronExpression);
+
+      const cron = awsCronParser.parse(config.cronExpression);
 
       return res.status(CREATED).json({
         id: request.id,
@@ -151,7 +152,7 @@ export default class RequestController {
         message: request.message,
         createdAt: request.createdAt.getTime(),
         updatedAt: request.updatedAt.getTime(),
-        scheduledAt: interval.next().toDate().getTime(),
+        scheduledAt: awsCronParser.next(cron, new Date()),
       });
     } catch (err) {
       Logger.Err(err, true);
