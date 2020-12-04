@@ -4,7 +4,7 @@
   "anchorControllerEnabled": false,
   "cronExpression": "0 0 */1 * * *",
   "expirationPeriod": 5400000,
-  "merkleDepthLimit": 10,
+  "merkleDepthLimit": 0,
   "ipfsConfig": {
     "host": "localhost",
     "port": 5001,
