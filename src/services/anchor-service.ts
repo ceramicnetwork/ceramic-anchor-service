@@ -227,8 +227,6 @@ export default class AnchorService {
             + ' only permits ' + nodeLimit + ' nodes in a single merkle tree anchor proof. '
             + 'Anchoring the first ' + nodeLimit + ' candidates and leaving the rest for a future anchor batch');
           candidates = candidates.slice(0, nodeLimit)
-          // TODO: Should we trigger our next anchor faster than the normal interval when there
-          // are requests coming in faster than we can process?
         }
       }
       const merkleTree = new MerkleTree<Candidate>(this.ipfsMerge, this.ipfsCompare, config.merkleDepthLimit);
