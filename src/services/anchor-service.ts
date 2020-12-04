@@ -154,7 +154,7 @@ export default class AnchorService {
     const ipfsProofCid = await this._createIPFSProof(tx, merkleTree.getRoot().data.cid)
 
     // create anchor records on IPFS
-    const anchors = await this._createAnchorRecords(ipfsProofCid, merkleTree, candidates, requests);
+    const anchors = await this._createAnchorRecords(ipfsProofCid, merkleTree, requests);
 
     // Update the database to record the successful anchors
     await this._persistAnchorResult(anchors)
@@ -221,14 +221,14 @@ export default class AnchorService {
    * For each CID that was anchored, create a Ceramic AnchorRecord and publish it to IPFS.
    * @param ipfsProofCid - CID of the anchor proof on IPFS
    * @param merkleTree - Merkle tree instance
-   * @param candidates - Merkle tree candidates
    * @param requests - Valid requests
    * @returns An array of Anchor objects that can be persisted in the database with the result
    * of each anchor request.
    * @private
    */
-  async _createAnchorRecords(ipfsProofCid: CID, merkleTree: MerkleTree<Candidate>, candidates: Candidate[], requests: Request[]): Promise<Anchor[]> {
+  async _createAnchorRecords(ipfsProofCid: CID, merkleTree: MerkleTree<Candidate>, requests: Request[]): Promise<Anchor[]> {
     const anchors: Anchor[] = [];
+    const candidates = merkleTree.getLeaves()
     for (let index = 0; index < candidates.length; index++) {
       const req: Request = requests.find(r => r.id === candidates[index].reqId);
 
