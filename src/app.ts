@@ -57,8 +57,6 @@ export default class CeramicAnchorApp {
     if (config.anchorControllerEnabled) {
       container.registerSingleton("anchorController", AnchorController);
     }
-    const { overrideGasConfig } = config.blockchain.connectors.ethereum;
-    console.log(overrideGasConfig)
   }
 
   /**
