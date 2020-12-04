@@ -67,7 +67,7 @@ export default class CeramicAnchorApp {
    */
   static _patchConfigTypes(): void {
     const traverse = function(o) {
-      for (const prop in Object.keys(o)) {
+      for (const prop of Object.keys(o)) {
         if (o[prop] === 'true' || o[prop] === 'false') {
           o[prop] = o[prop] === 'true'
         }
