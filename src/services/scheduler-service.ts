@@ -26,15 +26,25 @@ export default class SchedulerService {
     let nextScheduleTime = awsCronParser.next(cron, new Date()).getTime();
 
     setInterval(async () => {
-      const currentTime = new Date().getTime();
-      if (currentTime > nextScheduleTime) {
-        nextScheduleTime = awsCronParser.next(cron, new Date());
-        try {
+      try {
+        const currentTime = new Date().getTime();
+        let performedAnchor = false
+        if (currentTime > nextScheduleTime) {
+          // Always anchor if the scheduled time delay has passed
           await this.anchorService.anchorRequests();
-        } catch (err) {
-          logger.Err('Failed to anchor CIDs... ' + err);
+          performedAnchor = true
+        } else {
+          // Even if we're not up to the scheduled anchor time, we may want to anchor early if
+          // we have too many pending requests built up.
+          performedAnchor = await this.anchorService.anchorIfTooManyPendingRequests();
         }
-      }
+
+        if (performedAnchor) {
+          nextScheduleTime = awsCronParser.next(cron, new Date());
+        }
+      } catch (err) {
+      logger.Err('Failed to anchor CIDs... ' + err);
+    }
     }, 10000);
   }
 }

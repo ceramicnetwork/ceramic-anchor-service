@@ -98,12 +98,41 @@ export default class AnchorService {
   }
 
   /**
+   * If there are more pending requests than can fit into a single merkle tree (based on
+   * config.merkleDepthLimit), then triggers an anchor, otherwise does nothing.
+   * @returns whether or not an anchor was performed
+   */
+  public async anchorIfTooManyPendingRequests(): Promise<boolean> {
+    if (!config.merkleDepthLimit) {
+      // If there's no limit to the size of an anchor, then there's no such thing as "too many"
+      // pending requests, and we can always wait for our next scheduled anchor.
+      return false
+    }
+
+    const nodeLimit = Math.pow(2, config.merkleDepthLimit)
+    const requests: Request[] = await this.requestRepository.findNextToProcess();
+    if (requests.length > nodeLimit) {
+      logger.Imp("There are " + requests.length + " pending anchor requests, which is more "
+        + "than can fit into a single anchor batch given our configured merkleDepthLimit of "
+        + config.merkleDepthLimit + " (" + nodeLimit + " requests). Triggering an anchor early to "
+        + "drain our queue")
+      await this._anchorRequests(requests)
+      return true
+    }
+    return false
+  }
+
+  /**
    * Creates anchors for client requests
    */
   public async anchorRequests(): Promise<void> {
+    const requests: Request[] = await this.requestRepository.findNextToProcess();
+    await this._anchorRequests(requests)
+  }
+
+  private async _anchorRequests(requests: Request[]): Promise<void> {
     logger.Imp('Anchoring pending requests...');
 
-    let requests: Request[] = await this.requestRepository.findNextToProcess();
     if (requests.length === 0) {
       logger.Info("No pending CID requests found. Skipping anchor.");
       return;

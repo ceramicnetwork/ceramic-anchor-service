@@ -4,6 +4,7 @@
   "anchorControllerEnabled": "@@ANCHOR_CONTROLLER_ENABLED",
   "cronExpression": "@@ANCHOR_SCHEDULE_EXPRESSION",
   "expirationPeriod": "@@ANCHOR_EXPIRATION_PERIOD",
+  "merkleDepthLimit": "@@MERKLE_DEPTH_LIMIT",
   "ipfsConfig": {
     "host": "@@IPFS_API_HOST",
     "port": "@@IPFS_API_PORT",
