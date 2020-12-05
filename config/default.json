@@ -32,7 +32,7 @@
     }
   },
   "logger": {
-    "level": "debug",
+    "level": "important",
     "logToFiles": false,
     "filePath": "",
     "metricsFilePath": ""
