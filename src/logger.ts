@@ -18,7 +18,6 @@ const logLevelMapping = {
 const LOG_LEVEL = logLevelMapping[config.logger.level] || LogLevel.important
 const LOG_TO_FILES = config.logger.logToFiles || false
 const LOG_PATH = config.logger.filePath || '/usr/local/var/log/cas'
-const METRICS_LOG_PATH = config.logger.metricsFilePath || LOG_PATH + '/metrics'
 
 /**
  * Handles logging
@@ -41,12 +40,16 @@ export class CASLogger {
   }
 
   public debug(content: string | object): void {
-    if (this.logLevel > LogLevel.debug) return
+    if (this.logLevel > LogLevel.debug) {
+        return
+    }
     this.consoleLogger.info(content, this.includeStackTrace)
   }
 
   public imp(content: string | object): void {
-    if (this.logLevel > LogLevel.important) return
+    if (this.logLevel > LogLevel.important) {
+        return
+    }
     this.consoleLogger.imp(content, this.includeStackTrace)
   }
 
@@ -63,24 +66,6 @@ export const accessLogStream = rfs.createStream(`${LOG_PATH}/access.log`, {
   size: "10M", // rotate every 10 MegaBytes written
   interval: "1d", // rotate daily
   compress: "gzip" // compress rotated files
-})
-
-export const debugLogStream = rfs.createStream(`${LOG_PATH}/debug.log`, {
-  size: "10M", // rotate every 10 MegaBytes written
-  interval: "1d", // rotate daily
-  compress: "gzip" // compress rotated files
-})
-
-export const errorLogStream = rfs.createStream(`${LOG_PATH}/error.log`, {
-  size: "10M", // rotate every 10 MegaBytes written
-  interval: "1d", // rotate daily
-  compress: "gzip" // compress rotated files
-})
-
-export const metricsLogStream = rfs.createStream(`${METRICS_LOG_PATH}/out.log`, {
-  size: "10M",
-  interval: "1d",
-  compress: "gzip"
 })
 
 export const logger = new CASLogger(LOG_LEVEL);
