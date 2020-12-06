@@ -11,7 +11,7 @@ import { expressLoggers, logger } from "../logger";
 
 @singleton()
 @Controller('api/v0/healthcheck')
-@ClassMiddleware([cors(), express.json(), ...expressLoggers])
+@ClassMiddleware([cors()])
 export default class HealthcheckController {
 
   @Get()

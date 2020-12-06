@@ -18,7 +18,7 @@ import RequestRepository from '../repositories/request-repository';
 
 @singleton()
 @Controller('api/v0/requests')
-@ClassMiddleware([cors(), express.json(), ...expressLoggers])
+@ClassMiddleware([cors()])
 export default class RequestController {
 
   constructor(@inject('anchorService') private anchorService?: AnchorService,

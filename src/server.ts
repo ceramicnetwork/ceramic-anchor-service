@@ -8,7 +8,7 @@ import RequestController from "./controllers/request-controller";
 import ServiceInfoController from "./controllers/service-info-controller";
 import HealthcheckController from "./controllers/healthcheck-controller";
 
-import { logger } from './logger';
+import { expressLoggers, logger } from './logger';
 
 import DependencyContainer from "tsyringe/dist/typings/types/dependency-container";
 
@@ -21,6 +21,7 @@ export default class CeramicAnchorServer extends Server {
 
     this.app.use(bodyParser.json());
     this.app.use(bodyParser.urlencoded({ extended: true }));
+    this.app.use(...expressLoggers)
   }
 
   /**
