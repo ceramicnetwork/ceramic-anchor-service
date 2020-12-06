@@ -4,9 +4,9 @@ import { config } from 'node-config-ts'
 import * as rfs from 'rotating-file-stream'
 
 enum LogLevel {
-  debug,
-  important,
-  warn
+  debug = 1,
+  important = 2,
+  warn = 3
 }
 
 const logLevelMapping = {
@@ -15,7 +15,7 @@ const logLevelMapping = {
   'warn': LogLevel.warn
 }
 
-const LOG_LEVEL = logLevelMapping[config.logger.level] || LogLevel.important
+const LOG_LEVEL = config.logger.level && logLevelMapping[config.logger.level] || LogLevel.important
 const LOG_TO_FILES = config.logger.logToFiles || false
 const LOG_PATH = config.logger.filePath || '/usr/local/var/log/cas'
 
