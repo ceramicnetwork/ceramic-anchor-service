@@ -4,7 +4,7 @@ import CID from 'cids';
 import Ganache from 'ganache-core'
 
 import { config } from 'node-config-ts';
-import { Logger as logger } from '@overnightjs/logger/lib/Logger';
+import { logger } from '../../../logger';
 
 import { container } from "tsyringe";
 
@@ -64,7 +64,7 @@ describe('ETH service',  () => {
   });
 
   afterAll(async (done) => {
-    logger.Imp(`Closing local Ethereum blockchain instance...`);
+    logger.imp(`Closing local Ethereum blockchain instance...`);
     ganacheServer.close();
     done();
   });

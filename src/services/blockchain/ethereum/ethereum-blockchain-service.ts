@@ -5,8 +5,8 @@ import { ErrorCode } from "@ethersproject/logger";
 
 import { BigNumber, ethers } from "ethers";
 import { config } from "node-config-ts";
-import { Logger as logger } from "@overnightjs/logger/lib/Logger";
 
+import { logger } from "../../../logger";
 import Transaction from "../../../models/transaction";
 import BlockchainService from "../blockchain-service";
 import { TransactionRequest } from "@ethersproject/abstract-provider";
@@ -24,7 +24,7 @@ export default class EthereumBlockchainService implements BlockchainService {
    * Connects to blockchain
    */
   public async connect(): Promise<void> {
-    logger.Imp("Connecting to " + config.blockchain.connectors.ethereum.network + " blockchain...");
+    logger.imp("Connecting to " + config.blockchain.connectors.ethereum.network + " blockchain...");
     const { network } = config.blockchain.connectors.ethereum;
 
     if (network === "ganache") {
@@ -37,7 +37,7 @@ export default class EthereumBlockchainService implements BlockchainService {
 
     await this.provider.getNetwork();
     await this._loadChainId();
-    logger.Imp('Connected to ' + config.blockchain.connectors.ethereum.network + ' blockchain with chain ID ' + this.chainId);
+    logger.imp('Connected to ' + config.blockchain.connectors.ethereum.network + ' blockchain with chain ID ' + this.chainId);
   }
 
   /**
@@ -63,14 +63,14 @@ export default class EthereumBlockchainService implements BlockchainService {
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
     const wallet = new ethers.Wallet(config.blockchain.connectors.ethereum.account.privateKey, this.provider);
     const walletBalance = await this.provider.getBalance(wallet.address);
-    logger.Imp(`Current wallet balance is ` + walletBalance);
+    logger.imp(`Current wallet balance is ` + walletBalance);
 
     const rootStrHex = rootCid.toString("base16");
     const hexEncoded = "0x" + (rootStrHex.length % 2 == 0 ? rootStrHex : "0" + rootStrHex);
-    logger.Imp(`Hex encoded root CID ${hexEncoded}`);
+    logger.imp(`Hex encoded root CID ${hexEncoded}`);
 
     const { network } = config.blockchain.connectors.ethereum;
-    logger.Imp(`Sending transaction to Ethereum ${network} network...`);
+    logger.imp(`Sending transaction to Ethereum ${network} network...`);
 
     const baseNonce = await this.provider.getTransactionCount(wallet.getAddress());
 
@@ -83,10 +83,10 @@ export default class EthereumBlockchainService implements BlockchainService {
     const { overrideGasConfig } = config.blockchain.connectors.ethereum;
     if (config.blockchain.connectors.ethereum.overrideGasConfig) {
       txData.gasPrice = BigNumber.from(config.blockchain.connectors.ethereum.gasPrice);
-      logger.Info('Overriding Gas price: ' + txData.gasPrice.toString());
+      logger.debug('Overriding Gas price: ' + txData.gasPrice.toString());
 
       txData.gasLimit = BigNumber.from(config.blockchain.connectors.ethereum.gasLimit);
-      logger.Info('Overriding Gas limit: ' + txData.gasLimit.toString());
+      logger.debug('Overriding Gas limit: ' + txData.gasLimit.toString());
     }
 
     let retryTimes = 3;
@@ -94,13 +94,13 @@ export default class EthereumBlockchainService implements BlockchainService {
       try {
         if (!overrideGasConfig) {
           txData.gasPrice = await this.provider.getGasPrice();
-          logger.Info('Estimated Gas price: ' + txData.gasPrice.toString());
+          logger.debug('Estimated Gas price: ' + txData.gasPrice.toString());
 
           txData.gasLimit = await this.provider.estimateGas(txData);
-          logger.Info('Estimated Gas limit: ' + txData.gasLimit.toString());
+          logger.debug('Estimated Gas limit: ' + txData.gasLimit.toString());
         }
 
-        logger.Imp("Transaction data:" + JSON.stringify(txData));
+        logger.imp("Transaction data:" + JSON.stringify(txData));
 
         const txResponse: providers.TransactionResponse = await wallet.sendTransaction(txData);
 
@@ -113,10 +113,10 @@ export default class EthereumBlockchainService implements BlockchainService {
         const txReceipt: providers.TransactionReceipt = await this.provider.waitForTransaction(txResponse.hash);
         const block: providers.Block = await this.provider.getBlock(txReceipt.blockHash);
 
-        logger.Imp(`Transaction successfully written to Ethereum ${network} network. Transaction hash ${txReceipt.transactionHash}`);
+        logger.imp(`Transaction successfully written to Ethereum ${network} network. Transaction hash ${txReceipt.transactionHash}`);
         return new Transaction(caip2ChainId, txReceipt.transactionHash, txReceipt.blockNumber, block.timestamp);
       } catch (err) {
-        logger.Err(err, true);
+        logger.err(err);
 
         const { code } = err;
         if (code) {
@@ -124,7 +124,7 @@ export default class EthereumBlockchainService implements BlockchainService {
             const txCost = (txData.gasLimit as BigNumber).mul(txData.gasPrice);
             if (txCost.gt(walletBalance)) {
               const errMsg = "Transaction cost is greater than our current balance. [txCost: " + txCost.toHexString() + ", balance: " + walletBalance.toHexString() + "]";
-              logger.Err(errMsg);
+              logger.err(errMsg);
               throw new Error(errMsg);
             }
           }

@@ -1,9 +1,10 @@
 import { OK, SERVICE_UNAVAILABLE } from "http-status-codes";
 import { Request as ExpReq, Response as ExpRes } from 'express';
-import { Logger } from '@overnightjs/logger';
 
 import cors from 'cors';
 import { ClassMiddleware, Controller, Get } from '@overnightjs/core';
+
+import { logger } from '../logger';
 
 import BlockchainService from '../services/blockchain/blockchain-service';
 import { inject, singleton } from "tsyringe";
@@ -26,7 +27,7 @@ export default class ServiceInfoController {
     try {
       return res.status(OK).json({supportedChains: [this.blockchainService.chainId]})
     } catch (err) {
-      Logger.Err(err, true);
+      logger.err(err);
       return res.status(SERVICE_UNAVAILABLE).send()
     }
   }
