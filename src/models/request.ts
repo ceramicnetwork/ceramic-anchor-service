@@ -44,11 +44,11 @@ export class RequestSubscriber implements EntitySubscriberInterface<Request> {
   protected prevColumnsToUpdate: object
   protected currUpdatedColumns: object
   
-  listenTo() {
+  listenTo(): typeof Request {
     return Request;
   }
 
-  afterInsert(event: InsertEvent<Request>) {
+  afterInsert(event: InsertEvent<Request>): void {
     logEvent.db({
       type: 'request',
       ...event.entity
@@ -59,7 +59,7 @@ export class RequestSubscriber implements EntitySubscriberInterface<Request> {
     setColumnsToUpdate(event, this.prevColumnsToUpdate)
   }
 
-  afterUpdate(event: UpdateEvent<Request>) {
+  afterUpdate(event: UpdateEvent<Request>): void {
     setUpdatedColumns(event, this.currUpdatedColumns)
 
     if ('status' in this.currUpdatedColumns) {
