@@ -28,7 +28,7 @@ export default class SchedulerService {
     setInterval(async () => {
       const currentTime = new Date().getTime();
       if (currentTime > nextScheduleTime) {
-        nextScheduleTime = awsCronParser.next(cron, new Date());
+        nextScheduleTime = awsCronParser.next(cron, new Date()).getTime();
         try {
           await this.anchorService.anchorRequests();
         } catch (err) {
