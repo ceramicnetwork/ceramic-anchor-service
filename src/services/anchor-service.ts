@@ -9,7 +9,7 @@ import { CompareFunction, MergeFunction, Node, PathDirection } from "../merkle/m
 import { config } from "node-config-ts";
 import { Transactional } from "typeorm-transactional-cls-hooked";
 
-import { logger } from '../logger';
+import { logger, logMetric } from '../logger';
 import Utils from "../utils";
 import { Anchor } from "../models/anchor";
 import { Request } from "../models/request";
@@ -159,6 +159,15 @@ export default class AnchorService {
     // Update the database to record the successful anchors
     await this._persistAnchorResult(anchors)
 
+    logMetric.anchor({
+      type: 'anchorRequest',
+      requestIds: requests.map(r => r.id),
+      nonReachableRequestsCount: nonReachableRequestIds.length,
+      clashingRequestsCount: clashingRequestIds.length,
+      validRequestsCount: requests.length,
+      candidateCount: candidates.length,
+      anchorCount: anchors.length
+    });
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`);
   }
 
