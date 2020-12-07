@@ -154,7 +154,7 @@ describe('ETH service',  () => {
     const merkleTree = await anchorService._buildMerkleTree(candidates)
     const ipfsProofCid = await ipfsService.storeRecord({})
 
-    const anchors = await anchorService._createAnchorRecords(ipfsProofCid, merkleTree, candidates, requests)
+    const anchors = await anchorService._createAnchorRecords(ipfsProofCid, merkleTree, requests)
 
     expect(candidates.length).toEqual(requests.length)
     expect(anchors.length).toEqual(candidates.length)
