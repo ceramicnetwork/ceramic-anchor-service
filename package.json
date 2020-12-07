@@ -68,7 +68,7 @@
       "typestub-multibase": "^0.0.5",
       "typestub-multihashes": "^0.0.4",
       "uuid": "^8.3.1",
-      "aws-cron-parser": "^1.1.5"
+      "aws-cron-parser": "^1.1.6"
    },
    "devDependencies": {
       "@babel/core": "^7.12.9",
