@@ -1,12 +1,11 @@
 import { BAD_REQUEST, CREATED, NOT_FOUND, OK } from 'http-status-codes';
-import { Request as ExpReq, Response as ExpRes } from 'express';
-import { Logger, Logger as logger } from '@overnightjs/logger';
+import express, { Request as ExpReq, Response as ExpRes } from 'express';
 
 import { config } from 'node-config-ts';
 import awsCronParser from "aws-cron-parser";
 
 import cors from 'cors';
-import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core';
+import { ClassMiddleware, ClassErrorMiddleware, Controller, Get, Post } from '@overnightjs/core';
 
 import CID from 'cids';
 import { RequestStatus } from '../models/request-status';
@@ -14,6 +13,7 @@ import AnchorService from '../services/anchor-service';
 import { Anchor } from '../models/anchor';
 import { Request } from "../models/request";
 import { inject, singleton } from "tsyringe";
+import { expressLoggers, logger } from '../logger';
 import RequestRepository from '../repositories/request-repository';
 
 @singleton()
@@ -27,7 +27,7 @@ export default class RequestController {
 
   @Get(':cid')
   private async getStatusForCid(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
-    logger.Info(`Get info for ${req.params.cid}`);
+    logger.debug(`Get info for ${req.params.cid}`);
 
     try {
       const cid = new CID(req.params.cid);
@@ -102,7 +102,7 @@ export default class RequestController {
           });
       }
     } catch (err) {
-      Logger.Err(err, true);
+      logger.err(err);
       return res.status(BAD_REQUEST).json({
         error: err.message,
       });
@@ -112,7 +112,7 @@ export default class RequestController {
   @Post()
   private async createRequest(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     try {
-      logger.Info(`Create request ${JSON.stringify(req.body)}`);
+      logger.debug(`Create request ${JSON.stringify(req.body)}`);
 
       const { cid, docId } = req.body;
 
@@ -155,7 +155,7 @@ export default class RequestController {
         scheduledAt: awsCronParser.next(cron, new Date()),
       });
     } catch (err) {
-      Logger.Err(err, true);
+      logger.err(err);
       return res.status(BAD_REQUEST).json({
         error: err.message,
       });

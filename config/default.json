@@ -31,5 +31,11 @@
         }
       }
     }
+  },
+  "logger": {
+    "level": "important",
+    "logToFiles": false,
+    "filePath": "",
+    "metricsFilePath": ""
   }
 }

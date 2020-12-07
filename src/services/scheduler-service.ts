@@ -1,9 +1,9 @@
 import awsCronParser from "aws-cron-parser";
 
 import { config } from 'node-config-ts';
-import { Logger as logger } from '@overnightjs/logger';
 
 import AnchorService from './anchor-service';
+import { logger } from '../logger';
 import { inject, singleton } from "tsyringe";
 
 /**
@@ -43,7 +43,7 @@ export default class SchedulerService {
           nextScheduleTime = awsCronParser.next(cron, new Date());
         }
       } catch (err) {
-      logger.Err('Failed to anchor CIDs... ' + err);
+      logger.err('Failed to anchor CIDs... ' + err);
     }
     }, 10000);
   }

@@ -24,6 +24,8 @@ services:
       - ETH_RPC_HOST=http://ganache
       - ETH_RPC_PORT=8545
       - ETH_WALLET_PK=0x06dd0990d19001c57eeea6d32e8fdeee40d3945962caf18c18c3930baa5a6ec9
+      - LOG_LEVEL=debug
+      - LOG_TO_FILES=true
       - TYPEORM_CONNECTION=sqlite
       - TYPEORM_HOST=localhost
       - TYPEORM_USERNAME=root
@@ -33,6 +35,8 @@ services:
       - TYPEORM_SYNCHRONIZE=true
       - TYPEORM_LOGGING=true
       - TYPEORM_ENTITIES=build/models/**/*.js
+    volumes:
+      - "/usr/local/var/log:/usr/local/var/log"
     depends_on:
       - ipfs
       - ganache

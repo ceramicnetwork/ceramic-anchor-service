@@ -6,7 +6,7 @@ import { config } from "node-config-ts";
 
 const DEFAULT_GET_TIMEOUT = 30000; // 30 seconds
 
-import { Logger as logger } from '@overnightjs/logger';
+import { logger } from '../logger';
 
 // @ts-ignore
 import dagJose from 'dag-jose'
@@ -81,13 +81,13 @@ export class IpfsServiceImpl implements IpfsService {
         const record = await this._ipfs.dag.get(cid, {
           timeout: DEFAULT_GET_TIMEOUT
         });
-        logger.Info('Successfully retrieved ' + cid);
+        logger.debug('Successfully retrieved ' + cid);
 
         value = record.value;
         this._cache.set(cid.toString(), value);
         return value;
       } catch (e) {
-        logger.Err('Cannot retrieve record for ' + cid);
+        logger.err('Cannot retrieve record for ' + cid);
         retryTimes--
       }
     }
