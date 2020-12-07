@@ -40,7 +40,7 @@ export default class SchedulerService {
         }
 
         if (performedAnchor) {
-          nextScheduleTime = awsCronParser.next(cron, new Date());
+          nextScheduleTime = awsCronParser.next(cron, new Date()).getTime();
         }
       } catch (err) {
       logger.err('Failed to anchor CIDs... ' + err);
