@@ -4,7 +4,6 @@ import * as logfmt from 'logfmt'
 import morgan from 'morgan'
 import { config } from 'node-config-ts'
 import * as rfs from 'rotating-file-stream'
-import { inherits } from 'util'
 
 enum LogLevel {
   debug = 1,
@@ -25,8 +24,6 @@ const METRICS_FILE_PATH = LOG_PATH + '/metrics.log'
 const EVENTS_FILE_PATH = LOG_PATH + '/events.log'
 const REMOVE_TIMESTAMP = true
 
-// morgan combined
-// :remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"
 const LOG_FMT = '[:date[web]] ip=:remote-addr ts=:date[iso] method=:method path=:url http_version=:http-version req_header:req[header] status=:status content_length=:res[content-length] content_type=":res[content-type]" ref=:referrer user_agent=:user-agent elapsed_ms=:total-time[3]'
 
 /**
