@@ -112,7 +112,7 @@ export default class AnchorService {
     const nodeLimit = Math.pow(2, config.merkleDepthLimit)
     const requests: Request[] = await this.requestRepository.findNextToProcess();
     if (requests.length > nodeLimit) {
-      logger.Imp("There are " + requests.length + " pending anchor requests, which is more "
+      logger.imp("There are " + requests.length + " pending anchor requests, which is more "
         + "than can fit into a single anchor batch given our configured merkleDepthLimit of "
         + config.merkleDepthLimit + " (" + nodeLimit + " requests). Triggering an anchor early to "
         + "drain our queue")
@@ -222,7 +222,7 @@ export default class AnchorService {
       if (config.merkleDepthLimit) {
         const nodeLimit = Math.pow(2, config.merkleDepthLimit)
         if (candidates.length > nodeLimit) {
-          logger.Warn('Found ' + candidates.length + ' valid candidates to anchor, but our '
+          logger.warn('Found ' + candidates.length + ' valid candidates to anchor, but our '
             + 'configured merkle tree depth limit of ' + config.merkleDepthLimit
             + ' only permits ' + nodeLimit + ' nodes in a single merkle tree anchor proof. '
             + 'Anchoring the first ' + nodeLimit + ' candidates and leaving the rest for a future anchor batch');
