@@ -1,5 +1,5 @@
 import { Logger, LoggerModes } from '@overnightjs/logger'
-import { Writable } from 'stream'
+import { Stream, Writable } from 'stream'
 import * as logfmt from 'logfmt'
 import morgan from 'morgan'
 import { config } from 'node-config-ts'
@@ -19,9 +19,10 @@ const logLevelMapping = {
 
 const LOG_LEVEL = config.logger.level && logLevelMapping[config.logger.level] || LogLevel.important
 const LOG_TO_FILES = config.logger.logToFiles || false
-const LOG_PATH = config.logger.filePath || '/usr/local/var/log/cas'
-const METRICS_FILE_PATH = LOG_PATH + '/metrics.log'
-const EVENTS_FILE_PATH = LOG_PATH + '/events.log'
+const LOG_PATH = config.logger.filePath || `${process.env.NODE_PATH}/logs/`
+const ACCESS_FILE_PATH = LOG_PATH + 'access.log'
+const METRICS_FILE_PATH = LOG_PATH + 'metrics.log'
+const EVENTS_FILE_PATH = LOG_PATH + 'events.log'
 const REMOVE_TIMESTAMP = true
 
 const LOG_FMT = '[:date[web]] ip=:remote-addr ts=:date[iso] method=:method path=:url http_version=:http-version req_header:req[header] status=:status content_length=:res[content-length] content_type=":res[content-type]" ref=:referrer user_agent=:user-agent elapsed_ms=:total-time[3]'
@@ -70,12 +71,16 @@ class CASLogger {
 
 class StreamLogger {
   public blocked: boolean
-  private path: string
-  private stream: Writable
+  protected path: string
+  protected stream: Writable
 
   constructor(path: string, stream: Writable) {
     this.path = path
     this.stream = stream
+  }
+
+  public write(message: string): void {
+      this.writeStream(message)
   }
 
   protected writeStream(message: string): void {
@@ -104,22 +109,40 @@ class StreamLogger {
   }
 }
 
+class MultiUseFileStream {
+    private path: string
+
+  constructor(path: string) {
+    this.path = path
+  }
+
+  write(content: string) {
+      const fileStream = rfs.createStream(this.path, {
+      size: '10M',
+      interval: '1d',
+      compress: 'gzip'
+    })
+      const stream = new StreamLogger(this.path, fileStream)
+      stream.write(content)
+  }
+}
+
 interface ServiceLog {
   type: string
   [key: string]: any
 }
 
-class ServiceLogger extends StreamLogger {
+class ServiceLogger extends MultiUseFileStream {
   public service: string
 
-  constructor(service: string, path: string, stream: Writable) {
-    super(path, stream)
+  constructor(path: string, service: string) {
+    super(path)
     this.service = service
   }
 
   public log(content: ServiceLog, logToConsole?: boolean): void {
     const message = `[${Date.now()}] service=${this.service} ${ServiceLogger.format(content)}`
-    this.writeStream(message)
+    this.write(message)
     if (LOG_LEVEL == LogLevel.debug) {
       console.log(message)
     } else if (logToConsole) {
@@ -138,33 +161,17 @@ export const expressLoggers = buildExpressMiddleware()
 function buildExpressMiddleware() {
   const middleware = [morgan('combined', { stream: logger })]
   if (LOG_TO_FILES) {
-    const accessLogStream = rfs.createStream(`${LOG_PATH}/access.log`, {
-      size: '10M',
-      interval: '1d',
-      compress: 'gzip'
-    })
+    const accessLogStream = new MultiUseFileStream(ACCESS_FILE_PATH)
     middleware.push(morgan(LOG_FMT, { stream: accessLogStream }))
   }
   return middleware
 }
 
-const eventsStream = rfs.createStream(EVENTS_FILE_PATH, {
-    size: '10M',
-    interval: '1d',
-    compress: 'gzip'
-  })
-const metricsStream = rfs.createStream(METRICS_FILE_PATH, {
-    size: '10M',
-    interval: '1d',
-    compress: 'gzip'
-  })
+const dbEventsLogger = new ServiceLogger('db', EVENTS_FILE_PATH)
+const ethereumEventsLogger = new ServiceLogger('ethereum', EVENTS_FILE_PATH)
 
-
-const dbEventsLogger = new ServiceLogger('db', EVENTS_FILE_PATH, eventsStream)
-const ethereumEventsLogger = new ServiceLogger('ethereum', EVENTS_FILE_PATH, eventsStream)
-
-const anchorMetricsLogger = new ServiceLogger('anchor', METRICS_FILE_PATH, metricsStream)
-const ethereumMetricsLogger = new ServiceLogger('ethereum', METRICS_FILE_PATH, metricsStream)
+const anchorMetricsLogger = new ServiceLogger('anchor', METRICS_FILE_PATH)
+const ethereumMetricsLogger = new ServiceLogger('ethereum', METRICS_FILE_PATH)
 
 export const logEvent = {
   db: dbEventsLogger.log,
