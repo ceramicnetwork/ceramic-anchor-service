@@ -98,12 +98,41 @@ export default class AnchorService {
   }
 
   /**
+   * If there are more pending requests than can fit into a single merkle tree (based on
+   * config.merkleDepthLimit), then triggers an anchor, otherwise does nothing.
+   * @returns whether or not an anchor was performed
+   */
+  public async anchorIfTooManyPendingRequests(): Promise<boolean> {
+    if (!config.merkleDepthLimit) {
+      // If there's no limit to the size of an anchor, then there's no such thing as "too many"
+      // pending requests, and we can always wait for our next scheduled anchor.
+      return false
+    }
+
+    const nodeLimit = Math.pow(2, config.merkleDepthLimit)
+    const requests: Request[] = await this.requestRepository.findNextToProcess();
+    if (requests.length > nodeLimit) {
+      logger.imp("There are " + requests.length + " pending anchor requests, which is more "
+        + "than can fit into a single anchor batch given our configured merkleDepthLimit of "
+        + config.merkleDepthLimit + " (" + nodeLimit + " requests). Triggering an anchor early to "
+        + "drain our queue")
+      await this._anchorRequests(requests)
+      return true
+    }
+    return false
+  }
+
+  /**
    * Creates anchors for client requests
    */
   public async anchorRequests(): Promise<void> {
+    const requests: Request[] = await this.requestRepository.findNextToProcess();
+    await this._anchorRequests(requests)
+  }
+
+  private async _anchorRequests(requests: Request[]): Promise<void> {
     logger.imp('Anchoring pending requests...');
 
-    let requests: Request[] = await this.requestRepository.findNextToProcess();
     if (requests.length === 0) {
       logger.debug("No pending CID requests found. Skipping anchor.");
       return;
@@ -190,7 +219,17 @@ export default class AnchorService {
    */
   async _buildMerkleTree(candidates: Candidate[]): Promise<MerkleTree<Candidate>> {
     try {
-      const merkleTree = new MerkleTree<Candidate>(this.ipfsMerge, this.ipfsCompare);
+      if (config.merkleDepthLimit) {
+        const nodeLimit = Math.pow(2, config.merkleDepthLimit)
+        if (candidates.length > nodeLimit) {
+          logger.warn('Found ' + candidates.length + ' valid candidates to anchor, but our '
+            + 'configured merkle tree depth limit of ' + config.merkleDepthLimit
+            + ' only permits ' + nodeLimit + ' nodes in a single merkle tree anchor proof. '
+            + 'Anchoring the first ' + nodeLimit + ' candidates and leaving the rest for a future anchor batch');
+          candidates = candidates.slice(0, nodeLimit)
+        }
+      }
+      const merkleTree = new MerkleTree<Candidate>(this.ipfsMerge, this.ipfsCompare, config.merkleDepthLimit);
       await merkleTree.build(candidates);
       return merkleTree
     } catch (e) {
