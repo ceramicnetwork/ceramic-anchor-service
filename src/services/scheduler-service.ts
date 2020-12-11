@@ -32,7 +32,8 @@ export default class SchedulerService {
         try {
           await this.anchorService.anchorRequests();
         } catch (err) {
-          logger.err('Failed to anchor CIDs... ' + err);
+          logger.err('Failed to anchor CIDs... ');
+          logger.err(err);
         }
       }
     }, 10000);

@@ -9,7 +9,7 @@ import { CompareFunction, MergeFunction, Node, PathDirection } from "../merkle/m
 import { config } from "node-config-ts";
 import { Transactional } from "typeorm-transactional-cls-hooked";
 
-import { logger, logMetric } from '../logger';
+import { logger, logEvent, logMetric } from '../logger';
 import Utils from "../utils";
 import { Anchor } from "../models/anchor";
 import { Request } from "../models/request";
@@ -108,16 +108,33 @@ export default class AnchorService {
       logger.debug("No pending CID requests found. Skipping anchor.");
       return;
     }
-    await this.requestRepository.updateRequests({ status: RS.PROCESSING, message: 'Request is processing.' }, requests.map(r => r.id))
+    await this.requestRepository.updateRequests({ status: RS.PROCESSING, message: 'Request is processing.' }, requests.map(r => r.id)).then(() => {
+      requests.forEach((request) => {
+        logEvent.db({
+          type: 'request',
+          ...request,
+          status: RS.PROCESSING
+        });
+      });
+    });
 
-    const nonReachableRequestIds = await this._findUnreachableCids(requests);
-    if (nonReachableRequestIds.length !== 0) {
+    const nonReachableRequests = await this._findUnreachableCids(requests);
+    const nonReachableRequestIds = nonReachableRequests.map(r => r.id);
+    if (nonReachableRequests.length !== 0) {
       logger.err("Some of the records will be discarded since they cannot be retrieved.");
       // discard non reachable ones
       await this.requestRepository.updateRequests({
         status: RS.FAILED,
         message: "Request has failed. Record is not reachable by CAS IPFS service."
-      }, nonReachableRequestIds);
+      }, nonReachableRequestIds).then(() => {
+        nonReachableRequests.forEach((request) => {
+          logEvent.db({
+            type: 'request',
+            ...request,
+            status: RS.FAILED
+          });
+        });
+      });
     }
 
     // filter valid requests
@@ -128,13 +145,22 @@ export default class AnchorService {
     }
 
     const candidates: Candidate[] = await this._findCandidates(requests);
-    const clashingRequestIds = requests.filter(r => !candidates.map(c => c.reqId).includes(r.id)).map(r => r.id);
+    const clashingRequests = requests.filter(r => !candidates.map(c => c.reqId).includes(r.id));
+    const clashingRequestIds = clashingRequests.map(r => r.id);
     if (clashingRequestIds.length > 0) {
       // discard clashing ones
       await this.requestRepository.updateRequests({
         status: RS.FAILED,
         message: "Request has failed. There are conflicts with other requests for the same document and DID."
-      }, clashingRequestIds);
+      }, clashingRequestIds).then(() => {
+        clashingRequests.forEach((request) => {
+          logEvent.db({
+            type: 'request',
+            ...request,
+            status: RS.FAILED
+          });
+        });
+      });
     }
 
     // filter valid requests
@@ -172,24 +198,24 @@ export default class AnchorService {
   }
 
   /**
-   * Finds CIDs which cannot be fetched.
+   * Returns requests with CIDs which cannot be fetched.
    *
    * Note: if the record is signed, check its link as well
    * @param requests - Request list
    */
-  public async _findUnreachableCids(requests: Array<Request>): Promise<Array<number>> {
+  public async _findUnreachableCids(requests: Array<Request>): Promise<Array<Request>> {
     return (await Promise.all(requests.map(async (r) => {
       try {
         const record = await this.ipfsService.retrieveRecord(r.cid);
         if (record.link) {
           await this.ipfsService.retrieveRecord(record.link);
         }
-        return null;
+        return { ...r, id: null };
       } catch (e) {
         logger.err('Failed to retrieve record. ' + e.message);
-        return r.id;
+        return r;
       }
-    }))).filter(id => id != null);
+    }))).filter((r) => r.id != null);
   }
 
   /**
@@ -272,7 +298,15 @@ export default class AnchorService {
         status: RS.COMPLETED,
         message: "CID successfully anchored."
       },
-      anchors.map(a => a.request.id));
+      anchors.map(a => a.request.id)).then(() => {
+        anchors.forEach((anchor) => {
+          logEvent.db({
+            type: 'request',
+            ...anchor.request,
+            status: RS.COMPLETED
+          });
+        });
+      });
   }
 
   /**
@@ -298,7 +332,13 @@ export default class AnchorService {
             status: RS.FAILED,
             message: "Request has failed. " + e.message,
           },
-          [request.id]);
+          [request.id]).then(() => {
+            logEvent.db({
+              type: 'request',
+              ...request,
+              status: RS.FAILED
+            });
+          });
       }
     }
 
