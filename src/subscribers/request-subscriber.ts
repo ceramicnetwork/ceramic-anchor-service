@@ -4,15 +4,12 @@ import {
   InsertEvent,
   UpdateEvent,
 } from 'typeorm';
-import { setColumnsToUpdate, setUpdatedColumns } from '../model-helpers';
 import { Request } from '../models/request';
 import { logEvent } from '../logger';
 
 @EventSubscriber()
 export class RequestSubscriber implements EntitySubscriberInterface<Request> {
-  protected prevColumnsToUpdate: object;
-  protected currUpdatedColumns: object;
-  
+
   listenTo(): typeof Request {
     return Request;
   }
@@ -20,21 +17,20 @@ export class RequestSubscriber implements EntitySubscriberInterface<Request> {
   afterInsert(event: InsertEvent<Request>): void {
     logEvent.db({
       type: 'request',
-      ...event.entity
+      ...event.entity,
+      createdAt: event.entity.createdAt.getTime(),
+      updatedAt: event.entity.updatedAt.getTime()
     });
   }
 
-  beforeUpdate(event: UpdateEvent<Request>): Promise<any> | void {
-    setColumnsToUpdate(event, this.prevColumnsToUpdate);
-  }
-
+  // Entity is only populated if save is called
   afterUpdate(event: UpdateEvent<Request>): void {
-    setUpdatedColumns(event, this.currUpdatedColumns);
-
-    if ('status' in this.currUpdatedColumns) {
+    if (event.entity) {
       logEvent.db({
         type: 'request',
-        status: this.currUpdatedColumns
+        ...event.entity,
+        createdAt: event.entity.createdAt.getTime(),
+        updatedAt: event.entity.updatedAt.getTime()
       });
     }
   }
