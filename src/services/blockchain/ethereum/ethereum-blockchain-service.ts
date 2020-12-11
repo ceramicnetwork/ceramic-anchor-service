@@ -67,7 +67,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     const walletBalance = await this.provider.getBalance(wallet.address);
     logMetric.ethereum({
       type: 'walletBalance',
-      balance: walletBalance
+      balance: ethers.utils.formatUnits(walletBalance, 'gwei')
     });
     logger.imp(`Current wallet balance is ` + walletBalance);
 
@@ -150,7 +150,7 @@ export default class EthereumBlockchainService implements BlockchainService {
               logEvent.ethereum({
                 type: 'insufficientFunds',
                 txCost: txCost,
-                balance: walletBalance
+      balance: ethers.utils.formatUnits(walletBalance, 'gwei')
               });
 
               const errMsg = "Transaction cost is greater than our current balance. [txCost: " + txCost.toHexString() + ", balance: " + walletBalance.toHexString() + "]";
@@ -172,7 +172,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     const finalWalletBalance = await this.provider.getBalance(wallet.address);
     logMetric.ethereum({
       type: 'walletBalance',
-      balance: finalWalletBalance
+      balance: ethers.utils.formatUnits(finalWalletBalance, 'gwei')
     });
   }
 }
