@@ -8,15 +8,18 @@ export class MerkleTree<T> {
   private leaves: Node<T>[];
   private readonly mergeFn: MergeFunction<T>;
   private readonly compareFn: CompareFunction<T> | undefined;
+  private readonly depthLimit: number;
 
   /**
    * Default constructor
-   * @param mergeFn
-   * @param compareFn
+   * @param mergeFn - fn that merges nodes at lower levels to produce nodes for higher levels of the tree
+   * @param compareFn - fn for sorting the leaves before building the tree
+   * @param depthLimit - limit to the number of levels the tree is allowed to have
    */
-  constructor(mergeFn: MergeFunction<T>, compareFn?: CompareFunction<T>) {
+  constructor(mergeFn: MergeFunction<T>, compareFn?: CompareFunction<T>, depthLimit?: number) {
     this.mergeFn = mergeFn;
     this.compareFn = compareFn;
+    this.depthLimit = depthLimit
   }
 
   /**
@@ -38,11 +41,18 @@ export class MerkleTree<T> {
   /**
    * Get Merkle root node
    * @param elements - Sorted array of elements
+   * @param treeDepth - Counter incremented with each recursive call that keeps tracks of the number
+   *   of levels in the merkle tree
    * @returns root of the merkle tree for the given elements
    */
-  private async _buildHelper(elements: Node<T>[]): Promise<Node<T>> {
+  private async _buildHelper(elements: Node<T>[], treeDepth = 0): Promise<Node<T>> {
     if (elements == null) {
       throw new Error('Cannot generate Merkle structure with no elements');
+    }
+
+    if (this.depthLimit && treeDepth > this.depthLimit) {
+      const nodesLimit = Math.pow(2, this.depthLimit)
+      throw new Error(`Merkle tree exceeded configured limit of ${this.depthLimit} levels (${nodesLimit} nodes)`)
     }
 
     if (elements.length === 1) {
@@ -52,8 +62,8 @@ export class MerkleTree<T> {
     const middleIndex = Math.trunc(elements.length / 2)
     const leftElements = elements.slice(0, middleIndex)
     const rightElements = elements.slice(middleIndex)
-    const leftNode = await this._buildHelper(leftElements)
-    const rightNode = await this._buildHelper(rightElements)
+    const leftNode = await this._buildHelper(leftElements, treeDepth + 1)
+    const rightNode = await this._buildHelper(rightElements, treeDepth + 1)
     const merged = await this.mergeFn.merge(leftNode, rightNode);
     leftNode.parent = merged
     rightNode.parent = merged

@@ -27,6 +27,18 @@ describe('Merkle tree structure tests',  () => {
     }
   });
 
+  test('Enforces depth limit', async () => {
+    // No problem building with limit so long as there are fewer than 2^limit nodes
+    const merkleTree = new MerkleTree<string>(new StringConcat(), undefined, 2);
+    await merkleTree.build(['A', 'B', 'C', 'D']);
+
+    expect(merkleTree.getRoot().data).toBe("Hash(Hash(A + B) + Hash(C + D))");
+
+    // Fails to build when there are more nodes than can fit within the depth limit
+    const merkleTree2 = new MerkleTree<string>(new StringConcat(), undefined, 2);
+    await expect(merkleTree2.build(['A', 'B', 'C', 'D', 'E'])).rejects.toThrow("Merkle tree exceeded configured limit of 2 levels (4 nodes)");
+  });
+
   test('should handle the base case: [A]', async () => {
     const leaves = ['A'];
     const merkleTree = new MerkleTree<string>(new StringConcat());
