@@ -3,6 +3,7 @@ import * as logfmt from 'logfmt';
 import morgan from 'morgan';
 import { config } from 'node-config-ts';
 import path from 'path';
+import util from 'util';
 import { RotatingFileStream } from './stream-helpers';
 
 enum LogLevel {
@@ -104,7 +105,7 @@ class ServiceLogger {
     const now = new Date();
     // RFC1123 timestamp
     const message = `[${now.toUTCString()}] service=${this.service} ${ServiceLogger.format(serviceLog)}`;
-    this.stream.write(message);
+    this.stream.write(util.format(message, '\n'));
     if ((LOG_LEVEL == LogLevel.debug) || logToConsole) {
       console.log(message);
     }
