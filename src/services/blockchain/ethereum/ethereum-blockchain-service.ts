@@ -132,10 +132,13 @@ export default class EthereumBlockchainService implements BlockchainService {
 
         const status = txReceipt.byzantium ? txReceipt.status : -1;
         let statusMessage = (status == TX_SUCCESS) ? 'success' : 'failure';
-        if (status < 0) {
+        if (!txReceipt.byzantium) {
           statusMessage = 'unknown';
         }
         logger.imp(`Transaction completed on Ethereum ${network} network. Transaction hash: ${txReceipt.transactionHash}. Status: ${statusMessage}.`);
+        if (status == TX_FAILURE) {
+          throw new Error("Transaction completed with a failure status");
+        }
 
         return new Transaction(caip2ChainId, txReceipt.transactionHash, txReceipt.blockNumber, block.timestamp);
       } catch (err) {
@@ -150,7 +153,7 @@ export default class EthereumBlockchainService implements BlockchainService {
               logEvent.ethereum({
                 type: 'insufficientFunds',
                 txCost: txCost,
-      balance: ethers.utils.formatUnits(walletBalance, 'gwei')
+                balance: ethers.utils.formatUnits(walletBalance, 'gwei')
               });
 
               const errMsg = "Transaction cost is greater than our current balance. [txCost: " + txCost.toHexString() + ", balance: " + walletBalance.toHexString() + "]";
