@@ -113,6 +113,8 @@ export default class AnchorService {
         logEvent.db({
           type: 'request',
           ...request,
+          createdAt: request.createdAt.getTime(),
+          updatedAt: request.createdAt.getTime(),
           status: RS.PROCESSING
         });
       });
@@ -131,6 +133,8 @@ export default class AnchorService {
           logEvent.db({
             type: 'request',
             ...request,
+          createdAt: request.createdAt.getTime(),
+          updatedAt: request.createdAt.getTime(),
             status: RS.FAILED
           });
         });
@@ -157,6 +161,8 @@ export default class AnchorService {
           logEvent.db({
             type: 'request',
             ...request,
+          createdAt: request.createdAt.getTime(),
+          updatedAt: request.createdAt.getTime(),
             status: RS.FAILED
           });
         });
@@ -336,6 +342,8 @@ export default class AnchorService {
             logEvent.db({
               type: 'request',
               ...request,
+          createdAt: request.createdAt.getTime(),
+          updatedAt: request.createdAt.getTime(),
               status: RS.FAILED
             });
           });
