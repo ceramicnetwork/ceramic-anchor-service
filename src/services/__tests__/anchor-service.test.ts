@@ -13,12 +13,12 @@ import AnchorService from "../anchor-service";
 // A set of random valid CIDs to use in tests
 // TODO write a random CID generator and use that instead of this list
 const randomCIDs = [
-  new CID("bafybeig6xv5nwphfmvcnektpnojts22jqcuam7bmye2pb54adnrtccjlsu"),
-  new CID("bafybeig6xv5nwphfmvcnektpnojts33jqcuam7bmye2pb54adnrtccjlsu"),
-  new CID("bafybeig6xv5nwphfmvcnektpnojts44jqcuam7bmye2pb54adnrtccjlsu"),
-  new CID("bafybeig6xv5nwphfmvcnektpnojts55jqcuam7bmye2pb54adnrtccjlsu"),
-  new CID("bafybeig6xv5nwphfmvcnektpnojts66jqcuam7bmye2pb54adnrtccjlsu"),
   new CID("bafybeig6xv5nwphfmvcnektpnojts77jqcuam7bmye2pb54adnrtccjlsu"),
+  new CID("bafybeig6xv5nwphfmvcnektpnojts66jqcuam7bmye2pb54adnrtccjlsu"),
+  new CID("bafybeig6xv5nwphfmvcnektpnojts55jqcuam7bmye2pb54adnrtccjlsu"),
+  new CID("bafybeig6xv5nwphfmvcnektpnojts44jqcuam7bmye2pb54adnrtccjlsu"),
+  new CID("bafybeig6xv5nwphfmvcnektpnojts33jqcuam7bmye2pb54adnrtccjlsu"),
+  new CID("bafybeig6xv5nwphfmvcnektpnojts22jqcuam7bmye2pb54adnrtccjlsu"),
   new CID("bagcqcera6jlmswuihr6fx6e5dmpkxsuh25acrgt4zg4xnajohfqhneawyvqa"),
   new CID("bagcqceraetdzvhnw2jdjvoxbwufxwbw55n5xafd6z3o2emph3647uzdqaaia"),
   new CID("bagcqceraxfvyjsaaepdgghfnbmow7hpylcs3azvjrmczcuaxxraow355ucba"),
@@ -63,7 +63,33 @@ class MockIpfsService implements IpfsService {
     return cid;
   }
 
-  async reset(): Promise<void> {
+  reset() {
+    this._cidIndex = 0
+    this._docs = {}
+  }
+}
+
+class MockCeramicService implements CeramicService {
+  constructor(private _docs: Record<string, any> = {}, private _cidIndex = 0) {}
+
+  async loadDocument(docId: DocID): Promise<any> {
+    return this._docs[docId.toString()]
+  }
+
+  // Mock-only method to control what gets returned by loadDocument()
+  putDocument(id: DocID, doc: any) {
+    this._docs[id.toString()] = doc
+  }
+
+  // Mock-only method to generate a random base DocID
+  generateBaseDocID(): DocID {
+    if (this._cidIndex >= randomCIDs.length) {
+      throw new Error("Used too many DocIDs in a test!");
+    }
+    return new DocID('tile', randomCIDs[this._cidIndex++])
+  }
+
+  reset() {
     this._cidIndex = 0
     this._docs = {}
   }
@@ -76,10 +102,11 @@ jest.mock("../blockchain/ethereum/ethereum-blockchain-service");
 
 import { initializeTransactionalContext } from 'typeorm-transactional-cls-hooked';
 import RequestRepository from "../../repositories/request-repository";
-import CeramicService from "../ceramic-service";
+import { CeramicService } from "../ceramic-service";
 import { IpfsService } from "../ipfs-service";
 import AnchorRepository from "../../repositories/anchor-repository";
 import { config } from 'node-config-ts';
+import DocID from '@ceramicnetwork/docid';
 
 initializeTransactionalContext();
 
@@ -93,13 +120,24 @@ async function createRequest(docId: string, ipfsService: IpfsService): Promise<R
   return request
 }
 
+function createDocument(id: DocID, logLength: number) {
+  const log = new Array(logLength)
+  return {id, controllers: ['this is totally a did'], state: {log}}
+}
+
+async function delay(mills: number): Promise<void> {
+  await new Promise<void>(resolve => setTimeout(() => resolve(), mills))
+}
+
 describe('ETH service',  () => {
   jest.setTimeout(10000);
   let ipfsService
+  let ceramicService
 
   beforeAll(async () => {
     await DBConnection.create();
     ipfsService = new MockIpfsService()
+    ceramicService = new MockCeramicService()
 
     container.registerSingleton("anchorRepository", AnchorRepository);
     container.registerSingleton("requestRepository", RequestRepository);
@@ -107,13 +145,16 @@ describe('ETH service',  () => {
     container.register("ipfsService", {
       useValue: ipfsService
     });
-    container.registerSingleton("ceramicService", CeramicService);
+    container.register("ceramicService", {
+      useValue: ceramicService
+    });
     container.registerSingleton("anchorService", AnchorService);
   });
 
   beforeEach(async () => {
     await DBConnection.clear();
-    await ipfsService.reset()
+    ipfsService.reset()
+    ceramicService.reset()
   });
 
   afterAll(async () => {
@@ -127,12 +168,14 @@ describe('ETH service',  () => {
       throw new Error('Failed to send transaction!');
     });
 
-    const docId = '/ceramic/bagjqcgzaday6dzalvmy5ady2m5a5legq5zrbsnlxfc2bfxej532ds7htpova';
+    const docBaseId = ceramicService.generateBaseDocID()
     const cid = await ipfsService.storeRecord({})
+    const docId = DocID.fromOther(docBaseId, cid)
+    ceramicService.putDocument(docId, createDocument(docId,1))
 
     let request = new Request();
     request.cid = cid.toString();
-    request.docId = docId;
+    request.docId = docId.baseID.toString();
     request.status = RequestStatus.PENDING;
     request.message = 'Request is pending.';
 
@@ -159,10 +202,14 @@ describe('ETH service',  () => {
     const requests = []
     const numRequests = 4
     for (let i = 0; i < numRequests; i++) {
-      const request = await createRequest("docid" + i, ipfsService)
+      const docBaseId = ceramicService.generateBaseDocID()
+      const request = await createRequest(docBaseId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request);
       requests.push(request)
+      const docId = DocID.fromOther(docBaseId, request.cid)
+      ceramicService.putDocument(docId, createDocument(docId, 1))
     }
+    requests.sort(function(a, b) { return a.docId.localeCompare(b.docId) })
 
     const candidates = await anchorService._findCandidates(requests)
     const merkleTree = await anchorService._buildMerkleTree(candidates)
@@ -201,8 +248,11 @@ describe('ETH service',  () => {
 
     // Create pending requests
     for (let i = 0; i < numRequests; i++) {
-      const request = await createRequest("docid" + i, ipfsService)
+      const docBaseId = ceramicService.generateBaseDocID()
+      const request = await createRequest(docBaseId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request);
+      const docId = DocID.fromOther(docBaseId, request.cid)
+      ceramicService.putDocument(docId, createDocument(docId,1))
     }
 
     // First pass anchors half the pending requests
@@ -228,6 +278,91 @@ describe('ETH service',  () => {
     // All requests should have been processed
     requests = await requestRepository.findNextToProcess()
     expect(requests.length).toEqual(0)
+  });
+
+  test('filters invalid requests', async () => {
+    const requestRepository = container.resolve<RequestRepository>('requestRepository');
+    const anchorService = container.resolve<AnchorService>('anchorService');
+
+    const makeRequest = async function(valid: boolean) {
+      const docBaseId = ceramicService.generateBaseDocID()
+      const request = await createRequest(docBaseId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request);
+
+      if (valid) {
+        const docId = DocID.fromOther(docBaseId, request.cid)
+        ceramicService.putDocument(docId, createDocument(docId,1))
+      }
+
+      return request
+    }
+
+    // Create pending requests. 2 with valid documents on ceramic, 2 without
+    const requests = []
+    let request = await makeRequest(true)
+    requests.push(request)
+    request = await makeRequest(false)
+    requests.push(request)
+    request = await makeRequest(true)
+    requests.push(request)
+    request = await makeRequest(false)
+    requests.push(request)
+
+    const candidates = await anchorService._findCandidates(requests)
+    expect(candidates.length).toEqual(2)
+
+    const request0 = await requestRepository.findByCid(requests[0].cid)
+    const request1 = await requestRepository.findByCid(requests[1].cid)
+    const request2 = await requestRepository.findByCid(requests[2].cid)
+    const request3 = await requestRepository.findByCid(requests[3].cid)
+    expect(request0.status).toEqual(RequestStatus.PENDING)
+    expect(request1.status).toEqual(RequestStatus.FAILED)
+    expect(request2.status).toEqual(RequestStatus.PENDING)
+    expect(request3.status).toEqual(RequestStatus.FAILED)
+  });
+
+  test('Picks proper record to anchor', async () => {
+    const requestRepository = container.resolve<RequestRepository>('requestRepository');
+    const anchorService = container.resolve<AnchorService>('anchorService');
+
+    // Create 4 pending requests for 2 documents. Each document will have 2 conflicting anchor
+    // requests.
+    const docIdA = ceramicService.generateBaseDocID()
+    const docIdB = ceramicService.generateBaseDocID()
+    const requestA0 = await createRequest(docIdA.toString(), ipfsService)
+    const requestA1 = await createRequest(docIdA.toString(), ipfsService)
+    const requestB0 = await createRequest(docIdB.toString(), ipfsService)
+    const requestB1 = await createRequest(docIdB.toString(), ipfsService)
+    await requestRepository.createOrUpdate(requestA0);
+    await requestRepository.createOrUpdate(requestA1);
+    await requestRepository.createOrUpdate(requestB0);
+    await requestRepository.createOrUpdate(requestB1);
+    const docIdA0 = DocID.fromOther(docIdA, requestA0.cid)
+    const docIdA1 = DocID.fromOther(docIdA, requestA1.cid)
+    const docIdB0 = DocID.fromOther(docIdB, requestB0.cid)
+    const docIdB1 = DocID.fromOther(docIdB, requestB1.cid)
+
+    // For docA, the conflicting requests will have different length logs
+    ceramicService.putDocument(docIdA0, createDocument(docIdA0, 1))
+    ceramicService.putDocument(docIdA1, createDocument(docIdA1, 2))
+
+    // For docB, the conflicting requests will have the same log length
+    ceramicService.putDocument(docIdB0, createDocument(docIdB0, 1))
+    ceramicService.putDocument(docIdB1, createDocument(docIdB1, 1))
+
+
+    const candidates = await anchorService._findCandidates([requestA0, requestA1, requestB0, requestB1])
+    expect(candidates.length).toEqual(2)
+
+    const candidateA = candidates.find((c)=> c.document.id.baseID == docIdA.toString())
+    const candidateB = candidates.find((c)=> c.document.id.baseID == docIdB.toString())
+
+    // For doc A should have picked the request with the longer log
+    expect(candidateA.cid.toString()).toEqual(requestA1.cid)
+
+    // For doc B should have picked the request with the lower CID
+    const docBMinCID = requestB0.cid < requestB1.cid ? requestB0.cid : requestB1.cid
+    expect(candidateB.cid.toString()).toEqual(docBMinCID)
   });
 
 });

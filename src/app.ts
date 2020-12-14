@@ -16,7 +16,7 @@ import BlockchainService from "./services/blockchain/blockchain-service";
 import { initializeTransactionalContext } from 'typeorm-transactional-cls-hooked';
 import AnchorRepository from "./repositories/anchor-repository";
 import RequestRepository from "./repositories/request-repository";
-import CeramicService from "./services/ceramic-service";
+import CeramicServiceImpl from "./services/ceramic-service";
 import HealthcheckController from "./controllers/healthcheck-controller";
 import AnchorController from "./controllers/anchor-controller";
 import RequestController from "./controllers/request-controller";
@@ -39,7 +39,7 @@ export default class CeramicAnchorApp {
     // register services
     container.registerSingleton("blockchainService", EthereumBlockchainService);
     container.registerSingleton("anchorService", AnchorService);
-    container.registerSingleton("ceramicService", CeramicService);
+    container.registerSingleton("ceramicService", CeramicServiceImpl);
     container.registerSingleton("ipfsService", IpfsServiceImpl);
     container.registerSingleton("schedulerService", SchedulerService);
 
