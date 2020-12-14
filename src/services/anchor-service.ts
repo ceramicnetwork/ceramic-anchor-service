@@ -296,7 +296,6 @@ export default class AnchorService {
         if (!doc) {
           throw new Error(`No valid ceramic document found with docId ${docId.toString()}`)
         }
-        const did = doc.controllers[0]
 
         const candidate = new Candidate(new CID(request.cid), request.id, doc);
         group[candidate.key] = group[candidate.key] ? [...group[candidate.key], candidate] : [candidate];

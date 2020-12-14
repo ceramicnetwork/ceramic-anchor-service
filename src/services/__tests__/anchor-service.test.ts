@@ -125,6 +125,7 @@ function createDocument(id: DocID, logLength: number) {
   return {id, controllers: ['this is totally a did'], state: {log}}
 }
 
+// TODO: Remove this
 async function delay(mills: number): Promise<void> {
   await new Promise<void>(resolve => setTimeout(() => resolve(), mills))
 }
@@ -350,7 +351,7 @@ describe('ETH service',  () => {
     ceramicService.putDocument(docIdB0, createDocument(docIdB0, 1))
     ceramicService.putDocument(docIdB1, createDocument(docIdB1, 1))
 
-
+    // Apply conflict resolution to determine which record to anchor for each docId
     const candidates = await anchorService._findCandidates([requestA0, requestA1, requestB0, requestB1])
     expect(candidates.length).toEqual(2)
 
