@@ -24,10 +24,13 @@ const DBConnection = {
     const connection = getConnection();
     const entities = connection.entityMetadatas;
 
-    for (const entity of entities) {
-      const repository = connection.getRepository(entity.name);
-      await repository.query(`DELETE FROM ${entity.tableName}`);
-    }
+    await connection.transaction(async transactionEntityManager => {
+      for (const entity of entities) {
+        const repository = transactionEntityManager.connection.getRepository(entity.name);
+        await repository.query("PRAGMA defer_foreign_keys=true");
+        await repository.query(`DELETE FROM ${entity.tableName}`);
+      }
+    })
   },
 };
 export default DBConnection;
