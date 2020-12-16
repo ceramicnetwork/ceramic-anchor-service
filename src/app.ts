@@ -32,6 +32,8 @@ export default class CeramicAnchorApp {
   constructor() {
     CeramicAnchorApp._patchConfigTypes();
 
+    // TODO: Selectively register only the global singletons needed based on the config
+
     // register repositories
     container.registerSingleton('anchorRepository', AnchorRepository);
     container.registerSingleton("requestRepository", RequestRepository);
@@ -39,7 +41,10 @@ export default class CeramicAnchorApp {
     // register services
     container.registerSingleton("blockchainService", EthereumBlockchainService);
     container.registerSingleton("anchorService", AnchorService);
-    container.registerSingleton("ceramicService", CeramicServiceImpl);
+    if (config.mode == "bundled" || config.mode == "anchor" || config.anchorControllerEnabled) {
+      // Only register the ceramicService if we might ever need to perform an anchor
+      container.registerSingleton("ceramicService", CeramicServiceImpl);
+    }
     container.registerSingleton("ipfsService", IpfsServiceImpl);
     container.registerSingleton("schedulerService", SchedulerService);
 
