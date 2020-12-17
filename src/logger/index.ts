@@ -30,7 +30,7 @@ const METRICS_FILE_PATH = path.join(LOG_PATH, 'metrics.log');
 const EVENTS_FILE_PATH = path.join(LOG_PATH, 'events.log');
 const REMOVE_TIMESTAMP = true;
 
-const LOG_FMT = '[:date[web]] ip=:remote-addr ts=:date[iso] method=:method path=:url http_version=:http-version req_header:req[header] status=:status content_length=:res[content-length] content_type=":res[content-type]" ref=:referrer user_agent=:user-agent elapsed_ms=:total-time[3]';
+const ACCESS_LOG_FMT = 'ip=:remote-addr ts=:date[iso] method=:method path=:url http_version=:http-version req_header:req[header] status=:status content_length=:res[content-length] content_type=":res[content-type]" ref=:referrer user_agent=:user-agent elapsed_ms=:total-time[3]';
 
 /**
  * Logs to the console based on log level
@@ -127,7 +127,7 @@ function buildExpressMiddleware() {
   const middleware = [morgan('combined', { stream: logger })];
   if (LOG_TO_FILES) {
     const accessLogStream = new RotatingFileStream(ACCESS_FILE_PATH, true);
-    middleware.push(morgan(LOG_FMT, { stream: accessLogStream }));
+    middleware.push(morgan(ACCESS_LOG_FMT, { stream: accessLogStream }));
   }
   return middleware;
 }
