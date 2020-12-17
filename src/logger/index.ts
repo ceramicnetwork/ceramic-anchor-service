@@ -25,9 +25,9 @@ if (!LOG_PATH.endsWith('/')) {
   LOG_PATH = LOG_PATH + '/';
 }
 
-const ACCESS_FILE_PATH = LOG_PATH + 'access.log';
-const METRICS_FILE_PATH = LOG_PATH + 'metrics.log';
-const EVENTS_FILE_PATH = LOG_PATH + 'events.log';
+const ACCESS_FILE_PATH = path.join(LOG_PATH, 'access.log');
+const METRICS_FILE_PATH = path.join(LOG_PATH, 'metrics.log');
+const EVENTS_FILE_PATH = path.join(LOG_PATH, 'events.log');
 const REMOVE_TIMESTAMP = true;
 
 const LOG_FMT = '[:date[web]] ip=:remote-addr ts=:date[iso] method=:method path=:url http_version=:http-version req_header:req[header] status=:status content_length=:res[content-length] content_type=":res[content-type]" ref=:referrer user_agent=:user-agent elapsed_ms=:total-time[3]';
