@@ -93,7 +93,9 @@ class ConsoleLogger {
   private log(style: LogStyle, content: string | object): void {
     this.logger[style](content, this.includeStackTrace);
     if (LOG_TO_FILES) {
-      this.fileLogger.write(String(content));
+      const now = new Date();
+      const message = `[${now.toUTCString()}] ${content}\n`;
+      this.fileLogger.write(message);
     }
   }
 }
