@@ -11,9 +11,11 @@ import {
 export class SafeStreamHandler {
   public ready = true;
   protected stream: Writable;
+  protected name: string;
 
-  constructor(stream: Writable) {
+  constructor(stream: Writable, name?: string) {
     this.stream = stream;
+    this.name = name;
   }
 
   /**
@@ -34,7 +36,7 @@ export class SafeStreamHandler {
 
   protected writeStream(message: string): void {
     if (!this.ready) {
-      console.warn(`Stream busy. Write may be dropped: "${message}"`);
+      console.warn(`Stream busy: ${this.name}. Write may be dropped: "${message}"`);
       return;
     }
     this.ready = false;
@@ -84,7 +86,7 @@ export class RotatingFileStream {
     if (this.immediate) {
       fileStream = createRfsStream(this.filePath, this.options);
     }
-    const stream = new SafeStreamHandler(fileStream);
+    const stream = new SafeStreamHandler(fileStream, this.filePath);
     stream.write(message);
     if (this.immediate) {
       stream.end();
