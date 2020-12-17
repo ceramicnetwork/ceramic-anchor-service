@@ -10,18 +10,18 @@ import { ClassMiddleware, ClassErrorMiddleware, Controller, Get, Post } from '@o
 import CID from 'cids';
 import { RequestStatus } from '../models/request-status';
 import AnchorService from '../services/anchor-service';
+import RequestRepository from '../repositories/request-repository';
 import { Anchor } from '../models/anchor';
 import { Request } from "../models/request";
 import { inject, singleton } from "tsyringe";
-import { expressLoggers, logger } from '../logger';
-import RequestRepository from '../repositories/request-repository';
+import { logger } from '../logger';
 
 @singleton()
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
 export default class RequestController {
 
-  constructor(@inject('anchorService') private anchorService?: AnchorService,
+  constructor(@inject('anchorRepository') private anchorRepository?: AnchorService,
               @inject('requestRepository') private requestRepository?: RequestRepository, ) {
   }
 
@@ -46,7 +46,7 @@ export default class RequestController {
 
       switch (request.status) {
         case RequestStatus.COMPLETED: {
-          const anchor: Anchor = await this.anchorService.findByRequest(request);
+          const anchor: Anchor = await this.anchorRepository.findByRequest(request);
 
           return res.status(OK).json({
             id: request.id,
