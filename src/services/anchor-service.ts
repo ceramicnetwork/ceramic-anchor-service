@@ -1,6 +1,6 @@
 import CID from "cids";
 
-import { DoctypeUtils } from "@ceramicnetwork/common";
+import { Doctype, DoctypeUtils } from '@ceramicnetwork/common';
 import { RequestStatus as RS } from "../models/request-status";
 
 import { MerkleTree } from "../merkle/merkle-tree";
@@ -21,23 +21,21 @@ import { IpfsService } from "./ipfs-service";
 import CeramicService from "./ceramic-service";
 import BlockchainService from "./blockchain/blockchain-service";
 import { inject, singleton } from "tsyringe";
+import DocID from '@ceramicnetwork/docid';
 
 class Candidate {
-  public cid: CID;
-  public docId: string;
+  public readonly cid: CID;
+  public readonly document: Doctype;
+  public readonly reqId: number;
 
-  public did: string;
-  public reqId: number;
-
-  constructor(cid: CID, docId?: string, did?: string, reqId?: number) {
+  constructor(cid: CID, reqId?: number, document?: Doctype) {
     this.cid = cid;
-    this.docId = docId;
-    this.did = did;
     this.reqId = reqId;
+    this.document = document
   }
 
   get key(): string {
-    return this.docId + (this.did != null ? this.did : "");
+    return this.document.id.baseID.toString()
   }
 
 }
@@ -137,28 +135,7 @@ export default class AnchorService {
       logger.debug("No pending CID requests found. Skipping anchor.");
       return;
     }
-    await this.requestRepository.updateRequests({
-        status: RS.PROCESSING,
-        message: 'Request is processing.'
-    }, requests);
-
-    const nonReachableRequests = await this._findUnreachableCids(requests);
-    const nonReachableRequestIds = nonReachableRequests.map(r => r.id);
-    if (nonReachableRequests.length !== 0) {
-      logger.err("Some of the records will be discarded since they cannot be retrieved.");
-      // discard non reachable ones
-      await this.requestRepository.updateRequests({
-        status: RS.FAILED,
-        message: "Request has failed. Record is not reachable by CAS IPFS service."
-      }, nonReachableRequests);
-    }
-
-    // filter valid requests
-    requests = requests.filter(r => !nonReachableRequestIds.includes(r.id));
-    if (requests.length === 0) {
-      logger.debug("No CID to request. Skipping anchor.");
-      return;
-    }
+    await this.requestRepository.updateRequests({ status: RS.PROCESSING, message: 'Request is processing.' }, requests);
 
     const candidates: Candidate[] = await this._findCandidates(requests);
     const clashingRequests = requests.filter(r => !candidates.map(c => c.reqId).includes(r.id));
@@ -196,34 +173,12 @@ export default class AnchorService {
     logEvent.anchor({
       type: 'anchorRequests',
       requestIds: requests.map(r => r.id),
-      nonReachableRequestsCount: nonReachableRequestIds.length,
       clashingRequestsCount: clashingRequestIds.length,
       validRequestsCount: requests.length,
       candidateCount: candidates.length,
       anchorCount: anchors.length
     });
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`);
-  }
-
-  /**
-   * Returns requests with CIDs which cannot be fetched.
-   *
-   * Note: if the record is signed, check its link as well
-   * @param requests - Request list
-   */
-  public async _findUnreachableCids(requests: Array<Request>): Promise<Array<Request>> {
-    return (await Promise.all(requests.map(async (r) => {
-      try {
-        const record = await this.ipfsService.retrieveRecord(r.cid);
-        if (record.link) {
-          await this.ipfsService.retrieveRecord(record.link);
-        }
-        return { ...r, id: null };
-      } catch (e) {
-        logger.err('Failed to retrieve record. ' + e.message);
-        return r;
-      }
-    }))).filter((r) => r.id != null);
   }
 
   /**
@@ -318,6 +273,19 @@ export default class AnchorService {
   }
 
   /**
+   * Takes a Request and returns a DocID for the document being anchored at the specific commit
+   * that is the cid of the record from the anchor request
+   * @param request - an anchor request
+   * @returns A DocID that can be used to load the document at the moment in time of the record from
+   *   the anchor request
+   * @private
+   */
+  private _getRequestDocID(request: Request): DocID {
+    const baseID = DocID.fromString(request.docId)
+    return DocID.fromOther(baseID, request.cid)
+  }
+
+  /**
    * Find candidates for the anchoring
    * @private
    */
@@ -329,9 +297,14 @@ export default class AnchorService {
     for (let index = 0; index < requests.length; index++) {
       try {
         request = requests[index];
-        const did = config.ceramic.validateRecords ? await this.ceramicService.verifySignedRecord(request.cid) : null;
 
-        const candidate = new Candidate(new CID(request.cid), request.docId, did, request.id);
+        const docId = this._getRequestDocID(request)
+        const doc = await this.ceramicService.loadDocument(docId)
+        if (!doc) {
+          throw new Error(`No valid ceramic document found with docId ${docId.toString()}`)
+        }
+
+        const candidate = new Candidate(new CID(request.cid), request.id, doc);
         group[candidate.key] = group[candidate.key] ? [...group[candidate.key], candidate] : [candidate];
       } catch (e) {
         logger.err(e);
@@ -342,25 +315,25 @@ export default class AnchorService {
       }
     }
 
+    // Employ conflict resolution strategy to pick which cid to anchor when there are multiple
+    // requests for the same docId
     for (const key of Object.keys(group)) {
       const candidates: Candidate[] = group[key];
 
-      let nonce = 0;
+      let longestLog = 0;
       let selected: Candidate = null;
 
       for (const candidate of candidates) {
-        const record = await this.ipfsService.retrieveRecord(candidate.cid);
-
-        let currentNonce;
-        if (DoctypeUtils.isSignedRecord(record)) {
-          const payload = await this.ipfsService.retrieveRecord(record.link);
-          currentNonce = payload.header?.nonce || 0;
-        } else {
-          currentNonce = record.header?.nonce || 0;
-        }
-        if (selected == null || currentNonce > nonce) {
+        const logLength = candidate.document.state.log.length
+        if (selected == null || logLength > longestLog) {
           selected = candidate;
-          nonce = currentNonce;
+          longestLog = candidate.document.state.log.length;
+        } else if (selected && logLength == longestLog) {
+          // There's a tie for log length, so we need to fall back to picking arbitrarily, but
+          // deterministically. We match what js-ceramic does and pick the log with the lower CID.
+          if (candidate.cid < selected.cid) {
+            selected = candidate
+          }
         }
       }
       if (selected) {
