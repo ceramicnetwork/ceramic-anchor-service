@@ -34,7 +34,7 @@ export class SafeStreamHandler {
 
   protected writeStream(message: string): void {
     if (!this.ready) {
-      console.warn(`Stream busy. Some writes may be dropped.`);
+      console.warn(`Stream busy. Write may be dropped: "${message}"`);
       return;
     }
     this.ready = false;
