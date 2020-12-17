@@ -1,15 +1,15 @@
 import { BAD_REQUEST, CREATED, NOT_FOUND, OK } from 'http-status-codes';
-import express, { Request as ExpReq, Response as ExpRes } from 'express';
+import { Request as ExpReq, Response as ExpRes } from 'express';
 
 import { config } from 'node-config-ts';
 import awsCronParser from "aws-cron-parser";
 
 import cors from 'cors';
-import { ClassMiddleware, ClassErrorMiddleware, Controller, Get, Post } from '@overnightjs/core';
+import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core';
 
 import CID from 'cids';
 import { RequestStatus } from '../models/request-status';
-import AnchorService from '../services/anchor-service';
+import AnchorRepository from "../repositories/anchor-repository";
 import RequestRepository from '../repositories/request-repository';
 import { Anchor } from '../models/anchor';
 import { Request } from "../models/request";
@@ -21,7 +21,7 @@ import { logger } from '../logger';
 @ClassMiddleware([cors()])
 export default class RequestController {
 
-  constructor(@inject('anchorRepository') private anchorRepository?: AnchorService,
+  constructor(@inject('anchorRepository') private anchorRepository?: AnchorRepository,
               @inject('requestRepository') private requestRepository?: RequestRepository, ) {
   }
 
