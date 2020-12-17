@@ -6,6 +6,13 @@ import path from 'path';
 import util from 'util';
 import { RotatingFileStream } from './stream-helpers';
 
+enum LogStyle {
+  info = 'info',
+  imp = 'imp',
+  warn = 'warn',
+  err = 'err'
+}
+
 enum LogLevel {
   debug = 1,
   important = 2,
@@ -27,8 +34,10 @@ if (!LOG_PATH.endsWith('/')) {
 }
 
 const ACCESS_FILE_PATH = path.join(LOG_PATH, 'access.log');
-const METRICS_FILE_PATH = path.join(LOG_PATH, 'metrics.log');
 const EVENTS_FILE_PATH = path.join(LOG_PATH, 'events.log');
+const METRICS_FILE_PATH = path.join(LOG_PATH, 'metrics.log');
+const STDOUT_FILE_PATH = path.join(LOG_PATH, 'stdout.log');
+
 const REMOVE_TIMESTAMP = true;
 
 const ACCESS_LOG_FMT = 'ip=:remote-addr ts=:date[iso] method=:method path=:url http_version=:http-version req_header:req[header] status=:status content_length=:res[content-length] content_type=":res[content-type]" ref=:referrer user_agent=:user-agent elapsed_ms=:total-time[3]';
@@ -39,10 +48,14 @@ const ACCESS_LOG_FMT = 'ip=:remote-addr ts=:date[iso] method=:method path=:url h
 class ConsoleLogger {
   public readonly logLevel: LogLevel;
   private logger: Logger;
+  private fileLogger: RotatingFileStream;
   private includeStackTrace: boolean;
 
   constructor(logLevel: LogLevel) {
     this.logger = new Logger(LoggerModes.Console, '', REMOVE_TIMESTAMP);
+    if (LOG_TO_FILES) {
+      this.fileLogger = new RotatingFileStream(STDOUT_FILE_PATH, true);
+    }
     this.logLevel = logLevel;
     this.includeStackTrace = this.logLevel == LogLevel.debug ? true : false;
   }
@@ -59,22 +72,29 @@ class ConsoleLogger {
     if (this.logLevel > LogLevel.debug) {
       return;
     }
-    this.logger.info(content, this.includeStackTrace);
+    this.log(LogStyle.info, content);
   }
 
   public imp(content: string | object): void {
     if (this.logLevel > LogLevel.important) {
       return;
     }
-    this.logger.imp(content, this.includeStackTrace);
+    this.log(LogStyle.imp, content);
   }
 
   public warn(content: string | object): void {
-    this.logger.warn(content, this.includeStackTrace);
+    this.log(LogStyle.warn, content);
   }
 
   public err(content: string | object): void {
-    this.logger.err(content, this.includeStackTrace);
+    this.log(LogStyle.err, content);
+  }
+
+  private log(style: LogStyle, content: string | object): void {
+    this.logger[style](content, this.includeStackTrace);
+    if (LOG_TO_FILES) {
+      this.fileLogger.write(String(content));
+    }
   }
 }
 
