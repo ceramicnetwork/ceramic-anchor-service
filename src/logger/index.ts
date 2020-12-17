@@ -20,6 +20,7 @@ const logLevelMapping = {
 
 const LOG_LEVEL = config.logger.level && logLevelMapping[config.logger.level] || LogLevel.important;
 const LOG_TO_FILES = config.logger.logToFiles || false;
+// LOG_PATH defaults to `ceramic-anchor-service/logs/`
 let LOG_PATH = config.logger.filePath || path.join(path.resolve(__dirname, '../../'), 'logs/');
 if (!LOG_PATH.endsWith('/')) {
   LOG_PATH = LOG_PATH + '/';
