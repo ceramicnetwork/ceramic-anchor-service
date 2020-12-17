@@ -137,17 +137,10 @@ export default class AnchorService {
       logger.debug("No pending CID requests found. Skipping anchor.");
       return;
     }
-    await this.requestRepository.updateRequests({ status: RS.PROCESSING, message: 'Request is processing.' }, requests.map(r => r.id)).then(() => {
-      requests.forEach((request) => {
-        logEvent.db({
-          type: 'request',
-          ...request,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.createdAt.getTime(),
-          status: RS.PROCESSING
-        });
-      });
-    });
+    await this.requestRepository.updateRequests({
+        status: RS.PROCESSING,
+        message: 'Request is processing.'
+    }, requests);
 
     const nonReachableRequests = await this._findUnreachableCids(requests);
     const nonReachableRequestIds = nonReachableRequests.map(r => r.id);
@@ -157,17 +150,7 @@ export default class AnchorService {
       await this.requestRepository.updateRequests({
         status: RS.FAILED,
         message: "Request has failed. Record is not reachable by CAS IPFS service."
-      }, nonReachableRequestIds).then(() => {
-        nonReachableRequests.forEach((request) => {
-          logEvent.db({
-            type: 'request',
-            ...request,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.createdAt.getTime(),
-            status: RS.FAILED
-          });
-        });
-      });
+      }, nonReachableRequests);
     }
 
     // filter valid requests
@@ -185,17 +168,7 @@ export default class AnchorService {
       await this.requestRepository.updateRequests({
         status: RS.FAILED,
         message: "Request has failed. There are conflicts with other requests for the same document and DID."
-      }, clashingRequestIds).then(() => {
-        clashingRequests.forEach((request) => {
-          logEvent.db({
-            type: 'request',
-            ...request,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.createdAt.getTime(),
-            status: RS.FAILED
-          });
-        });
-      });
+      }, clashingRequests);
     }
 
     // filter valid requests
@@ -338,20 +311,10 @@ export default class AnchorService {
   async _persistAnchorResult(anchors: Anchor[]): Promise<void> {
     await this.anchorRepository.createAnchors(anchors);
 
-    await this.requestRepository.updateRequests(
-      {
+    await this.requestRepository.updateRequests({
         status: RS.COMPLETED,
         message: "CID successfully anchored."
-      },
-      anchors.map(a => a.request.id)).then(() => {
-        anchors.forEach((anchor) => {
-          logEvent.db({
-            type: 'request',
-            ...anchor.request,
-            status: RS.COMPLETED
-          });
-        });
-      });
+    }, anchors.map(a => a.request));
   }
 
   /**
@@ -372,20 +335,10 @@ export default class AnchorService {
         group[candidate.key] = group[candidate.key] ? [...group[candidate.key], candidate] : [candidate];
       } catch (e) {
         logger.err(e);
-        await this.requestRepository.updateRequests(
-          {
+        await this.requestRepository.updateRequests({
             status: RS.FAILED,
             message: "Request has failed. " + e.message,
-          },
-          [request.id]).then(() => {
-            logEvent.db({
-              type: 'request',
-              ...request,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.createdAt.getTime(),
-              status: RS.FAILED
-            });
-          });
+        }, [request]);
       }
     }
 
