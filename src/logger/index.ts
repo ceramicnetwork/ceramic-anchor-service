@@ -132,10 +132,12 @@ function buildExpressMiddleware() {
   return middleware;
 }
 
+const anchorEventsLogger = new ServiceLogger('anchor', EVENTS_FILE_PATH);
 const dbEventsLogger = new ServiceLogger('db', EVENTS_FILE_PATH);
 const ethereumEventsLogger = new ServiceLogger('ethereum', EVENTS_FILE_PATH);
 
 export const logEvent = {
+  anchor: (log: ServiceLog, logToConsole?: boolean): void => anchorEventsLogger.log(log, logToConsole),
   db: (log: ServiceLog, logToConsole?: boolean): void => dbEventsLogger.log(log, logToConsole),
   ethereum: (log: ServiceLog, logToConsole?: boolean): void => ethereumEventsLogger.log(log, logToConsole)
 }
