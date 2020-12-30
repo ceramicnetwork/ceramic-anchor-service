@@ -36,7 +36,7 @@ if (!LOG_PATH.endsWith('/')) {
 const ACCESS_FILE_PATH = path.join(LOG_PATH, 'access.log');
 const EVENTS_FILE_PATH = path.join(LOG_PATH, 'events.log');
 const METRICS_FILE_PATH = path.join(LOG_PATH, 'metrics.log');
-const STDOUT_FILE_PATH = path.join(LOG_PATH, 'stdout.log');
+const DIAGNOSTICS_FILE_PATH = path.join(LOG_PATH, 'diagnostics.log');
 
 const REMOVE_TIMESTAMP = true;
 
@@ -45,7 +45,7 @@ const ACCESS_LOG_FMT = 'ip=:remote-addr ts=:date[iso] method=:method path=:url h
 /**
  * Logs to the console based on log level
  */
-class ConsoleLogger {
+export class DiagnosticsLogger {
   public readonly logLevel: LogLevel;
   private logger: Logger;
   private fileLogger: RotatingFileStream;
@@ -54,7 +54,7 @@ class ConsoleLogger {
   constructor(logLevel: LogLevel) {
     this.logger = new Logger(LoggerModes.Console, '', REMOVE_TIMESTAMP);
     if (LOG_TO_FILES) {
-      this.fileLogger = new RotatingFileStream(STDOUT_FILE_PATH, true);
+      this.fileLogger = new RotatingFileStream(DIAGNOSTICS_FILE_PATH, true);
     }
     this.logLevel = logLevel;
     this.includeStackTrace = this.logLevel == LogLevel.debug ? true : false;
@@ -116,7 +116,8 @@ class ServiceLogger {
   constructor(service: string, filePath: string) {
     this.service = service;
     this.filePath = filePath;
-    this.stream = new RotatingFileStream(this.filePath, true);
+    const writeImmediately = true;
+    this.stream = new RotatingFileStream(this.filePath, writeImmediately);
   }
 
   /**
@@ -143,7 +144,7 @@ class ServiceLogger {
   }
 }
 
-export const logger = new ConsoleLogger(LOG_LEVEL);
+export const logger = new DiagnosticsLogger(LOG_LEVEL);
 
 export const expressLoggers = buildExpressMiddleware();
 function buildExpressMiddleware() {
