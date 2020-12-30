@@ -1,5 +1,12 @@
 import { RequestStatus } from './request-status';
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Unique } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Unique
+} from 'typeorm';
 
 @Entity()
 @Unique(['cid'])

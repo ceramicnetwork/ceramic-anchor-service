@@ -6,12 +6,14 @@ import { ErrorCode } from "@ethersproject/logger";
 import { BigNumber, ethers } from "ethers";
 import { config } from "node-config-ts";
 
-import { logger } from "../../../logger";
+import { logger, logEvent, logMetric } from "../../../logger";
 import Transaction from "../../../models/transaction";
 import BlockchainService from "../blockchain-service";
 import { TransactionRequest } from "@ethersproject/abstract-provider";
 
 const BASE_CHAIN_ID = "eip155";
+const TX_FAILURE = 0;
+const TX_SUCCESS = 1;
 
 /**
  * Ethereum blockchain service
@@ -63,6 +65,10 @@ export default class EthereumBlockchainService implements BlockchainService {
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
     const wallet = new ethers.Wallet(config.blockchain.connectors.ethereum.account.privateKey, this.provider);
     const walletBalance = await this.provider.getBalance(wallet.address);
+    logMetric.ethereum({
+      type: 'walletBalance',
+      balance: ethers.utils.formatUnits(walletBalance, 'gwei')
+    });
     logger.imp(`Current wallet balance is ` + walletBalance);
 
     const rootStrHex = rootCid.toString("base16");
@@ -102,8 +108,15 @@ export default class EthereumBlockchainService implements BlockchainService {
 
         logger.imp("Transaction data:" + JSON.stringify(txData));
 
+        logEvent.ethereum({
+          type: 'txRequest',
+          ...txData
+        });
         const txResponse: providers.TransactionResponse = await wallet.sendTransaction(txData);
-
+        logEvent.ethereum({
+          type: 'txResponse',
+          ...txResponse
+        });
         const caip2ChainId = "eip155:" + txResponse.chainId;
         if (caip2ChainId != this.chainId) {
           // TODO: This should be process-fatal
@@ -111,9 +124,22 @@ export default class EthereumBlockchainService implements BlockchainService {
         }
 
         const txReceipt: providers.TransactionReceipt = await this.provider.waitForTransaction(txResponse.hash);
+        logEvent.ethereum({
+          type: 'txReceipt',
+          ...txReceipt
+        });
         const block: providers.Block = await this.provider.getBlock(txReceipt.blockHash);
 
-        logger.imp(`Transaction successfully written to Ethereum ${network} network. Transaction hash ${txReceipt.transactionHash}`);
+        const status = txReceipt.byzantium ? txReceipt.status : -1;
+        let statusMessage = (status == TX_SUCCESS) ? 'success' : 'failure';
+        if (!txReceipt.byzantium) {
+          statusMessage = 'unknown';
+        }
+        logger.imp(`Transaction completed on Ethereum ${network} network. Transaction hash: ${txReceipt.transactionHash}. Status: ${statusMessage}.`);
+        if (status == TX_FAILURE) {
+          throw new Error("Transaction completed with a failure status");
+        }
+
         return new Transaction(caip2ChainId, txReceipt.transactionHash, txReceipt.blockNumber, block.timestamp);
       } catch (err) {
         logger.err(err);
@@ -123,6 +149,13 @@ export default class EthereumBlockchainService implements BlockchainService {
           if (code === ErrorCode.INSUFFICIENT_FUNDS) {
             const txCost = (txData.gasLimit as BigNumber).mul(txData.gasPrice);
             if (txCost.gt(walletBalance)) {
+
+              logEvent.ethereum({
+                type: 'insufficientFunds',
+                txCost: txCost,
+                balance: ethers.utils.formatUnits(walletBalance, 'gwei')
+              });
+
               const errMsg = "Transaction cost is greater than our current balance. [txCost: " + txCost.toHexString() + ", balance: " + walletBalance.toHexString() + "]";
               logger.err(errMsg);
               throw new Error(errMsg);
@@ -138,5 +171,11 @@ export default class EthereumBlockchainService implements BlockchainService {
         }
       }
     }
+
+    const finalWalletBalance = await this.provider.getBalance(wallet.address);
+    logMetric.ethereum({
+      type: 'walletBalance',
+      balance: ethers.utils.formatUnits(finalWalletBalance, 'gwei')
+    });
   }
 }

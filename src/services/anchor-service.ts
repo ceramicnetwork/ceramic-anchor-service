@@ -9,7 +9,7 @@ import { CompareFunction, MergeFunction, Node, PathDirection } from "../merkle/m
 import { config } from "node-config-ts";
 import { Transactional } from "typeorm-transactional-cls-hooked";
 
-import { logger } from '../logger';
+import { logger, logEvent } from '../logger';
 import Utils from "../utils";
 import { Anchor } from "../models/anchor";
 import { Request } from "../models/request";
@@ -135,16 +135,17 @@ export default class AnchorService {
       logger.debug("No pending CID requests found. Skipping anchor.");
       return;
     }
-    await this.requestRepository.updateRequests({ status: RS.PROCESSING, message: 'Request is processing.' }, requests.map(r => r.id))
+    await this.requestRepository.updateRequests({ status: RS.PROCESSING, message: 'Request is processing.' }, requests);
 
     const candidates: Candidate[] = await this._findCandidates(requests);
-    const clashingRequestIds = requests.filter(r => !candidates.map(c => c.reqId).includes(r.id)).map(r => r.id);
+    const clashingRequests = requests.filter(r => !candidates.map(c => c.reqId).includes(r.id));
+    const clashingRequestIds = clashingRequests.map(r => r.id);
     if (clashingRequestIds.length > 0) {
       // discard clashing ones
       await this.requestRepository.updateRequests({
         status: RS.FAILED,
         message: "Request has failed. There are conflicts with other requests for the same document and DID."
-      }, clashingRequestIds);
+      }, clashingRequests);
     }
 
     // filter valid requests
@@ -169,6 +170,14 @@ export default class AnchorService {
     // Update the database to record the successful anchors
     await this._persistAnchorResult(anchors)
 
+    logEvent.anchor({
+      type: 'anchorRequests',
+      requestIds: requests.map(r => r.id),
+      clashingRequestsCount: clashingRequestIds.length,
+      validRequestsCount: requests.length,
+      candidateCount: candidates.length,
+      anchorCount: anchors.length
+    });
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`);
   }
 
@@ -257,12 +266,10 @@ export default class AnchorService {
   async _persistAnchorResult(anchors: Anchor[]): Promise<void> {
     await this.anchorRepository.createAnchors(anchors);
 
-    await this.requestRepository.updateRequests(
-      {
+    await this.requestRepository.updateRequests({
         status: RS.COMPLETED,
         message: "CID successfully anchored."
-      },
-      anchors.map(a => a.request.id));
+    }, anchors.map(a => a.request));
   }
 
   /**
@@ -301,12 +308,10 @@ export default class AnchorService {
         group[candidate.key] = group[candidate.key] ? [...group[candidate.key], candidate] : [candidate];
       } catch (e) {
         logger.err(e);
-        await this.requestRepository.updateRequests(
-          {
+        await this.requestRepository.updateRequests({
             status: RS.FAILED,
             message: "Request has failed. " + e.message,
-          },
-          [request.id]);
+        }, [request]);
       }
     }
 
