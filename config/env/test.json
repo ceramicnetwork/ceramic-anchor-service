@@ -25,7 +25,6 @@
   "logger": {
     "level": "debug",
     "logToFiles": false,
-    "filePath": "",
-    "metricsFilePath": ""
+    "filePath": ""
   }
 }

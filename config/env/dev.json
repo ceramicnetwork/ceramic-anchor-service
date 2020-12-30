@@ -35,7 +35,6 @@
   "logger": {
     "level": "@@LOG_LEVEL",
     "logToFiles": "@@LOG_TO_FILES",
-    "filePath": "@@LOG_PATH",
-    "metricsFilePath": "@@LOG_METRICS_PATH"
+    "filePath": "@@LOG_PATH"
   }
 }
