@@ -101,7 +101,7 @@ export default class AnchorService {
    * @returns whether or not an anchor was performed
    */
   public async anchorIfTooManyPendingRequests(): Promise<boolean> {
-    if (!config.merkleDepthLimit) {
+    if (config.merkleDepthLimit == 0 || config.merkleDepthLimit == undefined) {
       // If there's no limit to the size of an anchor, then there's no such thing as "too many"
       // pending requests, and we can always wait for our next scheduled anchor.
       return false
@@ -188,7 +188,7 @@ export default class AnchorService {
    */
   async _buildMerkleTree(candidates: Candidate[]): Promise<MerkleTree<Candidate>> {
     try {
-      if (config.merkleDepthLimit) {
+      if (config.merkleDepthLimit > 0) {
         const nodeLimit = Math.pow(2, config.merkleDepthLimit)
         if (candidates.length > nodeLimit) {
           logger.warn('Found ' + candidates.length + ' valid candidates to anchor, but our '
@@ -198,6 +198,7 @@ export default class AnchorService {
           candidates = candidates.slice(0, nodeLimit)
         }
       }
+
       const merkleTree = new MerkleTree<Candidate>(this.ipfsMerge, this.ipfsCompare, config.merkleDepthLimit);
       await merkleTree.build(candidates);
       return merkleTree

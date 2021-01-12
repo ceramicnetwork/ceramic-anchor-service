@@ -50,7 +50,7 @@ export class MerkleTree<T> {
       throw new Error('Cannot generate Merkle structure with no elements');
     }
 
-    if (this.depthLimit && treeDepth > this.depthLimit) {
+    if (this.depthLimit > 0 && treeDepth > this.depthLimit) {
       const nodesLimit = Math.pow(2, this.depthLimit)
       throw new Error(`Merkle tree exceeded configured limit of ${this.depthLimit} levels (${nodesLimit} nodes)`)
     }
