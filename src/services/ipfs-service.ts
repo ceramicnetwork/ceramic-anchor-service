@@ -55,8 +55,7 @@ export class IpfsServiceImpl implements IpfsService {
     const format = legacy(multiformats, dagJose.name);
 
     this._ipfs = ipfsClient({
-      host: config.ipfsConfig.host,
-      port: config.ipfsConfig.port,
+      url: config.ipfsConfig.url,
       timeout: config.ipfsConfig.timeout,
       ipld: {
         formats: [format],

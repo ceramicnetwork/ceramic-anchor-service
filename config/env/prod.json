@@ -6,8 +6,7 @@
   "expirationPeriod": "@@ANCHOR_EXPIRATION_PERIOD",
   "merkleDepthLimit": "@@MERKLE_DEPTH_LIMIT",
   "ipfsConfig": {
-    "host": "@@IPFS_API_HOST",
-    "port": "@@IPFS_API_PORT",
+    "url": "@@IPFS_API_URL",
     "timeout": "@@IPFS_API_TIMEOUT"
   },
   "ceramic": {
