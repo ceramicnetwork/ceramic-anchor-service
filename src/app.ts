@@ -85,8 +85,8 @@ export default class CeramicAnchorApp {
     const blockchainService: BlockchainService = container.resolve<BlockchainService>('blockchainService');
     await blockchainService.connect();
 
-    const mode = config.mode.trim().toLowerCase();
-    switch (mode) {
+    await this._normalizeConfig()
+    switch (config.mode) {
       case 'server': {
         await this._startServer();
         break;
@@ -100,11 +100,18 @@ export default class CeramicAnchorApp {
         break;
       }
       default: {
-        logger.err(`Unknown application mode ${mode}`);
+        logger.err(`Unknown application mode ${config.mode}`);
         process.exit(1);
       }
     }
-    logger.imp(`Ceramic Anchor Service initiated ${mode} mode`);
+    logger.imp(`Ceramic Anchor Service initiated ${config.mode} mode`);
+  }
+
+  private async _normalizeConfig(): Promise<void> {
+    config.mode = config.mode.trim().toLowerCase();
+    if (typeof config.merkleDepthLimit == 'string') {
+      config.merkleDepthLimit = parseInt(config.merkleDepthLimit)
+    }
   }
 
   /**
