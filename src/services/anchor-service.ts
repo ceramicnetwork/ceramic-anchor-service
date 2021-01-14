@@ -286,7 +286,7 @@ export default class AnchorService {
   async _findCandidates(requests: Request[]): Promise<Candidate[]> {
     const groupedCandidates = await this._groupCandidatesByDocId(requests)
     const [selectedCandidates, conflictingCandidates] = await this._selectValidCandidates(groupedCandidates)
-    await this._updateConflictingRequests(requests, conflictingCandidates)
+    await this._failConflictingRequests(requests, conflictingCandidates)
 
     return selectedCandidates;
   }
@@ -377,7 +377,7 @@ export default class AnchorService {
    * @param requests
    * @param rejectedCandidates
    */
-  async _updateConflictingRequests(requests: Request[], rejectedCandidates: Candidate[]): Promise<void> {
+  async _failConflictingRequests(requests: Request[], rejectedCandidates: Candidate[]): Promise<void> {
     const rejectedRequestIds = rejectedCandidates.map(c => c.reqId)
     const rejectedRequests = requests.filter(r => rejectedRequestIds.includes(r.id))
     if (rejectedRequests.length > 0) {
