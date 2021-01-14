@@ -383,7 +383,7 @@ export default class AnchorService {
     if (rejectedRequests.length > 0) {
       await this.requestRepository.updateRequests({
         status: RS.FAILED,
-        message: "Request has failed. There are conflicts with other requests for the same document and DID."
+        message: "Request has failed. There are conflicts with other requests for the same document."
       }, rejectedRequests);
     }
   }
