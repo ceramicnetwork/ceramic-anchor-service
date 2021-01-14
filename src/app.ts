@@ -30,7 +30,7 @@ initializeTransactionalContext();
  */
 export default class CeramicAnchorApp {
   constructor() {
-    CeramicAnchorApp._patchConfigTypes();
+    CeramicAnchorApp._normalizeConfig();
 
     // TODO: Selectively register only the global singletons needed based on the config
 
@@ -59,23 +59,26 @@ export default class CeramicAnchorApp {
   }
 
   /**
-   * Patches config variables.
-   *
-   * Note: sometimes booleans are passed as strings.
-   * @private
+   * Handles normalizing the arguments passed via the config, for example turning string
+   * representations of booleans and numbers into the proper types
    */
-  static _patchConfigTypes(): void {
-    const traverse = function(o) {
+  static _normalizeConfig() {
+    config.mode = config.mode.trim().toLowerCase();
+    if (typeof config.merkleDepthLimit == 'string') {
+      config.merkleDepthLimit = parseInt(config.merkleDepthLimit)
+    }
+
+    const replaceBools = function(o) {
       for (const prop of Object.keys(o)) {
         if (o[prop] === 'true' || o[prop] === 'false') {
           o[prop] = o[prop] === 'true'
         }
         if (o[prop] !== null && typeof o[prop] === "object") {
-          traverse(o[prop]);
+          replaceBools(o[prop]);
         }
       }
     };
-    traverse(config);
+    replaceBools(config);
   }
 
   /**
@@ -85,8 +88,7 @@ export default class CeramicAnchorApp {
     const blockchainService: BlockchainService = container.resolve<BlockchainService>('blockchainService');
     await blockchainService.connect();
 
-    const mode = config.mode.trim().toLowerCase();
-    switch (mode) {
+    switch (config.mode) {
       case 'server': {
         await this._startServer();
         break;
@@ -100,11 +102,11 @@ export default class CeramicAnchorApp {
         break;
       }
       default: {
-        logger.err(`Unknown application mode ${mode}`);
+        logger.err(`Unknown application mode ${config.mode}`);
         process.exit(1);
       }
     }
-    logger.imp(`Ceramic Anchor Service initiated ${mode} mode`);
+    logger.imp(`Ceramic Anchor Service initiated ${config.mode} mode`);
   }
 
   /**
