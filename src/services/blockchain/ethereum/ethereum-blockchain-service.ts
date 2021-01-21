@@ -113,6 +113,8 @@ export default class EthereumBlockchainService implements BlockchainService {
           ...txData
         });
         const txResponse: providers.TransactionResponse = await wallet.sendTransaction(txData);
+        // Delete the function to wail until txn is mined so that it doesn't get logged
+        delete txResponse.wait
         logEvent.ethereum({
           type: 'txResponse',
           ...txResponse
