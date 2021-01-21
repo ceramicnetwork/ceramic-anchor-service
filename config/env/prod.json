@@ -23,7 +23,8 @@
         "gasPrice": "@@ETH_GAS_PRICE",
         "rpc": {
           "host": "@@ETH_RPC_HOST",
-          "port": "@@ETH_RPC_PORT"
+          "port": "@@ETH_RPC_PORT",
+          "url": "@@ETH_RPC_URL"
         },
         "account": {
           "privateKey": "@@ETH_WALLET_PK"
