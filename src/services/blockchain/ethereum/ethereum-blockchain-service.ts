@@ -28,11 +28,12 @@ export default class EthereumBlockchainService implements BlockchainService {
   public async connect(): Promise<void> {
     logger.imp("Connecting to " + config.blockchain.connectors.ethereum.network + " blockchain...");
     const { network } = config.blockchain.connectors.ethereum;
+    const { host, port, url } = config.blockchain.connectors.ethereum.rpc;
 
-    if (network === "ganache") {
-      const { host, port } = config.blockchain.connectors.ethereum.rpc;
-      const url = `${host}:${port}`;
+    if (url != "") {
       this.provider = new ethers.providers.JsonRpcProvider(url);
+    } else if (host != "" && port != "") {
+      this.provider = new ethers.providers.JsonRpcProvider(`${host}:${port}`);
     } else {
       this.provider = ethers.getDefaultProvider(network);
     }
