@@ -30,9 +30,9 @@ export default class EthereumBlockchainService implements BlockchainService {
     const { network } = config.blockchain.connectors.ethereum;
     const { host, port, url } = config.blockchain.connectors.ethereum.rpc;
 
-    if (url != "") {
+    if (url && url != "") {
       this.provider = new ethers.providers.JsonRpcProvider(url);
-    } else if (host != "" && port != "") {
+    } else if (host && host != "" && port && port != "") {
       this.provider = new ethers.providers.JsonRpcProvider(`${host}:${port}`);
     } else {
       this.provider = ethers.getDefaultProvider(network);
