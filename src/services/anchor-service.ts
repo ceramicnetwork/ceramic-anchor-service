@@ -171,6 +171,9 @@ export default class AnchorService {
       candidateCount: candidates.length,
       anchorCount: anchors.length
     });
+    for (const candidate of merkleTree.getLeaves()) {
+      logger.debug(`Successfully anchored CID ${candidate.cid.toString()} for document ${candidate.document.id.toString()}`)
+    }
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`);
   }
 
@@ -380,6 +383,11 @@ export default class AnchorService {
   async _failConflictingRequests(requests: Request[], rejectedCandidates: Candidate[]): Promise<void> {
     const rejectedRequestIds = rejectedCandidates.map(c => c.reqId)
     const rejectedRequests = requests.filter(r => rejectedRequestIds.includes(r.id))
+
+    for (const rejected of rejectedCandidates) {
+      console.debug(`Rejecting request to anchor CID ${rejected.cid.toString()} for document ${rejected.document.id.toString()} because there is a better CID to anchor for the same document`)
+    }
+
     if (rejectedRequests.length > 0) {
       await this.requestRepository.updateRequests({
         status: RS.FAILED,
