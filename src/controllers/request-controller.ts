@@ -2,7 +2,6 @@ import { StatusCodes } from 'http-status-codes';
 import { Request as ExpReq, Response as ExpRes } from 'express';
 
 import { config } from 'node-config-ts';
-import awsCronParser from 'aws-cron-parser';
 
 import cors from 'cors';
 import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core';
@@ -91,18 +90,8 @@ export default class RequestController {
 
         request = await this.requestRepository.createOrUpdate(request);
 
-        const cron = awsCronParser.parse(config.cronExpression);
-
-        return res.status(StatusCodes.CREATED).json({
-          id: request.id,
-          status: RequestStatus[request.status],
-          cid: request.cid,
-          docId: request.docId,
-          message: request.message,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.updatedAt.getTime(),
-          scheduledAt: awsCronParser.next(cron, new Date()),
-        });
+        const body = await this.#requestPresentation.body(request);
+        return res.status(StatusCodes.CREATED).json(body);
       }
     } catch (err) {
       logger.err(err);
