@@ -4,9 +4,17 @@ import awsCronParser from 'aws-cron-parser';
 import { config } from 'node-config-ts';
 import { Request } from './request';
 
+/**
+ * Render anchoring Request as JSON for a client to consume.
+ */
 export class RequestPresentation {
   constructor(private readonly cronExpression: string, private readonly anchorRepository: AnchorRepository) {}
 
+  /**
+   * Rich JSON of a request.
+   *
+   * @param request - Request to be rendered as JSON.
+   */
   async body(request: Request): Promise<any> {
     switch (request.status) {
       case RequestStatus.COMPLETED: {
