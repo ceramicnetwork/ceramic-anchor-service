@@ -148,7 +148,7 @@ export default class AnchorService {
       return;
     }
 
-    logger.imp('Creating Merkle tree from selected records.');
+    logger.imp(`Creating Merkle tree from ${candidates.length} selected records`);
     const merkleTree = await this._buildMerkleTree(candidates)
 
     // create and send ETH transaction
@@ -305,10 +305,11 @@ export default class AnchorService {
 
     let request = null;
     for (let index = 0; index < requests.length; index++) {
+      let docId
       try {
         request = requests[index];
 
-        const docId = this._getRequestDocID(request)
+        docId = this._getRequestDocID(request)
         const doc = await this.ceramicService.loadDocument(docId)
         if (!doc) {
           throw new Error(`No valid ceramic document found with docId ${docId.toString()}`)
@@ -317,7 +318,7 @@ export default class AnchorService {
         const candidate = new Candidate(new CID(request.cid), request.id, doc);
         groupedCandidates[candidate.docId] = groupedCandidates[candidate.docId] ? [...groupedCandidates[candidate.docId], candidate] : [candidate];
       } catch (e) {
-        logger.err(e);
+        logger.err(`Error while loading document ${docId.baseID.toString()} at commit ${docId.commit.toString}. Error: ${e.message}`)
         await this.requestRepository.updateRequests({
           status: RS.FAILED,
           message: "Request has failed. " + e.message,
