@@ -26,7 +26,7 @@ export default class HealthcheckController {
 
       return res.status(OK).send()
     } catch (err) {
-      logger.err(`Performing healtcheck failed: ${err.message()}`);
+      logger.err(`Failed to run healthcheck: ${err.message()}`);
       return res.status(SERVICE_UNAVAILABLE).send()
     }
   }
