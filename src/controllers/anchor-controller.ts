@@ -1,6 +1,6 @@
 import { INTERNAL_SERVER_ERROR, OK } from 'http-status-codes';
 import { Request as ExpReq, Response as ExpRes } from 'express';
-import { logger } from "../logger";
+import { logger } from '../logger';
 
 import cors from 'cors';
 import { Controller, Get, ClassMiddleware, Post } from "@overnightjs/core";
