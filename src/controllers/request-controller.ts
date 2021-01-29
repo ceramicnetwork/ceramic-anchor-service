@@ -40,7 +40,7 @@ export default class RequestController {
       const request = await this.requestRepository.findByCid(cid);
       if (request == null) {
         return res.status(NOT_FOUND).send({
-          error: "Request doesn't exist",
+          error: `Request with cid ${cid.toString()} doesn't exist`,
         });
       }
 
@@ -102,9 +102,10 @@ export default class RequestController {
           });
       }
     } catch (err) {
-      logger.err(err);
+      const errmsg = `Loading request status for CID ${req.params.cid} failed: ${err.message}`
+      logger.err(errmsg);
       return res.status(BAD_REQUEST).json({
-        error: err.message,
+        error: errmsg,
       });
     }
   }
@@ -131,7 +132,7 @@ export default class RequestController {
       const cidObj = new CID(cid);
       let request: Request = await this.requestRepository.findByCid(cidObj);
       if (request != null) {
-        return res.status(BAD_REQUEST).send('CID has already been submitted');
+        return res.status(BAD_REQUEST).send(`CID ${cidObj.toString()} has already been submitted`);
       }
 
       request = new Request();
@@ -155,9 +156,10 @@ export default class RequestController {
         scheduledAt: awsCronParser.next(cron, new Date()),
       });
     } catch (err) {
-      logger.err(err);
+      const errmsg = `Creating request with docId ${req.body.docId} and commit CID ${req.body.cid} failed: ${err.message}`
+      logger.err(errmsg);
       return res.status(BAD_REQUEST).json({
-        error: err.message,
+        error: errmsg,
       });
     }
   }

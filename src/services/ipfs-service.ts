@@ -86,11 +86,11 @@ export class IpfsServiceImpl implements IpfsService {
         this._cache.set(cid.toString(), value);
         return value;
       } catch (e) {
-        logger.err('Cannot retrieve record for ' + cid);
+        logger.err('Cannot retrieve IPFS record for CID ' + cid.toString());
         retryTimes--
       }
     }
-    throw new Error("Failed to retrieve record " + cid)
+    throw new Error("Failed to retrieve IPFS record for CID " + cid.toString())
   }
 
   /**
