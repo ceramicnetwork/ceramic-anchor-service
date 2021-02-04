@@ -30,9 +30,9 @@ export default class EthereumBlockchainService implements BlockchainService {
     const { network } = config.blockchain.connectors.ethereum;
     const { host, port, url } = config.blockchain.connectors.ethereum.rpc;
 
-    if (url != "") {
+    if (url && url != "") {
       this.provider = new ethers.providers.JsonRpcProvider(url);
-    } else if (host != "" && port != "") {
+    } else if (host && host != "" && port && port != "") {
       this.provider = new ethers.providers.JsonRpcProvider(`${host}:${port}`);
     } else {
       this.provider = ethers.getDefaultProvider(network);
@@ -116,7 +116,13 @@ export default class EthereumBlockchainService implements BlockchainService {
         const txResponse: providers.TransactionResponse = await wallet.sendTransaction(txData);
         logEvent.ethereum({
           type: 'txResponse',
-          ...txResponse
+          hash: txResponse.hash,
+          blockNumber: txResponse.blockNumber,
+          blockHash: txResponse.blockHash,
+          timestamp: txResponse.timestamp,
+          confirmations: txResponse.confirmations,
+          from: txResponse.from,
+          raw: txResponse.raw,
         });
         const caip2ChainId = "eip155:" + txResponse.chainId;
         if (caip2ChainId != this.chainId) {

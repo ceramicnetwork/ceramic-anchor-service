@@ -50,9 +50,10 @@ export default class RequestController {
         });
       }
     } catch (err) {
-      logger.err(err);
+      const errmsg = `Loading request status for CID ${req.params.cid} failed: ${err.message}`
+      logger.err(errmsg);
       return res.status(StatusCodes.BAD_REQUEST).json({
-        error: err.message,
+        error: errmsg
       });
     }
   }
@@ -88,15 +89,16 @@ export default class RequestController {
         request.status = RequestStatus.PENDING;
         request.message = 'Request is pending.';
 
-        request = await this.requestRepository.createOrUpdate(request);
+      request = await this.requestRepository.createOrUpdate(request);
 
         const body = await this.#requestPresentation.body(request);
         return res.status(StatusCodes.CREATED).json(body);
       }
     } catch (err) {
-      logger.err(err);
+      const errmsg = `Creating request with docId ${req.body.docId} and commit CID ${req.body.cid} failed: ${err.message}`
+      logger.err(errmsg);
       return res.status(StatusCodes.BAD_REQUEST).json({
-        error: err.message,
+        error: errmsg,
       });
     }
   }

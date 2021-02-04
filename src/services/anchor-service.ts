@@ -148,7 +148,7 @@ export default class AnchorService {
       return;
     }
 
-    logger.imp('Creating Merkle tree from selected records.');
+    logger.imp(`Creating Merkle tree from ${candidates.length} selected records`);
     const merkleTree = await this._buildMerkleTree(candidates)
 
     // create and send ETH transaction
@@ -171,6 +171,9 @@ export default class AnchorService {
       candidateCount: candidates.length,
       anchorCount: anchors.length
     });
+    for (const candidate of merkleTree.getLeaves()) {
+      logger.debug(`Successfully anchored CID ${candidate.cid.toString()} for document ${candidate.document.id.toString()}`)
+    }
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`);
   }
 
@@ -302,10 +305,11 @@ export default class AnchorService {
 
     let request = null;
     for (let index = 0; index < requests.length; index++) {
+      let docId
       try {
         request = requests[index];
 
-        const docId = this._getRequestDocID(request)
+        docId = this._getRequestDocID(request)
         const doc = await this.ceramicService.loadDocument(docId)
         if (!doc) {
           throw new Error(`No valid ceramic document found with docId ${docId.toString()}`)
@@ -314,7 +318,7 @@ export default class AnchorService {
         const candidate = new Candidate(new CID(request.cid), request.id, doc);
         groupedCandidates[candidate.docId] = groupedCandidates[candidate.docId] ? [...groupedCandidates[candidate.docId], candidate] : [candidate];
       } catch (e) {
-        logger.err(e);
+        logger.err(`Error while loading document ${docId?.baseID.toString()} at commit ${docId?.commit.toString()}. Error: ${e.message}`)
         await this.requestRepository.updateRequests({
           status: RS.FAILED,
           message: "Request has failed. " + e.message,
@@ -380,6 +384,11 @@ export default class AnchorService {
   async _failConflictingRequests(requests: Request[], rejectedCandidates: Candidate[]): Promise<void> {
     const rejectedRequestIds = rejectedCandidates.map(c => c.reqId)
     const rejectedRequests = requests.filter(r => rejectedRequestIds.includes(r.id))
+
+    for (const rejected of rejectedCandidates) {
+      console.debug(`Rejecting request to anchor CID ${rejected.cid.toString()} for document ${rejected.document.id.toString()} because there is a better CID to anchor for the same document`)
+    }
+
     if (rejectedRequests.length > 0) {
       await this.requestRepository.updateRequests({
         status: RS.FAILED,
