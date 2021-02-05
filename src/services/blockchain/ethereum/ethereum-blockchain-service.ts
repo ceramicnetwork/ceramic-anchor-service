@@ -77,8 +77,8 @@ export default class EthereumBlockchainService implements BlockchainService {
     logger.imp(`Hex encoded root CID ${hexEncoded}`);
 
     const { network } = config.blockchain.connectors.ethereum;
-    logger.imp(`Sending transaction to Ethereum ${network} network...`);
 
+    logger.debug("Preparing ethereum transaction")
     const baseNonce = await this.provider.getTransactionCount(wallet.getAddress());
 
     const txData: TransactionRequest = {
@@ -113,6 +113,7 @@ export default class EthereumBlockchainService implements BlockchainService {
           type: 'txRequest',
           ...txData
         });
+        logger.imp(`Sending transaction to Ethereum ${network} network...`);
         const txResponse: providers.TransactionResponse = await wallet.sendTransaction(txData);
         logEvent.ethereum({
           type: 'txResponse',
@@ -174,6 +175,7 @@ export default class EthereumBlockchainService implements BlockchainService {
         if (retryTimes === 0) {
           throw new Error("Failed to send transaction");
         } else {
+          logger.warn(`Failed to send transaction; ${retryTimes} retries remain`)
           await new Promise(resolve => setTimeout(resolve, 5000));
         }
       }
