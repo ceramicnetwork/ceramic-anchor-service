@@ -318,12 +318,10 @@ export default class AnchorService {
         request = requests[index];
 
         docId = this._getRequestDocID(request)
-        logger.debug(`About to load ceramic doc ${docId.baseID.toString()} at commit ${docId.commit.toString()}`)
         const doc = await this.ceramicService.loadDocument(docId)
         if (!doc) {
           throw new Error(`No valid ceramic document found with docId ${docId.toString()}`)
         }
-        logger.debug(`Successfully loaded ceramic doc ${docId.baseID.toString()} at commit ${docId.commit.toString()}`)
 
         const candidate = new Candidate(new CID(request.cid), request.id, doc);
         groupedCandidates[candidate.docId] = groupedCandidates[candidate.docId] ? [...groupedCandidates[candidate.docId], candidate] : [candidate];
