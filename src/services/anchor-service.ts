@@ -135,6 +135,7 @@ export default class AnchorService {
       logger.debug("No pending CID requests found. Skipping anchor.");
       return;
     }
+    logger.debug("Marking pending requests as processing")
     await this.requestRepository.updateRequests({ status: RS.PROCESSING, message: 'Request is processing.' }, requests);
 
     const candidates: Candidate[] = await this._findCandidates(requests);
@@ -152,15 +153,19 @@ export default class AnchorService {
     const merkleTree = await this._buildMerkleTree(candidates)
 
     // create and send ETH transaction
+    logger.debug("Preparing to send transaction to put merkle root on blockchain")
     const tx: Transaction = await this.blockchainService.sendTransaction(merkleTree.getRoot().data.cid);
 
     // create proof on IPFS
+    logger.debug("Creating IPFS anchor proof")
     const ipfsProofCid = await this._createIPFSProof(tx, merkleTree.getRoot().data.cid)
 
     // create anchor records on IPFS
-    const anchors = await this._createAnchorRecords(ipfsProofCid, merkleTree, requests);
+    logger.debug("Creating anchor commit")
+    const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree, requests);
 
     // Update the database to record the successful anchors
+    logger.debug("Persisting results to local database")
     await this._persistAnchorResult(anchors)
 
     logEvent.anchor({
@@ -223,7 +228,7 @@ export default class AnchorService {
   }
 
   /**
-   * For each CID that was anchored, create a Ceramic AnchorRecord and publish it to IPFS.
+   * For each CID that was anchored, create a Ceramic AnchorCommit and publish it to IPFS.
    * @param ipfsProofCid - CID of the anchor proof on IPFS
    * @param merkleTree - Merkle tree instance
    * @param requests - Valid requests
@@ -231,7 +236,7 @@ export default class AnchorService {
    * of each anchor request.
    * @private
    */
-  async _createAnchorRecords(ipfsProofCid: CID, merkleTree: MerkleTree<Candidate>, requests: Request[]): Promise<Anchor[]> {
+  async _createAnchorCommits(ipfsProofCid: CID, merkleTree: MerkleTree<Candidate>, requests: Request[]): Promise<Anchor[]> {
     const anchors: Anchor[] = [];
     const candidates = merkleTree.getLeaves()
     for (let index = 0; index < candidates.length; index++) {
@@ -287,8 +292,11 @@ export default class AnchorService {
    * @private
    */
   async _findCandidates(requests: Request[]): Promise<Candidate[]> {
+    logger.debug(`About to load candidate documents`)
     const groupedCandidates = await this._groupCandidatesByDocId(requests)
+    logger.debug(`Successfully loaded candidate documents, about to apply conflict resolution to conflicting requests`)
     const [selectedCandidates, conflictingCandidates] = await this._selectValidCandidates(groupedCandidates)
+    logger.debug(`About to fail requests rejected by conflict resolution`)
     await this._failConflictingRequests(requests, conflictingCandidates)
 
     return selectedCandidates;

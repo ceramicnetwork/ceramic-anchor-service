@@ -216,7 +216,7 @@ describe('ETH service',  () => {
     const merkleTree = await anchorService._buildMerkleTree(candidates)
     const ipfsProofCid = await ipfsService.storeRecord({})
 
-    const anchors = await anchorService._createAnchorRecords(ipfsProofCid, merkleTree, requests)
+    const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree, requests)
 
     expect(candidates.length).toEqual(requests.length)
     expect(anchors.length).toEqual(candidates.length)
@@ -264,7 +264,7 @@ describe('ETH service',  () => {
 
       const merkleTree = await anchorService._buildMerkleTree(candidates)
       const ipfsProofCid = await ipfsService.storeRecord({})
-      const anchors = await anchorService._createAnchorRecords(ipfsProofCid, merkleTree, requests)
+      const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree, requests)
 
       await anchorService._persistAnchorResult(anchors)
     }
@@ -306,7 +306,7 @@ describe('ETH service',  () => {
 
       const merkleTree = await anchorService._buildMerkleTree(candidates)
       const ipfsProofCid = await ipfsService.storeRecord({})
-      const anchors = await anchorService._createAnchorRecords(ipfsProofCid, merkleTree, requests)
+      const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree, requests)
 
       await anchorService._persistAnchorResult(anchors)
     }
