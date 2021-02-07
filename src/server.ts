@@ -19,6 +19,7 @@ export default class CeramicAnchorServer extends Server {
   constructor(private container: DependencyContainer) {
     super(true);
 
+    this.app.set('trust proxy', true);
     this.app.use(bodyParser.json());
     this.app.use(bodyParser.urlencoded({ extended: true }));
     this.app.use(...expressLoggers)
