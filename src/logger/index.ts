@@ -1,3 +1,4 @@
+import { Request as ExpReq, Response as ExpRes } from 'express';
 import morgan from 'morgan';
 import { config } from 'node-config-ts';
 import path from 'path';
@@ -23,7 +24,7 @@ const EVENTS_FILE_PATH = path.join(LOG_PATH, 'events.log');
 const METRICS_FILE_PATH = path.join(LOG_PATH, 'metrics.log');
 const DIAGNOSTICS_FILE_PATH = path.join(LOG_PATH, 'diagnostics.log');
 
-const ACCESS_LOG_FMT = 'ip=:remote-addr ts=:date[iso] method=:method path=:url http_version=:http-version req_header:req[header] status=:status content_length=:res[content-length] content_type=":res[content-type]" ref=:referrer user_agent=:user-agent elapsed_ms=:total-time[3]';
+const ACCESS_LOG_FMT = 'ip=:remote-addr ts=:date[iso] method=:method original_url=:original-url base_url=:base-url path=:path http_version=:http-version req_header:req[header] status=:status content_length=:res[content-length] content_type=":res[content-type]" ref=:referrer user_agent=:user-agent elapsed_ms=:total-time[3]';
 
 interface ServiceLog {
   type: string;
@@ -35,11 +36,23 @@ export const logger = new DiagnosticsLogger(DIAGNOSTICS_FILE_PATH, LOG_LEVEL, LO
 
 export const expressLoggers = buildExpressMiddleware();
 function buildExpressMiddleware() {
+  morgan.token<ExpReq, ExpRes>('original-url', function (req, res): any {
+    return req.originalUrl;
+  });
+  morgan.token<ExpReq, ExpRes>('base-url', function (req, res): any {
+    return req.baseUrl;
+  });
+  morgan.token<ExpReq, ExpRes>('path', function (req, res): any {
+    return req.path;
+  });
+
   const middleware = [morgan('combined', { stream: logger })];
+
   if (LOG_TO_FILES) {
     const accessLogStream = new RotatingFileStream(ACCESS_FILE_PATH, true);
     middleware.push(morgan(ACCESS_LOG_FMT, { stream: accessLogStream }));
   }
+
   return middleware;
 }
 
