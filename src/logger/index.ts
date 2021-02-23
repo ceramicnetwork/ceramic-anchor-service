@@ -2,16 +2,9 @@ import { Request as ExpReq, Response as ExpRes } from 'express';
 import morgan from 'morgan';
 import { config } from 'node-config-ts';
 import path from 'path';
-import { RotatingFileStream } from './stream-helpers';
-import { DiagnosticsLogger, LogLevel, ServiceLogger } from './logger';
+import { DiagnosticsLogger, LogLevel, RotatingFileStream, ServiceLogger } from '@ceramicnetwork/logger';
 
-const logLevelMapping = {
-  'debug': LogLevel.debug,
-  'important': LogLevel.important,
-  'warn': LogLevel.warn
-}
-
-const LOG_LEVEL = config.logger.level && logLevelMapping[config.logger.level] || LogLevel.important;
+const LOG_LEVEL = config.logger.level && LogLevel[config.logger.level] || LogLevel.important;
 const LOG_TO_FILES = config.logger.logToFiles || false;
 // LOG_PATH defaults to `ceramic-anchor-service/logs/`
 let LOG_PATH = config.logger.filePath || path.join(path.resolve(__dirname, '../../'), 'logs/');
@@ -32,7 +25,7 @@ interface ServiceLog {
 }
 
 
-export const logger = new DiagnosticsLogger(DIAGNOSTICS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
+export const logger = new DiagnosticsLogger(LOG_LEVEL, LOG_TO_FILES, DIAGNOSTICS_FILE_PATH,);
 
 export const expressLoggers = buildExpressMiddleware();
 function buildExpressMiddleware() {
@@ -56,20 +49,20 @@ function buildExpressMiddleware() {
   return middleware;
 }
 
-const anchorEventsLogger = new ServiceLogger('anchor', EVENTS_FILE_PATH, LOG_LEVEL);
-const dbEventsLogger = new ServiceLogger('db', EVENTS_FILE_PATH, LOG_LEVEL);
-const ethereumEventsLogger = new ServiceLogger('ethereum', EVENTS_FILE_PATH, LOG_LEVEL);
+const anchorEventsLogger = new ServiceLogger('anchor', EVENTS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
+const dbEventsLogger = new ServiceLogger('db', EVENTS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
+const ethereumEventsLogger = new ServiceLogger('ethereum', EVENTS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
 
 export const logEvent = {
-  anchor: (log: ServiceLog, logToConsole?: boolean): void => anchorEventsLogger.log(log, logToConsole),
-  db: (log: ServiceLog, logToConsole?: boolean): void => dbEventsLogger.log(log, logToConsole),
-  ethereum: (log: ServiceLog, logToConsole?: boolean): void => ethereumEventsLogger.log(log, logToConsole)
+  anchor: (log: ServiceLog, logToConsole?: boolean): void => anchorEventsLogger.log(log),
+  db: (log: ServiceLog, logToConsole?: boolean): void => dbEventsLogger.log(log),
+  ethereum: (log: ServiceLog, logToConsole?: boolean): void => ethereumEventsLogger.log(log)
 }
 
-const anchorMetricsLogger = new ServiceLogger('anchor', METRICS_FILE_PATH, LOG_LEVEL);
-const ethereumMetricsLogger = new ServiceLogger('ethereum', METRICS_FILE_PATH, LOG_LEVEL);
+const anchorMetricsLogger = new ServiceLogger('anchor', METRICS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
+const ethereumMetricsLogger = new ServiceLogger('ethereum', METRICS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
 
 export const logMetric = {
-  anchor: (log: ServiceLog, logToConsole?: boolean): void => anchorMetricsLogger.log(log, logToConsole),
-  ethereum: (log: ServiceLog, logToConsole?: boolean): void => ethereumMetricsLogger.log(log, logToConsole)
+  anchor: (log: ServiceLog, logToConsole?: boolean): void => anchorMetricsLogger.log(log),
+  ethereum: (log: ServiceLog, logToConsole?: boolean): void => ethereumMetricsLogger.log(log)
 }
