@@ -54,15 +54,15 @@ const dbEventsLogger = new ServiceLogger('db', EVENTS_FILE_PATH, LOG_LEVEL, LOG_
 const ethereumEventsLogger = new ServiceLogger('ethereum', EVENTS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
 
 export const logEvent = {
-  anchor: (log: ServiceLog, logToConsole?: boolean): void => anchorEventsLogger.log(log),
-  db: (log: ServiceLog, logToConsole?: boolean): void => dbEventsLogger.log(log),
-  ethereum: (log: ServiceLog, logToConsole?: boolean): void => ethereumEventsLogger.log(log)
+  anchor: (log: ServiceLog): void => anchorEventsLogger.log(log),
+  db: (log: ServiceLog): void => dbEventsLogger.log(log),
+  ethereum: (log: ServiceLog): void => ethereumEventsLogger.log(log)
 }
 
 const anchorMetricsLogger = new ServiceLogger('anchor', METRICS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
 const ethereumMetricsLogger = new ServiceLogger('ethereum', METRICS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
 
 export const logMetric = {
-  anchor: (log: ServiceLog, logToConsole?: boolean): void => anchorMetricsLogger.log(log),
-  ethereum: (log: ServiceLog, logToConsole?: boolean): void => ethereumMetricsLogger.log(log)
+  anchor: (log: ServiceLog): void => anchorMetricsLogger.log(log),
+  ethereum: (log: ServiceLog): void => ethereumMetricsLogger.log(log)
 }
