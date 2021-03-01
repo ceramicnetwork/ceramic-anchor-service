@@ -1,9 +1,13 @@
 import { MergeFunction, Node, CompareFunction } from '../merkle';
 import { MerkleTree } from '../merkle-tree';
 
-class StringConcat implements MergeFunction<string> {
-  async merge(n1: Node<string>, n2: Node<string>): Promise<Node<string>> {
-    return new Node(`Hash(${n1} + ${n2})`, n1, n2);
+class StringConcat implements MergeFunction<string, string> {
+  async merge(n1: Node<string>, n2: Node<string>, m: string | null): Promise<Node<string>> {
+    if (m) {
+      return new Node(`Hash(${n1} + ${n2} + ${m})`, n1, n2);
+    } else {
+      return new Node(`Hash(${n1} + ${n2})`, n1, n2);
+    }
   }
 }
 
@@ -18,7 +22,7 @@ describe('Merkle tree structure tests',  () => {
   test('should handle null case', async () => {
     try {
       // tslint:disable-next-line:no-unused-expression
-      const merkleTree = new MerkleTree<string>(new StringConcat());
+      const merkleTree = new MerkleTree<string, string>(new StringConcat());
       await merkleTree.build(null);
 
       expect(false).toBe(true);
@@ -29,19 +33,19 @@ describe('Merkle tree structure tests',  () => {
 
   test('Enforces depth limit', async () => {
     // No problem building with limit so long as there are fewer than 2^limit nodes
-    const merkleTree = new MerkleTree<string>(new StringConcat(), undefined, 2);
+    const merkleTree = new MerkleTree<string, string>(new StringConcat(), undefined, undefined,2);
     await merkleTree.build(['A', 'B', 'C', 'D']);
 
     expect(merkleTree.getRoot().data).toBe("Hash(Hash(A + B) + Hash(C + D))");
 
     // Fails to build when there are more nodes than can fit within the depth limit
-    const merkleTree2 = new MerkleTree<string>(new StringConcat(), undefined, 2);
+    const merkleTree2 = new MerkleTree<string, string>(new StringConcat(), undefined, undefined, 2);
     await expect(merkleTree2.build(['A', 'B', 'C', 'D', 'E'])).rejects.toThrow("Merkle tree exceeded configured limit of 2 levels (4 nodes)");
   });
 
   test('should handle the base case: [A]', async () => {
     const leaves = ['A'];
-    const merkleTree = new MerkleTree<string>(new StringConcat());
+    const merkleTree = new MerkleTree<string, string>(new StringConcat());
     await merkleTree.build(leaves);
 
     expect(merkleTree.getRoot().data).toBe('A');
@@ -49,7 +53,7 @@ describe('Merkle tree structure tests',  () => {
 
   test('should create a root from two leaves: [A,B]', async () => {
     const leaves = ['A', 'B'];
-    const merkleTree = new MerkleTree<string>(new StringConcat());
+    const merkleTree = new MerkleTree<string, string>(new StringConcat());
     await merkleTree.build(leaves);
 
     expect(merkleTree.getRoot().data).toBe('Hash(A + B)');
@@ -57,7 +61,7 @@ describe('Merkle tree structure tests',  () => {
 
   test('should create a root from four leaves: [A,B,C,D]', async () => {
     const leaves = ['A', 'B', 'C', 'D'];
-    const merkleTree = new MerkleTree<string>(new StringConcat());
+    const merkleTree = new MerkleTree<string, string>(new StringConcat());
     await merkleTree.build(leaves);
 
     expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + Hash(C + D))');
@@ -65,7 +69,7 @@ describe('Merkle tree structure tests',  () => {
 
   test('should create a root from four leaves: [B,D,A,C]', async () => {
     const leaves = ['B', 'D', 'A', 'C'];
-    const merkleTree = new MerkleTree<string>(new StringConcat());
+    const merkleTree = new MerkleTree<string, string>(new StringConcat());
     await merkleTree.build(leaves);
 
     expect(merkleTree.getRoot().data).toBe('Hash(Hash(B + D) + Hash(A + C))');
@@ -73,7 +77,7 @@ describe('Merkle tree structure tests',  () => {
 
   test('should create a root from four leaves (sorted): [B,D,A,C]', async () => {
     const leaves = ['B', 'D', 'A', 'C'];
-    const merkleTree = new MerkleTree<string>(new StringConcat(), new StringCompare());
+    const merkleTree = new MerkleTree<string, string>(new StringConcat(), new StringCompare());
     await merkleTree.build(leaves);
 
     expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + Hash(C + D))');
@@ -81,7 +85,7 @@ describe('Merkle tree structure tests',  () => {
 
   test('should create a root from three leaves: [A,B,C]', async () => {
     const leaves = ['A', 'B', 'C'];
-    const merkleTree = new MerkleTree<string>(new StringConcat());
+    const merkleTree = new MerkleTree<string, string>(new StringConcat());
     await merkleTree.build(leaves);
 
     expect(merkleTree.getRoot().data).toBe('Hash(A + Hash(B + C))');
@@ -89,7 +93,7 @@ describe('Merkle tree structure tests',  () => {
 
   test('should create a root from five leaves: [A,B,C,D,E]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E'];
-    const merkleTree = new MerkleTree<string>(new StringConcat());
+    const merkleTree = new MerkleTree<string, string>(new StringConcat());
     await merkleTree.build(leaves);
 
     expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + Hash(C + Hash(D + E)))');
@@ -97,7 +101,7 @@ describe('Merkle tree structure tests',  () => {
 
   test('should create a root from six leaves: [A,B,C,D,E,F]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F'];
-    const merkleTree = new MerkleTree<string>(new StringConcat());
+    const merkleTree = new MerkleTree<string, string>(new StringConcat());
     await merkleTree.build(leaves);
 
     expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + Hash(B + C)) + Hash(D + Hash(E + F)))');
@@ -105,7 +109,7 @@ describe('Merkle tree structure tests',  () => {
 
   test('should create a root from seven leaves: [A,B,C,D,E,F,G]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
-    const merkleTree = new MerkleTree<string>(new StringConcat());
+    const merkleTree = new MerkleTree<string, string>(new StringConcat());
     await merkleTree.build(leaves);
 
     expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + Hash(B + C)) + Hash(Hash(D + E) + Hash(F + G)))');
@@ -125,7 +129,7 @@ const findNodeDepth = async (node: Node<any>): Promise<number> => {
   return depth
 };
 
-const findMinAndMaxNodeDepth = async(tree: MerkleTree<any>): Promise<[number, number]> => {
+const findMinAndMaxNodeDepth = async(tree: MerkleTree<any, any>): Promise<[number, number]> => {
   let minDepth = tree.getLeaves().length
   let maxDepth = 0
 
@@ -151,7 +155,7 @@ describe('Merkle tree balance test',  () => {
     }
 
     for (const leaves of inputs) {
-      const merkleTree = new MerkleTree<string>(new StringConcat());
+      const merkleTree = new MerkleTree<string, string>(new StringConcat());
       await merkleTree.build(leaves);
 
       const [minDepth, maxDepth] = await findMinAndMaxNodeDepth(merkleTree)

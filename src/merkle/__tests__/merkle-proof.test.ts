@@ -3,9 +3,13 @@ import * as crypto from 'crypto';
 import { MergeFunction, Node } from "../merkle";
 import { MerkleTree } from '../merkle-tree';
 
-class StringConcat implements MergeFunction<string> {
-  async merge(n1: Node<string>, n2: Node<string>): Promise<Node<string>> {
-    return new Node(`Hash(${n1} + ${n2})`, n1, n2);
+class StringConcat implements MergeFunction<string, string> {
+  async merge(n1: Node<string>, n2: Node<string>, m: string | null): Promise<Node<string>> {
+    if (m) {
+      return new Node(`Hash(${n1} + ${n2} + ${m})`, n1, n2);
+    } else {
+      return new Node(`Hash(${n1} + ${n2})`, n1, n2);
+    }
   }
 }
 
@@ -15,15 +19,19 @@ const sha256 = (data: any): Uint8Array => {
 };
 
 // tslint:disable-next-line:max-classes-per-file
-class HashConcat implements MergeFunction<Uint8Array> {
-  async merge(n1: Node<Uint8Array>, n2: Node<Uint8Array>): Promise<Node<Uint8Array>> {
+class HashConcat implements MergeFunction<Uint8Array, Uint8Array> {
+  async merge(n1: Node<Uint8Array>, n2: Node<Uint8Array>, m: Uint8Array | null): Promise<Node<Uint8Array>> {
     if (!n1) {
       throw new Error('The concat function expects two hash arguments, the first was not received.');
     }
     if (!n2) {
       throw new Error('The concat function expects two hash arguments, the second was not received.');
     }
-    return new Node(sha256(Buffer.concat([n1.data, n2.data])), n1, n2);
+    const elems = [n1.data, n2.data]
+    if (m) {
+      elems.push(m)
+    }
+    return new Node(sha256(Buffer.concat(elems)), n1, n2);
   }
 }
 
@@ -44,17 +52,17 @@ const hashProof = (value: any, proof: Node<Uint8Array>[]): any => {
 };
 
 const leaves: string[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
-let lettersTree: MerkleTree<string>;
-let hashTree: MerkleTree<Uint8Array>;
+let lettersTree: MerkleTree<string, string>;
+let hashTree: MerkleTree<Uint8Array, Uint8Array>;
 
 const root = '1b0e895690b99d3bb2138f5ea55424f004901039763c420bc126ec8aa3bbca39';
 
 describe('Merkle tree proofs tests', () => {
   beforeAll(async (done) => {
-    hashTree = new MerkleTree<Uint8Array>(new HashConcat());
+    hashTree = new MerkleTree<Uint8Array, Uint8Array>(new HashConcat());
     await hashTree.build(leaves.map(sha256));
 
-    lettersTree = new MerkleTree<string>(new StringConcat());
+    lettersTree = new MerkleTree<string, string>(new StringConcat());
     await lettersTree.build(leaves);
     done();
   });

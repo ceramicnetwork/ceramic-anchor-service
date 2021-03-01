@@ -1,10 +1,13 @@
-interface MergeFunction<T> {
+import CID from 'cids';
+
+interface MergeFunction<T, M> {
   /**
    * Merges two nodes
    * @param n1 - object1
    * @param n2 - object2
+   * @param metadata - optional tree metadata, generally only given when building the root node.
    */
-  merge(n1: Node<T>, n2: Node<T>): Promise<Node<T>>;
+  merge(n1: Node<T>, n2: Node<T>, metadata: M | null): Promise<Node<T>>;
 }
 
 interface CompareFunction<T> {
@@ -14,6 +17,14 @@ interface CompareFunction<T> {
    * @param n2
    */
   compare(n1: Node<T>, n2: Node<T>): number;
+}
+
+interface MetadataFunction<T, M> {
+  /**
+   * Generates the tree metadata from the leaf nodes
+   * @param leafNodes
+   */
+  generateMetadata(leafNodes: Array<Node<T>>): M;
 }
 
 /**
@@ -37,4 +48,20 @@ enum PathDirection {
   R,
 }
 
-export { Node, MergeFunction, CompareFunction, PathDirection };
+export { Node, MergeFunction, CompareFunction, MetadataFunction, PathDirection };
+
+/**
+ * todo
+ */
+interface BloomMetadata {
+  type: string;
+  data: any;
+}
+
+/**
+ * todo
+ */
+export interface TreeMetadata {
+  numEntries: number;
+  bloomFilter: BloomMetadata;
+}

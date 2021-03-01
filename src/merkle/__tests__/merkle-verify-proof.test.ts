@@ -1,18 +1,22 @@
 import { MergeFunction, Node } from "../merkle";
 import { MerkleTree } from "../merkle-tree";
 
-class StringConcat implements MergeFunction<string> {
-  async merge(n1: Node<string>, n2: Node<string>): Promise<Node<string>> {
-    return new Node(`Hash(${n1} + ${n2})`, n1, n2);
+class StringConcat implements MergeFunction<string, string> {
+  async merge(n1: Node<string>, n2: Node<string>, m: string | null): Promise<Node<string>> {
+    if (m) {
+      return new Node(`Hash(${n1} + ${n2} + ${m})`, n1, n2);
+    } else {
+      return new Node(`Hash(${n1} + ${n2})`, n1, n2);
+    }
   }
 }
 
 const leaves: string[] = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"];
-let tree: MerkleTree<string>;
+let tree: MerkleTree<string, string>;
 
 describe("Merkle tree proof verification", () => {
   beforeAll(async (done) => {
-    tree = new MerkleTree<string>(new StringConcat());
+    tree = new MerkleTree<string, string>(new StringConcat());
     await tree.build(leaves);
     done();
   });
