@@ -12,7 +12,7 @@ if (!LOG_PATH.endsWith('/')) {
   LOG_PATH = LOG_PATH + '/';
 }
 
-const ACCESS_FILE_PATH = path.join(LOG_PATH, 'access.log');
+const ACCESS_FILE_PATH = path.join(LOG_PATH, 'http-access.log');
 const EVENTS_FILE_PATH = path.join(LOG_PATH, 'events.log');
 const METRICS_FILE_PATH = path.join(LOG_PATH, 'metrics.log');
 const DIAGNOSTICS_FILE_PATH = path.join(LOG_PATH, 'diagnostics.log');
@@ -39,12 +39,8 @@ function buildExpressMiddleware() {
     return req.path;
   });
 
-  const middleware = [morgan('combined', { stream: logger })];
-
-  if (LOG_TO_FILES) {
-    const accessLogStream = new RotatingFileStream(ACCESS_FILE_PATH, true);
-    middleware.push(morgan(ACCESS_LOG_FMT, { stream: accessLogStream }));
-  }
+  const logger = new ServiceLogger('http-access', ACCESS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
+  const middleware = [morgan(ACCESS_LOG_FMT, { stream: logger })];
 
   return middleware;
 }
