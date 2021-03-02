@@ -125,11 +125,6 @@ function createDocument(id: DocID, logLength: number) {
   return {id, metadata: {controllers: ['this is totally a did']}, state: {log}}
 }
 
-// TODO: Remove this
-async function delay(mills: number): Promise<void> {
-  await new Promise<void>(resolve => setTimeout(() => resolve(), mills))
-}
-
 describe('ETH service',  () => {
   jest.setTimeout(10000);
   let ipfsService
