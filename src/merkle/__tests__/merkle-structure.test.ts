@@ -4,7 +4,7 @@ import { MerkleTree } from '../merkle-tree';
 class StringConcat implements MergeFunction<string, string> {
   async merge(n1: Node<string>, n2: Node<string>, m: string | null): Promise<Node<string>> {
     if (m) {
-      return new Node(`Hash(${n1} + ${n2} + ${m})`, n1, n2);
+      return new Node(`Hash(${n1} + ${n2} + Metadata(${m}))`, n1, n2);
     } else {
       return new Node(`Hash(${n1} + ${n2})`, n1, n2);
     }
@@ -135,6 +135,7 @@ describe('Merkle tree structure tests',  () => {
     await merkleTree.build(leaves);
 
     expect(merkleTree.getMetadata()).toEqual("A + B + C + D")
+    expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + Hash(C + D) + Metadata(A + B + C + D))');
   });
 });
 

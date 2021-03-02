@@ -73,8 +73,16 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
     for (const node of leaves) {
       const doc = node.data.document
       bloomFilterEntries.add(`docid-${doc.id.baseID.toString()}`)
-      bloomFilterEntries.add(`schema-${doc.metadata.schema?.toString()}`)
-      bloomFilterEntries.add(`family-${doc.metadata.family}`) // todo should we use a special charactor of some kind to distingush the family "undefined" from no family?
+      if (doc.metadata.schema) {
+        bloomFilterEntries.add(`schema-${doc.metadata.schema.toString()}`)
+      } else {
+        bloomFilterEntries.add("no-schema")
+      }
+      if (doc.metadata.family) {
+        bloomFilterEntries.add(`family-${doc.metadata.family}`)
+      } else {
+        bloomFilterEntries.add("no-family")
+      }
       if (doc.metadata.tags) { // TODO should we add a marker for empty tags?
         for (const tag of doc.metadata.tags) {
           bloomFilterEntries.add(`tag-${tag}`)

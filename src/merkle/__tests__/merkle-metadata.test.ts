@@ -21,8 +21,13 @@ describe('Bloom filter',  () => {
     return new Candidate(cid, 0, doc as any)
   }
 
+  const makeMerkleTree = function() {
+    return new MerkleTree<Candidate, TreeMetadata>(
+      new IpfsMerge(ipfsService), new IpfsLeafCompare(), new BloomMetadata())
+  }
+
   test('Single document minimal metadata', async () => {
-    const merkleTree = new MerkleTree<Candidate, TreeMetadata>(new IpfsMerge(ipfsService), new IpfsLeafCompare(), new BloomMetadata())
+    const merkleTree = makeMerkleTree()
     const candidates = [createCandidate({controllers: ["a"]})]
     await merkleTree.build(candidates)
     const metadata = merkleTree.getMetadata()
@@ -34,13 +39,14 @@ describe('Bloom filter',  () => {
     expect(bloomFilter.test(`docid-${candidates[0].document.id.baseID.toString()}`)).toBeTruthy()
     expect(bloomFilter.test(`controller-a`)).toBeTruthy()
     expect(bloomFilter.test(`controller-b`)).toBeFalsy()
-    expect(bloomFilter.test(`schema-undefined`)).toBeTruthy()
-    expect(bloomFilter.test(`family-undefined`)).toBeTruthy()
-    expect(bloomFilter.test(`tags-undefined`)).toBeFalsy()
+    expect(bloomFilter.test(`no-schema`)).toBeTruthy()
+    expect(bloomFilter.test(`no-family`)).toBeTruthy()
+    expect(bloomFilter.test(`no-tag`)).toBeFalsy()
+    expect(bloomFilter.test(`no-tags`)).toBeFalsy()
   });
 
   test('Single document full metadata', async () => {
-    const merkleTree = new MerkleTree<Candidate, TreeMetadata>(new IpfsMerge(ipfsService), new IpfsLeafCompare(), new BloomMetadata())
+    const merkleTree = makeMerkleTree()
     const docMetadata = {
       controllers: ["a", "b"],
       schema: "schema",
@@ -67,7 +73,7 @@ describe('Bloom filter',  () => {
   });
 
   test('Multiple documents full metadata', async () => {
-    const merkleTree = new MerkleTree<Candidate, TreeMetadata>(new IpfsMerge(ipfsService), new IpfsLeafCompare(), new BloomMetadata())
+    const merkleTree = makeMerkleTree()
     const docMetadata0 = {
       controllers: ["a", "b"],
       schema: "schema0",
