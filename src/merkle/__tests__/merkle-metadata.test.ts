@@ -39,4 +39,79 @@ describe('Bloom filter',  () => {
     expect(bloomFilter.test(`tags-undefined`)).toBeFalsy()
   });
 
+  test('Single document full metadata', async () => {
+    const merkleTree = new MerkleTree<Candidate, TreeMetadata>(new IpfsMerge(ipfsService), new IpfsLeafCompare(), new BloomMetadata())
+    const docMetadata = {
+      controllers: ["a", "b"],
+      schema: "schema",
+      family: "family",
+      tags: ["a", "b"] }
+    const candidates = [createCandidate(docMetadata)]
+    await merkleTree.build(candidates)
+    const metadata = merkleTree.getMetadata()
+    expect(metadata.numEntries).toEqual(1)
+    expect(metadata.bloomFilter.type).toEqual("jsnpm_bloomfilter.js")
+
+    const bloomFilter = bloom.deserialize(metadata.bloomFilter.data)
+
+    expect(bloomFilter.test(`docid-${candidates[0].document.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.test(`controller-a`)).toBeTruthy()
+    expect(bloomFilter.test(`controller-b`)).toBeTruthy()
+    expect(bloomFilter.test(`controller-c`)).toBeFalsy()
+    expect(bloomFilter.test(`a`)).toBeFalsy()
+    expect(bloomFilter.test(`schema-schema`)).toBeTruthy()
+    expect(bloomFilter.test(`family-family`)).toBeTruthy()
+    expect(bloomFilter.test(`tag-a`)).toBeTruthy()
+    expect(bloomFilter.test(`tag-b`)).toBeTruthy()
+    expect(bloomFilter.test(`tag-c`)).toBeFalsy()
+  });
+
+  test('Multiple documents full metadata', async () => {
+    const merkleTree = new MerkleTree<Candidate, TreeMetadata>(new IpfsMerge(ipfsService), new IpfsLeafCompare(), new BloomMetadata())
+    const docMetadata0 = {
+      controllers: ["a", "b"],
+      schema: "schema0",
+      family: "family0",
+      tags: ["a", "b"] }
+    const docMetadata1 = {
+      controllers: ["a"],
+      schema: "schema1",
+      family: "family0",
+      tags: ["a", "b", "c", "d"] }
+    const docMetadata2 = {
+      controllers: ["b", "c"],
+      schema: "schema2",
+      family: "family1",
+      tags: ["a", "c", "e"] }
+    const candidates = [createCandidate(docMetadata0), createCandidate(docMetadata1), createCandidate(docMetadata2)]
+    await merkleTree.build(candidates)
+    const metadata = merkleTree.getMetadata()
+    expect(metadata.numEntries).toEqual(3)
+    expect(metadata.bloomFilter.type).toEqual("jsnpm_bloomfilter.js")
+
+    const bloomFilter = bloom.deserialize(metadata.bloomFilter.data)
+
+    expect(bloomFilter.test(`docid-${candidates[0].document.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.test(`docid-${candidates[1].document.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.test(`docid-${candidates[2].document.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.test(`controller-a`)).toBeTruthy()
+    expect(bloomFilter.test(`controller-b`)).toBeTruthy()
+    expect(bloomFilter.test(`controller-c`)).toBeTruthy()
+    expect(bloomFilter.test(`controller-d`)).toBeFalsy()
+    expect(bloomFilter.test(`a`)).toBeFalsy()
+    expect(bloomFilter.test(`schema-schema0`)).toBeTruthy()
+    expect(bloomFilter.test(`schema-schema1`)).toBeTruthy()
+    expect(bloomFilter.test(`schema-schema2`)).toBeTruthy()
+    expect(bloomFilter.test(`schema-schema3`)).toBeFalsy()
+    expect(bloomFilter.test(`family-family0`)).toBeTruthy()
+    expect(bloomFilter.test(`family-family1`)).toBeTruthy()
+    expect(bloomFilter.test(`family-family2`)).toBeFalsy()
+    expect(bloomFilter.test(`tag-a`)).toBeTruthy()
+    expect(bloomFilter.test(`tag-b`)).toBeTruthy()
+    expect(bloomFilter.test(`tag-c`)).toBeTruthy()
+    expect(bloomFilter.test(`tag-d`)).toBeTruthy()
+    expect(bloomFilter.test(`tag-e`)).toBeTruthy()
+    expect(bloomFilter.test(`tag-f`)).toBeFalsy()
+  });
+
 });
