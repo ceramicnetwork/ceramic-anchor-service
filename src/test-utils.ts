@@ -35,9 +35,24 @@ const RANDOM_CIDS = [
   new CID("bagcqcerah4jjbqc5abgr5mlqbf6wm6juvmu6loqhegdyq6fxqn73dsxvse6a"),
 ];
 
+export class CidGenerator {
+  private _cidIndex = 0;
+
+  next(): CID {
+    if (this._cidIndex >= RANDOM_CIDS.length) {
+      throw new Error("Used too many CIDs!");
+    }
+    return RANDOM_CIDS[this._cidIndex++]
+  }
+
+  reset() {
+    this._cidIndex = 0
+  }
+}
+
 export class MockIpfsService implements IpfsService {
 
-  constructor(private _docs: Record<string, any> = {}, private _cidIndex = 0) {}
+  constructor(private _docs: Record<string, any> = {}, private _cidGenerator = new CidGenerator()) {}
 
   async init(): Promise<void> {
     return null;
@@ -48,16 +63,13 @@ export class MockIpfsService implements IpfsService {
   }
 
   async storeRecord(record: Record<string, unknown>): Promise<CID> {
-    if (this._cidIndex >= RANDOM_CIDS.length) {
-      throw new Error("Used too many CIDs in a test!");
-    }
-    const cid = RANDOM_CIDS[this._cidIndex++];
+    const cid = this._cidGenerator.next();
     this._docs[cid.toString()] = record;
     return cid;
   }
 
   reset() {
-    this._cidIndex = 0
+    this._cidGenerator.reset()
     this._docs = {}
   }
 }
