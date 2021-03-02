@@ -51,7 +51,7 @@ enum PathDirection {
 export { Node, MergeFunction, CompareFunction, MetadataFunction, PathDirection };
 
 /**
- * todo
+ * Metadata containing a bloom filter based on the metadata of the documents in the tree
  */
 interface BloomMetadata {
   type: string;
@@ -59,7 +59,7 @@ interface BloomMetadata {
 }
 
 /**
- * todo
+ * Metadata related to the merkle tree
  */
 export interface TreeMetadata {
   numEntries: number;

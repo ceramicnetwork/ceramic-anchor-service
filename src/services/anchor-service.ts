@@ -3,10 +3,7 @@ import CID from "cids";
 import { RequestStatus as RS } from "../models/request-status";
 
 import { MerkleTree } from "../merkle/merkle-tree";
-import {
-  PathDirection,
-  TreeMetadata,
-} from '../merkle/merkle';
+import { PathDirection, TreeMetadata } from '../merkle/merkle';
 
 import { config } from "node-config-ts";
 import { Transactional } from "typeorm-transactional-cls-hooked";
