@@ -51,8 +51,9 @@ export class CidGenerator {
 }
 
 export class MockIpfsService implements IpfsService {
+  private _docs: Record<string, any> = {}
 
-  constructor(private _docs: Record<string, any> = {}, private _cidGenerator = new CidGenerator()) {}
+  constructor(private _cidGenerator = new CidGenerator()) {}
 
   async init(): Promise<void> {
     return null;
