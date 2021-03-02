@@ -1,13 +1,9 @@
 import CID from "cids";
 
-import { Doctype, DoctypeUtils } from '@ceramicnetwork/common';
 import { RequestStatus as RS } from "../models/request-status";
 
 import { MerkleTree } from "../merkle/merkle-tree";
 import {
-  CompareFunction,
-  MergeFunction, MetadataFunction,
-  Node,
   PathDirection,
   TreeMetadata,
 } from '../merkle/merkle';
@@ -28,88 +24,7 @@ import CeramicService from "./ceramic-service";
 import BlockchainService from "./blockchain/blockchain-service";
 import { inject, singleton } from "tsyringe";
 import DocID from '@ceramicnetwork/docid';
-import bloom from 'bloomfilter.js';
-
-const BLOOM_FILTER_TYPE = "jsnpm_bloom_filter";
-const BLOOM_FILTER_ERROR_RATE = 0.01;
-
-class Candidate {
-  public readonly cid: CID;
-  public readonly document: Doctype;
-  public readonly reqId: number;
-
-  constructor(cid: CID, reqId?: number, document?: Doctype) {
-    this.cid = cid;
-    this.reqId = reqId;
-    this.document = document
-  }
-
-  get docId(): string {
-    return this.document.id.baseID.toString()
-  }
-
-}
-
-/**
- * Implements IPFS merge CIDs
- */
-class IpfsMerge implements MergeFunction<Candidate, TreeMetadata> {
-  private ipfsService: IpfsService;
-
-  constructor(ipfsService: IpfsService) {
-    this.ipfsService = ipfsService;
-  }
-
-  async merge(left: Node<Candidate>, right: Node<Candidate>, metadata: TreeMetadata | null): Promise<Node<Candidate>> {
-    const merged = [left.data.cid, right.data.cid];
-    if (metadata) {
-      const metadataCid = await this.ipfsService.storeRecord(metadata);
-      merged.push(metadataCid)
-    }
-
-    const mergedCid = await this.ipfsService.storeRecord(merged);
-    logger.debug('Merkle node ' + mergedCid + ' created.');
-    return new Node<Candidate>(new Candidate(mergedCid), left, right);
-  }
-}
-
-/**
- * Implements IPFS merge CIDs
- */
-class IpfsLeafCompare implements CompareFunction<Candidate> {
-  compare(left: Node<Candidate>, right: Node<Candidate>): number {
-    return left.data.docId.localeCompare(right.data.docId);
-  }
-}
-
-/**
- * Implements IPFS merge CIDs
- */
-class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> {
-  generateMetadata(leaves: Array<Node<Candidate>>): TreeMetadata {
-    const bloomFilterEntries = new Set<string>()
-    for (const node of leaves) {
-      const doc = node.data.document
-      bloomFilterEntries.add(`docid-${doc.id.baseID.toString()}`)
-      bloomFilterEntries.add(`schema-${doc.metadata.schema?.toString()}`)
-      bloomFilterEntries.add(`family-${doc.metadata.family}`)
-      if (doc.metadata.tags) {
-        for (const tag of doc.metadata.tags) {
-          bloomFilterEntries.add(`tag-${tag}`)
-        }
-      }
-      for (const controller of doc.metadata.controllers) {
-        bloomFilterEntries.add(`controller-${controller.toString()}`)
-      }
-    }
-    const bloomFilter = new bloom(bloomFilterEntries.size)
-    for (const entry of bloomFilterEntries) {
-      bloomFilter.add(entry)
-    }
-    return { numEntries: leaves.length,
-             bloomFilter: {type: BLOOM_FILTER_TYPE, data: bloomFilter.serialize()} }
-  }
-}
+import { BloomMetadata, Candidate, IpfsLeafCompare, IpfsMerge } from '../merkle/merkle-objects';
 
 /**
  * Anchors CIDs to blockchain
