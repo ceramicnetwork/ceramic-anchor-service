@@ -1,4 +1,4 @@
-import { MergeFunction, Node, CompareFunction } from '../merkle';
+import { MergeFunction, Node, CompareFunction, MetadataFunction, TreeMetadata } from '../merkle';
 import { MerkleTree } from '../merkle-tree';
 
 class StringConcat implements MergeFunction<string, string> {
@@ -15,6 +15,20 @@ class StringConcat implements MergeFunction<string, string> {
 class StringCompare implements CompareFunction<string> {
   compare(n1: Node<string>, n2: Node<string>): number {
     return n1.data.localeCompare(n2.data);
+  }
+}
+
+class StringConcatMetadata implements MetadataFunction<string, string> {
+  generateMetadata(leaves: Array<Node<string>>): string {
+    let res
+    for (const node of leaves) {
+      if (res) {
+        res = res + " + " + node.data
+      } else {
+        res = node.data
+      }
+    }
+    return res
   }
 }
 
@@ -113,6 +127,14 @@ describe('Merkle tree structure tests',  () => {
     await merkleTree.build(leaves);
 
     expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + Hash(B + C)) + Hash(Hash(D + E) + Hash(F + G)))');
+  });
+
+  test('should create metadata', async () => {
+    const leaves = ['B', 'D', 'A', 'C'];
+    const merkleTree = new MerkleTree<string, string>(new StringConcat(), new StringCompare(), new StringConcatMetadata());
+    await merkleTree.build(leaves);
+
+    expect(merkleTree.getMetadata()).toEqual("A + B + C + D")
   });
 });
 
