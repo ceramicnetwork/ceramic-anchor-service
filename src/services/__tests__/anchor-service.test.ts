@@ -10,91 +10,6 @@ import { Request } from "../../models/request";
 import { RequestStatus } from "../../models/request-status";
 import AnchorService from "../anchor-service";
 
-// A set of random valid CIDs to use in tests
-// TODO write a random CID generator and use that instead of this list
-const randomCIDs = [
-  new CID("bafybeig6xv5nwphfmvcnektpnojts77jqcuam7bmye2pb54adnrtccjlsu"),
-  new CID("bafybeig6xv5nwphfmvcnektpnojts66jqcuam7bmye2pb54adnrtccjlsu"),
-  new CID("bafybeig6xv5nwphfmvcnektpnojts55jqcuam7bmye2pb54adnrtccjlsu"),
-  new CID("bafybeig6xv5nwphfmvcnektpnojts44jqcuam7bmye2pb54adnrtccjlsu"),
-  new CID("bafybeig6xv5nwphfmvcnektpnojts33jqcuam7bmye2pb54adnrtccjlsu"),
-  new CID("bafybeig6xv5nwphfmvcnektpnojts22jqcuam7bmye2pb54adnrtccjlsu"),
-  new CID("bagcqcera6jlmswuihr6fx6e5dmpkxsuh25acrgt4zg4xnajohfqhneawyvqa"),
-  new CID("bagcqceraetdzvhnw2jdjvoxbwufxwbw55n5xafd6z3o2emph3647uzdqaaia"),
-  new CID("bagcqceraxfvyjsaaepdgghfnbmow7hpylcs3azvjrmczcuaxxraow355ucba"),
-  new CID("bagcqcerak3cgizcpx6d6lzk6mduhbjnmuqaqoxlmscquqpy6hw72ocna54da"),
-  new CID("bagcqceracggxyb4tfbbzcmqtmvnosq355yiirvnexpj6uzv772dem3hgf7ca"),
-  new CID("bagcqceraxgc33kqes6d34cnkjcapy6jjo7yjzszvkwyclsdhey2ij3fxqjva"),
-  new CID("bagcqcera4gpni4oqh3q4npyxqpmvp7abo3uo6jdot4m2c3rsn7gdhrxks4wa"),
-  new CID("bagcqcera7h3h6frsr5mdb37zeozowti7do4tipmrof7f77su4vplyskz647q"),
-  new CID("bagcqcera7riqdpj7nlqoqzomkpvl77wkkti47esi53pih5mq6s3lvphngr6a"),
-  new CID("bagcqcera2obsxj7olbjjjcsgae6yfd2i66k6ws25zrfgan4qnqchzfglbylq"),
-  new CID("bagcqceraxn27zerw7wpps2uonf6x2fkldfhhnwaulgspu65dbr3j5cltjw7q"),
-  new CID("bagcqcera6roxwdpjdocfv6lchvog4uo7algdbrh2tedp64u2o3dmrij4e64a"),
-  new CID("bagcqceraxj62ebctzvszj4smdeyrd2uukxrs3wmc4pdznimkrpx6l4bo4bjq"),
-  new CID("bagcqceragv2qvqka7k3od4wdqlamz6lej3i63fbkssxkovqbmvrqnmrwzwhq"),
-  new CID("bagcqcerab3b2hyts6caulbcgpal3cxtgsnkeuposp3wqr55zy5ih5bw65qka"),
-  new CID("bagcqcera7ridgjuj5yxu427jbv3yixmavl2mnwyta25xciqaeljpcgpbyq2a"),
-  new CID("bagcqceragvpqmxwopagdjy67xbcidn7uks467y7sdkenbfovszaz25tirycq"),
-  new CID("bagcqceraej5ixcmax6lv5f5zjol733hsaz3s6lb24qmokg5fb7j72dmghtja"),
-  new CID("bagcqcerankz427e6c4jvszhiaew6b26mwkuhx6nvdod6g36xohmsujxbvjma"),
-  new CID("bagcqceraj2psqqlu62bebwt5dnw3zswkyyquphv5zftz3bfn373xq7t53n3a"),
-  new CID("bagcqcerah4jjbqc5abgr5mlqbf6wm6juvmu6loqhegdyq6fxqn73dsxvse6a"),
-];
-
-class MockIpfsService implements IpfsService {
-
-  constructor(private _docs: Record<string, any> = {}, private _cidIndex = 0) {}
-
-  async init(): Promise<void> {
-    return null;
-  }
-
-  async retrieveRecord(cid: CID | string): Promise<any> {
-    return this._docs[cid.toString()];
-  }
-
-  async storeRecord(record: Record<string, unknown>): Promise<CID> {
-    if (this._cidIndex >= randomCIDs.length) {
-      throw new Error("Used too many CIDs in a test!");
-    }
-    const cid = randomCIDs[this._cidIndex++];
-    this._docs[cid.toString()] = record;
-    return cid;
-  }
-
-  reset() {
-    this._cidIndex = 0
-    this._docs = {}
-  }
-}
-
-class MockCeramicService implements CeramicService {
-  constructor(private _docs: Record<string, any> = {}, private _cidIndex = 0) {}
-
-  async loadDocument(docId: DocID): Promise<any> {
-    return this._docs[docId.toString()]
-  }
-
-  // Mock-only method to control what gets returned by loadDocument()
-  putDocument(id: DocID, doc: any) {
-    this._docs[id.toString()] = doc
-  }
-
-  // Mock-only method to generate a random base DocID
-  generateBaseDocID(): DocID {
-    if (this._cidIndex >= randomCIDs.length) {
-      throw new Error("Used too many DocIDs in a test!");
-    }
-    return new DocID('tile', randomCIDs[this._cidIndex++])
-  }
-
-  reset() {
-    this._cidIndex = 0
-    this._docs = {}
-  }
-}
-
 import DBConnection from './db-connection';
 
 import EthereumBlockchainService from "../blockchain/ethereum/ethereum-blockchain-service";
@@ -102,11 +17,11 @@ jest.mock("../blockchain/ethereum/ethereum-blockchain-service");
 
 import { initializeTransactionalContext } from 'typeorm-transactional-cls-hooked';
 import RequestRepository from "../../repositories/request-repository";
-import { CeramicService } from "../ceramic-service";
 import { IpfsService } from "../ipfs-service";
 import AnchorRepository from "../../repositories/anchor-repository";
 import { config } from 'node-config-ts';
 import DocID from '@ceramicnetwork/docid';
+import { MockCeramicService, MockIpfsService } from '../../test-utils';
 
 initializeTransactionalContext();
 
