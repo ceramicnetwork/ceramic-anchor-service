@@ -122,7 +122,7 @@ async function createRequest(docId: string, ipfsService: IpfsService): Promise<R
 
 function createDocument(id: DocID, logLength: number) {
   const log = new Array(logLength)
-  return {id, controllers: ['this is totally a did'], state: {log}}
+  return {id, metadata: {controllers: ['this is totally a did']}, state: {log}}
 }
 
 // TODO: Remove this

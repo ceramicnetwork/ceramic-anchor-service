@@ -28,6 +28,10 @@ import CeramicService from "./ceramic-service";
 import BlockchainService from "./blockchain/blockchain-service";
 import { inject, singleton } from "tsyringe";
 import DocID from '@ceramicnetwork/docid';
+import bloom from 'bloomfilter.js';
+
+const BLOOM_FILTER_TYPE = "jsnpm_bloom_filter";
+const BLOOM_FILTER_ERROR_RATE = 0.01;
 
 class Candidate {
   public readonly cid: CID;
@@ -83,7 +87,27 @@ class IpfsLeafCompare implements CompareFunction<Candidate> {
  */
 class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> {
   generateMetadata(leaves: Array<Node<Candidate>>): TreeMetadata {
-    return null
+    const bloomFilterEntries = new Set<string>()
+    for (const node of leaves) {
+      const doc = node.data.document
+      bloomFilterEntries.add(`docid-${doc.id.baseID.toString()}`)
+      bloomFilterEntries.add(`schema-${doc.metadata.schema?.toString()}`)
+      bloomFilterEntries.add(`family-${doc.metadata.family}`)
+      if (doc.metadata.tags) {
+        for (const tag of doc.metadata.tags) {
+          bloomFilterEntries.add(`tag-${tag}`)
+        }
+      }
+      for (const controller of doc.metadata.controllers) {
+        bloomFilterEntries.add(`controller-${controller.toString()}`)
+      }
+    }
+    const bloomFilter = new bloom(bloomFilterEntries.size)
+    for (const entry of bloomFilterEntries) {
+      bloomFilter.add(entry)
+    }
+    return { numEntries: leaves.length,
+             bloomFilter: {type: BLOOM_FILTER_TYPE, data: bloomFilter.serialize()} }
   }
 }
 
