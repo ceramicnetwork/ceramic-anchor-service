@@ -14,7 +14,7 @@ import { IpfsService } from '../services/ipfs-service';
 import { BloomFilter } from 'bloom-filters';
 
 const BLOOM_FILTER_TYPE = "jsnpm_bloom-filters";
-const BLOOM_FILTER_FALSE_POSITIVE_RATE = 0.001
+const BLOOM_FILTER_FALSE_POSITIVE_RATE = 0.0001
 
 export class Candidate {
   public readonly cid: CID;
