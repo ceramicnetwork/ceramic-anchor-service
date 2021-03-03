@@ -3,7 +3,7 @@ import { MerkleTree } from '../merkle-tree';
 import { TreeMetadata } from '../merkle';
 import { BloomMetadata, Candidate, IpfsLeafCompare, IpfsMerge } from '../merkle-objects';
 import DocID from '@ceramicnetwork/docid';
-import bloom from 'bloomfilter.js';
+import { BloomFilter } from 'bloom-filters';
 
 describe('Bloom filter',  () => {
   jest.setTimeout(10000);
@@ -32,13 +32,14 @@ describe('Bloom filter',  () => {
     await merkleTree.build(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(1)
-    expect(metadata.bloomFilter.type).toEqual("jsnpm_bloomfilter.js")
+    expect(metadata.bloomFilter.type).toEqual("jsnpm_bloom-filters")
 
-    const bloomFilter = bloom.deserialize(metadata.bloomFilter.data)
+    // @ts-ignore
+    const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
 
-    expect(bloomFilter.test(`docid-${candidates[0].document.id.baseID.toString()}`)).toBeTruthy()
-    expect(bloomFilter.test(`controller-a`)).toBeTruthy()
-    expect(bloomFilter.test(`controller-b`)).toBeFalsy()
+    expect(bloomFilter.has(`docid-${candidates[0].document.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`controller-a`)).toBeTruthy()
+    expect(bloomFilter.has(`controller-b`)).toBeFalsy()
   });
 
   test('Single document full metadata', async () => {
@@ -52,20 +53,21 @@ describe('Bloom filter',  () => {
     await merkleTree.build(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(1)
-    expect(metadata.bloomFilter.type).toEqual("jsnpm_bloomfilter.js")
+    expect(metadata.bloomFilter.type).toEqual("jsnpm_bloom-filters")
 
-    const bloomFilter = bloom.deserialize(metadata.bloomFilter.data)
+    // @ts-ignore
+    const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
 
-    expect(bloomFilter.test(`docid-${candidates[0].document.id.baseID.toString()}`)).toBeTruthy()
-    expect(bloomFilter.test(`controller-a`)).toBeTruthy()
-    expect(bloomFilter.test(`controller-b`)).toBeTruthy()
-    expect(bloomFilter.test(`controller-c`)).toBeFalsy()
-    expect(bloomFilter.test(`a`)).toBeFalsy()
-    expect(bloomFilter.test(`schema-schema`)).toBeTruthy()
-    expect(bloomFilter.test(`family-family`)).toBeTruthy()
-    expect(bloomFilter.test(`tag-a`)).toBeTruthy()
-    expect(bloomFilter.test(`tag-b`)).toBeTruthy()
-    expect(bloomFilter.test(`tag-c`)).toBeFalsy()
+    expect(bloomFilter.has(`docid-${candidates[0].document.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`controller-a`)).toBeTruthy()
+    expect(bloomFilter.has(`controller-b`)).toBeTruthy()
+    expect(bloomFilter.has(`controller-c`)).toBeFalsy()
+    expect(bloomFilter.has(`a`)).toBeFalsy()
+    expect(bloomFilter.has(`schema-schema`)).toBeTruthy()
+    expect(bloomFilter.has(`family-family`)).toBeTruthy()
+    expect(bloomFilter.has(`tag-a`)).toBeTruthy()
+    expect(bloomFilter.has(`tag-b`)).toBeTruthy()
+    expect(bloomFilter.has(`tag-c`)).toBeFalsy()
   });
 
   test('Multiple documents full metadata', async () => {
@@ -89,31 +91,32 @@ describe('Bloom filter',  () => {
     await merkleTree.build(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(3)
-    expect(metadata.bloomFilter.type).toEqual("jsnpm_bloomfilter.js")
+    expect(metadata.bloomFilter.type).toEqual("jsnpm_bloom-filters")
 
-    const bloomFilter = bloom.deserialize(metadata.bloomFilter.data)
+    // @ts-ignore
+    const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
 
-    expect(bloomFilter.test(`docid-${candidates[0].document.id.baseID.toString()}`)).toBeTruthy()
-    expect(bloomFilter.test(`docid-${candidates[1].document.id.baseID.toString()}`)).toBeTruthy()
-    expect(bloomFilter.test(`docid-${candidates[2].document.id.baseID.toString()}`)).toBeTruthy()
-    expect(bloomFilter.test(`controller-a`)).toBeTruthy()
-    expect(bloomFilter.test(`controller-b`)).toBeTruthy()
-    expect(bloomFilter.test(`controller-c`)).toBeTruthy()
-    expect(bloomFilter.test(`controller-d`)).toBeFalsy()
-    expect(bloomFilter.test(`a`)).toBeFalsy()
-    expect(bloomFilter.test(`schema-schema0`)).toBeTruthy()
-    expect(bloomFilter.test(`schema-schema1`)).toBeTruthy()
-    expect(bloomFilter.test(`schema-schema2`)).toBeTruthy()
-    expect(bloomFilter.test(`schema-schema3`)).toBeFalsy()
-    expect(bloomFilter.test(`family-family0`)).toBeTruthy()
-    expect(bloomFilter.test(`family-family1`)).toBeTruthy()
-    expect(bloomFilter.test(`family-family2`)).toBeFalsy()
-    expect(bloomFilter.test(`tag-a`)).toBeTruthy()
-    expect(bloomFilter.test(`tag-b`)).toBeTruthy()
-    expect(bloomFilter.test(`tag-c`)).toBeTruthy()
-    expect(bloomFilter.test(`tag-d`)).toBeTruthy()
-    expect(bloomFilter.test(`tag-e`)).toBeTruthy()
-    expect(bloomFilter.test(`tag-f`)).toBeFalsy()
+    expect(bloomFilter.has(`docid-${candidates[0].document.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`docid-${candidates[1].document.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`docid-${candidates[2].document.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`controller-a`)).toBeTruthy()
+    expect(bloomFilter.has(`controller-b`)).toBeTruthy()
+    expect(bloomFilter.has(`controller-c`)).toBeTruthy()
+    expect(bloomFilter.has(`controller-d`)).toBeFalsy()
+    expect(bloomFilter.has(`a`)).toBeFalsy()
+    expect(bloomFilter.has(`schema-schema0`)).toBeTruthy()
+    expect(bloomFilter.has(`schema-schema1`)).toBeTruthy()
+    expect(bloomFilter.has(`schema-schema2`)).toBeTruthy()
+    expect(bloomFilter.has(`schema-schema3`)).toBeFalsy()
+    expect(bloomFilter.has(`family-family0`)).toBeTruthy()
+    expect(bloomFilter.has(`family-family1`)).toBeTruthy()
+    expect(bloomFilter.has(`family-family2`)).toBeFalsy()
+    expect(bloomFilter.has(`tag-a`)).toBeTruthy()
+    expect(bloomFilter.has(`tag-b`)).toBeTruthy()
+    expect(bloomFilter.has(`tag-c`)).toBeTruthy()
+    expect(bloomFilter.has(`tag-d`)).toBeTruthy()
+    expect(bloomFilter.has(`tag-e`)).toBeTruthy()
+    expect(bloomFilter.has(`tag-f`)).toBeFalsy()
   });
 
 });

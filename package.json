@@ -39,7 +39,7 @@
       "@overnightjs/core": "^1.7.5",
       "aws-cron-parser": "1.1.5",
       "base64url": "^3.0.1",
-      "bloomfilter.js": "^1.0.0",
+      "bloom-filters": "^1.3.1",
       "colors": "^1.3.3",
       "config.ts": "^1.0.0",
       "cors": "^2.8.5",

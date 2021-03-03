@@ -11,9 +11,10 @@ import {
 import { logger } from '../logger';
 import { IpfsService } from '../services/ipfs-service';
 
-import bloom from 'bloomfilter.js';
+import { BloomFilter } from 'bloom-filters';
 
-const BLOOM_FILTER_TYPE = "jsnpm_bloomfilter.js";
+const BLOOM_FILTER_TYPE = "jsnpm_bloom-filters";
+const BLOOM_FILTER_FALSE_POSITIVE_RATE = 0.001
 
 export class Candidate {
   public readonly cid: CID;
@@ -88,11 +89,10 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
         bloomFilterEntries.add(`controller-${controller.toString()}`)
       }
     }
-    const bloomFilter = new bloom(bloomFilterEntries.size)
-    for (const entry of bloomFilterEntries) {
-      bloomFilter.add(entry)
-    }
+    const bloomFilter = BloomFilter.from(bloomFilterEntries, BLOOM_FILTER_FALSE_POSITIVE_RATE)
+    // @ts-ignore
+    const serializedBloomFilter = bloomFilter.saveAsJSON()
     return { numEntries: leaves.length,
-             bloomFilter: {type: BLOOM_FILTER_TYPE, data: bloomFilter.serialize()} }
+             bloomFilter: {type: BLOOM_FILTER_TYPE, data: serializedBloomFilter} }
   }
 }
