@@ -75,15 +75,11 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
       bloomFilterEntries.add(`docid-${doc.id.baseID.toString()}`)
       if (doc.metadata.schema) {
         bloomFilterEntries.add(`schema-${doc.metadata.schema.toString()}`)
-      } else {
-        bloomFilterEntries.add("no-schema")
       }
       if (doc.metadata.family) {
         bloomFilterEntries.add(`family-${doc.metadata.family}`)
-      } else {
-        bloomFilterEntries.add("no-family")
       }
-      if (doc.metadata.tags) { // TODO should we add a marker for empty tags?
+      if (doc.metadata.tags) {
         for (const tag of doc.metadata.tags) {
           bloomFilterEntries.add(`tag-${tag}`)
         }

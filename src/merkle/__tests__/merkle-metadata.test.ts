@@ -39,10 +39,6 @@ describe('Bloom filter',  () => {
     expect(bloomFilter.test(`docid-${candidates[0].document.id.baseID.toString()}`)).toBeTruthy()
     expect(bloomFilter.test(`controller-a`)).toBeTruthy()
     expect(bloomFilter.test(`controller-b`)).toBeFalsy()
-    expect(bloomFilter.test(`no-schema`)).toBeTruthy()
-    expect(bloomFilter.test(`no-family`)).toBeTruthy()
-    expect(bloomFilter.test(`no-tag`)).toBeFalsy()
-    expect(bloomFilter.test(`no-tags`)).toBeFalsy()
   });
 
   test('Single document full metadata', async () => {
