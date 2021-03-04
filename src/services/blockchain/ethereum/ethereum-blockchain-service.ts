@@ -15,6 +15,9 @@ const BASE_CHAIN_ID = "eip155";
 const TX_FAILURE = 0;
 const TX_SUCCESS = 1;
 
+const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
+const TRANSACTION_TIMEOUT = 60 * 60 * 1000 // 1 hour
+
 /**
  * Ethereum blockchain service
  */
@@ -37,6 +40,8 @@ export default class EthereumBlockchainService implements BlockchainService {
     } else {
       this.provider = ethers.getDefaultProvider(network);
     }
+
+    this.provider.pollingInterval = POLLING_INTERVAL
 
     await this.provider.getNetwork();
     await this._loadChainId();
@@ -131,7 +136,7 @@ export default class EthereumBlockchainService implements BlockchainService {
           throw new Error("Chain ID of connected blockchain changed from " + this.chainId + " to " + caip2ChainId)
         }
 
-        const txReceipt: providers.TransactionReceipt = await this.provider.waitForTransaction(txResponse.hash);
+        const txReceipt: providers.TransactionReceipt = await this.provider.waitForTransaction(txResponse.hash, 1, TRANSACTION_TIMEOUT);
         logEvent.ethereum({
           type: 'txReceipt',
           ...txReceipt
