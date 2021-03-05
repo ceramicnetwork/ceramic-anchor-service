@@ -61,7 +61,7 @@ describe('ETH service',  () => {
     // can be off slightly.  So we test it manually here instead.
     const blockTimestamp = tx.blockTimestamp
     delete tx.blockTimestamp
-    const startTimeSeconds = blockchainStartTime.getTime() / 1000
+    const startTimeSeconds = Math.floor(blockchainStartTime.getTime() / 1000)
     expect(blockTimestamp).toBeGreaterThan(startTimeSeconds)
     expect(blockTimestamp).toBeLessThan(startTimeSeconds + 5)
 
