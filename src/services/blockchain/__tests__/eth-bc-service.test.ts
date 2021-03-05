@@ -16,6 +16,7 @@ let ethBc: BlockchainService = null;
 
 describe('ETH service',  () => {
   jest.setTimeout(25000);
+  const blockchainStartTime = new Date(1586784002000)
   beforeAll(async () => {
     container.register("blockchainService", {
       useClass: EthereumBlockchainService
@@ -25,7 +26,7 @@ describe('ETH service',  () => {
 
     ganacheServer = Ganache.server({
       gasLimit: 7000000,
-      time: new Date(1586784002855),
+      time: blockchainStartTime,
       mnemonic: 'move sense much taxi wave hurry recall stairs thank brother nut woman',
       default_balance_ether: 100,
       debug: true,
@@ -55,6 +56,15 @@ describe('ETH service',  () => {
     const cid = new CID('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni');
     const tx = await ethBc.sendTransaction(cid);
     expect(tx).toBeDefined();
+
+    // checking the timestamp against the snapshot is too brittle since if the test runs slowly it
+    // can be off slightly.  So we test it manually here instead.
+    const blockTimestamp = tx.blockTimestamp
+    delete tx.blockTimestamp
+    const startTimeSeconds = blockchainStartTime.getTime() / 1000
+    expect(blockTimestamp).toBeGreaterThan(startTimeSeconds)
+    expect(blockTimestamp).toBeLessThan(startTimeSeconds + 5)
+
     expect(tx).toMatchSnapshot();
   });
 
