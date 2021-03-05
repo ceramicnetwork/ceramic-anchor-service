@@ -119,6 +119,7 @@ export default class EthereumBlockchainService implements BlockchainService {
       data: hexEncoded,
       nonce: baseNonce,
     };
+    const transactionTimeoutSecs = config.blockchain.connectors.ethereum.transactionTimeoutSecs
 
     let attemptNum = 0;
     while (attemptNum < MAX_RETRIES) {
@@ -149,7 +150,7 @@ export default class EthereumBlockchainService implements BlockchainService {
         }
 
         const txReceipt: providers.TransactionReceipt = await this.provider.waitForTransaction(
-          txResponse.hash, 1, config.blockchain.connectors.ethereum.transactionTimeoutSecs * 1000);
+          txResponse.hash, 1, transactionTimeoutSecs * 1000);
         logEvent.ethereum({
           type: 'txReceipt',
           ...txReceipt
@@ -186,6 +187,13 @@ export default class EthereumBlockchainService implements BlockchainService {
               logger.err(errMsg);
               throw new Error(errMsg);
             }
+          } else if (code === ErrorCode.TIMEOUT) {
+            logEvent.ethereum({
+              type: 'transactionTimeout',
+              transactionTimeoutSecs,
+            });
+            logger.err(`Transaction timed out after ${transactionTimeoutSecs} seconds without being mined`);
+            // Fall through and retry if we have retries remaining
           }
         }
 
