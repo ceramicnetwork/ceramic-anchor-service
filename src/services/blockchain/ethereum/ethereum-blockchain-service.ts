@@ -10,6 +10,7 @@ import { logger, logEvent, logMetric } from "../../../logger";
 import Transaction from "../../../models/transaction";
 import BlockchainService from "../blockchain-service";
 import { TransactionRequest } from "@ethersproject/abstract-provider";
+import Utils from '../../../utils';
 
 const BASE_CHAIN_ID = "eip155";
 const TX_FAILURE = 0;
@@ -202,7 +203,7 @@ export default class EthereumBlockchainService implements BlockchainService {
           throw new Error("Failed to send transaction");
         } else {
           logger.warn(`Failed to send transaction; ${MAX_RETRIES - attemptNum} retries remain`)
-          await new Promise(resolve => setTimeout(resolve, 5000));
+          await Utils.delay(5000)
         }
       }
     }
