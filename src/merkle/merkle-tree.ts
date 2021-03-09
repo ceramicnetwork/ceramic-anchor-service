@@ -1,25 +1,29 @@
-import { CompareFunction, MergeFunction, Node, PathDirection } from './merkle';
+import { CompareFunction, MergeFunction, MetadataFunction, Node, PathDirection, TreeMetadata } from './merkle';
 
 /**
  * Merkle tree structure
  */
-export class MerkleTree<T> {
+export class MerkleTree<T, M> {
   private root: Node<T>;
   private leaves: Node<T>[];
-  private readonly mergeFn: MergeFunction<T>;
+  private metadata: M;
+  private readonly mergeFn: MergeFunction<T, M>;
   private readonly compareFn: CompareFunction<T> | undefined;
+  private readonly metadataFn: MetadataFunction<T, M> | undefined;
   private readonly depthLimit: number;
 
   /**
    * Default constructor
    * @param mergeFn - fn that merges nodes at lower levels to produce nodes for higher levels of the tree
    * @param compareFn - fn for sorting the leaves before building the tree
+   * @param metadataFn - fn for generating the tree metadata from the leaves
    * @param depthLimit - limit to the number of levels the tree is allowed to have
    */
-  constructor(mergeFn: MergeFunction<T>, compareFn?: CompareFunction<T>, depthLimit?: number) {
+  constructor(mergeFn: MergeFunction<T, M>, compareFn?: CompareFunction<T>, metadataFn?: MetadataFunction<T, M>, depthLimit?: number) {
     this.mergeFn = mergeFn;
     this.compareFn = compareFn;
-    this.depthLimit = depthLimit
+    this.metadataFn = metadataFn;
+    this.depthLimit = depthLimit;
   }
 
   /**
@@ -35,7 +39,10 @@ export class MerkleTree<T> {
     if (this.compareFn) {
       this.leaves.sort(this.compareFn.compare);
     }
-    this.root = await this._buildHelper(this.leaves);
+
+    this.metadata = this.metadataFn ? await this.metadataFn.generateMetadata(this.leaves) : null
+
+    this.root = await this._buildHelper(this.leaves, 0, this.metadata);
   }
 
   /**
@@ -43,9 +50,10 @@ export class MerkleTree<T> {
    * @param elements - Sorted array of elements
    * @param treeDepth - Counter incremented with each recursive call that keeps tracks of the number
    *   of levels in the merkle tree
+   * @param treeMetadata - metadata to add to merged node.  Should only be set for the root level.
    * @returns root of the merkle tree for the given elements
    */
-  private async _buildHelper(elements: Node<T>[], treeDepth = 0): Promise<Node<T>> {
+  private async _buildHelper(elements: Node<T>[], treeDepth: number, treeMetadata: M): Promise<Node<T>> {
     if (elements == null) {
       throw new Error('Cannot generate Merkle structure with no elements');
     }
@@ -62,9 +70,9 @@ export class MerkleTree<T> {
     const middleIndex = Math.trunc(elements.length / 2)
     const leftElements = elements.slice(0, middleIndex)
     const rightElements = elements.slice(middleIndex)
-    const leftNode = await this._buildHelper(leftElements, treeDepth + 1)
-    const rightNode = await this._buildHelper(rightElements, treeDepth + 1)
-    const merged = await this.mergeFn.merge(leftNode, rightNode);
+    const leftNode = await this._buildHelper(leftElements, treeDepth + 1, null)
+    const rightNode = await this._buildHelper(rightElements, treeDepth + 1, null)
+    const merged = await this.mergeFn.merge(leftNode, rightNode, treeMetadata);
     leftNode.parent = merged
     rightNode.parent = merged
     return merged
@@ -83,6 +91,13 @@ export class MerkleTree<T> {
    */
   public getLeaves(): T[] {
     return this.leaves.map(n => n.data);
+  }
+
+  /**
+   * Gets tree metadata
+   */
+  public getMetadata(): M {
+    return this.metadata
   }
 
   /**
@@ -130,10 +145,12 @@ export class MerkleTree<T> {
     let current = new Node(element, null, null);
     for (const p of proof) {
       const left = p.parent.left == p
+      const isRoot = p == proof[proof.length - 1]
+      const metadata = isRoot ? this.metadata : null
       if (left) {
-        current = await this.mergeFn.merge(p, current);
+        current = await this.mergeFn.merge(p, current, metadata);
       } else {
-        current = await this.mergeFn.merge(current, p);
+        current = await this.mergeFn.merge(current, p, metadata);
       }
     }
     return this.getRoot().data === current.data;

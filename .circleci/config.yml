@@ -1,9 +1,5 @@
 version: 2.1
 
-orbs:
-  aws-ecr: circleci/aws-ecr@6.8.1
-  aws-cli: circleci/aws-cli@1.0.0
-
 jobs:
   test:
     working_directory: ~/cas
@@ -44,40 +40,7 @@ jobs:
           paths:
             - ./node_modules
 
-# TODO: Update cluster and service names
-  deploy-dev:
-    working_directory: ~/cas
-    docker:
-      - image: circleci/python:3.7.1
-    environment:
-      AWS_PAGER: ''
-    steps:
-      - aws-cli/install
-      - aws-cli/setup
-      - run:
-          name: Deploy CAS API Service
-          command: aws ecs update-service --force-new-deployment --cluster  cas-ecs-cluster-dev  --service cas-api-ecs-service-dev
-      - run:
-          name: Deploy CAS Anchor Service
-          command: aws ecs update-service --force-new-deployment --cluster  cas-ecs-cluster-dev  --service cas-anchor-ecs-service-dev
-
 workflows:
-  build-deploy:
+  test:
     jobs:
       - test
-      - aws-ecr/build-and-push-image:
-          name: push-dev-image
-          repo: cas
-          tag: develop
-          requires:
-            - test
-          extra-build-args: --build-arg CODE_VERSION=${CIRCLE_SHA1:0:7}
-          filters:
-            branches:
-              only: develop
-#       - deploy-dev:
-#           requires:
-#             - push-dev-image
-#           filters:
-#             branches:
-#               only: develop
