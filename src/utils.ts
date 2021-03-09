@@ -22,6 +22,14 @@ export default class Utils {
   }
 
   /**
+   * "sleeps" for the given number of milliseconds
+   * @param mills
+   */
+  static async delay(mills: number): Promise<void> {
+    await new Promise<void>(resolve => setTimeout(() => resolve(), mills))
+  }
+
+  /**
    * Converts ETH address to CID
    * @param codec - ETH coded
    * @param hash - ETH hash

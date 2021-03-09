@@ -26,6 +26,7 @@
           "port": "@@ETH_RPC_PORT",
           "url": "@@ETH_RPC_URL"
         },
+        "tranactionTimeoutSecs": "@@ETH_TXN_TIMEOUT",
         "account": {
           "privateKey": "@@ETH_WALLET_PK"
         }
