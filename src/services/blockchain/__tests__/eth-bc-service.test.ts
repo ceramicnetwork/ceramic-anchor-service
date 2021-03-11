@@ -82,9 +82,9 @@ describe('ETH service',  () => {
 
   test('gas price increase math', () => {
     const currentGas = BigNumber.from(1000)
-    expect(EthereumBlockchainService.increaseGasPrice(currentGas, 0)).toEqual(currentGas)
-    expect(EthereumBlockchainService.increaseGasPrice(currentGas, 1)).toEqual(BigNumber.from(1100))
-    expect(EthereumBlockchainService.increaseGasPrice(currentGas, 2)).toEqual(BigNumber.from(1200))
+    expect(EthereumBlockchainService.increaseGasPricePerAttempt(currentGas, 0)).toEqual(currentGas)
+    expect(EthereumBlockchainService.increaseGasPricePerAttempt(currentGas, 1)).toEqual(BigNumber.from(1100))
+    expect(EthereumBlockchainService.increaseGasPricePerAttempt(currentGas, 2)).toEqual(BigNumber.from(1200))
   })
 
 });

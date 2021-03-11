@@ -76,7 +76,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     } else {
       const gasPriceEstimate = await this.provider.getGasPrice();
       // Add 10% extra to gas price for each subsequent attempt
-      txData.gasPrice = EthereumBlockchainService.increaseGasPrice(gasPriceEstimate, attempt)
+      txData.gasPrice = EthereumBlockchainService.increaseGasPricePerAttempt(gasPriceEstimate, attempt)
       logger.debug('Estimated Gas price: ' + txData.gasPrice.toString());
 
       txData.gasLimit = await this.provider.estimateGas(txData);
@@ -89,7 +89,7 @@ export default class EthereumBlockchainService implements BlockchainService {
    * @param currentGas
    * @param attempt
    */
-  static increaseGasPrice(currentGas: BigNumber, attempt: number): BigNumber {
+  static increaseGasPricePerAttempt(currentGas: BigNumber, attempt: number): BigNumber {
     const tenPercent = currentGas.div(10)
     const additionalGas = tenPercent.mul(attempt)
     return currentGas.add(additionalGas)
