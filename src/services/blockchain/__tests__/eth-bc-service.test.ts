@@ -10,6 +10,7 @@ import { container } from "tsyringe";
 
 import BlockchainService from "../blockchain-service";
 import EthereumBlockchainService from "../ethereum/ethereum-blockchain-service";
+import { BigNumber } from 'ethers';
 
 let ganacheServer: any = null;
 let ethBc: BlockchainService = null;
@@ -48,6 +49,12 @@ describe('ETH service',  () => {
     await done
   });
 
+  afterAll(async (done) => {
+    logger.imp(`Closing local Ethereum blockchain instance...`);
+    ganacheServer.close();
+    done();
+  });
+
   test('should connect to local ganache server', async () => {
     await ethBc.connect();
   });
@@ -73,10 +80,11 @@ describe('ETH service',  () => {
     expect(chainId).toEqual("eip155:1337")
   });
 
-  afterAll(async (done) => {
-    logger.imp(`Closing local Ethereum blockchain instance...`);
-    ganacheServer.close();
-    done();
-  });
+  test('gas price increase math', () => {
+    const currentGas = BigNumber.from(1000)
+    expect(EthereumBlockchainService.increaseGasPrice(currentGas, 0)).toEqual(currentGas)
+    expect(EthereumBlockchainService.increaseGasPrice(currentGas, 1)).toEqual(BigNumber.from(1100))
+    expect(EthereumBlockchainService.increaseGasPrice(currentGas, 2)).toEqual(BigNumber.from(1200))
+  })
 
 });

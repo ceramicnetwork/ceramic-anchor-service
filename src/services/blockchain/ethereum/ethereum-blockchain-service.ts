@@ -65,7 +65,7 @@ export default class EthereumBlockchainService implements BlockchainService {
    *   the gas price we set by a 10% multiple with each subsequent attempt
    * @private
    */
-  private async _setGasPrice(txData: TransactionRequest, attempt: number): Promise<void> {
+  async setGasPrice(txData: TransactionRequest, attempt: number): Promise<void> {
     const { overrideGasConfig } = config.blockchain.connectors.ethereum;
     if (config.blockchain.connectors.ethereum.overrideGasConfig) {
       txData.gasPrice = BigNumber.from(config.blockchain.connectors.ethereum.gasPrice);
@@ -76,14 +76,23 @@ export default class EthereumBlockchainService implements BlockchainService {
     } else {
       const gasPriceEstimate = await this.provider.getGasPrice();
       // Add 10% extra to gas price for each subsequent attempt
-      txData.gasPrice = gasPriceEstimate.add(gasPriceEstimate.mul(attempt * .01));
+      txData.gasPrice = EthereumBlockchainService.increaseGasPrice(gasPriceEstimate, attempt)
       logger.debug('Estimated Gas price: ' + txData.gasPrice.toString());
 
       txData.gasLimit = await this.provider.estimateGas(txData);
       logger.debug('Estimated Gas limit: ' + txData.gasLimit.toString());
     }
+  }
 
-
+  /**
+   * Takes current gas price and attempt number and returns new gas price with 10% increase per attempt
+   * @param currentGas
+   * @param attempt
+   */
+  static increaseGasPrice(currentGas: BigNumber, attempt: number): BigNumber {
+    const divider = BigNumber.from(attempt).mul(10)
+    const additionalGas = currentGas.div(divider)
+    return currentGas.add(additionalGas)
   }
 
   /**
@@ -125,7 +134,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     let attemptNum = 0;
     while (attemptNum < MAX_RETRIES) {
       try {
-        await this._setGasPrice(txData, attemptNum);
+        await this.setGasPrice(txData, attemptNum);
         logger.imp("Transaction data:" + JSON.stringify(txData));
 
         logEvent.ethereum({
