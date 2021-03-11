@@ -90,8 +90,8 @@ export default class EthereumBlockchainService implements BlockchainService {
    * @param attempt
    */
   static increaseGasPrice(currentGas: BigNumber, attempt: number): BigNumber {
-    const divider = BigNumber.from(attempt).mul(10)
-    const additionalGas = currentGas.div(divider)
+    const tenPercent = currentGas.div(10)
+    const additionalGas = tenPercent.mul(attempt)
     return currentGas.add(additionalGas)
   }
 
