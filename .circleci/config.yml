@@ -74,7 +74,9 @@ workflows:
           extra-build-args: --build-arg CODE_VERSION=${CIRCLE_SHA1:0:7}
           filters:
             branches:
-              only: develop
+              only:
+               - main
+               - develop
 #       - deploy-dev:
 #           requires:
 #             - push-dev-image
