@@ -27,7 +27,8 @@ export default class CeramicServiceImpl implements CeramicService {
   }
 
   async loadDocument<T extends Doctype>(docId: DocID): Promise<T> {
-    return await this._client.loadDocument(docId, {sync: false})
+    const docPromise = this._client.loadDocument(docId, {sync: false})
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(`Timed out loading docid: ${docId.toString()}`), 60 * 1000))
+    return (await Promise.race([docPromise, timeoutPromise])) as T
   }
-
 }
