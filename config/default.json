@@ -23,7 +23,8 @@
         "gasPrice": "100000000000",
         "rpc": {
           "host": "http://localhost",
-          "port": "8545"
+          "port": "8545",
+          "url": ""
         },
         "account": {
           "privateKey": "0x06dd0990d19001c57eeea6d32e8fdeee40d3945962caf18c18c3930baa5a6ec9"

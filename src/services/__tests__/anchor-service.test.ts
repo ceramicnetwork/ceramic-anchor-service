@@ -216,7 +216,7 @@ describe('ETH service',  () => {
     const merkleTree = await anchorService._buildMerkleTree(candidates)
     const ipfsProofCid = await ipfsService.storeRecord({})
 
-    const anchors = await anchorService._createAnchorRecords(ipfsProofCid, merkleTree, requests)
+    const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree, requests)
 
     expect(candidates.length).toEqual(requests.length)
     expect(anchors.length).toEqual(candidates.length)
@@ -264,7 +264,7 @@ describe('ETH service',  () => {
 
       const merkleTree = await anchorService._buildMerkleTree(candidates)
       const ipfsProofCid = await ipfsService.storeRecord({})
-      const anchors = await anchorService._createAnchorRecords(ipfsProofCid, merkleTree, requests)
+      const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree, requests)
 
       await anchorService._persistAnchorResult(anchors)
     }
@@ -274,6 +274,42 @@ describe('ETH service',  () => {
     expect(requests.length).toEqual(numRequests / 2)
 
     // // Second pass anchors the remaining half of the original requests
+    await anchorPendingRequests(requests)
+
+    // All requests should have been processed
+    requests = await requestRepository.findNextToProcess()
+    expect(requests.length).toEqual(0)
+  });
+
+  test('Unlimited anchor requests', async () => {
+    const requestRepository = container.resolve<RequestRepository>('requestRepository');
+    const anchorService = container.resolve<AnchorService>('anchorService');
+
+    const depthLimit = 0 // 0 means infinity
+    config.merkleDepthLimit = depthLimit
+    const numRequests = 5
+
+    // Create pending requests
+    for (let i = 0; i < numRequests; i++) {
+      const docBaseId = ceramicService.generateBaseDocID()
+      const request = await createRequest(docBaseId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request);
+      const docId = DocID.fromOther(docBaseId, request.cid)
+      ceramicService.putDocument(docId, createDocument(docId,1))
+    }
+
+    // First pass anchors half the pending requests
+    let requests = await requestRepository.findNextToProcess()
+    expect(requests.length).toEqual(numRequests)
+    const anchorPendingRequests = async function(requests: Request[]): Promise<void> {
+      const candidates = await anchorService._findCandidates(requests)
+
+      const merkleTree = await anchorService._buildMerkleTree(candidates)
+      const ipfsProofCid = await ipfsService.storeRecord({})
+      const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree, requests)
+
+      await anchorService._persistAnchorResult(anchors)
+    }
     await anchorPendingRequests(requests)
 
     // All requests should have been processed

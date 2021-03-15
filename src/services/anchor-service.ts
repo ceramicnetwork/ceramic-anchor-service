@@ -34,7 +34,7 @@ class Candidate {
     this.document = document
   }
 
-  get key(): string {
+  get docId(): string {
     return this.document.id.baseID.toString()
   }
 
@@ -64,7 +64,7 @@ class IpfsMerge implements MergeFunction<Candidate> {
  */
 class IpfsLeafCompare implements CompareFunction<Candidate> {
   compare(left: Node<Candidate>, right: Node<Candidate>): number {
-    return left.data.key.localeCompare(right.data.key);
+    return left.data.docId.localeCompare(right.data.docId);
   }
 }
 
@@ -101,7 +101,7 @@ export default class AnchorService {
    * @returns whether or not an anchor was performed
    */
   public async anchorIfTooManyPendingRequests(): Promise<boolean> {
-    if (!config.merkleDepthLimit) {
+    if (config.merkleDepthLimit == 0 || config.merkleDepthLimit == undefined) {
       // If there's no limit to the size of an anchor, then there's no such thing as "too many"
       // pending requests, and we can always wait for our next scheduled anchor.
       return false
@@ -135,49 +135,50 @@ export default class AnchorService {
       logger.debug("No pending CID requests found. Skipping anchor.");
       return;
     }
+    logger.debug("Marking pending requests as processing")
     await this.requestRepository.updateRequests({ status: RS.PROCESSING, message: 'Request is processing.' }, requests);
 
     const candidates: Candidate[] = await this._findCandidates(requests);
-    const clashingRequests = requests.filter(r => !candidates.map(c => c.reqId).includes(r.id));
-    const clashingRequestIds = clashingRequests.map(r => r.id);
-    if (clashingRequestIds.length > 0) {
-      // discard clashing ones
-      await this.requestRepository.updateRequests({
-        status: RS.FAILED,
-        message: "Request has failed. There are conflicts with other requests for the same document and DID."
-      }, clashingRequests);
-    }
+    const validRequestIds = candidates.map(c => c.reqId)
 
     // filter valid requests
-    requests = requests.filter(r => !clashingRequestIds.includes(r.id));
+    const numInitialRequests = requests.length
+    requests = requests.filter(r => validRequestIds.includes(r.id));
     if (requests.length === 0) {
       logger.debug("No CID to request. Skipping anchor.");
       return;
     }
 
-    logger.imp('Creating Merkle tree from selected records.');
+    logger.imp(`Creating Merkle tree from ${candidates.length} selected records`);
     const merkleTree = await this._buildMerkleTree(candidates)
 
     // create and send ETH transaction
+    logger.debug("Preparing to send transaction to put merkle root on blockchain")
     const tx: Transaction = await this.blockchainService.sendTransaction(merkleTree.getRoot().data.cid);
 
     // create proof on IPFS
+    logger.debug("Creating IPFS anchor proof")
     const ipfsProofCid = await this._createIPFSProof(tx, merkleTree.getRoot().data.cid)
 
     // create anchor records on IPFS
-    const anchors = await this._createAnchorRecords(ipfsProofCid, merkleTree, requests);
+    logger.debug("Creating anchor commit")
+    const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree, requests);
 
     // Update the database to record the successful anchors
+    logger.debug("Persisting results to local database")
     await this._persistAnchorResult(anchors)
 
     logEvent.anchor({
       type: 'anchorRequests',
       requestIds: requests.map(r => r.id),
-      clashingRequestsCount: clashingRequestIds.length,
+      clashingRequestsCount: numInitialRequests - requests.length,
       validRequestsCount: requests.length,
       candidateCount: candidates.length,
       anchorCount: anchors.length
     });
+    for (const candidate of merkleTree.getLeaves()) {
+      logger.debug(`Successfully anchored CID ${candidate.cid.toString()} for document ${candidate.document.id.toString()}`)
+    }
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`);
   }
 
@@ -188,7 +189,7 @@ export default class AnchorService {
    */
   async _buildMerkleTree(candidates: Candidate[]): Promise<MerkleTree<Candidate>> {
     try {
-      if (config.merkleDepthLimit) {
+      if (config.merkleDepthLimit > 0) {
         const nodeLimit = Math.pow(2, config.merkleDepthLimit)
         if (candidates.length > nodeLimit) {
           logger.warn('Found ' + candidates.length + ' valid candidates to anchor, but our '
@@ -198,6 +199,7 @@ export default class AnchorService {
           candidates = candidates.slice(0, nodeLimit)
         }
       }
+
       const merkleTree = new MerkleTree<Candidate>(this.ipfsMerge, this.ipfsCompare, config.merkleDepthLimit);
       await merkleTree.build(candidates);
       return merkleTree
@@ -226,7 +228,7 @@ export default class AnchorService {
   }
 
   /**
-   * For each CID that was anchored, create a Ceramic AnchorRecord and publish it to IPFS.
+   * For each CID that was anchored, create a Ceramic AnchorCommit and publish it to IPFS.
    * @param ipfsProofCid - CID of the anchor proof on IPFS
    * @param merkleTree - Merkle tree instance
    * @param requests - Valid requests
@@ -234,7 +236,7 @@ export default class AnchorService {
    * of each anchor request.
    * @private
    */
-  async _createAnchorRecords(ipfsProofCid: CID, merkleTree: MerkleTree<Candidate>, requests: Request[]): Promise<Anchor[]> {
+  async _createAnchorCommits(ipfsProofCid: CID, merkleTree: MerkleTree<Candidate>, requests: Request[]): Promise<Anchor[]> {
     const anchors: Anchor[] = [];
     const candidates = merkleTree.getLeaves()
     for (let index = 0; index < candidates.length; index++) {
@@ -290,56 +292,116 @@ export default class AnchorService {
    * @private
    */
   async _findCandidates(requests: Request[]): Promise<Candidate[]> {
-    const result: Candidate[] = [];
-    const group: Record<string, Candidate[]> = {};
+    logger.debug(`About to load candidate documents`)
+    const groupedCandidates = await this._groupCandidatesByDocId(requests)
+    logger.debug(`Successfully loaded candidate documents, about to apply conflict resolution to conflicting requests`)
+    const [selectedCandidates, conflictingCandidates] = await this._selectValidCandidates(groupedCandidates)
+    logger.debug(`About to fail requests rejected by conflict resolution`)
+    await this._failConflictingRequests(requests, conflictingCandidates)
+
+    return selectedCandidates;
+  }
+
+  /**
+   * Takes an array of Requests, and returns Candidate objects grouped by Ceramic DocId. Documents
+   * that couldn't be loaded successfully will be filtered out from the result set
+   * @param requests - array of anchor requests
+   * @returns - map of docIds to 'Candidate' objects.
+   */
+  async _groupCandidatesByDocId(requests: Request[]): Promise<Record<string, Candidate[]>> {
+    const groupedCandidates: Record<string, Candidate[]> = {};
 
     let request = null;
     for (let index = 0; index < requests.length; index++) {
+      let docId
       try {
         request = requests[index];
 
-        const docId = this._getRequestDocID(request)
+        docId = this._getRequestDocID(request)
         const doc = await this.ceramicService.loadDocument(docId)
         if (!doc) {
           throw new Error(`No valid ceramic document found with docId ${docId.toString()}`)
         }
 
         const candidate = new Candidate(new CID(request.cid), request.id, doc);
-        group[candidate.key] = group[candidate.key] ? [...group[candidate.key], candidate] : [candidate];
+        groupedCandidates[candidate.docId] = groupedCandidates[candidate.docId] ? [...groupedCandidates[candidate.docId], candidate] : [candidate];
       } catch (e) {
-        logger.err(e);
+        logger.err(`Error while loading document ${docId?.baseID.toString()} at commit ${docId?.commit.toString()}. Error: ${e.message}`)
         await this.requestRepository.updateRequests({
-            status: RS.FAILED,
-            message: "Request has failed. " + e.message,
+          status: RS.FAILED,
+          message: "Request has failed. " + e.message,
         }, [request]);
       }
     }
+    return groupedCandidates
+  }
+
+  /**
+   * Selects which Candidate CID should be anchored for each docId
+   * @param groupedCandidates - map of ceramic docId to array of Candidates each representing one anchor request for that docId
+   * @return a tuple whose first element is an array of the Candidates that were selected for anchoring,
+   *   and whose second element is an array of Candidates that were rejected by the conflict resolution rules
+   */
+  async _selectValidCandidates(groupedCandidates: Record<string, Candidate[]>): Promise<[Candidate[], Candidate[]]> {
+    const selectedCandidates: Candidate[] = [];
+    const conflictingCandidates: Candidate[] = []
 
     // Employ conflict resolution strategy to pick which cid to anchor when there are multiple
     // requests for the same docId
-    for (const key of Object.keys(group)) {
-      const candidates: Candidate[] = group[key];
+    for (const docId of Object.keys(groupedCandidates)) {
+      const candidates: Candidate[] = groupedCandidates[docId];
 
-      let longestLog = 0;
       let selected: Candidate = null;
 
       for (const candidate of candidates) {
-        const logLength = candidate.document.state.log.length
-        if (selected == null || logLength > longestLog) {
+        if (selected == null) {
+          selected = candidate
+          continue
+        }
+
+        if (candidate.document.state.log.length < selected.document.state.log.length) {
+          // 'selected' has a longer log than 'candidate', so reject 'candidate' and keep 'selected'
+          conflictingCandidates.push(candidate)
+        } else if (candidate.document.state.log.length > selected.document.state.log.length) {
+          // 'candidate' has a longer log than 'selected', so reject 'selected' and select the candidate
+          conflictingCandidates.push(selected)
           selected = candidate;
-          longestLog = candidate.document.state.log.length;
-        } else if (selected && logLength == longestLog) {
+        } else {
           // There's a tie for log length, so we need to fall back to picking arbitrarily, but
           // deterministically. We match what js-ceramic does and pick the log with the lower CID.
           if (candidate.cid < selected.cid) {
+            conflictingCandidates.push(selected)
             selected = candidate
+          } else {
+            conflictingCandidates.push(candidate)
           }
         }
       }
       if (selected) {
-        result.push(selected);
+        selectedCandidates.push(selected);
       }
     }
-    return result;
+    return [selectedCandidates, conflictingCandidates]
+  }
+
+  /**
+   * Marks the anchor Requests that were rejected by conflict resolution as failed in the database.
+   * @param requests
+   * @param rejectedCandidates
+   */
+  async _failConflictingRequests(requests: Request[], rejectedCandidates: Candidate[]): Promise<void> {
+    const rejectedRequestIds = rejectedCandidates.map(c => c.reqId)
+    const rejectedRequests = requests.filter(r => rejectedRequestIds.includes(r.id))
+
+    for (const rejected of rejectedCandidates) {
+      console.debug(`Rejecting request to anchor CID ${rejected.cid.toString()} for document ${rejected.document.id.toString()} because there is a better CID to anchor for the same document`)
+    }
+
+    if (rejectedRequests.length > 0) {
+      await this.requestRepository.updateRequests({
+        status: RS.FAILED,
+        message: "Request has failed. There are conflicts with other requests for the same document."
+      }, rejectedRequests);
+    }
   }
 }

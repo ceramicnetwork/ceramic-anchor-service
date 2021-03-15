@@ -7,7 +7,7 @@ import { ClassMiddleware, Controller, Get } from '@overnightjs/core';
 import { cpuFree, freememPercentage } from "os-utils";
 import { singleton } from "tsyringe";
 
-import { expressLoggers, logger } from "../logger";
+import { logger } from "../logger";
 
 @singleton()
 @Controller('api/v0/healthcheck')
@@ -26,7 +26,7 @@ export default class HealthcheckController {
 
       return res.status(OK).send()
     } catch (err) {
-      logger.err(err);
+      logger.err(`Failed to run healthcheck: ${err.message()}`);
       return res.status(SERVICE_UNAVAILABLE).send()
     }
   }

@@ -44,6 +44,7 @@ jobs:
           paths:
             - ./node_modules
 
+# TODO: Update cluster and service names
   deploy-dev:
     working_directory: ~/cas
     docker:
@@ -74,9 +75,9 @@ workflows:
           filters:
             branches:
               only: develop
-      - deploy-dev:
-          requires:
-            - push-dev-image
-          filters:
-            branches:
-              only: develop
+#       - deploy-dev:
+#           requires:
+#             - push-dev-image
+#           filters:
+#             branches:
+#               only: develop

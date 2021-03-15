@@ -27,7 +27,7 @@ export default class ServiceInfoController {
     try {
       return res.status(OK).json({supportedChains: [this.blockchainService.chainId]})
     } catch (err) {
-      logger.err(err);
+      logger.err(`Loading supported chainIds from configured blockchain failed: ${err.message()}`);
       return res.status(SERVICE_UNAVAILABLE).send()
     }
   }

@@ -28,11 +28,12 @@ export default class EthereumBlockchainService implements BlockchainService {
   public async connect(): Promise<void> {
     logger.imp("Connecting to " + config.blockchain.connectors.ethereum.network + " blockchain...");
     const { network } = config.blockchain.connectors.ethereum;
+    const { host, port, url } = config.blockchain.connectors.ethereum.rpc;
 
-    if (network === "ganache") {
-      const { host, port } = config.blockchain.connectors.ethereum.rpc;
-      const url = `${host}:${port}`;
+    if (url && url != "") {
       this.provider = new ethers.providers.JsonRpcProvider(url);
+    } else if (host && host != "" && port && port != "") {
+      this.provider = new ethers.providers.JsonRpcProvider(`${host}:${port}`);
     } else {
       this.provider = ethers.getDefaultProvider(network);
     }
@@ -76,8 +77,8 @@ export default class EthereumBlockchainService implements BlockchainService {
     logger.imp(`Hex encoded root CID ${hexEncoded}`);
 
     const { network } = config.blockchain.connectors.ethereum;
-    logger.imp(`Sending transaction to Ethereum ${network} network...`);
 
+    logger.debug("Preparing ethereum transaction")
     const baseNonce = await this.provider.getTransactionCount(wallet.getAddress());
 
     const txData: TransactionRequest = {
@@ -112,10 +113,17 @@ export default class EthereumBlockchainService implements BlockchainService {
           type: 'txRequest',
           ...txData
         });
+        logger.imp(`Sending transaction to Ethereum ${network} network...`);
         const txResponse: providers.TransactionResponse = await wallet.sendTransaction(txData);
         logEvent.ethereum({
           type: 'txResponse',
-          ...txResponse
+          hash: txResponse.hash,
+          blockNumber: txResponse.blockNumber,
+          blockHash: txResponse.blockHash,
+          timestamp: txResponse.timestamp,
+          confirmations: txResponse.confirmations,
+          from: txResponse.from,
+          raw: txResponse.raw,
         });
         const caip2ChainId = "eip155:" + txResponse.chainId;
         if (caip2ChainId != this.chainId) {
@@ -167,6 +175,7 @@ export default class EthereumBlockchainService implements BlockchainService {
         if (retryTimes === 0) {
           throw new Error("Failed to send transaction");
         } else {
+          logger.warn(`Failed to send transaction; ${retryTimes} retries remain`)
           await new Promise(resolve => setTimeout(resolve, 5000));
         }
       }
