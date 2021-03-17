@@ -97,7 +97,7 @@ Object {
     "type": "BigNumber",
   },
   "gasPrice": Object {
-    "hex": "0x04b0",
+    "hex": "0x04ba",
     "type": "BigNumber",
   },
   "nonce": 5,
@@ -113,7 +113,7 @@ Object {
     "type": "BigNumber",
   },
   "gasPrice": Object {
-    "hex": "0x04b0",
+    "hex": "0x04ba",
     "type": "BigNumber",
   },
   "nonce": 5,
@@ -129,7 +129,7 @@ Object {
     "type": "BigNumber",
   },
   "gasPrice": Object {
-    "hex": "0x04b0",
+    "hex": "0x04ba",
     "type": "BigNumber",
   },
   "nonce": 5,

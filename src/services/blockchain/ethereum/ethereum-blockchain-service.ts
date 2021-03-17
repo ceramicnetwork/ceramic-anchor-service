@@ -3,7 +3,7 @@ import CID from "cids";
 import * as providers from "@ethersproject/providers";
 import { ErrorCode } from "@ethersproject/logger";
 
-import { BigNumber, ethers } from "ethers";
+import { BigNumber, BigNumberish, ethers } from "ethers";
 import { config } from "node-config-ts";
 
 import { logger, logEvent, logMetric } from "../../../logger";
@@ -81,7 +81,8 @@ export default class EthereumBlockchainService implements BlockchainService {
     } else {
       const gasPriceEstimate = await this.wallet.provider.getGasPrice(); // in wei
       // Add extra to gas price for each subsequent attempt
-      txData.gasPrice = EthereumBlockchainService.increaseGasPricePerAttempt(gasPriceEstimate, attempt)
+      txData.gasPrice = EthereumBlockchainService.increaseGasPricePerAttempt(
+        gasPriceEstimate, attempt, txData.gasPrice)
       logger.debug('Estimated Gas price (in wei): ' + txData.gasPrice.toString());
 
       txData.gasLimit = await this.wallet.provider.estimateGas(txData);
@@ -90,14 +91,26 @@ export default class EthereumBlockchainService implements BlockchainService {
   }
 
   /**
-   * Takes current gas price and attempt number and returns new gas price with 10% increase per attempt
-   * @param currentGas
+   * Takes current gas price and attempt number and returns new gas price with 10% increase per attempt.
+   * If this isn't the first attempt, also ensures that the new gas is at least 10% greater than the
+   * previous attempt's gas, even if the gas price on chain has gone down since then. This is because
+   * retries of the same transaction (using the same nonce) need to have a gas price at least 10% higher
+   * than any previous attempts or the transaction will fail.
+   * @param currentGasEstimate
    * @param attempt
+   * @param previousGas
    */
-  static increaseGasPricePerAttempt(currentGas: BigNumber, attempt: number): BigNumber {
-    const tenPercent = currentGas.div(10)
+  static increaseGasPricePerAttempt(currentGasEstimate: BigNumber, attempt: number, previousGas: BigNumberish | undefined): BigNumber {
+    const tenPercent = currentGasEstimate.div(10)
     const additionalGas = tenPercent.mul(attempt)
-    return currentGas.add(additionalGas)
+    const newGas = currentGasEstimate.add(additionalGas)
+    if (attempt == 0 || !previousGas) {
+      return newGas
+    }
+
+    const previousGasBN = BigNumber.from(previousGas)
+    const minGas = previousGasBN.add(previousGasBN.div(10))
+    return newGas.gt(minGas) ? newGas : minGas
   }
 
   /**
