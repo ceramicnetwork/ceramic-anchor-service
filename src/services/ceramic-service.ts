@@ -31,12 +31,13 @@ export default class CeramicServiceImpl implements CeramicService {
 
     const docPromise = this._client.loadDocument(docId, {sync: false})
       .then((data) => {
-        clearTimeout(timeout);
         return data;
       })
       .catch((err) => {
-        clearTimeout(timeout);
         throw Error(err);
+      })
+      .finally(() => {
+        clearTimeout(timeout);
       });
 
     const timeoutPromise = new Promise((_, reject) => {
