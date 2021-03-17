@@ -49,6 +49,15 @@ Object {
 `;
 
 exports[`ETH service with mock wallet single transaction attempt 1`] = `
+Object {
+  "chainId": "1337",
+  "confirmations": 3,
+  "from": "me",
+  "hash": "0x12345abcde",
+}
+`;
+
+exports[`ETH service with mock wallet single transaction attempt 2`] = `
 Transaction {
   "blockNumber": 54321,
   "blockTimestamp": 54321000,
@@ -57,7 +66,7 @@ Transaction {
 }
 `;
 
-exports[`ETH service with mock wallet single transaction attempt 2`] = `
+exports[`ETH service with mock wallet single transaction attempt 3`] = `
 Object {
   "data": "0x987654321",
   "gasLimit": Object {
