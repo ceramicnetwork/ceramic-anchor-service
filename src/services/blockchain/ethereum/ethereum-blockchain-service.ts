@@ -108,10 +108,6 @@ export default class EthereumBlockchainService implements BlockchainService {
     return this._chainId
   }
 
-  /**
-   * TODO
-   * @param rootCid
-   */
   async _buildTransactionRequest(rootCid: CID): Promise<TransactionRequest> {
     const rootStrHex = rootCid.toString("base16");
     const hexEncoded = "0x" + (rootStrHex.length % 2 == 0 ? rootStrHex : "0" + rootStrHex);
@@ -129,7 +125,7 @@ export default class EthereumBlockchainService implements BlockchainService {
   }
 
   /**
-   * TODO
+   * One attempt at sending the prepared TransactionRequest to the ethereum blockchain.
    * @param txData
    * @param attemptNum
    * @param network
