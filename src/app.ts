@@ -167,7 +167,7 @@ export default class CeramicAnchorApp {
    * Execute a single anchor process
    */
   private async _executeAnchor(): Promise<void> {
-    await this.startWithConnectionHandling(async () => {
+    this.startWithConnectionHandling(async () => {
       const anchorService: AnchorService = container.resolve<AnchorService>('anchorService');
       await anchorService.anchorRequests();
     });
