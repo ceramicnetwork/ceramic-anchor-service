@@ -1,9 +1,138 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`ETH service should send CID to local ganache server 1`] = `
+exports[`ETH service connected to ganache should send CID to local ganache server 1`] = `
 Transaction {
   "blockNumber": 1,
   "chain": "eip155:1337",
-  "txHash": "0x873417e4596dbf4f2c262986f0bf4431e7a0c6aa9b9639496dc5de81423d206f",
+  "txHash": "0xe72f27bb2819a17941f7f6586d118660cbabab1ebd929e810e609ded90568f55",
+}
+`;
+
+exports[`ETH service with mock wallet build transaction request 1`] = `
+Object {
+  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
+  "nonce": 5,
+  "to": "abcd1234",
+}
+`;
+
+exports[`ETH service with mock wallet insufficient funds error 1`] = `
+Object {
+  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
+  "gasLimit": Object {
+    "hex": "0x2710",
+    "type": "BigNumber",
+  },
+  "gasPrice": Object {
+    "hex": "0x044c",
+    "type": "BigNumber",
+  },
+  "nonce": 5,
+  "to": "abcd1234",
+}
+`;
+
+exports[`ETH service with mock wallet insufficient funds error 2`] = `
+Object {
+  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
+  "gasLimit": Object {
+    "hex": "0x2710",
+    "type": "BigNumber",
+  },
+  "gasPrice": Object {
+    "hex": "0x044c",
+    "type": "BigNumber",
+  },
+  "nonce": 5,
+  "to": "abcd1234",
+}
+`;
+
+exports[`ETH service with mock wallet single transaction attempt 1`] = `
+Transaction {
+  "blockNumber": 54321,
+  "blockTimestamp": 54321000,
+  "chain": "eip155:1337",
+  "txHash": "0x12345abcde",
+}
+`;
+
+exports[`ETH service with mock wallet single transaction attempt 2`] = `
+Object {
+  "data": "0x987654321",
+  "gasLimit": Object {
+    "hex": "0x2710",
+    "type": "BigNumber",
+  },
+  "gasPrice": Object {
+    "hex": "0x03e8",
+    "type": "BigNumber",
+  },
+  "nonce": 5,
+  "to": "abcd1234",
+}
+`;
+
+exports[`ETH service with mock wallet successful mocked transaction 1`] = `
+Object {
+  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
+  "gasLimit": Object {
+    "hex": "0x2710",
+    "type": "BigNumber",
+  },
+  "gasPrice": Object {
+    "hex": "0x03e8",
+    "type": "BigNumber",
+  },
+  "nonce": 5,
+  "to": "abcd1234",
+}
+`;
+
+exports[`ETH service with mock wallet timeout error 1`] = `
+Object {
+  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
+  "gasLimit": Object {
+    "hex": "0x2710",
+    "type": "BigNumber",
+  },
+  "gasPrice": Object {
+    "hex": "0x04b0",
+    "type": "BigNumber",
+  },
+  "nonce": 5,
+  "to": "abcd1234",
+}
+`;
+
+exports[`ETH service with mock wallet timeout error 2`] = `
+Object {
+  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
+  "gasLimit": Object {
+    "hex": "0x2710",
+    "type": "BigNumber",
+  },
+  "gasPrice": Object {
+    "hex": "0x04b0",
+    "type": "BigNumber",
+  },
+  "nonce": 5,
+  "to": "abcd1234",
+}
+`;
+
+exports[`ETH service with mock wallet timeout error 3`] = `
+Object {
+  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
+  "gasLimit": Object {
+    "hex": "0x2710",
+    "type": "BigNumber",
+  },
+  "gasPrice": Object {
+    "hex": "0x04b0",
+    "type": "BigNumber",
+  },
+  "nonce": 5,
+  "to": "abcd1234",
 }
 `;
