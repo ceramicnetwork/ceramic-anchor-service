@@ -15,7 +15,7 @@ import Utils from '../../../utils';
 const BASE_CHAIN_ID = "eip155";
 const TX_FAILURE = 0;
 const TX_SUCCESS = 1;
-const MAX_RETRIES = 3;
+export const MAX_RETRIES = 3;
 
 const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
 
@@ -104,7 +104,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     const tenPercent = currentGasEstimate.div(10)
     const additionalGas = tenPercent.mul(attempt)
     const newGas = currentGasEstimate.add(additionalGas)
-    if (attempt == 0 || !previousGas) {
+    if (attempt == 0 || previousGas == undefined) {
       return newGas
     }
 

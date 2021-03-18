@@ -9,7 +9,7 @@ import { logger } from '../../../logger';
 import { container, instanceCachingFactory } from 'tsyringe';
 
 import BlockchainService from "../blockchain-service";
-import EthereumBlockchainService from "../ethereum/ethereum-blockchain-service";
+import EthereumBlockchainService, { MAX_RETRIES } from '../ethereum/ethereum-blockchain-service';
 import { BigNumber } from 'ethers';
 import { ErrorCode } from '@ethersproject/logger';
 
@@ -118,12 +118,6 @@ describe('ETH service with mock wallet',  () => {
   test('build transaction request', async () => {
     const nonce = 5
     provider.getTransactionCount.mockReturnValue(nonce)
-    const txnResponse = {
-      hash: "0x12345abcde",
-      confirmations: 3,
-      from: "me",
-      chainId: "1337",
-    }
 
     const cid = new CID('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni');
     const txData = await ethBc._buildTransactionRequest(cid);
@@ -164,9 +158,13 @@ describe('ETH service with mock wallet',  () => {
       gasPrice: gasPrice,
       gasLimit: gasEstimate,
     }
-    const txResponse = await ethBc._trySendTransaction(txRequest, 0, "eip155:1337")
+    const attempt = 0
+    const network = "eip1455:1337"
+    const transactionTimeoutSecs = 10
+
+    const txResponse = await ethBc._trySendTransaction(txRequest, attempt, network)
     expect(txResponse).toMatchSnapshot()
-    const tx = await ethBc._confirmTransactionSuccess(txResponse, "eip155:1337", 10)
+    const tx = await ethBc._confirmTransactionSuccess(txResponse, network, transactionTimeoutSecs)
     expect(tx).toMatchSnapshot()
 
     const txData = wallet.sendTransaction.mock.calls[0][0]
@@ -174,7 +172,7 @@ describe('ETH service with mock wallet',  () => {
   });
 
   test('successful mocked transaction', async () => {
-    const balance = 10 * 1000 * 1000
+    const balance = BigNumber.from(10 * 1000 * 1000)
     const nonce = 5
     const gasPrice = BigNumber.from(1000)
     const gasEstimate = BigNumber.from(10*1000)
@@ -222,7 +220,9 @@ describe('ETH service with mock wallet',  () => {
 
     const mockTrySendTransaction = jest.fn()
     ethBc._trySendTransaction = mockTrySendTransaction
-    mockTrySendTransaction.mockRejectedValue({code: ErrorCode.INSUFFICIENT_FUNDS})
+    mockTrySendTransaction
+      .mockRejectedValueOnce({code: ErrorCode.TIMEOUT})
+      .mockRejectedValueOnce({code: ErrorCode.INSUFFICIENT_FUNDS})
 
     const cid = new CID('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni');
     await expect(ethBc.sendTransaction(cid)).rejects.toThrow(/Transaction cost is greater than our current balance/)
@@ -264,7 +264,7 @@ describe('ETH service with mock wallet',  () => {
     const cid = new CID('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni');
     await expect(ethBc.sendTransaction(cid)).rejects.toThrow("Failed to send transaction")
 
-    expect(mockTrySendTransaction).toHaveBeenCalledTimes(3)
+    expect(mockTrySendTransaction).toHaveBeenCalledTimes(MAX_RETRIES)
 
     const [txData0, attemptNum0, network0] = mockTrySendTransaction.mock.calls[0]
     expect(attemptNum0).toEqual(0)
