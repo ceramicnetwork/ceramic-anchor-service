@@ -1,0 +1,15 @@
+FROM cas
+
+ENV CAS_PATH=/cas
+
+WORKDIR /runner
+
+COPY ./runner/package*.json ./runner/*.js ./
+
+RUN npm install
+
+WORKDIR /
+
+COPY ./runner.sh ./
+
+CMD ./runner.sh
