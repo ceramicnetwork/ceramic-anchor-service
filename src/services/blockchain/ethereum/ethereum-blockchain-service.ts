@@ -104,7 +104,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     const tenPercent = currentGasEstimate.div(10)
     const additionalGas = tenPercent.mul(attempt)
     const newGas = currentGasEstimate.add(additionalGas)
-    if (attempt == 0 || !previousGas) {
+    if (attempt == 0 || previousGas != undefined) {
       return newGas
     }
 
