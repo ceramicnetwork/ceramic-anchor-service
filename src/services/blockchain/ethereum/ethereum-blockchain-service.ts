@@ -15,7 +15,7 @@ import Utils from '../../../utils';
 const BASE_CHAIN_ID = "eip155";
 const TX_FAILURE = 0;
 const TX_SUCCESS = 1;
-const MAX_RETRIES = 3;
+export const MAX_RETRIES = 3;
 
 const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
 
