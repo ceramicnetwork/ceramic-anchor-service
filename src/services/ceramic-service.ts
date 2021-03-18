@@ -30,12 +30,6 @@ export default class CeramicServiceImpl implements CeramicService {
     let timeout: NodeJS.Timeout;
 
     const docPromise = this._client.loadDocument(docId, {sync: false})
-      .then((data) => {
-        return data;
-      })
-      .catch((err) => {
-        throw Error(err);
-      })
       .finally(() => {
         clearTimeout(timeout);
       });
