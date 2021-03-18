@@ -1,15 +1,23 @@
+# Be sure to pass env vars for CAS
 FROM cas
 
 ENV CAS_PATH=/cas
 
+# For running on AWS ECS
+ENV AWS_REGION=${AWS_REGION}
+ENV AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+ENV AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+ENV AWS_ECS_CLUSTER=${AWS_ECS_CLUSTER}
+ENV AWS_ECS_FAMILY=${AWS_ECS_FAMILY}
+
 WORKDIR /runner
 
-COPY ./runner/package*.json ./runner/*.js ./
+COPY runner/package*.json runner/*.js ./
 
 RUN npm install
 
 WORKDIR /
 
-COPY ./runner.sh ./
+COPY runner.sh .
 
-CMD ./runner.sh
+CMD [ "./runner.sh" ]
