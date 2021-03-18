@@ -265,38 +265,7 @@ describe('ETH service with mock wallet',  () => {
     await expect(ethBc.sendTransaction(cid)).rejects.toThrow("Failed to send transaction")
 
     expect(mockTrySendTransaction).toHaveBeenCalledTimes(MAX_RETRIES)
-
-    const [txData0, attemptNum0, network0] = mockTrySendTransaction.mock.calls[0]
-    expect(attemptNum0).toEqual(0)
-    expect(network0).toEqual(config.blockchain.connectors.ethereum.network)
-    expect(txData0).toMatchSnapshot()
-
-    const [txData1, attemptNum1, network1] = mockTrySendTransaction.mock.calls[1]
-    expect(attemptNum1).toEqual(1)
-    expect(network1).toEqual(config.blockchain.connectors.ethereum.network)
-    expect(txData1).toMatchSnapshot()
-
-    const [txData2, attemptNum2, network2] = mockTrySendTransaction.mock.calls[2]
-    expect(attemptNum2).toEqual(2)
-    expect(network2).toEqual(config.blockchain.connectors.ethereum.network)
-    expect(txData2).toMatchSnapshot()
-
-    expect(mockConfirmTransactionSuccess).toHaveBeenCalledTimes(3)
-
-    const [txResponse0, network3, transactionTimeoutSecs0] = mockConfirmTransactionSuccess.mock.calls[0]
-    expect(network3).toEqual(config.blockchain.connectors.ethereum.network)
-    expect(transactionTimeoutSecs0).toEqual(config.blockchain.connectors.ethereum.transactionTimeoutSecs)
-    expect(txResponse0).toEqual(txResponse)
-
-    const [txResponse1, network4, transactionTimeoutSecs1] = mockConfirmTransactionSuccess.mock.calls[1]
-    expect(network4).toEqual(config.blockchain.connectors.ethereum.network)
-    expect(transactionTimeoutSecs1).toEqual(config.blockchain.connectors.ethereum.transactionTimeoutSecs)
-    expect(txResponse1).toEqual(txResponse)
-
-    const [txResponse2, network5, transactionTimeoutSecs2] = mockConfirmTransactionSuccess.mock.calls[2]
-    expect(network5).toEqual(config.blockchain.connectors.ethereum.network)
-    expect(transactionTimeoutSecs2).toEqual(config.blockchain.connectors.ethereum.transactionTimeoutSecs)
-    expect(txResponse2).toEqual(txResponse)
+    expect(mockConfirmTransactionSuccess).toHaveBeenCalledTimes(MAX_RETRIES)
   });
 
   test('nonce expired error', async () => {
