@@ -49,6 +49,15 @@ Object {
 `;
 
 exports[`ETH service with mock wallet single transaction attempt 1`] = `
+Object {
+  "chainId": "1337",
+  "confirmations": 3,
+  "from": "me",
+  "hash": "0x12345abcde",
+}
+`;
+
+exports[`ETH service with mock wallet single transaction attempt 2`] = `
 Transaction {
   "blockNumber": 54321,
   "blockTimestamp": 54321000,
@@ -57,7 +66,7 @@ Transaction {
 }
 `;
 
-exports[`ETH service with mock wallet single transaction attempt 2`] = `
+exports[`ETH service with mock wallet single transaction attempt 3`] = `
 Object {
   "data": "0x987654321",
   "gasLimit": Object {
@@ -89,50 +98,3 @@ Object {
 }
 `;
 
-exports[`ETH service with mock wallet timeout error 1`] = `
-Object {
-  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
-  "gasLimit": Object {
-    "hex": "0x2710",
-    "type": "BigNumber",
-  },
-  "gasPrice": Object {
-    "hex": "0x04ba",
-    "type": "BigNumber",
-  },
-  "nonce": 5,
-  "to": "abcd1234",
-}
-`;
-
-exports[`ETH service with mock wallet timeout error 2`] = `
-Object {
-  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
-  "gasLimit": Object {
-    "hex": "0x2710",
-    "type": "BigNumber",
-  },
-  "gasPrice": Object {
-    "hex": "0x04ba",
-    "type": "BigNumber",
-  },
-  "nonce": 5,
-  "to": "abcd1234",
-}
-`;
-
-exports[`ETH service with mock wallet timeout error 3`] = `
-Object {
-  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
-  "gasLimit": Object {
-    "hex": "0x2710",
-    "type": "BigNumber",
-  },
-  "gasPrice": Object {
-    "hex": "0x04ba",
-    "type": "BigNumber",
-  },
-  "nonce": 5,
-  "to": "abcd1234",
-}
-`;

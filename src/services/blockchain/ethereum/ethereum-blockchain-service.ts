@@ -138,13 +138,12 @@ export default class EthereumBlockchainService implements BlockchainService {
   }
 
   /**
-   * One attempt at sending the prepared TransactionRequest to the ethereum blockchain.
+   * One attempt at submitting the prepared TransactionRequest to the ethereum blockchain.
    * @param txData
    * @param attemptNum
    * @param network
-   * @param transactionTimeoutSecs
    */
-  async _trySendTransaction(txData: TransactionRequest, attemptNum: number, network: string, transactionTimeoutSecs: number): Promise<Transaction> {
+  async _trySendTransaction(txData: TransactionRequest, attemptNum: number, network: string): Promise<providers.TransactionResponse> {
     logger.imp("Transaction data:" + JSON.stringify(txData));
 
     logEvent.ethereum({
@@ -163,6 +162,18 @@ export default class EthereumBlockchainService implements BlockchainService {
       from: txResponse.from,
       raw: txResponse.raw,
     });
+
+    return txResponse
+  }
+
+  /**
+   * Queries the blockchain to see if the submitted transaction was successfully mined, and returns
+   * the transaction info if so.
+   * @param txResponse - response from when the transaction was submitted to the mempool
+   * @param network
+   * @param transactionTimeoutSecs
+   */
+  async _confirmTransactionSuccess(txResponse: providers.TransactionResponse, network: string, transactionTimeoutSecs: number): Promise<Transaction> {
     const caip2ChainId = "eip155:" + txResponse.chainId;
     if (caip2ChainId != this.chainId) {
       // TODO: This should be process-fatal
@@ -189,6 +200,7 @@ export default class EthereumBlockchainService implements BlockchainService {
 
     return new Transaction(caip2ChainId, txReceipt.transactionHash, txReceipt.blockNumber, block.timestamp);
   }
+
   /**
    * Sends transaction with root CID as data
    */
@@ -205,10 +217,13 @@ export default class EthereumBlockchainService implements BlockchainService {
     const { network } = config.blockchain.connectors.ethereum;
 
     let attemptNum = 0;
+    let txResponse: providers.TransactionResponse = null
     while (attemptNum < MAX_RETRIES) {
       try {
         await this.setGasPrice(txData, attemptNum);
-        return await this._trySendTransaction(txData, attemptNum, network, transactionTimeoutSecs)
+
+        txResponse = await this._trySendTransaction(txData, attemptNum, network)
+        return await this._confirmTransactionSuccess(txResponse, network, transactionTimeoutSecs)
       } catch (err) {
         logger.err(err);
 
@@ -235,6 +250,17 @@ export default class EthereumBlockchainService implements BlockchainService {
             });
             logger.err(`Transaction timed out after ${transactionTimeoutSecs} seconds without being mined`);
             // Fall through and retry if we have retries remaining
+          } else if (code === ErrorCode.NONCE_EXPIRED) {
+            // If this happens it most likely means that our previous attempt timed out, but then
+            // actually wound up being successfully mined
+            logEvent.ethereum({
+              type: 'nonceExpired',
+              nonce: txData.nonce,
+            });
+            if (attemptNum == 0 || !txResponse) {
+              throw err
+            }
+            return await this._confirmTransactionSuccess(txResponse, network, transactionTimeoutSecs)
           }
         }
 

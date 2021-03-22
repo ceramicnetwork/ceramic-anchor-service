@@ -161,7 +161,10 @@ describe('ETH service with mock wallet',  () => {
     const attempt = 0
     const network = "eip1455:1337"
     const transactionTimeoutSecs = 10
-    const tx = await ethBc._trySendTransaction(txRequest, attempt, network, transactionTimeoutSecs)
+
+    const txResponse = await ethBc._trySendTransaction(txRequest, attempt, network)
+    expect(txResponse).toMatchSnapshot()
+    const tx = await ethBc._confirmTransactionSuccess(txResponse, network, transactionTimeoutSecs)
     expect(tx).toMatchSnapshot()
 
     const txData = wallet.sendTransaction.mock.calls[0][0]
@@ -173,6 +176,8 @@ describe('ETH service with mock wallet',  () => {
     const nonce = 5
     const gasPrice = BigNumber.from(1000)
     const gasEstimate = BigNumber.from(10*1000)
+    const txResponse = {foo: 'bar'}
+    const finalTransactionResult = {txHash: "0x12345"}
 
     provider.getBalance.mockReturnValue(balance)
     provider.getTransactionCount.mockReturnValue(nonce)
@@ -180,18 +185,26 @@ describe('ETH service with mock wallet',  () => {
     provider.estimateGas.mockReturnValue(gasEstimate)
 
     const mockTrySendTransaction = jest.fn()
+    const mockConfirmTransactionSuccess = jest.fn()
     ethBc._trySendTransaction = mockTrySendTransaction
-    mockTrySendTransaction.mockReturnValue({txHash: "0x12345"})
+    ethBc._confirmTransactionSuccess = mockConfirmTransactionSuccess
+    mockTrySendTransaction.mockReturnValue(txResponse)
+    mockConfirmTransactionSuccess.mockReturnValue(finalTransactionResult)
 
     const cid = new CID('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni');
-    await ethBc.sendTransaction(cid)
+    await expect(ethBc.sendTransaction(cid)).resolves.toEqual(finalTransactionResult)
 
     expect(mockTrySendTransaction).toHaveBeenCalledTimes(1)
-    const [txData, attemptNum, network, transactionTimeoutSecs] = mockTrySendTransaction.mock.calls[0]
+    const [txData, attemptNum, network0] = mockTrySendTransaction.mock.calls[0]
     expect(attemptNum).toEqual(0)
-    expect(network).toEqual(config.blockchain.connectors.ethereum.network)
-    expect(transactionTimeoutSecs).toEqual(config.blockchain.connectors.ethereum.transactionTimeoutSecs)
+    expect(network0).toEqual(config.blockchain.connectors.ethereum.network)
     expect(txData).toMatchSnapshot()
+
+    expect(mockConfirmTransactionSuccess).toHaveBeenCalledTimes(1)
+    const [txResponseReceived, network1, transactionTimeoutSecs] = mockConfirmTransactionSuccess.mock.calls[0]
+    expect(network1).toEqual(config.blockchain.connectors.ethereum.network)
+    expect(transactionTimeoutSecs).toEqual(config.blockchain.connectors.ethereum.transactionTimeoutSecs)
+    expect(txResponseReceived).toEqual(txResponse)
   });
 
   test('insufficient funds error', async () => {
@@ -219,16 +232,14 @@ describe('ETH service with mock wallet',  () => {
     // causing the attempt to be aborted.
     expect(mockTrySendTransaction).toHaveBeenCalledTimes(2)
 
-    const [txData0, attemptNum0, network0, transactionTimeoutSecs0] = mockTrySendTransaction.mock.calls[0]
+    const [txData0, attemptNum0, network0] = mockTrySendTransaction.mock.calls[0]
     expect(attemptNum0).toEqual(0)
     expect(network0).toEqual(config.blockchain.connectors.ethereum.network)
-    expect(transactionTimeoutSecs0).toEqual(config.blockchain.connectors.ethereum.transactionTimeoutSecs)
     expect(txData0).toMatchSnapshot()
 
-    const [txData1, attemptNum1, network1, transactionTimeoutSecs1] = mockTrySendTransaction.mock.calls[1]
+    const [txData1, attemptNum1, network1] = mockTrySendTransaction.mock.calls[1]
     expect(attemptNum1).toEqual(1)
     expect(network1).toEqual(config.blockchain.connectors.ethereum.network)
-    expect(transactionTimeoutSecs1).toEqual(config.blockchain.connectors.ethereum.transactionTimeoutSecs)
     expect(txData1).toMatchSnapshot()
   });
 
@@ -237,6 +248,7 @@ describe('ETH service with mock wallet',  () => {
     const nonce = 5
     const gasPrice = BigNumber.from(1000)
     const gasEstimate = BigNumber.from(10*1000)
+    const txResponse = {foo: 'bar'}
 
     provider.getBalance.mockReturnValue(balance)
     provider.getTransactionCount.mockReturnValue(nonce)
@@ -244,31 +256,52 @@ describe('ETH service with mock wallet',  () => {
     provider.estimateGas.mockReturnValue(gasEstimate)
 
     const mockTrySendTransaction = jest.fn()
+    const mockConfirmTransactionSuccess = jest.fn()
     ethBc._trySendTransaction = mockTrySendTransaction
-    mockTrySendTransaction.mockRejectedValue({code: ErrorCode.TIMEOUT})
+    ethBc._confirmTransactionSuccess = mockConfirmTransactionSuccess
+    mockTrySendTransaction.mockReturnValue(txResponse)
+    mockConfirmTransactionSuccess.mockRejectedValue({code: ErrorCode.TIMEOUT})
 
     const cid = new CID('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni');
     await expect(ethBc.sendTransaction(cid)).rejects.toThrow("Failed to send transaction")
 
     expect(mockTrySendTransaction).toHaveBeenCalledTimes(MAX_RETRIES)
+    expect(mockConfirmTransactionSuccess).toHaveBeenCalledTimes(MAX_RETRIES)
+  });
 
-    const [txData0, attemptNum0, network0, transactionTimeoutSecs0] = mockTrySendTransaction.mock.calls[0]
-    expect(attemptNum0).toEqual(0)
-    expect(network0).toEqual(config.blockchain.connectors.ethereum.network)
-    expect(transactionTimeoutSecs0).toEqual(config.blockchain.connectors.ethereum.transactionTimeoutSecs)
-    expect(txData0).toMatchSnapshot()
+  test('nonce expired error', async () => {
+    // test what happens if a transaction is submitted, waiting for it to be mined times out, but
+    // then before the retry the original txn gets mined, causing a NONCE_EXPIRED error on the retry
+    const balance = BigNumber.from(10 * 1000 * 1000)
+    const nonce = 5
+    const gasPrice = BigNumber.from(1000)
+    const gasEstimate = BigNumber.from(10*1000)
+    const txResponse = {foo: 'bar'}
+    const finalTransactionResult = {txHash: "0x12345"}
 
-    const [txData1, attemptNum1, network1, transactionTimeoutSecs1] = mockTrySendTransaction.mock.calls[1]
-    expect(attemptNum1).toEqual(1)
-    expect(network1).toEqual(config.blockchain.connectors.ethereum.network)
-    expect(transactionTimeoutSecs1).toEqual(config.blockchain.connectors.ethereum.transactionTimeoutSecs)
-    expect(txData1).toMatchSnapshot()
+    provider.getBalance.mockReturnValue(balance)
+    provider.getTransactionCount.mockReturnValue(nonce)
+    provider.getGasPrice.mockReturnValue(gasPrice)
+    provider.estimateGas.mockReturnValue(gasEstimate)
 
-    const [txData2, attemptNum2, network2, transactionTimeoutSecs2] = mockTrySendTransaction.mock.calls[2]
-    expect(attemptNum2).toEqual(2)
-    expect(network2).toEqual(config.blockchain.connectors.ethereum.network)
-    expect(transactionTimeoutSecs2).toEqual(config.blockchain.connectors.ethereum.transactionTimeoutSecs)
-    expect(txData2).toMatchSnapshot()
+    const mockTrySendTransaction = jest.fn()
+    const mockConfirmTransactionSuccess = jest.fn()
+    ethBc._trySendTransaction = mockTrySendTransaction
+    ethBc._confirmTransactionSuccess = mockConfirmTransactionSuccess
+    // first time submits the txn successfully
+    mockTrySendTransaction.mockReturnValueOnce(txResponse)
+    // On retry we get a NONCE_EXPIRED error because the first was actually mined correctly
+    mockTrySendTransaction.mockRejectedValueOnce({code: ErrorCode.NONCE_EXPIRED})
+    // First time should error with a timeout
+    mockConfirmTransactionSuccess.mockRejectedValueOnce({code: ErrorCode.TIMEOUT})
+    // Second time it should succeed
+    mockConfirmTransactionSuccess.mockReturnValueOnce(finalTransactionResult)
+
+    const cid = new CID('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni');
+    await expect(ethBc.sendTransaction(cid)).resolves.toEqual(finalTransactionResult)
+
+    expect(mockTrySendTransaction).toHaveBeenCalledTimes(2)
+    expect(mockConfirmTransactionSuccess).toHaveBeenCalledTimes(2)
   });
 
 });
