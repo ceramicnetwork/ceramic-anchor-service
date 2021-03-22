@@ -214,8 +214,9 @@ describe('ETH service with mock wallet',  () => {
     const cid = new CID('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni');
     await expect(ethBc.sendTransaction(cid)).rejects.toThrow(/Transaction cost is greater than our current balance/)
 
-    // In first attempt gas cost is exactly equal to wallet balance, in second attempt it goes
-    // over the wallet balance and the whole attempt is aborted
+    // In the first attempt we have exactly enough balance in our wallet to cover the cost, but the
+    // transaction times out. On retry, the gas cost is increased and goes over the wallet balance,
+    // causing the attempt to be aborted.
     expect(mockTrySendTransaction).toHaveBeenCalledTimes(2)
 
     const [txData0, attemptNum0, network0, transactionTimeoutSecs0] = mockTrySendTransaction.mock.calls[0]
