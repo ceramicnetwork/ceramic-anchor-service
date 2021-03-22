@@ -79,10 +79,14 @@ describe('ETH service connected to ganache',  () => {
   });
 
   test('gas price increase math', () => {
-    const currentGas = BigNumber.from(1000)
-    expect(EthereumBlockchainService.increaseGasPricePerAttempt(currentGas, 0)).toEqual(currentGas)
-    expect(EthereumBlockchainService.increaseGasPricePerAttempt(currentGas, 1)).toEqual(BigNumber.from(1100))
-    expect(EthereumBlockchainService.increaseGasPricePerAttempt(currentGas, 2)).toEqual(BigNumber.from(1200))
+    const gasEstimate = BigNumber.from(1000)
+    const firstRetry = BigNumber.from(1100)
+    // Note that this is not 1200. It needs to be 10% over the previous attempt's gas,
+    // not 20% over the gas estimate
+    const secondRetry = BigNumber.from(1210)
+    expect(EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate, 0, undefined).toNumber()).toEqual(gasEstimate.toNumber())
+    expect(EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate, 1, gasEstimate).toNumber()).toEqual(firstRetry.toNumber())
+    expect(EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate, 2, firstRetry).toNumber()).toEqual(secondRetry.toNumber())
   })
 
 });
