@@ -9,7 +9,7 @@
     "connectors": {
       "ethereum": {
         "network": "ganache",
-        "overrideGasConfig": true,
+        "overrideGasConfig": false,
         "gasLimit": 4712388,
         "gasPrice": "100000000000",
         "rpc": {

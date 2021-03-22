@@ -15,7 +15,7 @@ import Utils from '../../../utils';
 const BASE_CHAIN_ID = "eip155";
 const TX_FAILURE = 0;
 const TX_SUCCESS = 1;
-const MAX_RETRIES = 3;
+export const MAX_RETRIES = 3;
 
 const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
 
@@ -24,27 +24,33 @@ const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
  */
 export default class EthereumBlockchainService implements BlockchainService {
   private _chainId: string;
-  private provider: providers.BaseProvider;
+
+  constructor(private readonly wallet: ethers.Wallet) {
+  }
+
+  public static make(): EthereumBlockchainService {
+    const { network } = config.blockchain.connectors.ethereum;
+    const { host, port, url } = config.blockchain.connectors.ethereum.rpc;
+
+    let provider
+    if (url && url != "") {
+      provider = new ethers.providers.JsonRpcProvider(url);
+    } else if (host && host != "" && port && port != "") {
+      provider = new ethers.providers.JsonRpcProvider(`${host}:${port}`);
+    } else {
+      provider = ethers.getDefaultProvider(network);
+    }
+
+    provider.pollingInterval = POLLING_INTERVAL
+    const wallet = new ethers.Wallet(config.blockchain.connectors.ethereum.account.privateKey, provider);
+    return new EthereumBlockchainService(wallet)
+  }
 
   /**
    * Connects to blockchain
    */
   public async connect(): Promise<void> {
     logger.imp("Connecting to " + config.blockchain.connectors.ethereum.network + " blockchain...");
-    const { network } = config.blockchain.connectors.ethereum;
-    const { host, port, url } = config.blockchain.connectors.ethereum.rpc;
-
-    if (url && url != "") {
-      this.provider = new ethers.providers.JsonRpcProvider(url);
-    } else if (host && host != "" && port && port != "") {
-      this.provider = new ethers.providers.JsonRpcProvider(`${host}:${port}`);
-    } else {
-      this.provider = ethers.getDefaultProvider(network);
-    }
-
-    this.provider.pollingInterval = POLLING_INTERVAL
-
-    await this.provider.getNetwork();
     await this._loadChainId();
     logger.imp('Connected to ' + config.blockchain.connectors.ethereum.network + ' blockchain with chain ID ' + this.chainId);
   }
@@ -54,7 +60,7 @@ export default class EthereumBlockchainService implements BlockchainService {
    * connected blockchain to ask for it.
    */
   private async _loadChainId(): Promise<void> {
-    const idnum = (await this.provider.getNetwork()).chainId;
+    const idnum = (await this.wallet.provider.getNetwork()).chainId;
     this._chainId = BASE_CHAIN_ID + ':' + idnum
   }
 
@@ -66,7 +72,6 @@ export default class EthereumBlockchainService implements BlockchainService {
    * @private
    */
   async setGasPrice(txData: TransactionRequest, attempt: number): Promise<void> {
-    const { overrideGasConfig } = config.blockchain.connectors.ethereum;
     if (config.blockchain.connectors.ethereum.overrideGasConfig) {
       txData.gasPrice = BigNumber.from(config.blockchain.connectors.ethereum.gasPrice);
       logger.debug('Overriding Gas price: ' + txData.gasPrice.toString());
@@ -74,12 +79,12 @@ export default class EthereumBlockchainService implements BlockchainService {
       txData.gasLimit = BigNumber.from(config.blockchain.connectors.ethereum.gasLimit);
       logger.debug('Overriding Gas limit: ' + txData.gasLimit.toString());
     } else {
-      const gasPriceEstimate = await this.provider.getGasPrice(); // in wei
+      const gasPriceEstimate = await this.wallet.provider.getGasPrice(); // in wei
       // Add extra to gas price for each subsequent attempt
       txData.gasPrice = EthereumBlockchainService.increaseGasPricePerAttempt(gasPriceEstimate, attempt)
       logger.debug('Estimated Gas price (in wei): ' + txData.gasPrice.toString());
 
-      txData.gasLimit = await this.provider.estimateGas(txData);
+      txData.gasLimit = await this.wallet.provider.estimateGas(txData);
       logger.debug('Estimated Gas limit: ' + txData.gasLimit.toString());
     }
   }
@@ -103,81 +108,94 @@ export default class EthereumBlockchainService implements BlockchainService {
     return this._chainId
   }
 
+  async _buildTransactionRequest(rootCid: CID): Promise<TransactionRequest> {
+    const rootStrHex = rootCid.toString("base16");
+    const hexEncoded = "0x" + (rootStrHex.length % 2 == 0 ? rootStrHex : "0" + rootStrHex);
+    logger.imp(`Hex encoded root CID ${hexEncoded}`);
+
+    logger.debug("Preparing ethereum transaction")
+    const baseNonce = await this.wallet.provider.getTransactionCount(this.wallet.address);
+
+    const txData: TransactionRequest = {
+      to: this.wallet.address,
+      data: hexEncoded,
+      nonce: baseNonce,
+    };
+    return txData
+  }
+
+  /**
+   * One attempt at sending the prepared TransactionRequest to the ethereum blockchain.
+   * @param txData
+   * @param attemptNum
+   * @param network
+   * @param transactionTimeoutSecs
+   */
+  async _trySendTransaction(txData: TransactionRequest, attemptNum: number, network: string, transactionTimeoutSecs: number): Promise<Transaction> {
+    logger.imp("Transaction data:" + JSON.stringify(txData));
+
+    logEvent.ethereum({
+      type: 'txRequest',
+      ...txData
+    });
+    logger.imp(`Sending transaction to Ethereum ${network} network...`);
+    const txResponse: providers.TransactionResponse = await this.wallet.sendTransaction(txData);
+    logEvent.ethereum({
+      type: 'txResponse',
+      hash: txResponse.hash,
+      blockNumber: txResponse.blockNumber,
+      blockHash: txResponse.blockHash,
+      timestamp: txResponse.timestamp,
+      confirmations: txResponse.confirmations,
+      from: txResponse.from,
+      raw: txResponse.raw,
+    });
+    const caip2ChainId = "eip155:" + txResponse.chainId;
+    if (caip2ChainId != this.chainId) {
+      // TODO: This should be process-fatal
+      throw new Error("Chain ID of connected blockchain changed from " + this.chainId + " to " + caip2ChainId)
+    }
+
+    const txReceipt: providers.TransactionReceipt = await this.wallet.provider.waitForTransaction(
+      txResponse.hash, 1, transactionTimeoutSecs * 1000);
+    logEvent.ethereum({
+      type: 'txReceipt',
+      ...txReceipt
+    });
+    const block: providers.Block = await this.wallet.provider.getBlock(txReceipt.blockHash);
+
+    const status = txReceipt.byzantium ? txReceipt.status : -1;
+    let statusMessage = (status == TX_SUCCESS) ? 'success' : 'failure';
+    if (!txReceipt.byzantium) {
+      statusMessage = 'unknown';
+    }
+    logger.imp(`Transaction completed on Ethereum ${network} network. Transaction hash: ${txReceipt.transactionHash}. Status: ${statusMessage}.`);
+    if (status == TX_FAILURE) {
+      throw new Error("Transaction completed with a failure status");
+    }
+
+    return new Transaction(caip2ChainId, txReceipt.transactionHash, txReceipt.blockNumber, block.timestamp);
+  }
   /**
    * Sends transaction with root CID as data
    */
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
-    const wallet = new ethers.Wallet(config.blockchain.connectors.ethereum.account.privateKey, this.provider);
-    const walletBalance = await this.provider.getBalance(wallet.address);
+    const walletBalance = await this.wallet.provider.getBalance(this.wallet.address);
     logMetric.ethereum({
       type: 'walletBalance',
       balance: ethers.utils.formatUnits(walletBalance, 'gwei')
     });
     logger.imp(`Current wallet balance is ` + walletBalance);
 
-    const rootStrHex = rootCid.toString("base16");
-    const hexEncoded = "0x" + (rootStrHex.length % 2 == 0 ? rootStrHex : "0" + rootStrHex);
-    logger.imp(`Hex encoded root CID ${hexEncoded}`);
-
-    const { network } = config.blockchain.connectors.ethereum;
-
-    logger.debug("Preparing ethereum transaction")
-    const baseNonce = await this.provider.getTransactionCount(wallet.getAddress());
-
-    const txData: TransactionRequest = {
-      to: wallet.address,
-      data: hexEncoded,
-      nonce: baseNonce,
-    };
+    const txData = await this._buildTransactionRequest(rootCid)
     const transactionTimeoutSecs = config.blockchain.connectors.ethereum.transactionTimeoutSecs
+    const { network } = config.blockchain.connectors.ethereum;
 
     let attemptNum = 0;
     while (attemptNum < MAX_RETRIES) {
       try {
         await this.setGasPrice(txData, attemptNum);
-        logger.imp("Transaction data:" + JSON.stringify(txData));
-
-        logEvent.ethereum({
-          type: 'txRequest',
-          ...txData
-        });
-        logger.imp(`Sending transaction to Ethereum ${network} network...`);
-        const txResponse: providers.TransactionResponse = await wallet.sendTransaction(txData);
-        logEvent.ethereum({
-          type: 'txResponse',
-          hash: txResponse.hash,
-          blockNumber: txResponse.blockNumber,
-          blockHash: txResponse.blockHash,
-          timestamp: txResponse.timestamp,
-          confirmations: txResponse.confirmations,
-          from: txResponse.from,
-          raw: txResponse.raw,
-        });
-        const caip2ChainId = "eip155:" + txResponse.chainId;
-        if (caip2ChainId != this.chainId) {
-          // TODO: This should be process-fatal
-          throw new Error("Chain ID of connected blockchain changed from " + this.chainId + " to " + caip2ChainId)
-        }
-
-        const txReceipt: providers.TransactionReceipt = await this.provider.waitForTransaction(
-          txResponse.hash, 1, transactionTimeoutSecs * 1000);
-        logEvent.ethereum({
-          type: 'txReceipt',
-          ...txReceipt
-        });
-        const block: providers.Block = await this.provider.getBlock(txReceipt.blockHash);
-
-        const status = txReceipt.byzantium ? txReceipt.status : -1;
-        let statusMessage = (status == TX_SUCCESS) ? 'success' : 'failure';
-        if (!txReceipt.byzantium) {
-          statusMessage = 'unknown';
-        }
-        logger.imp(`Transaction completed on Ethereum ${network} network. Transaction hash: ${txReceipt.transactionHash}. Status: ${statusMessage}.`);
-        if (status == TX_FAILURE) {
-          throw new Error("Transaction completed with a failure status");
-        }
-
-        return new Transaction(caip2ChainId, txReceipt.transactionHash, txReceipt.blockNumber, block.timestamp);
+        return await this._trySendTransaction(txData, attemptNum, network, transactionTimeoutSecs)
       } catch (err) {
         logger.err(err);
 
@@ -217,7 +235,7 @@ export default class EthereumBlockchainService implements BlockchainService {
       }
     }
 
-    const finalWalletBalance = await this.provider.getBalance(wallet.address);
+    const finalWalletBalance = await this.wallet.provider.getBalance(this.wallet.address);
     logMetric.ethereum({
       type: 'walletBalance',
       balance: ethers.utils.formatUnits(finalWalletBalance, 'gwei')
