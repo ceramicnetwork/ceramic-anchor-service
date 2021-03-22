@@ -221,6 +221,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     while (attemptNum < MAX_RETRIES) {
       try {
         await this.setGasPrice(txData, attemptNum);
+
         txResponse = await this._trySendTransaction(txData, attemptNum, network)
         return await this._confirmTransactionSuccess(txResponse, network, transactionTimeoutSecs)
       } catch (err) {
