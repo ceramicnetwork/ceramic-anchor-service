@@ -1,0 +1,51 @@
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - feat/check-running-anchor-process # will remove after testing
+  workflow_dispatch:
+
+name: Build and Push to ECR
+
+jobs:
+  run:
+    name: Build and Push to ECR
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      
+    - name: Set Variables
+      id: vars
+      run: |
+        if [[ "${{github.base_ref}}" == "main" || "${{github.ref}}" == "refs/heads/main" ]]; then
+          echo "::set-output name=ECR_REPOSITORY::ceramic-tnet-cas"
+          echo "::set-output name=IMAGE_TAG::latest"
+        else
+          echo "::set-output name=ECR_REPOSITORY::ceramic-dev-cas"
+          echo "::set-output name=IMAGE_TAG::dev"
+        fi
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-2
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: ${{ steps.set-vars.outputs.ECR_REPOSITORY }}
+        SHA_TAG: ${{ github.sha }}
+      run: |
+        docker build -f Dockerfile -t cas .
+        docker build -f Dockerfile.runner -t $ECR_REGISTRY/$ECR_REPOSITORY:$SHA_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.set-vars.outputs.IMAGE_TAG }} .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY --all-tags
