@@ -17,15 +17,17 @@ async function main() {
 
   const command = new ListTasksCommand(params)
 
+  const data = await client.send(command)
+
   try {
-    const data = await client.send(command)
     if (data.$metadata.httpStatusCode > 399) {
       throw Error(data.$metadata.httpStatusCode)
     } else {
       if (data.taskArns.length > 0) {
+        console.log('Running tasks')
         console.log(data.taskArns)
       } else {
-        console.log(0)
+        console.log('No running tasks found')
       }
     }
   } catch (error) {
@@ -33,7 +35,12 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error)
-  process.exit(1)
-})
+main()
+  .then(() => {
+    console.log('Done')
+  })
+  .catch((error) => {
+    console.error(error)
+    process.exit(1)
+  })
+
