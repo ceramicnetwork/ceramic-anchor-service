@@ -23,7 +23,7 @@ async function main() {
     throw Error(data.$metadata.httpStatusCode)
   } else {
     if (data.taskArns.length > 0) {
-      console.log('Running tasks')
+      console.log('Tasks already running')
       console.log(data.taskArns)
     } else {
       console.log('No running tasks found')
