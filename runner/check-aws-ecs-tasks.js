@@ -19,19 +19,15 @@ async function main() {
 
   const data = await client.send(command)
 
-  try {
-    if (data.$metadata.httpStatusCode > 399) {
-      throw Error(data.$metadata.httpStatusCode)
+  if (data.$metadata.httpStatusCode > 399) {
+    throw Error(data.$metadata.httpStatusCode)
+  } else {
+    if (data.taskArns.length > 0) {
+      console.log('Running tasks')
+      console.log(data.taskArns)
     } else {
-      if (data.taskArns.length > 0) {
-        console.log('Running tasks')
-        console.log(data.taskArns)
-      } else {
-        console.log('No running tasks found')
-      }
+      console.log('No running tasks found')
     }
-  } catch (error) {
-    console.error(error)
   }
 }
 
