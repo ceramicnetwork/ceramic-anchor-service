@@ -46,10 +46,6 @@ jobs:
         ECR_REPOSITORY: ${{ steps.set-vars.outputs.ECR_REPOSITORY }}
         SHA_TAG: ${{ github.sha }}
       run: |
-        echo $ECR_REGISTRY
-        echo $ECR_REPOSITORY
-        echo $SHA_TAG
-        echo ${{ steps.set-vars.outputs.IMAGE_TAG }}
         docker build -f Dockerfile -t cas .
         docker build -f Dockerfile.runner -t $ECR_REGISTRY/$ECR_REPOSITORY:$SHA_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.set-vars.outputs.IMAGE_TAG }} .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY --all-tags
