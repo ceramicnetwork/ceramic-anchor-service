@@ -26,7 +26,7 @@ async function main() {
       console.log('More than one task already running')
       console.log(data.taskArns)
     } else {
-      console.log('Only one running task found')
+      console.log('Only one running task found (assumed to be self)')
     }
   }
 }
@@ -39,4 +39,3 @@ main()
     console.error(error)
     process.exit(1)
   })
-
