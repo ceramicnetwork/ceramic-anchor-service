@@ -23,9 +23,11 @@ async function main() {
     throw Error(data.$metadata.httpStatusCode)
   } else {
     if (data.taskArns.length > 1) {
+      console.log('HALT')
       console.log('More than one task already running')
       console.log(data.taskArns)
     } else {
+      console.log('OK')
       console.log('Only one running task found (assumed to be self)')
     }
   }
