@@ -180,6 +180,7 @@ export default class AnchorService {
       logger.debug(`Successfully anchored CID ${candidate.cid.toString()} for document ${candidate.document.id.toString()}`)
     }
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`);
+    process.exit()
   }
 
   /**
