@@ -1,49 +1,102 @@
-# Docker Compose file Reference (https://docs.docker.com/compose/compose-file/)
-
 version: '3.4'
 
-# Define services
 services:
-#### Uncomment section bellow if you want to start the latest go-ipfs instance
-  cas:
-    # Configuration for building the docker image for the service
-    build:
-      context: . # Use an image built from the specified dockerfile in the current directory.
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    environment: # Pass environment variables to the service
+
+  cas_api:
+    build: .
+    environment:
       - NODE_ENV=dev
       - APP_MODE=server
       - APP_PORT=8081
-      - ANCHOR_SCHEDULE_EXPRESSION=0 0 */1 * * *
-      - IPFS_API_URL=ipfs:5001
+
+      - ANCHOR_CONTROLLER_ENABLED=false
+      - ANCHOR_EXPIRATION_PERIOD=0
+      - ANCHOR_SCHEDULE_EXPRESSION=0/1 * * * ? *
+
       - BLOCKCHAIN_CONNECTOR=ethereum
-      - ETH_NETWORK=ganache
+      - CERAMIC_API_URL=http://host.docker.internal:7007
       - ETH_GAS_LIMIT=4712388
       - ETH_GAS_PRICE=100000000000
-      - ETH_RPC_HOST=http://ganache
-      - ETH_RPC_PORT=8545
-      - ETH_WALLET_PK=0x06dd0990d19001c57eeea6d32e8fdeee40d3945962caf18c18c3930baa5a6ec9
+      - ETH_NETWORK=ropsten
+      - ETH_OVERRIDE_GAS_CONFIG=false
+      - ETH_WALLET_PK=0x16dd0990d19001c50eeea6d32e8fdeef40d3945962caf18c18c3930baa5a6ec9
+
+      - IPFS_API_URL=ipfs:5001
+      - IPFS_API_TIMEOUT=10000
+
       - LOG_LEVEL=debug
       - LOG_TO_FILES=true
-      - TYPEORM_CONNECTION=sqlite
-      - TYPEORM_HOST=localhost
+      - LOG_PATH=/usr/local/var/log
+      - MERKLE_DEPTH_LIMIT=0
+
+      - TYPEORM_CONNECTION=postgres
+      - TYPEORM_DATABASE=anchor_db
+      - TYPEORM_HOST=database
+      - TYPEORM_PORT=5432
       - TYPEORM_USERNAME=root
       - TYPEORM_PASSWORD=root
-      - TYPEORM_DATABASE=./anchor.db.sq3
-      - TYPEORM_PORT=5432
-      - TYPEORM_SYNCHRONIZE=true
-      - TYPEORM_LOGGING=true
+
       - TYPEORM_ENTITIES=build/models/**/*.js
+      - TYPEORM_SUBSCRIBERS=build/subscribers/**/*.js
+      - TYPEORM_LOGGING=false
+      - TYPEORM_SYNCHRONIZE=true
+
+      - VALIDATE_RECORDS=false
     volumes:
       - "/usr/local/var/log:/usr/local/var/log"
     depends_on:
       - ipfs
-      - ganache
+    ports:
+      - "8081:8081"
     networks:
       - internal
+
+  cas_anchor:
+    build: .
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=dev
+      - APP_MODE=anchor
+      - APP_PORT=8081
+      - ANCHOR_CONTROLLER_ENABLED=false
+      - ANCHOR_EXPIRATION_PERIOD=0
+      - ANCHOR_SCHEDULE_EXPRESSION=0/1 * * * ? *
+      - BLOCKCHAIN_CONNECTOR=ethereum
+      - CERAMIC_API_URL=http://host.docker.internal:7007
+      - ETH_GAS_LIMIT=4712388
+      - ETH_GAS_PRICE=100000000000
+      - ETH_NETWORK=ropsten
+      - ETH_OVERRIDE_GAS_CONFIG=false
+      - ETH_WALLET_PK=0x16dd0990d19001c50eeea6d32e8fdeef40d3945962caf18c18c3930baa5a6ec9
+      - IPFS_API_URL=ipfs:5001
+      - IPFS_API_TIMEOUT=10000
+      - LOG_LEVEL=debug
+      - LOG_TO_FILES=true
+      - LOG_PATH=/usr/local/var/log
+      - MERKLE_DEPTH_LIMIT=0
+
+      - TYPEORM_CONNECTION=postgres
+      - TYPEORM_DATABASE=anchor_db
+      - TYPEORM_HOST=database
+      - TYPEORM_PORT=5432
+      - TYPEORM_USERNAME=root
+      - TYPEORM_PASSWORD=root
+
+      - TYPEORM_ENTITIES=build/models/**/*.js
+      - TYPEORM_SUBSCRIBERS=build/subscribers/**/*.js
+      - TYPEORM_LOGGING=false
+      - TYPEORM_SYNCHRONIZE=true
+
+      - VALIDATE_RECORDS=false
+    volumes:
+      - "/usr/local/var/log:/usr/local/var/log"
+    depends_on:
+      - ipfs
+    networks:
+      - internal
+
   ipfs:
-    image: ipfs/go-ipfs:latest
+    image: ceramicnetwork/js-ipfs-ceramic
     hostname: ipfs_host
     volumes:
       - "./export:/export"
@@ -54,45 +107,43 @@ services:
       - "8080:8080"
     networks:
       - internal
-#
-#### Uncomment section bellow if you want to start the Postgres database
-#
-#  database:
-#    image: "postgres" # use latest official postgres version
-#    env_file:
-#      - database.env # configure postgres
-#    ports:
-#      - "5432:5432"
-#    volumes:
-#      - ./data/postgres:/var/lib/postgresql/data/ # persist data even if container shuts down
-#    networks:
-#      - internal
-#
-#### Uncomment section bellow if you want to start the Ganache ethereum blockchain
-#
-  ganache:
-    image: trufflesuite/ganache-cli:latest
+
+  database:
+    image: "postgres"
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DB=anchor_db
     ports:
-      - "8545:8545"
+      - "5432:5432"
     volumes:
-      - ./data/ganache:/ganache_data
-    entrypoint:
-      - node
-      - /app/ganache-core.docker.cli.js
-      - --deterministic
-      - --db=/ganache_data
-      - --mnemonic
-      - 'move sense much taxi wave hurry recall stairs thank brother nut woman'
-      - --networkId
-      - '5777'
-      - --hostname
-      - '0.0.0.0'
-      - -l
-      - '80000000'
-      - --quiet
+      - ./data/postgres:/var/lib/postgresql/data/
     networks:
       - internal
-#
+
+#  ganache:
+#    image: trufflesuite/ganache-cli:latest
+#    ports:
+#      - "8545:8545"
+#    volumes:
+#      - ./data/ganache:/ganache_data
+#    entrypoint:
+#      - node
+#      - /app/ganache-core.docker.cli.js
+#      - --deterministic
+#      - --db=/ganache_data
+#      - --mnemonic
+#      - 'move sense much taxi wave hurry recall stairs thank brother nut woman'
+#      - --networkId
+#      - '5777'
+#      - --hostname
+#      - '0.0.0.0'
+#      - -l
+#      - '80000000'
+#      - --quiet
+#    networks:
+#      - internal
+
 #  localstack:
 #    image: localstack/localstack:latest
 #    container_name: localstack_demo
@@ -107,8 +158,7 @@ services:
 #      - './.localstack:/tmp/localstack'
 #      - '/var/run/docker.sock:/var/run/docker.sock'
 
-#### Uncomment section bellow to enable networks
-#
 networks:
   internal:
     driver: bridge
+
