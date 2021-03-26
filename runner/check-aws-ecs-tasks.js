@@ -22,11 +22,11 @@ async function main() {
   if (data.$metadata.httpStatusCode > 399) {
     throw Error(data.$metadata.httpStatusCode)
   } else {
-    if (data.taskArns.length > 0) {
-      console.log('Tasks already running')
+    if (data.taskArns.length > 1) {
+      console.log('More than one task already running')
       console.log(data.taskArns)
     } else {
-      console.log('No running tasks found')
+      console.log('Only one running task found (assumed to be self)')
     }
   }
 }
@@ -39,4 +39,3 @@ main()
     console.error(error)
     process.exit(1)
   })
-
