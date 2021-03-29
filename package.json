@@ -22,7 +22,8 @@
       "clean": "rm -rf ./build; rm -rf coverage; rm -rf .nyc_output",
       "start": "node ./build/app.js",
       "startDev": "NODE_ENV=dev APP_MODE=bundled node ./build/app.js ",
-      "watch": "nodemon -e ts --watch src --exec \"npm run build && npm run start\""
+      "watch": "nodemon -e ts --watch src --exec \"npm run build && npm run start\"",
+      "release": "release-it"
    },
    "husky": {
       "hooks": {
@@ -101,10 +102,19 @@
       "nodemon": "^2.0.6",
       "nyc": "^15.1.0",
       "prettier": "^2.2.1",
+      "release-it": "^14.5.0",
       "tmp-promise": "^3.0.2",
       "ts-jest": "^26.4.4",
       "ts-node": "^9.0.0",
       "tsconfig-paths": "^3.9.0",
       "typescript": "^4.1.2"
+   },
+   "release-it": {
+       "github": {
+           "release": true
+       },
+       "npm": {
+           "publish": false
+      }
    }
 }
