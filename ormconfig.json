@@ -1,26 +1,26 @@
 {
-   "name": "default",
-   "type": "postgres",
-   "host": "localhost",
-   "port": 5432,
-   "username": "root",
-   "password": "root",
-   "database": "anchor_db",
-   "autoSchemaSync": true,
-   "synchronize": true,
-   "logging": true,
-   "entities": [
-      "build/models/**/*.js"
-   ],
-   "migrations": [
-      "src/migration/**/*.ts"
-   ],
-   "subscribers": [
-      "src/subscribers/**/*.ts"
-   ],
-   "cli": {
-      "entitiesDir": "src/models",
-      "migrationsDir": "src/migration",
-      "subscribersDir": "src/subscribers"
-   }
+  "name": "default",
+  "type": "postgres",
+  "host": "localhost",
+  "port": 5432,
+  "username": "root",
+  "password": "root",
+  "database": "anchor_db",
+  "autoSchemaSync": true,
+  "synchronize": true,
+  "logging": true,
+  "entities": [
+    "build/models/**/*.js"
+  ],
+  "migrations": [
+    "src/migration/**/*.ts"
+  ],
+  "subscribers": [
+    "src/subscribers/**/*.ts"
+  ],
+  "cli": {
+    "entitiesDir": "src/models",
+    "migrationsDir": "src/migration",
+    "subscribersDir": "src/subscribers"
+  }
 }
