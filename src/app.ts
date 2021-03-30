@@ -144,6 +144,7 @@ export default class CeramicAnchorApp {
     this.startWithConnectionHandling(async () => {
       const anchorService: AnchorService = container.resolve<AnchorService>('anchorService');
       await anchorService.anchorRequests();
+      process.exit();
     });
   }
 
