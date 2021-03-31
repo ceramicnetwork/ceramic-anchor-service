@@ -1,10 +1,9 @@
 import CID from "cids";
 
-import { Doctype, DoctypeUtils } from '@ceramicnetwork/common';
 import { RequestStatus as RS } from "../models/request-status";
 
 import { MerkleTree } from "../merkle/merkle-tree";
-import { CompareFunction, MergeFunction, Node, PathDirection } from "../merkle/merkle";
+import { PathDirection, TreeMetadata } from '../merkle/merkle';
 
 import { config } from "node-config-ts";
 import { Transactional } from "typeorm-transactional-cls-hooked";
@@ -22,51 +21,7 @@ import CeramicService from "./ceramic-service";
 import BlockchainService from "./blockchain/blockchain-service";
 import { inject, singleton } from "tsyringe";
 import DocID from '@ceramicnetwork/docid';
-
-class Candidate {
-  public readonly cid: CID;
-  public readonly document: Doctype;
-  public readonly reqId: number;
-
-  constructor(cid: CID, reqId?: number, document?: Doctype) {
-    this.cid = cid;
-    this.reqId = reqId;
-    this.document = document
-  }
-
-  get docId(): string {
-    return this.document.id.baseID.toString()
-  }
-
-}
-
-/**
- * Implements IPFS merge CIDs
- */
-class IpfsMerge implements MergeFunction<Candidate> {
-  private ipfsService: IpfsService;
-
-  constructor(ipfsService: IpfsService) {
-    this.ipfsService = ipfsService;
-  }
-
-  async merge(left: Node<Candidate>, right: Node<Candidate>): Promise<Node<Candidate>> {
-    const merged = [left.data.cid, right.data.cid];
-
-    const mergedCid = await this.ipfsService.storeRecord(merged);
-    logger.debug('Merkle node ' + mergedCid + ' created.');
-    return new Node<Candidate>(new Candidate(mergedCid), left, right);
-  }
-}
-
-/**
- * Implements IPFS merge CIDs
- */
-class IpfsLeafCompare implements CompareFunction<Candidate> {
-  compare(left: Node<Candidate>, right: Node<Candidate>): number {
-    return left.data.docId.localeCompare(right.data.docId);
-  }
-}
+import { BloomMetadata, Candidate, IpfsLeafCompare, IpfsMerge } from '../merkle/merkle-objects';
 
 /**
  * Anchors CIDs to blockchain
@@ -75,6 +30,7 @@ class IpfsLeafCompare implements CompareFunction<Candidate> {
 export default class AnchorService {
   private readonly ipfsMerge: IpfsMerge;
   private readonly ipfsCompare: IpfsLeafCompare;
+  private readonly bloomMetadata: BloomMetadata;
 
   constructor(
     @inject('blockchainService') private blockchainService?: BlockchainService,
@@ -85,6 +41,7 @@ export default class AnchorService {
 
     this.ipfsMerge = new IpfsMerge(this.ipfsService);
     this.ipfsCompare = new IpfsLeafCompare();
+    this.bloomMetadata = new BloomMetadata();
   }
 
   /**
@@ -187,7 +144,7 @@ export default class AnchorService {
    * @param candidates
    * @private
    */
-  async _buildMerkleTree(candidates: Candidate[]): Promise<MerkleTree<Candidate>> {
+  async _buildMerkleTree(candidates: Candidate[]): Promise<MerkleTree<Candidate, TreeMetadata>> {
     try {
       if (config.merkleDepthLimit > 0) {
         const nodeLimit = Math.pow(2, config.merkleDepthLimit)
@@ -200,7 +157,7 @@ export default class AnchorService {
         }
       }
 
-      const merkleTree = new MerkleTree<Candidate>(this.ipfsMerge, this.ipfsCompare, config.merkleDepthLimit);
+      const merkleTree = new MerkleTree<Candidate, TreeMetadata>(this.ipfsMerge, this.ipfsCompare, this.bloomMetadata, config.merkleDepthLimit);
       await merkleTree.build(candidates);
       return merkleTree
     } catch (e) {
@@ -236,7 +193,7 @@ export default class AnchorService {
    * of each anchor request.
    * @private
    */
-  async _createAnchorCommits(ipfsProofCid: CID, merkleTree: MerkleTree<Candidate>, requests: Request[]): Promise<Anchor[]> {
+  async _createAnchorCommits(ipfsProofCid: CID, merkleTree: MerkleTree<Candidate, TreeMetadata>, requests: Request[]): Promise<Anchor[]> {
     const anchors: Anchor[] = [];
     const candidates = merkleTree.getLeaves()
     for (let index = 0; index < candidates.length; index++) {

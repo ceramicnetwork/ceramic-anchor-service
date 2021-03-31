@@ -3,7 +3,7 @@ import 'reflect-metadata';
 require('dotenv').config();
 
 import { config } from 'node-config-ts';
-import { container } from "tsyringe";
+import { container, instanceCachingFactory } from 'tsyringe';
 
 import { logger } from "./logger";
 import CeramicAnchorServer from './server';
@@ -39,7 +39,9 @@ export default class CeramicAnchorApp {
     container.registerSingleton("requestRepository", RequestRepository);
 
     // register services
-    container.registerSingleton("blockchainService", EthereumBlockchainService);
+    container.register("blockchainService", {
+      useFactory: instanceCachingFactory<EthereumBlockchainService>(c => EthereumBlockchainService.make())
+    });
     container.registerSingleton("anchorService", AnchorService);
     if (config.mode == "bundled" || config.mode == "anchor" || config.anchorControllerEnabled) {
       // Only register the ceramicService if we might ever need to perform an anchor
