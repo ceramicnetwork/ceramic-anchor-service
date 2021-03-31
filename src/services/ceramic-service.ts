@@ -1,4 +1,4 @@
-import { Resolver } from "did-resolver"
+import { Resolver } from "did-resolver";
 
 import CeramicClient from '@ceramicnetwork/http-client';
 import { CeramicApi, Doctype } from '@ceramicnetwork/common';
@@ -27,7 +27,19 @@ export default class CeramicServiceImpl implements CeramicService {
   }
 
   async loadDocument<T extends Doctype>(docId: DocID): Promise<T> {
-    return await this._client.loadDocument(docId, {sync: false})
-  }
+    let timeout: any;
 
+    const docPromise = this._client.loadDocument(docId, {sync: false})
+      .finally(() => {
+        clearTimeout(timeout);
+      });
+
+    const timeoutPromise = new Promise((_, reject) => {
+      timeout = setTimeout(() => {
+        reject(`Timed out loading docid: ${docId.toString()}`)
+      }, 60 * 1000);
+    });
+
+    return (await Promise.race([docPromise, timeoutPromise])) as T
+  }
 }

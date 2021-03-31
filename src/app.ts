@@ -143,7 +143,11 @@ export default class CeramicAnchorApp {
     const ipfsService: IpfsServiceImpl = container.resolve<IpfsServiceImpl>('ipfsService');
     await ipfsService.init();
 
-    await this._executeAnchor();
+    this.startWithConnectionHandling(async () => {
+      const anchorService: AnchorService = container.resolve<AnchorService>('anchorService');
+      await anchorService.anchorRequests();
+      process.exit();
+    });
   }
 
   /**
@@ -163,16 +167,6 @@ export default class CeramicAnchorApp {
       process.exit(1);
     }
     await fn();
-  }
-
-  /**
-   * Execute a single anchor process
-   */
-  private async _executeAnchor(): Promise<void> {
-    await this.startWithConnectionHandling(async () => {
-      const anchorService: AnchorService = container.resolve<AnchorService>('anchorService');
-      await anchorService.anchorRequests();
-    });
   }
 }
 
