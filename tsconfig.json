@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "lib": ["es6", "dom", "esnext"],
+    "lib": [
+      "es6",
+      "dom",
+      "esnext"
+    ],
     "target": "ES2018",
     "declaration": true,
     "declarationMap": true,
@@ -15,7 +19,7 @@
     "rootDir": "src",
     "outDir": "build",
     "inlineSources": true,
-    "pretty":true
+    "pretty": true
   },
   "include": [
     "./src/**/*",
