@@ -3,7 +3,6 @@ on:
     branches:
       - main
       - develop
-      - feat/check-running-anchor-process # will remove after testing
   workflow_dispatch:
 
 name: Build and Push to ECR
@@ -23,9 +22,11 @@ jobs:
         if [[ "${{github.base_ref}}" == "main" || "${{github.ref}}" == "refs/heads/main" ]]; then
           echo "::set-output name=ECR_REPOSITORY::ceramic-tnet-cas"
           echo "::set-output name=IMAGE_TAG::latest"
+          echo "::set-output name=IMAGE_TAG_2::tnet"
         else
           echo "::set-output name=ECR_REPOSITORY::ceramic-dev-cas"
           echo "::set-output name=IMAGE_TAG::dev"
+          echo "::set-output name=IMAGE_TAG_2::none"
         fi
 
     - name: Configure AWS credentials
@@ -47,5 +48,9 @@ jobs:
         SHA_TAG: ${{ github.sha }}
       run: |
         docker build -f Dockerfile -t cas .
-        docker build -f Dockerfile.runner -t $ECR_REGISTRY/$ECR_REPOSITORY:$SHA_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.set-vars.outputs.IMAGE_TAG }} .
+        if [[ "${{steps.set-vars.outputs.IMAGE_TAG_2}}" != "none" ]]; then
+          docker build -f Dockerfile.runner -t $ECR_REGISTRY/$ECR_REPOSITORY:$SHA_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.set-vars.outputs.IMAGE_TAG }} -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.set-vars.outputs.IMAGE_TAG_2 }} .
+        else
+          docker build -f Dockerfile.runner -t $ECR_REGISTRY/$ECR_REPOSITORY:$SHA_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.set-vars.outputs.IMAGE_TAG }} .
+        fi
         docker push $ECR_REGISTRY/$ECR_REPOSITORY --all-tags
