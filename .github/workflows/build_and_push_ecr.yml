@@ -3,6 +3,7 @@ on:
     branches:
       - main
       - develop
+      - ci/tnet-image # TODO: Remove after testing
   workflow_dispatch:
 
 name: Build and Push to ECR
