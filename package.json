@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@ceramicnetwork/3id-did-resolver": "^0.6.0",
-    "@ceramicnetwork/common": "^0.15.0",
+    "@ceramicnetwork/common": "^0.17.0",
     "@ceramicnetwork/docid": "^0.4.0",
     "@ceramicnetwork/http-client": "^0.8.8",
     "@ceramicnetwork/key-did-resolver": "^0.2.2",
