@@ -180,7 +180,9 @@ export default class AnchorService {
       chainId: tx.chain,
       txHash: txHashCid
     };
+    logger.debug('Anchor proof: ' + JSON.stringify(ipfsAnchorProof))
     const ipfsProofCid = await this.ipfsService.storeRecord(ipfsAnchorProof);
+    logger.debug('Anchor proof cid: ' + ipfsProofCid.toString())
     return ipfsProofCid
   }
 
