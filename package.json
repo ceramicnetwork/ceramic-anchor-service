@@ -34,7 +34,7 @@
     "@ceramicnetwork/3id-did-resolver": "^0.6.0",
     "@ceramicnetwork/common": "^0.15.0",
     "@ceramicnetwork/docid": "^0.4.0",
-    "@ceramicnetwork/http-client": "^0.8.8",
+    "@ceramicnetwork/http-client": "^0.10.2",
     "@ceramicnetwork/key-did-resolver": "^0.2.2",
     "@ceramicnetwork/logger": "^0.1.0-rc.3",
     "@overnightjs/core": "^1.7.5",
