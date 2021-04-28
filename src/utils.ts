@@ -1,18 +1,8 @@
 import CID from 'cids';
-import globby from 'globby';
 
 import { encode } from 'typestub-multihashes';
 
 export default class Utils {
-  /**
-   * List directory files recursively
-   * @param dir - Directory path
-   * @return Promise<string[]> - file absolute paths
-   */
-  static async listDir(dir: string): Promise<string[]> {
-    return globby(`${dir}/**/*`);
-  }
-
   /**
    * Flatten array of arrays
    * @param arr - Array of arrays
