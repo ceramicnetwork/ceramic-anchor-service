@@ -1,5 +1,3 @@
-import { Resolver } from "did-resolver";
-
 import CeramicClient from '@ceramicnetwork/http-client';
 import { CeramicApi, Stream, SyncOptions } from '@ceramicnetwork/common';
 
@@ -17,7 +15,6 @@ export interface CeramicService {
 export default class CeramicServiceImpl implements CeramicService {
 
   private readonly _client: CeramicApi;
-  private readonly _resolver: Resolver;
 
   /**
    * Sets dependencies
