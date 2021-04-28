@@ -31,7 +31,6 @@
     }
   },
   "dependencies": {
-    "@ceramicnetwork/3id-did-resolver": "^1.2.0-rc.8",
     "@ceramicnetwork/common": "^1.0.0-rc.5",
     "@ceramicnetwork/http-client": "^1.0.0-rc.5",
     "@ceramicnetwork/logger": "^1.0.0-rc.2",
