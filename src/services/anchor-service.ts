@@ -20,7 +20,7 @@ import { IpfsService } from "./ipfs-service";
 import CeramicService from "./ceramic-service";
 import BlockchainService from "./blockchain/blockchain-service";
 import { inject, singleton } from "tsyringe";
-import DocID from '@ceramicnetwork/docid';
+import { StreamID, CommitID } from '@ceramicnetwork/streamid';
 import { BloomMetadata, Candidate, IpfsLeafCompare, IpfsMerge } from '../merkle/merkle-objects';
 
 /**
@@ -241,9 +241,9 @@ export default class AnchorService {
    *   the anchor request
    * @private
    */
-  private _getRequestDocID(request: Request): DocID {
-    const baseID = DocID.fromString(request.docId)
-    return DocID.fromOther(baseID, request.cid)
+  private _getRequestDocID(request: Request): CommitID {
+    const baseID = StreamID.fromString(request.docId)
+    return baseID.atCommit(request.cid)
   }
 
   /**

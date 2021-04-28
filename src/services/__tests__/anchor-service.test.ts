@@ -2,8 +2,6 @@ import 'reflect-metadata';
 
 process.env.NODE_ENV = 'test';
 
-import CID from 'cids';
-
 import { container } from "tsyringe";
 
 import { Request } from "../../models/request";
@@ -20,7 +18,7 @@ import RequestRepository from "../../repositories/request-repository";
 import { IpfsService } from "../ipfs-service";
 import AnchorRepository from "../../repositories/anchor-repository";
 import { config } from 'node-config-ts';
-import DocID from '@ceramicnetwork/docid';
+import { StreamID } from '@ceramicnetwork/streamid';
 import { MockCeramicService, MockIpfsService } from '../../test-utils';
 
 initializeTransactionalContext();
@@ -35,15 +33,15 @@ async function createRequest(docId: string, ipfsService: IpfsService): Promise<R
   return request
 }
 
-function createDocument(id: DocID, logLength: number) {
+function createDocument(id: StreamID, logLength: number) {
   const log = new Array(logLength)
   return {id, metadata: {controllers: ['this is totally a did']}, state: {log}}
 }
 
 describe('ETH service',  () => {
   jest.setTimeout(10000);
-  let ipfsService
-  let ceramicService
+  let ipfsService: MockIpfsService
+  let ceramicService: MockCeramicService
 
   beforeAll(async () => {
     await DBConnection.create();
@@ -81,8 +79,8 @@ describe('ETH service',  () => {
 
     const docBaseId = ceramicService.generateBaseDocID()
     const cid = await ipfsService.storeRecord({})
-    const docId = DocID.fromOther(docBaseId, cid)
-    ceramicService.putDocument(docId, createDocument(docId,1))
+    const docId = docBaseId.atCommit(cid)
+    ceramicService.putDocument(docId, createDocument(docId.baseID,1))
 
     let request = new Request();
     request.cid = cid.toString();
@@ -117,8 +115,8 @@ describe('ETH service',  () => {
       const request = await createRequest(docBaseId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request);
       requests.push(request)
-      const docId = DocID.fromOther(docBaseId, request.cid)
-      ceramicService.putDocument(docId, createDocument(docId, 1))
+      const docId = docBaseId.atCommit(request.cid)
+      ceramicService.putDocument(docId, createDocument(docId.baseID, 1))
     }
     requests.sort(function(a, b) { return a.docId.localeCompare(b.docId) })
 
@@ -162,8 +160,8 @@ describe('ETH service',  () => {
       const docBaseId = ceramicService.generateBaseDocID()
       const request = await createRequest(docBaseId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request);
-      const docId = DocID.fromOther(docBaseId, request.cid)
-      ceramicService.putDocument(docId, createDocument(docId,1))
+      const docId = docBaseId.atCommit(request.cid)
+      ceramicService.putDocument(docId, createDocument(docId.baseID,1))
     }
 
     // First pass anchors half the pending requests
@@ -204,8 +202,8 @@ describe('ETH service',  () => {
       const docBaseId = ceramicService.generateBaseDocID()
       const request = await createRequest(docBaseId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request);
-      const docId = DocID.fromOther(docBaseId, request.cid)
-      ceramicService.putDocument(docId, createDocument(docId,1))
+      const docId = docBaseId.atCommit(request.cid)
+      ceramicService.putDocument(docId, createDocument(docId.baseID,1))
     }
 
     // First pass anchors half the pending requests
@@ -237,8 +235,8 @@ describe('ETH service',  () => {
       await requestRepository.createOrUpdate(request);
 
       if (valid) {
-        const docId = DocID.fromOther(docBaseId, request.cid)
-        ceramicService.putDocument(docId, createDocument(docId,1))
+        const docId = docBaseId.atCommit(request.cid)
+        ceramicService.putDocument(docId, createDocument(docId.baseID,1))
       }
 
       return request
@@ -284,25 +282,25 @@ describe('ETH service',  () => {
     await requestRepository.createOrUpdate(requestA1);
     await requestRepository.createOrUpdate(requestB0);
     await requestRepository.createOrUpdate(requestB1);
-    const docIdA0 = DocID.fromOther(docIdA, requestA0.cid)
-    const docIdA1 = DocID.fromOther(docIdA, requestA1.cid)
-    const docIdB0 = DocID.fromOther(docIdB, requestB0.cid)
-    const docIdB1 = DocID.fromOther(docIdB, requestB1.cid)
+    const docIdA0 = docIdA.atCommit(requestA0.cid)
+    const docIdA1 = docIdA.atCommit(requestA1.cid)
+    const docIdB0 = docIdB.atCommit(requestB0.cid)
+    const docIdB1 = docIdB.atCommit(requestB1.cid)
 
     // For docA, the conflicting requests will have different length logs
-    ceramicService.putDocument(docIdA0, createDocument(docIdA0, 1))
-    ceramicService.putDocument(docIdA1, createDocument(docIdA1, 2))
+    ceramicService.putDocument(docIdA0, createDocument(docIdA0.baseID, 1))
+    ceramicService.putDocument(docIdA1, createDocument(docIdA1.baseID, 2))
 
     // For docB, the conflicting requests will have the same log length
-    ceramicService.putDocument(docIdB0, createDocument(docIdB0, 1))
-    ceramicService.putDocument(docIdB1, createDocument(docIdB1, 1))
+    ceramicService.putDocument(docIdB0, createDocument(docIdB0.baseID, 1))
+    ceramicService.putDocument(docIdB1, createDocument(docIdB1.baseID, 1))
 
     // Apply conflict resolution to determine which record to anchor for each docId
     const candidates = await anchorService._findCandidates([requestA0, requestA1, requestB0, requestB1])
     expect(candidates.length).toEqual(2)
 
-    const candidateA = candidates.find((c)=> c.document.id.baseID == docIdA.toString())
-    const candidateB = candidates.find((c)=> c.document.id.baseID == docIdB.toString())
+    const candidateA = candidates.find((c)=> c.document.id.baseID.toString() == docIdA.toString())
+    const candidateB = candidates.find((c)=> c.document.id.baseID.toString() == docIdB.toString())
 
     // For doc A should have picked the request with the longer log
     expect(candidateA.cid.toString()).toEqual(requestA1.cid)

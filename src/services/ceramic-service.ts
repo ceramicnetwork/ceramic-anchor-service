@@ -1,16 +1,16 @@
 import { Resolver } from "did-resolver";
 
 import CeramicClient from '@ceramicnetwork/http-client';
-import { CeramicApi, Doctype } from '@ceramicnetwork/common';
+import { CeramicApi, Stream, SyncOptions } from '@ceramicnetwork/common';
 
 import { config } from "node-config-ts";
 import { inject, singleton } from "tsyringe";
 import { IpfsService } from "./ipfs-service";
-import DocID from '@ceramicnetwork/docid';
+import { StreamID, CommitID } from '@ceramicnetwork/streamid';
 
 // Interface to allow injecting a mock in tests
 export interface CeramicService {
-  loadDocument(docId: DocID): Promise<any>;
+  loadDocument(docId: StreamID): Promise<any>;
 }
 
 @singleton()
@@ -26,10 +26,10 @@ export default class CeramicServiceImpl implements CeramicService {
     this._client = new CeramicClient(config.ceramic.apiUrl);
   }
 
-  async loadDocument<T extends Doctype>(docId: DocID): Promise<T> {
+  async loadDocument<T extends Stream>(docId: StreamID | CommitID): Promise<T> {
     let timeout: any;
 
-    const docPromise = this._client.loadDocument(docId, {sync: false})
+    const docPromise = this._client.loadStream(docId, {sync: SyncOptions.PREFER_CACHE})
       .finally(() => {
         clearTimeout(timeout);
       });
