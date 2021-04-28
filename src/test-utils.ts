@@ -1,7 +1,7 @@
 import CID from 'cids';
 import { CeramicService } from './services/ceramic-service';
 import { IpfsService } from './services/ipfs-service';
-import DocID from '@ceramicnetwork/docid';
+import { StreamID, CommitID } from '@ceramicnetwork/streamid';
 
 // A set of random valid CIDs to use in tests
 // TODO write a random CID generator and use that instead of this list
@@ -78,21 +78,21 @@ export class MockIpfsService implements IpfsService {
 export class MockCeramicService implements CeramicService {
   constructor(private _docs: Record<string, any> = {}, private _cidIndex = 0) {}
 
-  async loadDocument(docId: DocID): Promise<any> {
+  async loadDocument(docId: StreamID): Promise<any> {
     return this._docs[docId.toString()]
   }
 
   // Mock-only method to control what gets returned by loadDocument()
-  putDocument(id: DocID, doc: any) {
+  putDocument(id: StreamID | CommitID, doc: any) {
     this._docs[id.toString()] = doc
   }
 
   // Mock-only method to generate a random base DocID
-  generateBaseDocID(): DocID {
+  generateBaseDocID(): StreamID {
     if (this._cidIndex >= RANDOM_CIDS.length) {
       throw new Error("Used too many DocIDs in a test!");
     }
-    return new DocID('tile', RANDOM_CIDS[this._cidIndex++])
+    return new StreamID('tile', RANDOM_CIDS[this._cidIndex++])
   }
 
   reset() {

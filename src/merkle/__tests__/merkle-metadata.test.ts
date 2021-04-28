@@ -2,7 +2,7 @@ import { CidGenerator, MockIpfsService } from '../../test-utils';
 import { MerkleTree } from '../merkle-tree';
 import { TreeMetadata } from '../merkle';
 import { BloomMetadata, Candidate, IpfsLeafCompare, IpfsMerge } from '../merkle-objects';
-import DocID from '@ceramicnetwork/docid';
+import { StreamID } from '@ceramicnetwork/streamid';
 import { BloomFilter } from 'bloom-filters';
 
 describe('Bloom filter',  () => {
@@ -17,7 +17,7 @@ describe('Bloom filter',  () => {
 
   const createCandidate = function (metadata: any) {
     const cid = cidGenerator.next()
-    const doc = { id: new DocID('tile', cid), metadata }
+    const doc = { id: new StreamID('tile', cid), metadata }
     return new Candidate(cid, 0, doc as any)
   }
 

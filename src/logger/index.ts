@@ -2,7 +2,8 @@ import { Request as ExpReq, Response as ExpRes } from 'express';
 import morgan from 'morgan';
 import { config } from 'node-config-ts';
 import path from 'path';
-import { DiagnosticsLogger, LogLevel, RotatingFileStream, ServiceLogger } from '@ceramicnetwork/logger';
+import { LoggerProvider, DiagnosticsLogger, LogLevel } from '@ceramicnetwork/common'
+import { RotatingFileStream } from '@ceramicnetwork/logger';
 
 const LOG_LEVEL = config.logger.level && LogLevel[config.logger.level] || LogLevel.important;
 const LOG_TO_FILES = config.logger.logToFiles || false;
@@ -12,10 +13,8 @@ if (!LOG_PATH.endsWith('/')) {
   LOG_PATH = LOG_PATH + '/';
 }
 
-const ACCESS_FILE_PATH = path.join(LOG_PATH, 'http-access.log');
-const EVENTS_FILE_PATH = path.join(LOG_PATH, 'events.log');
-const METRICS_FILE_PATH = path.join(LOG_PATH, 'metrics.log');
-const DIAGNOSTICS_FILE_PATH = path.join(LOG_PATH, 'diagnostics.log');
+const EVENTS_LOG_NAME = 'events';
+const METRICS_LOG_NAME = 'metrics';
 
 const ACCESS_LOG_FMT = 'ip=:remote-addr ts=:date[iso] method=:method original_url=:original-url base_url=:base-url path=:path http_version=:http-version req_header:req[header] status=:status content_length=:res[content-length] content_type=":res[content-type]" ref=:referrer user_agent=:user-agent elapsed_ms=:total-time[3]';
 
@@ -25,7 +24,12 @@ interface ServiceLog {
 }
 
 
-export const logger = new DiagnosticsLogger(LOG_LEVEL, LOG_TO_FILES, DIAGNOSTICS_FILE_PATH,);
+const loggerProvider = new LoggerProvider({
+  logDirectory: LOG_PATH,
+  logToFiles: LOG_TO_FILES,
+  logLevel: LOG_LEVEL
+}, (logPath: string) => { return new RotatingFileStream(logPath, true)})
+export const logger = loggerProvider.getDiagnosticsLogger()
 
 export const expressLoggers = buildExpressMiddleware();
 function buildExpressMiddleware() {
@@ -39,15 +43,13 @@ function buildExpressMiddleware() {
     return req.path;
   });
 
-  const logger = new ServiceLogger('http-access', ACCESS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
-  const middleware = [morgan(ACCESS_LOG_FMT, { stream: logger })];
-
-  return middleware;
+  const logger = loggerProvider.makeServiceLogger('http-access');
+  return morgan(ACCESS_LOG_FMT, { stream: logger });
 }
 
-const anchorEventsLogger = new ServiceLogger('anchor', EVENTS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
-const dbEventsLogger = new ServiceLogger('db', EVENTS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
-const ethereumEventsLogger = new ServiceLogger('ethereum', EVENTS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
+const anchorEventsLogger = loggerProvider.makeServiceLogger('anchor', EVENTS_LOG_NAME)
+const dbEventsLogger = loggerProvider.makeServiceLogger('db', EVENTS_LOG_NAME)
+const ethereumEventsLogger = loggerProvider.makeServiceLogger('ethereum', EVENTS_LOG_NAME)
 
 export const logEvent = {
   anchor: (log: ServiceLog): void => anchorEventsLogger.log(log),
@@ -55,8 +57,8 @@ export const logEvent = {
   ethereum: (log: ServiceLog): void => ethereumEventsLogger.log(log)
 }
 
-const anchorMetricsLogger = new ServiceLogger('anchor', METRICS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
-const ethereumMetricsLogger = new ServiceLogger('ethereum', METRICS_FILE_PATH, LOG_LEVEL, LOG_TO_FILES);
+const anchorMetricsLogger = loggerProvider.makeServiceLogger('anchor', METRICS_LOG_NAME);
+const ethereumMetricsLogger = loggerProvider.makeServiceLogger('ethereum', METRICS_LOG_NAME);
 
 export const logMetric = {
   anchor: (log: ServiceLog): void => anchorMetricsLogger.log(log),

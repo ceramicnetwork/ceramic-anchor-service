@@ -1,6 +1,6 @@
 import CID from "cids";
 
-import { Doctype } from '@ceramicnetwork/common';
+import { Stream } from '@ceramicnetwork/common';
 import {
   CompareFunction,
   MergeFunction, MetadataFunction,
@@ -18,10 +18,10 @@ const BLOOM_FILTER_FALSE_POSITIVE_RATE = 0.0001
 
 export class Candidate {
   public readonly cid: CID;
-  public readonly document: Doctype;
+  public readonly document: Stream;
   public readonly reqId: number;
 
-  constructor(cid: CID, reqId?: number, document?: Doctype) {
+  constructor(cid: CID, reqId?: number, document?: Stream) {
     this.cid = cid;
     this.reqId = reqId;
     this.document = document
