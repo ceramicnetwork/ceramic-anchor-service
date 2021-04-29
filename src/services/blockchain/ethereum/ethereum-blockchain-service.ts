@@ -15,6 +15,7 @@ import Utils from '../../../utils';
 const BASE_CHAIN_ID = "eip155";
 const TX_FAILURE = 0;
 const TX_SUCCESS = 1;
+const NUM_BLOCKS_TO_WAIT = 4;
 export const MAX_RETRIES = 3;
 
 const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
@@ -181,7 +182,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     }
 
     const txReceipt: providers.TransactionReceipt = await this.wallet.provider.waitForTransaction(
-      txResponse.hash, 1, transactionTimeoutSecs * 1000);
+      txResponse.hash, NUM_BLOCKS_TO_WAIT, transactionTimeoutSecs * 1000);
     logEvent.ethereum({
       type: 'txReceipt',
       ...txReceipt
