@@ -7,6 +7,7 @@
   "merkleDepthLimit": "@@MERKLE_DEPTH_LIMIT",
   "ipfsConfig": {
     "url": "@@IPFS_API_URL",
+    "pubsubTopic": "@@IPFS_PUBSUB_TOPIC",
     "timeout": "@@IPFS_API_TIMEOUT"
   },
   "ceramic": {

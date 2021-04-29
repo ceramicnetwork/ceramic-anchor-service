@@ -62,6 +62,10 @@ export class IpfsServiceImpl implements IpfsService {
       },
     });
 
+    // We have to subscribe to pubsub to keep ipfs connections alive.
+    // TODO Remove this when the underlying ipfs issue is fixed
+    await this._ipfs.pubsub.subscribe(config.ipfsConfig.pubsubTopic, () => { /* do nothing */ })
+
     this._cache = new LRUCache(MAX_CACHE_ENTRIES);
   }
 
