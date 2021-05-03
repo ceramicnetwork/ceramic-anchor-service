@@ -31,7 +31,7 @@
     }
   },
   "dependencies": {
-    "@ceramicnetwork/common": "^1.0.0-rc.5",
+    "@ceramicnetwork/common": "^1.0.0-rc.6",
     "@ceramicnetwork/http-client": "^1.0.0-rc.5",
     "@ceramicnetwork/logger": "^1.0.0-rc.2",
     "@ceramicnetwork/streamid": "^1.0.0-rc.2",
