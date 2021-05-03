@@ -44,7 +44,7 @@
     "ethers": "~5.0.24",
     "express": "^4.17.1",
     "http-status-codes": "^2.1.4",
-    "ipfs-http-client": "^48.1.2",
+    "ipfs-http-client": "^49.0.4",
     "lru-cache": "^6.0.0",
     "morgan": "^1.10.0",
     "multiformats": "^3.0.3",
