@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@ceramicnetwork/common": "^1.0.0-rc.5",
-    "@ceramicnetwork/http-client": "^1.0.0-rc.5",
+    "@ceramicnetwork/http-client": "^1.0.0-rc.6",
     "@ceramicnetwork/logger": "^1.0.0-rc.2",
     "@ceramicnetwork/streamid": "^1.0.0-rc.2",
     "@overnightjs/core": "^1.7.5",
