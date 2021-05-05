@@ -44,17 +44,21 @@ function sendNotification(taskArns, retryDelayMs = -1) {
       "Content-Type": "application/json"
     }
   }
+  const arnRegex = /\w+$/
+  const fields = data.taskArns.map((arn, index) => {
+    let value = arn
+    const id = arn.match(arnRegex)
+    if (id) {
+      value = `${process.env.CLOUDWATCH_LOG_PATH}/${id[0]}`
+    }
+    return { name: `Task ${index}`, value }
+  })
   const message = [
     {
       title: 'CAS still running',
       description: `A new CAS anchor task was not started because there is already at least one running.`,
       color: 16776960,
-      fields: [
-        {
-          name: 'ARNs for Running CAS Anchor Tasks',
-          value: `${JSON.stringify(data.taskArns)}`,
-        }
-      ],
+      fields,
     },
   ]
   const data = { embeds: message, username: 'cas-runner' }
