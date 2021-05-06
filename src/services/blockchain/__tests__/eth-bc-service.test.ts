@@ -276,7 +276,7 @@ describe('ETH service with mock wallet',  () => {
     const nonce = 5
     const gasPrice = BigNumber.from(1000)
     const gasEstimate = BigNumber.from(10*1000)
-    const txResponse = {foo: 'bar'}
+    const txResponses = [{attempt: 1}, {attempt:2}]
     const finalTransactionResult = {txHash: "0x12345"}
 
     provider.getBalance.mockReturnValue(balance)
@@ -288,20 +288,31 @@ describe('ETH service with mock wallet',  () => {
     const mockConfirmTransactionSuccess = jest.fn()
     ethBc._trySendTransaction = mockTrySendTransaction
     ethBc._confirmTransactionSuccess = mockConfirmTransactionSuccess
-    // first time submits the txn successfully
-    mockTrySendTransaction.mockReturnValueOnce(txResponse)
-    // On retry we get a NONCE_EXPIRED error because the first was actually mined correctly
-    mockTrySendTransaction.mockRejectedValueOnce({code: ErrorCode.NONCE_EXPIRED})
-    // First time should error with a timeout
+    // Successfully submit transaction
+    mockTrySendTransaction.mockReturnValueOnce(txResponses[0])
+    // Get timeout waiting for it to be mined
     mockConfirmTransactionSuccess.mockRejectedValueOnce({code: ErrorCode.TIMEOUT})
-    // Second time it should succeed
+    // Retry the transaction, submit it successfully
+    mockTrySendTransaction.mockReturnValueOnce(txResponses[1])
+    // Get timeout waiting for the second attempt as well
+    mockConfirmTransactionSuccess.mockRejectedValueOnce({code: ErrorCode.TIMEOUT})
+    // On third attempt we get a NONCE_EXPIRED error because the first attempt was actually mined correctly
+    mockTrySendTransaction.mockRejectedValueOnce({code: ErrorCode.NONCE_EXPIRED})
+    // Try to confirm the second attempt, get NONCE_EXPIRED because it was the first attempt that
+    // was mined
+    mockConfirmTransactionSuccess.mockRejectedValueOnce({code: ErrorCode.NONCE_EXPIRED})
+    // Try to confirm the original attempt, succeed
     mockConfirmTransactionSuccess.mockReturnValueOnce(finalTransactionResult)
 
     const cid = new CID('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni');
     await expect(ethBc.sendTransaction(cid)).resolves.toEqual(finalTransactionResult)
 
-    expect(mockTrySendTransaction).toHaveBeenCalledTimes(2)
-    expect(mockConfirmTransactionSuccess).toHaveBeenCalledTimes(2)
+    expect(mockTrySendTransaction).toHaveBeenCalledTimes(3)
+    expect(mockConfirmTransactionSuccess).toHaveBeenCalledTimes(4)
+    expect(mockConfirmTransactionSuccess.mock.calls[0][0]).toEqual(txResponses[0])
+    expect(mockConfirmTransactionSuccess.mock.calls[1][0]).toEqual(txResponses[1])
+    expect(mockConfirmTransactionSuccess.mock.calls[2][0]).toEqual(txResponses[1])
+    expect(mockConfirmTransactionSuccess.mock.calls[3][0]).toEqual(txResponses[0])
   });
 
 });
