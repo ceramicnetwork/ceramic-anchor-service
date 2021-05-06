@@ -55,7 +55,7 @@ function sendNotification(taskArns, retryDelayMs = -1) {
   })
   const message = [
     {
-      title: 'CAS still running',
+      title: `CAS still running (${process.env.AWS_ECS_CLUSTER})`,
       description: `A new CAS anchor task was not started because there is already at least one running.`,
       color: 16776960,
       fields,
