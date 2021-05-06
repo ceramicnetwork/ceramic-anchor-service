@@ -49,7 +49,7 @@ function sendNotification(taskArns, retryDelayMs = -1) {
     let value = arn
     const id = arn.match(arnRegex)
     if (id) {
-      value = `${process.env.CLOUDWATCH_LOG_BASE_URL}/${id[0]}`
+      value = `${process.env.CLOUDWATCH_LOG_BASE_URL}${id[0]}`
     }
     return { name: `Task ${index}`, value }
   })
