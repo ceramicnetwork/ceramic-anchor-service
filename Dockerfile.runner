@@ -10,6 +10,9 @@ ENV AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
 ENV AWS_ECS_CLUSTER=${AWS_ECS_CLUSTER}
 ENV AWS_ECS_FAMILY=${AWS_ECS_FAMILY}
 
+# Discord notifications about running ECS tasks
+ENV DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+
 WORKDIR /runner
 
 COPY runner/package*.json runner/*.js ./
