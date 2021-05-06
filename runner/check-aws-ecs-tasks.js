@@ -45,7 +45,7 @@ function sendNotification(taskArns, retryDelayMs = -1) {
     }
   }
   const arnRegex = /\w+$/
-  const fields = data.taskArns.map((arn, index) => {
+  const fields = taskArns.map((arn, index) => {
     let value = arn
     const id = arn.match(arnRegex)
     if (id) {
