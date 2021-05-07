@@ -203,6 +203,30 @@ export default class EthereumBlockchainService implements BlockchainService {
   }
 
   /**
+   * Queries the blockchain to see if any of the previously submitted transactions that had timed
+   * out went on to be successfully mined, and returns the transaction info if so.
+   * @param txResponses - responses from previous transaction submissions.
+   * @param network
+   * @param transactionTimeoutSecs
+   */
+  async _checkForPreviousTransactionSuccess(txResponses: Array<providers.TransactionResponse>, network: string, transactionTimeoutSecs: number): Promise<Transaction> {
+    for (let i = txResponses.length - 1; i >= 0; i--) {
+      try {
+        return await this._confirmTransactionSuccess(txResponses[i], network, transactionTimeoutSecs)
+      } catch (err) {
+        logger.err(err);
+
+        if (err.code == ErrorCode.NONCE_EXPIRED) {
+          continue
+        } else {
+          throw err
+        }
+      }
+    }
+  }
+
+
+  /**
    * Sends transaction with root CID as data
    */
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
@@ -218,12 +242,13 @@ export default class EthereumBlockchainService implements BlockchainService {
     const { network } = config.blockchain.connectors.ethereum;
 
     let attemptNum = 0;
-    let txResponse: providers.TransactionResponse = null
+    const txResponses: Array<providers.TransactionResponse> = []
     while (attemptNum < MAX_RETRIES) {
       try {
         await this.setGasPrice(txData, attemptNum);
 
-        txResponse = await this._trySendTransaction(txData, attemptNum, network)
+        const txResponse = await this._trySendTransaction(txData, attemptNum, network)
+        txResponses.push(txResponse)
         return await this._confirmTransactionSuccess(txResponse, network, transactionTimeoutSecs)
       } catch (err) {
         logger.err(err);
@@ -252,16 +277,17 @@ export default class EthereumBlockchainService implements BlockchainService {
             logger.err(`Transaction timed out after ${transactionTimeoutSecs} seconds without being mined`);
             // Fall through and retry if we have retries remaining
           } else if (code === ErrorCode.NONCE_EXPIRED) {
-            // If this happens it most likely means that our previous attempt timed out, but then
-            // actually wound up being successfully mined
+            // If this happens it most likely means that one of our previous attempts timed out, but
+            // then actually wound up being successfully mined
             logEvent.ethereum({
               type: 'nonceExpired',
               nonce: txData.nonce,
             });
-            if (attemptNum == 0 || !txResponse) {
+            if (attemptNum == 0 || txResponses.length == 0) {
               throw err
             }
-            return await this._confirmTransactionSuccess(txResponse, network, transactionTimeoutSecs)
+
+            return await this._checkForPreviousTransactionSuccess(txResponses, network, transactionTimeoutSecs)
           }
         }
 
