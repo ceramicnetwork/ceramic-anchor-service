@@ -147,6 +147,9 @@ export default class CeramicAnchorApp {
       const anchorService: AnchorService = container.resolve<AnchorService>('anchorService');
       await anchorService.anchorRequests();
       process.exit();
+    }).catch((error) => {
+      logger.error('Error when anchoring. Exiting.', error);
+      process.exit(1);
     });
   }
 
