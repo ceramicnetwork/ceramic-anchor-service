@@ -148,8 +148,8 @@ export default class CeramicAnchorApp {
       await anchorService.anchorRequests();
       process.exit();
     }).catch((error) => {
-      logger.error(`Error when anchoring: ${error}`);
-      logger.error('Exiting');
+      logger.err(`Error when anchoring: ${error}`);
+      logger.err('Exiting');
       process.exit(1);
     });
   }
