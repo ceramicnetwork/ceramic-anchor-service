@@ -181,6 +181,7 @@ export default class EthereumBlockchainService implements BlockchainService {
       throw new Error("Chain ID of connected blockchain changed from " + this.chainId + " to " + caip2ChainId)
     }
 
+    logger.imp(`Waiting to confirm transaction with hash ${txResponse.hash}`);
     const txReceipt: providers.TransactionReceipt = await this.wallet.provider.waitForTransaction(
       txResponse.hash, NUM_BLOCKS_TO_WAIT, transactionTimeoutSecs * 1000);
     logEvent.ethereum({
