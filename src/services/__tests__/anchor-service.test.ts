@@ -169,6 +169,7 @@ describe('ETH service',  () => {
     expect(requests.length).toEqual(numRequests)
     const anchorPendingRequests = async function(requests: Request[]): Promise<void> {
       const candidates = await anchorService._findCandidates(requests)
+      expect(candidates.length).toEqual(nodeLimit)
 
       const merkleTree = await anchorService._buildMerkleTree(candidates)
       const ipfsProofCid = await ipfsService.storeRecord({})

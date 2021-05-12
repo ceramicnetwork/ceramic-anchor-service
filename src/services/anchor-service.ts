@@ -146,17 +146,6 @@ export default class AnchorService {
    */
   async _buildMerkleTree(candidates: Candidate[]): Promise<MerkleTree<Candidate, TreeMetadata>> {
     try {
-      if (config.merkleDepthLimit > 0) {
-        const nodeLimit = Math.pow(2, config.merkleDepthLimit)
-        if (candidates.length > nodeLimit) {
-          logger.warn('Found ' + candidates.length + ' valid candidates to anchor, but our '
-            + 'configured merkle tree depth limit of ' + config.merkleDepthLimit
-            + ' only permits ' + nodeLimit + ' nodes in a single merkle tree anchor proof. '
-            + 'Anchoring the first ' + nodeLimit + ' candidates and leaving the rest for a future anchor batch');
-          candidates = candidates.slice(0, nodeLimit)
-        }
-      }
-
       const merkleTree = new MerkleTree<Candidate, TreeMetadata>(this.ipfsMerge, this.ipfsCompare, this.bloomMetadata, config.merkleDepthLimit);
       await merkleTree.build(candidates);
       return merkleTree
@@ -267,11 +256,31 @@ export default class AnchorService {
    * @param requests - array of anchor requests
    * @returns - map of docIds to 'Candidate' objects.
    */
-  async _groupCandidatesByDocId(requests: Request[]): Promise<Record<string, Candidate[]>> {
-    const groupedCandidates: Record<string, Candidate[]> = {};
+  async _groupCandidatesByDocId(requests: Request[]): Promise<Map<string, Candidate[]>> {
+    const groupedCandidates: Map<string, Candidate[]> = new Map();
+
+    let streamLimit = -1
+    if (config.merkleDepthLimit > 0) {
+      // The number of streams we are able to include in a single anchor batch is limited by the
+      // max depth of the merkle tree.
+      streamLimit = Math.pow(2, config.merkleDepthLimit)
+    }
 
     let request = null;
     for (let index = 0; index < requests.length; index++) {
+      if (streamLimit > 0 && groupedCandidates.size >= streamLimit) {
+        logger.warn('More than ' + groupedCandidates.size + ' candidate streams found, ' +
+          'which is the limit that can fit in a merkle tree of depth ' + config.merkleDepthLimit +
+          '. Returning unprocessed requests to PENDING status')
+
+        const unprocessedRequests = requests.slice(index)
+        await this.requestRepository.updateRequests({
+          status: RS.PENDING,
+          message: "Request returned to pending.",
+        }, unprocessedRequests);
+        return groupedCandidates
+      }
+
       let docId
       try {
         request = requests[index];
@@ -283,7 +292,9 @@ export default class AnchorService {
         }
 
         const candidate = new Candidate(new CID(request.cid), request.id, doc);
-        groupedCandidates[candidate.docId] = groupedCandidates[candidate.docId] ? [...groupedCandidates[candidate.docId], candidate] : [candidate];
+        const candidateArr = groupedCandidates.get(candidate.docId) || []
+        candidateArr.push(candidate)
+        groupedCandidates.set(candidate.docId, candidateArr)
       } catch (e) {
         logger.err(`Error while loading document ${docId?.baseID.toString()} at commit ${docId?.commit.toString()}. Error: ${e.message}`)
         await this.requestRepository.updateRequests({
@@ -301,14 +312,14 @@ export default class AnchorService {
    * @return a tuple whose first element is an array of the Candidates that were selected for anchoring,
    *   and whose second element is an array of Candidates that were rejected by the conflict resolution rules
    */
-  async _selectValidCandidates(groupedCandidates: Record<string, Candidate[]>): Promise<[Candidate[], Candidate[]]> {
+  async _selectValidCandidates(groupedCandidates: Map<string, Candidate[]>): Promise<[Candidate[], Candidate[]]> {
     const selectedCandidates: Candidate[] = [];
     const conflictingCandidates: Candidate[] = []
 
     // Employ conflict resolution strategy to pick which cid to anchor when there are multiple
     // requests for the same docId
-    for (const docId of Object.keys(groupedCandidates)) {
-      const candidates: Candidate[] = groupedCandidates[docId];
+    for (const docId of groupedCandidates.keys()) {
+      const candidates: Candidate[] = groupedCandidates.get(docId);
 
       let selected: Candidate = null;
 
