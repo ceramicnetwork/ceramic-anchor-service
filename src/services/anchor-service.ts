@@ -23,6 +23,8 @@ import { inject, singleton } from "tsyringe";
 import { StreamID, CommitID } from '@ceramicnetwork/streamid';
 import { BloomMetadata, Candidate, IpfsLeafCompare, IpfsMerge } from '../merkle/merkle-objects';
 
+const BATCH_SIZE = 100
+
 /**
  * Anchors CIDs to blockchain
  */
@@ -241,7 +243,7 @@ export default class AnchorService {
    */
   async _findCandidates(requests: Request[]): Promise<Candidate[]> {
     logger.debug(`About to load candidate documents`)
-    const candidates = await this._loadCandidateStreams(requests)
+    const candidates = await this._loadCandidateDocuments(requests)
     logger.debug(`Successfully loaded candidate documents, about to apply conflict resolution to conflicting requests`)
     const [selectedCandidates, conflictingCandidates] = await this._selectValidCandidates(candidates)
     logger.debug(`About to fail requests rejected by conflict resolution`)
@@ -258,34 +260,38 @@ export default class AnchorService {
    * @param requests - array of anchor requests
    * @returns - Array of 'Candidate' objects.
    */
-  async _loadCandidateStreams(requests: Request[]): Promise<Candidate[]> {
-    let streamLimit = -1
+  async _loadCandidateDocuments(requests: Request[]): Promise<Candidate[]> {
+    let streamCountLimit = requests.length // limiting to the number of requests is equivalent to no limit at all
     if (config.merkleDepthLimit > 0) {
       // The number of streams we are able to include in a single anchor batch is limited by the
       // max depth of the merkle tree.
-      streamLimit = Math.pow(2, config.merkleDepthLimit)
+      streamCountLimit = Math.pow(2, config.merkleDepthLimit)
     }
 
     const candidates = []
-    for (let index = 0; index < requests.length; index++) {
-      if (streamLimit > 0 && candidates.length >= streamLimit) {
-        logger.warn('More than ' + candidates.length + ' candidate streams found, ' +
-          'which is the limit that can fit in a merkle tree of depth ' + config.merkleDepthLimit +
-          '. Returning unprocessed requests to PENDING status')
+    let index = 0
+    while (index < requests.length && candidates.length < streamCountLimit) {
+      const batchSize = Math.min(BATCH_SIZE, streamCountLimit - candidates.length)
+      const batchRequests = requests.slice(index, Math.min(index + batchSize, requests.length))
 
-        const unprocessedRequests = requests.slice(index)
-        await this.requestRepository.updateRequests({
-          status: RS.PENDING,
-          message: "Request returned to pending.",
-        }, unprocessedRequests);
-        return candidates
-      }
+      const batchCandidates = await Promise.all(batchRequests.map((request) => { return this._loadCandidateForRequest(request) }))
+      const validBatchCandidates = batchCandidates.filter((candidate) => { return candidate != null })
+      candidates.push(...validBatchCandidates)
+      index += batchSize
+    }
 
-      const request = requests[index];
-      const candidate = await this._loadCandidateForRequest(request)
-      if (candidate) {
-        candidates.push(candidate)
-      }
+    // If we didn't finish processing all the requests before hitting the stream limit, then
+    // return the remaining unprocessed requests to the PENDING state.
+    if (index < requests.length) {
+      logger.warn('More than ' + candidates.length + ' candidate streams found, ' +
+        'which is the limit that can fit in a merkle tree of depth ' + config.merkleDepthLimit +
+        '. Returning unprocessed requests to PENDING status')
+
+      const unprocessedRequests = requests.slice(index)
+      await this.requestRepository.updateRequests({
+        status: RS.PENDING,
+        message: "Request returned to pending.",
+      }, unprocessedRequests);
     }
     return candidates
   }
