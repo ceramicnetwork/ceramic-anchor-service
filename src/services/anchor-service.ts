@@ -150,7 +150,7 @@ export default class AnchorService {
       await merkleTree.build(candidates);
       return merkleTree
     } catch (e) {
-      throw new Error('Merkle tree cannot be created: ' + e.message);
+      throw new Error('Merkle tree cannot be created: ' + e.toString());
     }
   }
 
@@ -296,10 +296,10 @@ export default class AnchorService {
         candidateArr.push(candidate)
         groupedCandidates.set(candidate.docId, candidateArr)
       } catch (e) {
-        logger.err(`Error while loading document ${docId?.baseID.toString()} at commit ${docId?.commit.toString()}. Error: ${e.message}`)
+        logger.err(`Error while loading document ${docId?.baseID.toString()} at commit ${docId?.commit.toString()}. Error: ${e.toString()}`)
         await this.requestRepository.updateRequests({
           status: RS.FAILED,
-          message: "Request has failed. " + e.message,
+          message: "Request has failed. " + e.toString(),
         }, [request]);
       }
     }

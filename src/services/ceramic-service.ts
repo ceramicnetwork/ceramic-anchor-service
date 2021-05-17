@@ -33,7 +33,7 @@ export default class CeramicServiceImpl implements CeramicService {
 
     const timeoutPromise = new Promise((_, reject) => {
       timeout = setTimeout(() => {
-        reject(`Timed out loading docid: ${docId.toString()}`)
+        reject(new Error(`Timed out loading docid: ${docId.toString()}`))
       }, 60 * 1000);
     });
 
