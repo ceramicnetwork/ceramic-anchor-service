@@ -80,7 +80,7 @@ export default class EthereumBlockchainService implements BlockchainService {
       txData.gasLimit = BigNumber.from(config.blockchain.connectors.ethereum.gasLimit);
       logger.debug('Overriding Gas limit: ' + txData.gasLimit.toString());
     } else {
-      const gasPriceEstimate = await this.wallet.provider.getGasPrice(); // in wei
+      const gasPriceEstimate = await this.wallet.provider.estimateGas(txData); // in wei
       // Add extra to gas price for each subsequent attempt
       txData.gasPrice = EthereumBlockchainService.increaseGasPricePerAttempt(
         gasPriceEstimate, attempt, txData.gasPrice)
