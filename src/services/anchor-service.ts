@@ -23,6 +23,8 @@ import { inject, singleton } from "tsyringe";
 import { StreamID, CommitID } from '@ceramicnetwork/streamid';
 import { BloomMetadata, Candidate, IpfsLeafCompare, IpfsMerge } from '../merkle/merkle-objects';
 
+const BATCH_SIZE = 100
+
 /**
  * Anchors CIDs to blockchain
  */
@@ -241,9 +243,9 @@ export default class AnchorService {
    */
   async _findCandidates(requests: Request[]): Promise<Candidate[]> {
     logger.debug(`About to load candidate documents`)
-    const groupedCandidates = await this._groupCandidatesByDocId(requests)
+    const candidates = await this._loadCandidateDocuments(requests)
     logger.debug(`Successfully loaded candidate documents, about to apply conflict resolution to conflicting requests`)
-    const [selectedCandidates, conflictingCandidates] = await this._selectValidCandidates(groupedCandidates)
+    const [selectedCandidates, conflictingCandidates] = await this._selectValidCandidates(candidates)
     logger.debug(`About to fail requests rejected by conflict resolution`)
     await this._failConflictingRequests(requests, conflictingCandidates)
 
@@ -251,68 +253,97 @@ export default class AnchorService {
   }
 
   /**
-   * Takes an array of Requests, and returns Candidate objects grouped by Ceramic DocId. Documents
-   * that couldn't be loaded successfully will be filtered out from the result set
+   * Takes an array of Requests, and returns Candidate objects for each Document that could be
+   * loaded successfully. Documents that couldn't be loaded successfully will be filtered out from
+   * the result set. Also limits the size of the output set of Candidates based on the configured
+   * merkleDepthLimit
    * @param requests - array of anchor requests
-   * @returns - map of docIds to 'Candidate' objects.
+   * @returns - Array of 'Candidate' objects.
    */
-  async _groupCandidatesByDocId(requests: Request[]): Promise<Map<string, Candidate[]>> {
-    const groupedCandidates: Map<string, Candidate[]> = new Map();
-
-    let streamLimit = -1
+  async _loadCandidateDocuments(requests: Request[]): Promise<Candidate[]> {
+    let streamCountLimit = requests.length // limiting to the number of requests is equivalent to no limit at all
     if (config.merkleDepthLimit > 0) {
       // The number of streams we are able to include in a single anchor batch is limited by the
       // max depth of the merkle tree.
-      streamLimit = Math.pow(2, config.merkleDepthLimit)
+      streamCountLimit = Math.pow(2, config.merkleDepthLimit)
     }
 
-    let request = null;
-    for (let index = 0; index < requests.length; index++) {
-      if (streamLimit > 0 && groupedCandidates.size >= streamLimit) {
-        logger.warn('More than ' + groupedCandidates.size + ' candidate streams found, ' +
-          'which is the limit that can fit in a merkle tree of depth ' + config.merkleDepthLimit +
-          '. Returning unprocessed requests to PENDING status')
+    const candidates = []
+    let index = 0
+    while (index < requests.length && candidates.length < streamCountLimit) {
+      const batchSize = Math.min(BATCH_SIZE, streamCountLimit - candidates.length)
+      const batchRequests = requests.slice(index, Math.min(index + batchSize, requests.length))
 
-        const unprocessedRequests = requests.slice(index)
-        await this.requestRepository.updateRequests({
-          status: RS.PENDING,
-          message: "Request returned to pending.",
-        }, unprocessedRequests);
-        return groupedCandidates
-      }
+      const batchCandidates = await Promise.all(batchRequests.map((request) => { return this._loadCandidateForRequest(request) }))
+      const validBatchCandidates = batchCandidates.filter((candidate) => { return candidate != null })
+      candidates.push(...validBatchCandidates)
+      index += batchSize
+    }
 
-      let docId
-      try {
-        request = requests[index];
+    // If we didn't finish processing all the requests before hitting the stream limit, then
+    // return the remaining unprocessed requests to the PENDING state.
+    if (index < requests.length) {
+      logger.warn('More than ' + candidates.length + ' candidate streams found, ' +
+        'which is the limit that can fit in a merkle tree of depth ' + config.merkleDepthLimit +
+        '. Returning unprocessed requests to PENDING status')
 
-        docId = this._getRequestDocID(request)
-        const doc = await this.ceramicService.loadDocument(docId)
-        if (!doc) {
-          throw new Error(`No valid ceramic document found with docId ${docId.toString()}`)
-        }
+      const unprocessedRequests = requests.slice(index)
+      await this.requestRepository.updateRequests({
+        status: RS.PENDING,
+        message: "Request returned to pending.",
+      }, unprocessedRequests);
+    }
+    return candidates
+  }
 
-        const candidate = new Candidate(new CID(request.cid), request.id, doc);
+  /**
+   * Takes a list of candidates and groups and groups them by DocID
+   * @param candidates
+   * @returns Map of DocIDs to Candidate objects
+   */
+  _groupCandidatesByDocId(candidates: Candidate[]): Map<string, Candidate[]> {
+    const groupedCandidates: Map<string, Candidate[]> = new Map();
+
+    for (const candidate of candidates) {
         const candidateArr = groupedCandidates.get(candidate.docId) || []
         candidateArr.push(candidate)
         groupedCandidates.set(candidate.docId, candidateArr)
-      } catch (e) {
-        logger.err(`Error while loading document ${docId?.baseID.toString()} at commit ${docId?.commit.toString()}. Error: ${e.toString()}`)
-        await this.requestRepository.updateRequests({
-          status: RS.FAILED,
-          message: "Request has failed. " + e.toString(),
-        }, [request]);
-      }
     }
     return groupedCandidates
   }
 
   /**
+   * Given a Request, loads the corresponding Ceramic Stream and returns a Candidate object for
+   * this Request. Also handles updating the requests database if loading the stream fails.
+   * @param request
+   */
+  async _loadCandidateForRequest(request: Request): Promise<Candidate | null> {
+    let docId
+    try {
+      docId = this._getRequestDocID(request)
+      const doc = await this.ceramicService.loadDocument(docId)
+      if (!doc) {
+        throw new Error(`No valid ceramic document found with docId ${docId.toString()}`)
+      }
+
+      return new Candidate(new CID(request.cid), request.id, doc);
+    } catch (e) {
+      logger.err(`Error while loading document ${docId?.baseID.toString()} at commit ${docId?.commit.toString()}. Error: ${e.toString()}`)
+      await this.requestRepository.updateRequests({
+        status: RS.FAILED,
+        message: "Request has failed. " + e.toString(),
+      }, [request]);
+    }
+  }
+
+  /**
    * Selects which Candidate CID should be anchored for each docId
-   * @param groupedCandidates - map of ceramic docId to array of Candidates each representing one anchor request for that docId
+   * @param candidates - List of Candidates each representing one anchor request
    * @return a tuple whose first element is an array of the Candidates that were selected for anchoring,
    *   and whose second element is an array of Candidates that were rejected by the conflict resolution rules
    */
-  async _selectValidCandidates(groupedCandidates: Map<string, Candidate[]>): Promise<[Candidate[], Candidate[]]> {
+  async _selectValidCandidates(candidates: Candidate[]): Promise<[Candidate[], Candidate[]]> {
+    const groupedCandidates = this._groupCandidatesByDocId(candidates)
     const selectedCandidates: Candidate[] = [];
     const conflictingCandidates: Candidate[] = []
 
