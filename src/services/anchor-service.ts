@@ -370,7 +370,7 @@ export default class AnchorService {
         } else {
           // There's a tie for log length, so we need to fall back to picking arbitrarily, but
           // deterministically. We match what js-ceramic does and pick the log with the lower CID.
-          if (candidate.cid < selected.cid) {
+          if (candidate.cid.bytes < selected.cid.bytes) {
             conflictingCandidates.push(selected)
             selected = candidate
           } else {
