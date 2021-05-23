@@ -328,7 +328,7 @@ export default class AnchorService {
 
       return new Candidate(new CID(request.cid), request.id, doc);
     } catch (e) {
-      logger.err(`Error while loading document ${docId?.baseID.toString()} at commit ${docId?.commit.toString()}. Error: ${e.toString()}`)
+      logger.err(`Error while loading document ${docId?.baseID.toString()} at commit ${docId?.commit.toString()}. ${e}`)
       await this.requestRepository.updateRequests({
         status: RS.FAILED,
         message: "Request has failed. " + e.toString(),
