@@ -47,7 +47,7 @@
     "ipfs-http-client": "^48.1.2",
     "lru-cache": "^6.0.0",
     "morgan": "^1.10.0",
-    "multiformats": "^3.0.3",
+    "multiformats": "^8.0.6",
     "multihashes": "^3.0.1",
     "os-utils": "^0.0.14",
     "pg": "^8.5.1",
