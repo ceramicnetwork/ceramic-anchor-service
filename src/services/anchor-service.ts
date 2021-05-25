@@ -327,7 +327,7 @@ export default class AnchorService {
       }
 
       if (doc.tip.toString() != request.cid) {
-        logger.warn(`When loading document ${doc.id.toString()} at commit ${request.cid.toString()}, doc was returned at tip ${doc.tip.toString()}`)
+        logger.warn(`When loading document ${doc.id.toString()} at commit ${request.cid}, doc was returned at tip ${doc.tip.toString()}`)
       }
 
       return new Candidate(new CID(request.cid), request.id, doc);
