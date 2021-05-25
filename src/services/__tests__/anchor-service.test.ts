@@ -35,7 +35,7 @@ async function createRequest(docId: string, ipfsService: IpfsService): Promise<R
 
 function createDocument(id: StreamID, logLength: number) {
   const log = new Array(logLength)
-  return {id, metadata: {controllers: ['this is totally a did']}, state: {log}}
+  return {id, metadata: {controllers: ['this is totally a did']}, state: {log}, tip: "a cid"}
 }
 
 describe('ETH service',  () => {
