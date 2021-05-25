@@ -326,6 +326,10 @@ export default class AnchorService {
         throw new Error(`No valid ceramic document found with docId ${docId.toString()}`)
       }
 
+      if (doc.tip.toString() != request.cid) {
+        logger.warn(`When loading document ${doc.id.toString()} at commit ${request.cid.toString()}, doc was returned at tip ${doc.tip.toString()}`)
+      }
+
       return new Candidate(new CID(request.cid), request.id, doc);
     } catch (e) {
       logger.err(`Error while loading document ${docId?.baseID.toString()} at commit ${docId?.commit.toString()}. ${e}`)
