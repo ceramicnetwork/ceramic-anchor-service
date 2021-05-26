@@ -218,6 +218,7 @@ export default class EthereumBlockchainService implements BlockchainService {
         logger.err(err);
       }
     }
+    throw new Error("Failed to confirm any previous transaction attempts")
   }
 
 
