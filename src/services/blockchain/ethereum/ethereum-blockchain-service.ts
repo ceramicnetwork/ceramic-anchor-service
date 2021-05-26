@@ -216,12 +216,6 @@ export default class EthereumBlockchainService implements BlockchainService {
         return await this._confirmTransactionSuccess(txResponses[i], network, transactionTimeoutSecs)
       } catch (err) {
         logger.err(err);
-
-        if (err.code == ErrorCode.NONCE_EXPIRED) {
-          continue
-        } else {
-          throw err
-        }
       }
     }
   }
