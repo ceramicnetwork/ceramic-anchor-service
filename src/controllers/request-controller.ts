@@ -40,7 +40,7 @@ export default class RequestController {
           const body = await this.#requestPresentation.body(request);
           return res.status(StatusCodes.OK).json(body);
         } else {
-          return res.status(StatusCodes.NOT_FOUND).send({
+          return res.status(StatusCodes.OK).send({
             error: "Request doesn't exist",
           });
         }
