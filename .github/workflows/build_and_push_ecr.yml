@@ -33,6 +33,9 @@ jobs:
           echo "::set-output name=ECR_REPOSITORY::ceramic-dev-cas"
           echo "::set-output name=IMAGE_TAG::dev"
           echo "::set-output name=IMAGE_TAG_2::none"
+        then
+          SHA_TAG=$(git rev-parse --short=12 "${{ github.sha }}")
+          echo "SHA_TAG=$SHA_TAG" >> $GITHUB_ENV
         fi
 
     - name: Login to DockerHub
@@ -57,7 +60,6 @@ jobs:
       env:
         DOCKERHUB_IMAGE_ID: "ceramicnetwork/ceramic-anchor-service"
         ECR_IMAGE_ID: "${{ steps.login-ecr.outputs.registry }}/${{ steps.set-vars.outputs.ECR_REPOSITORY }}"
-        SHA_TAG: ${{ github.sha }}
         IMAGE_TAG: ${{ steps.set-vars.outputs.IMAGE_TAG }}
         IMAGE_TAG_2: ${{ steps.set-vars.outputs.IMAGE_TAG_2 }}
       run: |
