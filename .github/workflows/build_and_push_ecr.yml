@@ -21,6 +21,8 @@ jobs:
     - name: Set Variables
       id: set-vars
       run: |
+        SHA_TAG=$(git rev-parse --short=12 "${{ github.sha }}")
+        echo "SHA_TAG=$SHA_TAG" >> $GITHUB_ENV
         if [[ "${{github.base_ref}}" == "main" || "${{github.ref}}" == "refs/heads/main" ]]; then
           echo "::set-output name=ECR_REPOSITORY::ceramic-prod-cas"
           echo "::set-output name=IMAGE_TAG::latest"
@@ -33,9 +35,6 @@ jobs:
           echo "::set-output name=ECR_REPOSITORY::ceramic-dev-cas"
           echo "::set-output name=IMAGE_TAG::dev"
           echo "::set-output name=IMAGE_TAG_2::none"
-        then
-          SHA_TAG=$(git rev-parse --short=12 "${{ github.sha }}")
-          echo "SHA_TAG=$SHA_TAG" >> $GITHUB_ENV
         fi
 
     - name: Login to DockerHub
