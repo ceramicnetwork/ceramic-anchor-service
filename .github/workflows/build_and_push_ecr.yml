@@ -66,15 +66,15 @@ jobs:
           docker buildx build . --file Dockerfile \
             --output "type=image,push=true" \
             --tag cas \
-            --tag ${{ env.IMAGE_ID }}:${{ env.IMAGE_TAG }} \
-            --tag ${{ env.IMAGE_ID }}:${{ env.IMAGE_TAG_2 }} \
+            --tag ${{ env.IMAGE_ID }}:${{ steps.set-vars.outputs.IMAGE_TAG }} \
+            --tag ${{ env.IMAGE_ID }}:${{ steps.set-vars.outputs.IMAGE_TAG_2 }} \
             --tag ${{ env.IMAGE_ID }}:${{ env.SHA_TAG }}
           docker build -f Dockerfile.runner -t $ECR_REGISTRY/$ECR_REPOSITORY:$SHA_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.set-vars.outputs.IMAGE_TAG }} -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.set-vars.outputs.IMAGE_TAG_2 }} .
         else
           docker buildx build . --file Dockerfile \
             --output "type=image,push=true" \
             --tag cas \
-            --tag ${{ env.IMAGE_ID }}:${{ env.IMAGE_TAG }} \
+            --tag ${{ env.IMAGE_ID }}:${{ steps.set-vars.outputs.IMAGE_TAG }} \
             --tag ${{ env.IMAGE_ID }}:${{ env.SHA_TAG }}
           docker build -f Dockerfile.runner -t $ECR_REGISTRY/$ECR_REPOSITORY:$SHA_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ steps.set-vars.outputs.IMAGE_TAG }} .
         fi
