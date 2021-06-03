@@ -4,7 +4,6 @@ on:
       - main
       - "release-candidate"
       - develop
-      - feat/ci
   workflow_dispatch:
 
 name: Build and Push Images
@@ -30,11 +29,11 @@ jobs:
         elif [[ "${{github.base_ref}}" == "release-candidate" || "${{github.ref}}" == "refs/heads/release-candidate" ]]; then
           echo "::set-output name=ECR_REPOSITORY::ceramic-tnet-cas"
           echo "::set-output name=IMAGE_TAG::tnet"
-          echo "::set-output name=IMAGE_TAG_2::none"
+          echo "::set-output name=IMAGE_TAG_2::release-candidate"
         else
           echo "::set-output name=ECR_REPOSITORY::ceramic-dev-cas"
           echo "::set-output name=IMAGE_TAG::dev"
-          echo "::set-output name=IMAGE_TAG_2::none"
+          echo "::set-output name=IMAGE_TAG_2::develop"
         fi
 
     - name: Login to DockerHub
