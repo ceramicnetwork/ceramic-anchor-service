@@ -4,6 +4,7 @@ on:
       - main
       - "release-candidate"
       - develop
+      - feat/ci
   workflow_dispatch:
 
 name: Build and Push Images
