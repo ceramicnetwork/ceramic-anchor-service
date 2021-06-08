@@ -1,0 +1,25 @@
+const { generateDiscordCloudwatchFields, sendDiscordNotification, listECSTasks } = require('./helpers')
+
+async function main() {
+  const taskArns = await listECSTasks()
+  const fields = generateDiscordCloudwatchFields(taskArns)
+  const message = [
+    {
+      title: `CAS exited non-zero (${process.env.AWS_ECS_CLUSTER})`,
+      color: 16711712,
+      fields,
+    },
+  ]
+  const data = { embeds: message, username: 'cas-runner' }
+  const retryDelayMs = 300000 // 300k ms = 5 mins
+  sendDiscordNotification(process.env.REPORT_EXIT_DISCORD_WEBHOOK_URL, data, retryDelayMs)
+}
+
+main()
+  .then(() => {
+    console.log('Done')
+  })
+  .catch((error) => {
+    console.error(error)
+    process.exit(1)
+  })
