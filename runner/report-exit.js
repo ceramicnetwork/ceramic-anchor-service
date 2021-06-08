@@ -5,7 +5,7 @@ async function main() {
   const fields = generateDiscordCloudwatchFields(taskArns)
   const message = [
     {
-      title: `CAS exited non-zero (${process.env.AWS_ECS_CLUSTER})`,
+      title: `CAS failed (${process.env.AWS_ECS_CLUSTER})`,
       color: 16711712,
       fields,
     },
