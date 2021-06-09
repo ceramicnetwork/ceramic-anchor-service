@@ -27,7 +27,7 @@ function sendNotification(taskArns) {
   ]
   const data = { embeds: message, username: 'cas-runner' }
   const retryDelayMs = 300000 // 300k ms = 5 mins
-  sendDiscordNotification(process.env.CHECK_TASKS_DISCORD_WEBHOOK_URL, data, retryDelayMs)
+  sendDiscordNotification(process.env.DISCORD_WEBHOOK_URL_WARNINGS, data, retryDelayMs)
 }
 
 main()
