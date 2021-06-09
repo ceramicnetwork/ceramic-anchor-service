@@ -6,7 +6,7 @@ const { ECSClient, ListTasksCommand } = require('@aws-sdk/client-ecs')
  * @param {Array<string>} taskArns 
  * @returns {object}
  */
-export function generateDiscordCloudwatchFields(taskArns) {
+function generateDiscordCloudwatchFields(taskArns) {
   const arnRegex = /\w+$/
   const fields = taskArns.map((arn, index) => {
     let value = arn
@@ -23,7 +23,7 @@ export function generateDiscordCloudwatchFields(taskArns) {
  * Returns list of running ECS anchor tasks
  * @returns {Array<string>}
  */
-export async function listECSTasks() {
+async function listECSTasks() {
   const client = new ECSClient({
     region: process.env.AWS_REGION,
     credentials: {
@@ -54,7 +54,7 @@ export async function listECSTasks() {
  * @param {any} data POST data
  * @param {Number} retryDelayMs If -1, will not retry, otherwise the millisecond delay before 1 retry
  */
-export function sendDiscordNotification(webhookUrl, data, retryDelayMs = -1) {
+function sendDiscordNotification(webhookUrl, data, retryDelayMs = -1) {
   const options = {
     method: 'POST',
     headers: {
@@ -73,4 +73,10 @@ export function sendDiscordNotification(webhookUrl, data, retryDelayMs = -1) {
   req.on('error', console.error)
   req.write(JSON.stringify(data))
   req.end()
+}
+
+module.exports = {
+  generateDiscordCloudwatchFields,
+  listECSTasks,
+  sendDiscordNotification
 }
