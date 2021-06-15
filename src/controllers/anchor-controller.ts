@@ -22,10 +22,10 @@ export default class AnchorController {
       await this.anchorService.anchorRequests();
 
       return res.status(OK).json({
-        message: 'anchored pending documents',
+        message: 'anchored pending streams',
       });
     } catch (err) {
-      const errmsg = `Anchoring pending documents failed: ${err.message}`
+      const errmsg = `Anchoring pending streams failed: ${err.message}`
       logger.err(errmsg);
       return res.status(INTERNAL_SERVER_ERROR).json({
         error: errmsg,

@@ -21,7 +21,7 @@ export class Request {
   cid: string;
 
   @Column({ nullable: false, name: 'doc_id' })
-  docId: string;
+  streamId: string;
 
   @Column({ nullable: true })
   message: string;

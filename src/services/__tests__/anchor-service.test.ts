@@ -23,17 +23,17 @@ import { MockCeramicService, MockIpfsService } from '../../test-utils';
 
 initializeTransactionalContext();
 
-async function createRequest(docId: string, ipfsService: IpfsService): Promise<Request> {
+async function createRequest(streamId: string, ipfsService: IpfsService): Promise<Request> {
   const cid = await ipfsService.storeRecord({})
   const request = new Request();
   request.cid = cid.toString();
-  request.docId = docId;
+  request.streamId = streamId;
   request.status = RequestStatus.PENDING;
   request.message = 'Request is pending.';
   return request
 }
 
-function createDocument(id: StreamID, logLength: number) {
+function createStream(id: StreamID, logLength: number) {
   const log = new Array(logLength)
   return {id, metadata: {controllers: ['this is totally a did']}, state: {log}, tip: "a cid"}
 }
@@ -77,14 +77,14 @@ describe('ETH service',  () => {
       throw new Error('Failed to send transaction!');
     });
 
-    const docBaseId = ceramicService.generateBaseDocID()
+    const streamBaseId = ceramicService.generateBaseStreamID()
     const cid = await ipfsService.storeRecord({})
-    const docId = docBaseId.atCommit(cid)
-    ceramicService.putDocument(docId, createDocument(docId.baseID,1))
+    const streamId = streamBaseId.atCommit(cid)
+    ceramicService.putStream(streamId, createStream(streamId.baseID,1))
 
     let request = new Request();
     request.cid = cid.toString();
-    request.docId = docId.baseID.toString();
+    request.streamId = streamId.baseID.toString();
     request.status = RequestStatus.PENDING;
     request.message = 'Request is pending.';
 
@@ -111,14 +111,14 @@ describe('ETH service',  () => {
     const requests = []
     const numRequests = 4
     for (let i = 0; i < numRequests; i++) {
-      const docBaseId = ceramicService.generateBaseDocID()
-      const request = await createRequest(docBaseId.toString(), ipfsService)
+      const streamBaseId = ceramicService.generateBaseStreamID()
+      const request = await createRequest(streamBaseId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request);
       requests.push(request)
-      const docId = docBaseId.atCommit(request.cid)
-      ceramicService.putDocument(docId, createDocument(docId.baseID, 1))
+      const streamId = streamBaseId.atCommit(request.cid)
+      ceramicService.putStream(streamId, createStream(streamId.baseID, 1))
     }
-    requests.sort(function(a, b) { return a.docId.localeCompare(b.docId) })
+    requests.sort(function(a, b) { return a.streamId.localeCompare(b.streamId) })
 
     const candidates = await anchorService._findCandidates(requests)
     const merkleTree = await anchorService._buildMerkleTree(candidates)
@@ -157,11 +157,11 @@ describe('ETH service',  () => {
 
     // Create pending requests
     for (let i = 0; i < numRequests; i++) {
-      const docBaseId = ceramicService.generateBaseDocID()
-      const request = await createRequest(docBaseId.toString(), ipfsService)
+      const streamBaseId = ceramicService.generateBaseStreamID()
+      const request = await createRequest(streamBaseId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request);
-      const docId = docBaseId.atCommit(request.cid)
-      ceramicService.putDocument(docId, createDocument(docId.baseID,1))
+      const streamId = streamBaseId.atCommit(request.cid)
+      ceramicService.putStream(streamId, createStream(streamId.baseID,1))
     }
 
     // First pass anchors half the pending requests
@@ -200,11 +200,11 @@ describe('ETH service',  () => {
 
     // Create pending requests
     for (let i = 0; i < numRequests; i++) {
-      const docBaseId = ceramicService.generateBaseDocID()
-      const request = await createRequest(docBaseId.toString(), ipfsService)
+      const streamBaseId = ceramicService.generateBaseStreamID()
+      const request = await createRequest(streamBaseId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request);
-      const docId = docBaseId.atCommit(request.cid)
-      ceramicService.putDocument(docId, createDocument(docId.baseID,1))
+      const streamId = streamBaseId.atCommit(request.cid)
+      ceramicService.putStream(streamId, createStream(streamId.baseID,1))
     }
 
     // First pass anchors half the pending requests
@@ -231,19 +231,19 @@ describe('ETH service',  () => {
     const anchorService = container.resolve<AnchorService>('anchorService');
 
     const makeRequest = async function(valid: boolean) {
-      const docBaseId = ceramicService.generateBaseDocID()
-      const request = await createRequest(docBaseId.toString(), ipfsService)
+      const streamBaseId = ceramicService.generateBaseStreamID()
+      const request = await createRequest(streamBaseId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request);
 
       if (valid) {
-        const docId = docBaseId.atCommit(request.cid)
-        ceramicService.putDocument(docId, createDocument(docId.baseID,1))
+        const streamId = streamBaseId.atCommit(request.cid)
+        ceramicService.putStream(streamId, createStream(streamId.baseID,1))
       }
 
       return request
     }
 
-    // Create pending requests. 2 with valid documents on ceramic, 2 without
+    // Create pending requests. 2 with valid streams on ceramic, 2 without
     const requests = []
     let request = await makeRequest(true)
     requests.push(request)
@@ -271,44 +271,44 @@ describe('ETH service',  () => {
     const requestRepository = container.resolve<RequestRepository>('requestRepository');
     const anchorService = container.resolve<AnchorService>('anchorService');
 
-    // Create 4 pending requests for 2 documents. Each document will have 2 conflicting anchor
+    // Create 4 pending requests for 2 streams. Each stream will have 2 conflicting anchor
     // requests.
-    const docIdA = ceramicService.generateBaseDocID()
-    const docIdB = ceramicService.generateBaseDocID()
-    const requestA0 = await createRequest(docIdA.toString(), ipfsService)
-    const requestA1 = await createRequest(docIdA.toString(), ipfsService)
-    const requestB0 = await createRequest(docIdB.toString(), ipfsService)
-    const requestB1 = await createRequest(docIdB.toString(), ipfsService)
+    const streamIdA = ceramicService.generateBaseStreamID()
+    const streamIdB = ceramicService.generateBaseStreamID()
+    const requestA0 = await createRequest(streamIdA.toString(), ipfsService)
+    const requestA1 = await createRequest(streamIdA.toString(), ipfsService)
+    const requestB0 = await createRequest(streamIdB.toString(), ipfsService)
+    const requestB1 = await createRequest(streamIdB.toString(), ipfsService)
     await requestRepository.createOrUpdate(requestA0);
     await requestRepository.createOrUpdate(requestA1);
     await requestRepository.createOrUpdate(requestB0);
     await requestRepository.createOrUpdate(requestB1);
-    const docIdA0 = docIdA.atCommit(requestA0.cid)
-    const docIdA1 = docIdA.atCommit(requestA1.cid)
-    const docIdB0 = docIdB.atCommit(requestB0.cid)
-    const docIdB1 = docIdB.atCommit(requestB1.cid)
+    const streamIdA0 = streamIdA.atCommit(requestA0.cid)
+    const streamIdA1 = streamIdA.atCommit(requestA1.cid)
+    const streamIdB0 = streamIdB.atCommit(requestB0.cid)
+    const streamIdB1 = streamIdB.atCommit(requestB1.cid)
 
-    // For docA, the conflicting requests will have different length logs
-    ceramicService.putDocument(docIdA0, createDocument(docIdA0.baseID, 1))
-    ceramicService.putDocument(docIdA1, createDocument(docIdA1.baseID, 2))
+    // For streamA, the conflicting requests will have different length logs
+    ceramicService.putStream(streamIdA0, createStream(streamIdA0.baseID, 1))
+    ceramicService.putStream(streamIdA1, createStream(streamIdA1.baseID, 2))
 
-    // For docB, the conflicting requests will have the same log length
-    ceramicService.putDocument(docIdB0, createDocument(docIdB0.baseID, 1))
-    ceramicService.putDocument(docIdB1, createDocument(docIdB1.baseID, 1))
+    // For streamB, the conflicting requests will have the same log length
+    ceramicService.putStream(streamIdB0, createStream(streamIdB0.baseID, 1))
+    ceramicService.putStream(streamIdB1, createStream(streamIdB1.baseID, 1))
 
-    // Apply conflict resolution to determine which record to anchor for each docId
+    // Apply conflict resolution to determine which record to anchor for each streamId
     const candidates = await anchorService._findCandidates([requestA0, requestA1, requestB0, requestB1])
     expect(candidates.length).toEqual(2)
 
-    const candidateA = candidates.find((c)=> c.document.id.baseID.toString() == docIdA.toString())
-    const candidateB = candidates.find((c)=> c.document.id.baseID.toString() == docIdB.toString())
+    const candidateA = candidates.find((c)=> c.stream.id.baseID.toString() == streamIdA.toString())
+    const candidateB = candidates.find((c)=> c.stream.id.baseID.toString() == streamIdB.toString())
 
-    // For doc A should have picked the request with the longer log
+    // For stream A should have picked the request with the longer log
     expect(candidateA.cid.toString()).toEqual(requestA1.cid)
 
-    // For doc B should have picked the request with the lower CID
-    const docBMinCID = requestB0.cid < requestB1.cid ? requestB0.cid : requestB1.cid
-    expect(candidateB.cid.toString()).toEqual(docBMinCID)
+    // For stream B should have picked the request with the lower CID
+    const streamBMinCID = requestB0.cid < requestB1.cid ? requestB0.cid : requestB1.cid
+    expect(candidateB.cid.toString()).toEqual(streamBMinCID)
   });
 
 });

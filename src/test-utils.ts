@@ -51,7 +51,7 @@ export class CidGenerator {
 }
 
 export class MockIpfsService implements IpfsService {
-  private _docs: Record<string, any> = {}
+  private _streams: Record<string, any> = {}
 
   constructor(private _cidGenerator = new CidGenerator()) {}
 
@@ -60,43 +60,43 @@ export class MockIpfsService implements IpfsService {
   }
 
   async retrieveRecord(cid: CID | string): Promise<any> {
-    return this._docs[cid.toString()];
+    return this._streams[cid.toString()];
   }
 
   async storeRecord(record: Record<string, unknown>): Promise<CID> {
     const cid = this._cidGenerator.next();
-    this._docs[cid.toString()] = record;
+    this._streams[cid.toString()] = record;
     return cid;
   }
 
   reset() {
     this._cidGenerator.reset()
-    this._docs = {}
+    this._streams = {}
   }
 }
 
 export class MockCeramicService implements CeramicService {
-  constructor(private _docs: Record<string, any> = {}, private _cidIndex = 0) {}
+  constructor(private _streams: Record<string, any> = {}, private _cidIndex = 0) {}
 
-  async loadDocument(docId: StreamID): Promise<any> {
-    return this._docs[docId.toString()]
+  async loadStream(streamId: StreamID): Promise<any> {
+    return this._streams[streamId.toString()]
   }
 
-  // Mock-only method to control what gets returned by loadDocument()
-  putDocument(id: StreamID | CommitID, doc: any) {
-    this._docs[id.toString()] = doc
+  // Mock-only method to control what gets returned by loadStream()
+  putStream(id: StreamID | CommitID, stream: any) {
+    this._streams[id.toString()] = stream
   }
 
-  // Mock-only method to generate a random base DocID
-  generateBaseDocID(): StreamID {
+  // Mock-only method to generate a random base StreamID
+  generateBaseStreamID(): StreamID {
     if (this._cidIndex >= RANDOM_CIDS.length) {
-      throw new Error("Used too many DocIDs in a test!");
+      throw new Error("Used too many StreamIDs in a test!");
     }
     return new StreamID('tile', RANDOM_CIDS[this._cidIndex++])
   }
 
   reset() {
     this._cidIndex = 0
-    this._docs = {}
+    this._streams = {}
   }
 }
