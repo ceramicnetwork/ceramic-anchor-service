@@ -63,7 +63,10 @@ export default class RequestController {
     try {
       logger.debug(`Create request ${JSON.stringify(req.body)}`);
 
-      const { cid, streamId } = req.body;
+      const cid = req.body.cid;
+      // TODO docId check for backwards compat with old Ceramic nodes. Remove once all infra nodes
+      // updated to new Ceramic version
+      const streamId = req.body.streamId || req.body.docId
 
       if (cid == null) {
         return res.status(StatusCodes.BAD_REQUEST).send({

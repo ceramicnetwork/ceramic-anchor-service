@@ -23,6 +23,7 @@ export class RequestPresentation {
           id: request.id,
           status: RequestStatus[request.status],
           cid: request.cid,
+          docId: request.streamId, // todo remove
           streamId: request.streamId,
           message: request.message,
           createdAt: request.createdAt.getTime(),
@@ -43,6 +44,7 @@ export class RequestPresentation {
           id: request.id,
           status: RequestStatus[request.status],
           cid: request.cid,
+          docId: request.streamId, // TODO remove
           streamId: request.streamId,
           message: request.message,
           createdAt: request.createdAt.getTime(),
@@ -55,6 +57,7 @@ export class RequestPresentation {
           id: request.id,
           status: RequestStatus[request.status],
           cid: request.cid,
+          docId: request.streamId, // TODO remove
           streamId: request.streamId,
           message: request.message,
           createdAt: request.createdAt.getTime(),
@@ -65,6 +68,7 @@ export class RequestPresentation {
           id: request.id,
           status: RequestStatus[request.status],
           cid: request.cid,
+          docId: request.streamId, // TODO remove
           streamId: request.streamId,
           message: request.message,
           createdAt: request.createdAt.getTime(),
