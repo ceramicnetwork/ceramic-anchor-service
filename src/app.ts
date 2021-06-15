@@ -2,6 +2,9 @@ import 'reflect-metadata';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 require('dotenv').config();
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const packageJson = require('../package.json')
+
 import { config } from 'node-config-ts';
 import { container, instanceCachingFactory } from 'tsyringe';
 
@@ -100,7 +103,7 @@ export default class CeramicAnchorApp {
    */
   public async start(): Promise<void> {
     const configLogString = JSON.stringify(CeramicAnchorApp._cleanupConfigForLogging(config), null, 2)
-    logger.imp(`Starting Ceramic Anchor Service with config:\n${configLogString}`)
+    logger.imp(`Starting Ceramic Anchor Service at version ${packageJson.version} with config:\n${configLogString}`)
 
     const blockchainService: BlockchainService = container.resolve<BlockchainService>('blockchainService');
     await blockchainService.connect();
