@@ -63,7 +63,7 @@ export default class RequestController {
     try {
       logger.debug(`Create request ${JSON.stringify(req.body)}`);
 
-      const { cid, docId } = req.body;
+      const { cid, streamId } = req.body;
 
       if (cid == null) {
         return res.status(StatusCodes.BAD_REQUEST).send({
@@ -71,9 +71,9 @@ export default class RequestController {
         });
       }
 
-      if (docId == null) {
+      if (streamId == null) {
         return res.status(StatusCodes.BAD_REQUEST).send({
-          error: 'Document ID is empty',
+          error: 'Stream ID is empty',
         });
       }
 
@@ -85,7 +85,7 @@ export default class RequestController {
       } else {
         request = new Request();
         request.cid = cid.toString();
-        request.docId = docId;
+        request.streamId = streamId;
         request.status = RequestStatus.PENDING;
         request.message = 'Request is pending.';
 
@@ -95,7 +95,7 @@ export default class RequestController {
         return res.status(StatusCodes.CREATED).json(body);
       }
     } catch (err) {
-      const errmsg = `Creating request with docId ${req.body.docId} and commit CID ${req.body.cid} failed: ${err.message}`
+      const errmsg = `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed: ${err.message}`
       logger.err(errmsg);
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: errmsg,

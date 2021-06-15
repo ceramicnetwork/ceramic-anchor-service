@@ -18,17 +18,17 @@ const BLOOM_FILTER_FALSE_POSITIVE_RATE = 0.0001
 
 export class Candidate {
   public readonly cid: CID;
-  public readonly document: Stream;
+  public readonly stream: Stream;
   public readonly reqId: number;
 
-  constructor(cid: CID, reqId?: number, document?: Stream) {
+  constructor(cid: CID, reqId?: number, stream?: Stream) {
     this.cid = cid;
     this.reqId = reqId;
-    this.document = document
+    this.stream = stream
   }
 
-  get docId(): string {
-    return this.document.id.baseID.toString()
+  get streamId(): string {
+    return this.stream.id.baseID.toString()
   }
 
 }
@@ -61,7 +61,7 @@ export class IpfsMerge implements MergeFunction<Candidate, TreeMetadata> {
  */
 export class IpfsLeafCompare implements CompareFunction<Candidate> {
   compare(left: Node<Candidate>, right: Node<Candidate>): number {
-    return left.data.docId.localeCompare(right.data.docId);
+    return left.data.streamId.localeCompare(right.data.streamId);
   }
 }
 
@@ -72,20 +72,20 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
   generateMetadata(leaves: Array<Node<Candidate>>): TreeMetadata {
     const bloomFilterEntries = new Set<string>()
     for (const node of leaves) {
-      const doc = node.data.document
-      bloomFilterEntries.add(`docid-${doc.id.baseID.toString()}`)
-      if (doc.metadata.schema) {
-        bloomFilterEntries.add(`schema-${doc.metadata.schema.toString()}`)
+      const stream = node.data.stream
+      bloomFilterEntries.add(`docid-${stream.id.baseID.toString()}`)
+      if (stream.metadata.schema) {
+        bloomFilterEntries.add(`schema-${stream.metadata.schema.toString()}`)
       }
-      if (doc.metadata.family) {
-        bloomFilterEntries.add(`family-${doc.metadata.family}`)
+      if (stream.metadata.family) {
+        bloomFilterEntries.add(`family-${stream.metadata.family}`)
       }
-      if (doc.metadata.tags) {
-        for (const tag of doc.metadata.tags) {
+      if (stream.metadata.tags) {
+        for (const tag of stream.metadata.tags) {
           bloomFilterEntries.add(`tag-${tag}`)
         }
       }
-      for (const controller of doc.metadata.controllers) {
+      for (const controller of stream.metadata.controllers) {
         bloomFilterEntries.add(`controller-${controller.toString()}`)
       }
     }

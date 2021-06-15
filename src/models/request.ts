@@ -20,8 +20,8 @@ export class Request {
   @Column({ nullable: false })
   cid: string;
 
-  @Column({ nullable: false, name: 'doc_id' })
-  docId: string;
+  @Column({ nullable: false, name: 'stream_id' })
+  streamId: string;
 
   @Column({ nullable: true })
   message: string;
