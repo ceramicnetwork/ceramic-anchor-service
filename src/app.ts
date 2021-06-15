@@ -23,6 +23,8 @@ import RequestController from "./controllers/request-controller";
 import ServiceInfoController from "./controllers/service-info-controller";
 import EthereumBlockchainService from "./services/blockchain/ethereum/ethereum-blockchain-service";
 
+import cloneDeep from 'lodash.clonedeep'
+
 initializeTransactionalContext();
 
 /**
@@ -84,9 +86,22 @@ export default class CeramicAnchorApp {
   }
 
   /**
+   * Returns a copy of the config with any sensitive information removed so it is safe to log
+   * @param config
+   */
+  static _cleanupConfigForLogging(config) : Record<string, any> {
+    const configCopy = cloneDeep(config)
+    delete configCopy?.blockchain?.connectors?.ethereum?.account?.privateKey
+    return configCopy
+  }
+
+  /**
    * Start application
    */
   public async start(): Promise<void> {
+    const configLogString = JSON.stringify(CeramicAnchorApp._cleanupConfigForLogging(config), null, 2)
+    logger.imp(`Starting Ceramic Anchor Service with config:\n${configLogString}`)
+
     const blockchainService: BlockchainService = container.resolve<BlockchainService>('blockchainService');
     await blockchainService.connect();
 
