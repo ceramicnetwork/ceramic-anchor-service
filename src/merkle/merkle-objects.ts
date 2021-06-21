@@ -73,7 +73,7 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
     const bloomFilterEntries = new Set<string>()
     for (const node of leaves) {
       const stream = node.data.stream
-      bloomFilterEntries.add(`docid-${stream.id.baseID.toString()}`)
+      bloomFilterEntries.add(`streamid-${stream.id.baseID.toString()}`)
       if (stream.metadata.schema) {
         bloomFilterEntries.add(`schema-${stream.metadata.schema.toString()}`)
       }

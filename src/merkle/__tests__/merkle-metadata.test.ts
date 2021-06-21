@@ -37,7 +37,7 @@ describe('Bloom filter',  () => {
     // @ts-ignore
     const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
 
-    expect(bloomFilter.has(`docid-${candidates[0].stream.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`streamid-${candidates[0].stream.id.baseID.toString()}`)).toBeTruthy()
     expect(bloomFilter.has(`controller-a`)).toBeTruthy()
     expect(bloomFilter.has(`controller-b`)).toBeFalsy()
   });
@@ -58,7 +58,7 @@ describe('Bloom filter',  () => {
     // @ts-ignore
     const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
 
-    expect(bloomFilter.has(`docid-${candidates[0].stream.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`streamid-${candidates[0].stream.id.baseID.toString()}`)).toBeTruthy()
     expect(bloomFilter.has(`controller-a`)).toBeTruthy()
     expect(bloomFilter.has(`controller-b`)).toBeTruthy()
     expect(bloomFilter.has(`controller-c`)).toBeFalsy()
@@ -96,9 +96,9 @@ describe('Bloom filter',  () => {
     // @ts-ignore
     const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
 
-    expect(bloomFilter.has(`docid-${candidates[0].stream.id.baseID.toString()}`)).toBeTruthy()
-    expect(bloomFilter.has(`docid-${candidates[1].stream.id.baseID.toString()}`)).toBeTruthy()
-    expect(bloomFilter.has(`docid-${candidates[2].stream.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`streamid-${candidates[0].stream.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`streamid-${candidates[1].stream.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`streamid-${candidates[2].stream.id.baseID.toString()}`)).toBeTruthy()
     expect(bloomFilter.has(`controller-a`)).toBeTruthy()
     expect(bloomFilter.has(`controller-b`)).toBeTruthy()
     expect(bloomFilter.has(`controller-c`)).toBeTruthy()

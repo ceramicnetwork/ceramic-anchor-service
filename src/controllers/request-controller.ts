@@ -64,8 +64,9 @@ export default class RequestController {
       logger.debug(`Create request ${JSON.stringify(req.body)}`);
 
       const cid = req.body.cid;
-      // TODO docId check for backwards compat with old Ceramic nodes. Remove once all infra nodes
-      // updated to new Ceramic version
+      // TODO docId check for backwards compat with old Ceramic nodes. Remove once
+      //  https://github.com/ceramicnetwork/js-ceramic/issues/1485 has been merged, released, and
+      // deployed to a majority of the network.
       const streamId = req.body.streamId || req.body.docId
 
       if (cid == null) {
