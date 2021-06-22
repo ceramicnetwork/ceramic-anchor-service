@@ -51,7 +51,7 @@ enum PathDirection {
 export { Node, MergeFunction, CompareFunction, MetadataFunction, PathDirection };
 
 /**
- * Metadata containing a bloom filter based on the metadata of the documents in the tree
+ * Metadata containing a bloom filter based on the metadata of the streams in the tree
  */
 interface BloomMetadata {
   type: string;

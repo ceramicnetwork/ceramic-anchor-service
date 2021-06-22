@@ -17,8 +17,8 @@ describe('Bloom filter',  () => {
 
   const createCandidate = function (metadata: any) {
     const cid = cidGenerator.next()
-    const doc = { id: new StreamID('tile', cid), metadata }
-    return new Candidate(cid, 0, doc as any)
+    const stream = { id: new StreamID('tile', cid), metadata }
+    return new Candidate(cid, 0, stream as any)
   }
 
   const makeMerkleTree = function() {
@@ -26,7 +26,7 @@ describe('Bloom filter',  () => {
       new IpfsMerge(ipfsService), new IpfsLeafCompare(), new BloomMetadata())
   }
 
-  test('Single document minimal metadata', async () => {
+  test('Single stream minimal metadata', async () => {
     const merkleTree = makeMerkleTree()
     const candidates = [createCandidate({controllers: ["a"]})]
     await merkleTree.build(candidates)
@@ -37,19 +37,19 @@ describe('Bloom filter',  () => {
     // @ts-ignore
     const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
 
-    expect(bloomFilter.has(`docid-${candidates[0].document.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`streamid-${candidates[0].stream.id.baseID.toString()}`)).toBeTruthy()
     expect(bloomFilter.has(`controller-a`)).toBeTruthy()
     expect(bloomFilter.has(`controller-b`)).toBeFalsy()
   });
 
-  test('Single document full metadata', async () => {
+  test('Single stream full metadata', async () => {
     const merkleTree = makeMerkleTree()
-    const docMetadata = {
+    const streamMetadata = {
       controllers: ["a", "b"],
       schema: "schema",
       family: "family",
       tags: ["a", "b"] }
-    const candidates = [createCandidate(docMetadata)]
+    const candidates = [createCandidate(streamMetadata)]
     await merkleTree.build(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(1)
@@ -58,7 +58,7 @@ describe('Bloom filter',  () => {
     // @ts-ignore
     const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
 
-    expect(bloomFilter.has(`docid-${candidates[0].document.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`streamid-${candidates[0].stream.id.baseID.toString()}`)).toBeTruthy()
     expect(bloomFilter.has(`controller-a`)).toBeTruthy()
     expect(bloomFilter.has(`controller-b`)).toBeTruthy()
     expect(bloomFilter.has(`controller-c`)).toBeFalsy()
@@ -70,24 +70,24 @@ describe('Bloom filter',  () => {
     expect(bloomFilter.has(`tag-c`)).toBeFalsy()
   });
 
-  test('Multiple documents full metadata', async () => {
+  test('Multiple streams full metadata', async () => {
     const merkleTree = makeMerkleTree()
-    const docMetadata0 = {
+    const streamMetadata0 = {
       controllers: ["a", "b"],
       schema: "schema0",
       family: "family0",
       tags: ["a", "b"] }
-    const docMetadata1 = {
+    const streamMetadata1 = {
       controllers: ["a"],
       schema: "schema1",
       family: "family0",
       tags: ["a", "b", "c", "d"] }
-    const docMetadata2 = {
+    const streamMetadata2 = {
       controllers: ["b", "c"],
       schema: "schema2",
       family: "family1",
       tags: ["a", "c", "e"] }
-    const candidates = [createCandidate(docMetadata0), createCandidate(docMetadata1), createCandidate(docMetadata2)]
+    const candidates = [createCandidate(streamMetadata0), createCandidate(streamMetadata1), createCandidate(streamMetadata2)]
     await merkleTree.build(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(3)
@@ -96,9 +96,9 @@ describe('Bloom filter',  () => {
     // @ts-ignore
     const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
 
-    expect(bloomFilter.has(`docid-${candidates[0].document.id.baseID.toString()}`)).toBeTruthy()
-    expect(bloomFilter.has(`docid-${candidates[1].document.id.baseID.toString()}`)).toBeTruthy()
-    expect(bloomFilter.has(`docid-${candidates[2].document.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`streamid-${candidates[0].stream.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`streamid-${candidates[1].stream.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`streamid-${candidates[2].stream.id.baseID.toString()}`)).toBeTruthy()
     expect(bloomFilter.has(`controller-a`)).toBeTruthy()
     expect(bloomFilter.has(`controller-b`)).toBeTruthy()
     expect(bloomFilter.has(`controller-c`)).toBeTruthy()
