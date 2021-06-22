@@ -6,7 +6,7 @@ require('dotenv').config();
 const packageJson = require('../package.json')
 
 import { config } from 'node-config-ts';
-import { container, instanceCachingFactory } from 'tsyringe';
+import { container, instanceCachingFactory, DependencyContainer } from 'tsyringe';
 
 import { logger } from "./logger";
 import CeramicAnchorServer from './server';
@@ -34,7 +34,8 @@ initializeTransactionalContext();
  * Ceramic Anchor Service application
  */
 export default class CeramicAnchorApp {
-  constructor() {
+
+  constructor(private readonly container: DependencyContainer) {
     CeramicAnchorApp._normalizeConfig();
 
     // TODO: Selectively register only the global singletons needed based on the config
@@ -192,7 +193,7 @@ export default class CeramicAnchorApp {
   }
 }
 
-const app = new CeramicAnchorApp();
+const app = new CeramicAnchorApp(container);
 app.start()
   .catch((e) => {
     logger.err(e);
