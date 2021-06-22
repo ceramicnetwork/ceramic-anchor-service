@@ -6,7 +6,7 @@ require('dotenv').config();
 const packageJson = require('../package.json')
 
 import { config } from 'node-config-ts';
-import { container, instanceCachingFactory, DependencyContainer } from 'tsyringe';
+import { instanceCachingFactory, DependencyContainer } from 'tsyringe';
 
 import { logger } from "./logger";
 import CeramicAnchorServer from './server';
@@ -106,7 +106,7 @@ export default class CeramicAnchorApp {
     const configLogString = JSON.stringify(CeramicAnchorApp._cleanupConfigForLogging(config), null, 2)
     logger.imp(`Starting Ceramic Anchor Service at version ${packageJson.version} with config:\n${configLogString}`)
 
-    const blockchainService: BlockchainService = container.resolve<BlockchainService>('blockchainService');
+    const blockchainService: BlockchainService = this.container.resolve<BlockchainService>('blockchainService');
     await blockchainService.connect();
 
     switch (config.mode) {
@@ -135,10 +135,10 @@ export default class CeramicAnchorApp {
    * @private
    */
   private async _startBundled(): Promise<void> {
-    const ipfsService: IpfsServiceImpl = container.resolve<IpfsServiceImpl>('ipfsService');
+    const ipfsService: IpfsServiceImpl = this.container.resolve<IpfsServiceImpl>('ipfsService');
     await ipfsService.init();
 
-    const schedulerService: SchedulerService = container.resolve<SchedulerService>('schedulerService');
+    const schedulerService: SchedulerService = this.container.resolve<SchedulerService>('schedulerService');
     schedulerService.start();
     await this._startServer();
   }
@@ -149,7 +149,7 @@ export default class CeramicAnchorApp {
    */
   private async _startServer(): Promise<void> {
     this.startWithConnectionHandling(async () => {
-      const server = new CeramicAnchorServer(container);
+      const server = new CeramicAnchorServer(this.container);
       await server.start(config.port);
     });
   }
@@ -159,11 +159,11 @@ export default class CeramicAnchorApp {
    * @private
    */
   private async _startAnchor(): Promise<void> {
-    const ipfsService: IpfsServiceImpl = container.resolve<IpfsServiceImpl>('ipfsService');
+    const ipfsService: IpfsServiceImpl = this.container.resolve<IpfsServiceImpl>('ipfsService');
     await ipfsService.init();
 
     this.startWithConnectionHandling(async () => {
-      const anchorService: AnchorService = container.resolve<AnchorService>('anchorService');
+      const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService');
       await anchorService.anchorRequests();
       process.exit();
     }).catch((error) => {
@@ -192,10 +192,3 @@ export default class CeramicAnchorApp {
     await fn();
   }
 }
-
-const app = new CeramicAnchorApp(container);
-app.start()
-  .catch((e) => {
-    logger.err(e);
-    process.exit(1);
-  });
