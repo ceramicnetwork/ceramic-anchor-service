@@ -2,7 +2,7 @@ import CID from 'cids';
 
 import LRUCache from "lru-cache"
 import ipfsClient from "ipfs-http-client";
-import { config } from "node-config-ts";
+import { Config } from 'node-config-ts';
 
 const DEFAULT_GET_TIMEOUT = 30000; // 30 seconds
 
@@ -18,7 +18,8 @@ import legacy from 'multiformats/legacy'
 // @ts-ignore
 import type { IPFSAPI as IPFSApi } from 'ipfs-core/dist/src/components'
 
-import { singleton } from "tsyringe";
+import { inject, singleton } from 'tsyringe';
+import CeramicClient from '@ceramicnetwork/http-client';
 
 const MAX_CACHE_ENTRIES = 100;
 
@@ -47,6 +48,8 @@ export class IpfsServiceImpl implements IpfsService {
   private _ipfs: IPFSApi;
   private _cache: LRUCache;
 
+  constructor(@inject('config') private config?: Config) {}
+
   /**
    * Initialize the service
    */
@@ -55,8 +58,8 @@ export class IpfsServiceImpl implements IpfsService {
     const format = legacy(multiformats, dagJose.name);
 
     this._ipfs = ipfsClient({
-      url: config.ipfsConfig.url,
-      timeout: config.ipfsConfig.timeout,
+      url: this.config.ipfsConfig.url,
+      timeout: this.config.ipfsConfig.timeout,
       ipld: {
         formats: [format],
       },
@@ -64,7 +67,7 @@ export class IpfsServiceImpl implements IpfsService {
 
     // We have to subscribe to pubsub to keep ipfs connections alive.
     // TODO Remove this when the underlying ipfs issue is fixed
-    await this._ipfs.pubsub.subscribe(config.ipfsConfig.pubsubTopic, () => { /* do nothing */ })
+    await this._ipfs.pubsub.subscribe(this.config.ipfsConfig.pubsubTopic, () => { /* do nothing */ })
 
     this._cache = new LRUCache(MAX_CACHE_ENTRIES);
   }

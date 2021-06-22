@@ -5,12 +5,17 @@ import { BaseRepository } from 'typeorm-transactional-cls-hooked';
 import { Request, RequestUpdateFields } from "../models/request";
 import { RequestStatus } from "../models/request-status";
 import { logEvent } from '../logger';
-import { config } from "node-config-ts";
-import { singleton } from "tsyringe";
+import { Config } from 'node-config-ts';
+import { inject, singleton } from 'tsyringe';
 
 @singleton()
 @EntityRepository(Request)
 export default class RequestRepository extends BaseRepository<Request> {
+
+  constructor(
+    @inject('config') private config?: Config) {
+    super()
+  }
 
   /**
    * Create/updates client request
@@ -65,7 +70,7 @@ export default class RequestRepository extends BaseRepository<Request> {
    */
   public async findNextToProcess(): Promise<Request[]> {
     const now: number = new Date().getTime();
-    const deadlineDate = new Date(now - config.expirationPeriod);
+    const deadlineDate = new Date(now - this.config.expirationPeriod);
 
     return await this.manager.getRepository(Request)
       .createQueryBuilder("request")

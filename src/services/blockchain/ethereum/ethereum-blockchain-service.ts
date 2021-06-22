@@ -4,7 +4,7 @@ import * as providers from "@ethersproject/providers";
 import { ErrorCode } from "@ethersproject/logger";
 
 import { BigNumber, BigNumberish, ethers } from "ethers";
-import { config } from "node-config-ts";
+import { Config } from "node-config-ts";
 
 import { logger, logEvent, logMetric } from "../../../logger";
 import Transaction from "../../../models/transaction";
@@ -26,10 +26,10 @@ const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
 export default class EthereumBlockchainService implements BlockchainService {
   private _chainId: string;
 
-  constructor(private readonly wallet: ethers.Wallet) {
+  constructor(private readonly config: Config, private readonly wallet: ethers.Wallet) {
   }
 
-  public static make(): EthereumBlockchainService {
+  public static make(config: Config): EthereumBlockchainService {
     const { network } = config.blockchain.connectors.ethereum;
     const { host, port, url } = config.blockchain.connectors.ethereum.rpc;
 
@@ -44,16 +44,16 @@ export default class EthereumBlockchainService implements BlockchainService {
 
     provider.pollingInterval = POLLING_INTERVAL
     const wallet = new ethers.Wallet(config.blockchain.connectors.ethereum.account.privateKey, provider);
-    return new EthereumBlockchainService(wallet)
+    return new EthereumBlockchainService(config, wallet)
   }
 
   /**
    * Connects to blockchain
    */
   public async connect(): Promise<void> {
-    logger.imp("Connecting to " + config.blockchain.connectors.ethereum.network + " blockchain...");
+    logger.imp("Connecting to " + this.config.blockchain.connectors.ethereum.network + " blockchain...");
     await this._loadChainId();
-    logger.imp('Connected to ' + config.blockchain.connectors.ethereum.network + ' blockchain with chain ID ' + this.chainId);
+    logger.imp('Connected to ' + this.config.blockchain.connectors.ethereum.network + ' blockchain with chain ID ' + this.chainId);
   }
 
   /**
@@ -73,11 +73,11 @@ export default class EthereumBlockchainService implements BlockchainService {
    * @private
    */
   async setGasPrice(txData: TransactionRequest, attempt: number): Promise<void> {
-    if (config.blockchain.connectors.ethereum.overrideGasConfig) {
-      txData.gasPrice = BigNumber.from(config.blockchain.connectors.ethereum.gasPrice);
+    if (this.config.blockchain.connectors.ethereum.overrideGasConfig) {
+      txData.gasPrice = BigNumber.from(this.config.blockchain.connectors.ethereum.gasPrice);
       logger.debug('Overriding Gas price: ' + txData.gasPrice.toString());
 
-      txData.gasLimit = BigNumber.from(config.blockchain.connectors.ethereum.gasLimit);
+      txData.gasLimit = BigNumber.from(this.config.blockchain.connectors.ethereum.gasLimit);
       logger.debug('Overriding Gas limit: ' + txData.gasLimit.toString());
     } else {
       const gasPriceEstimate = await this.wallet.provider.getGasPrice(); // in wei
@@ -234,8 +234,8 @@ export default class EthereumBlockchainService implements BlockchainService {
     logger.imp(`Current wallet balance is ` + walletBalance);
 
     const txData = await this._buildTransactionRequest(rootCid)
-    const transactionTimeoutSecs = config.blockchain.connectors.ethereum.transactionTimeoutSecs
-    const { network } = config.blockchain.connectors.ethereum;
+    const transactionTimeoutSecs = this.config.blockchain.connectors.ethereum.transactionTimeoutSecs
+    const { network } = this.config.blockchain.connectors.ethereum;
 
     let attemptNum = 0;
     const txResponses: Array<providers.TransactionResponse> = []

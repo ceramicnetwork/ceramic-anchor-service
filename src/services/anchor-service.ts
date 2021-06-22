@@ -5,7 +5,7 @@ import { RequestStatus as RS } from "../models/request-status";
 import { MerkleTree } from "../merkle/merkle-tree";
 import { PathDirection, TreeMetadata } from '../merkle/merkle';
 
-import { config } from "node-config-ts";
+import { Config } from "node-config-ts";
 import { Transactional } from "typeorm-transactional-cls-hooked";
 
 import { logger, logEvent } from '../logger';
@@ -36,6 +36,7 @@ export default class AnchorService {
 
   constructor(
     @inject('blockchainService') private blockchainService?: BlockchainService,
+    @inject('config') private config?: Config,
     @inject('ipfsService') private ipfsService?: IpfsService,
     @inject('requestRepository') private requestRepository?: RequestRepository,
     @inject('ceramicService') private ceramicService?: CeramicService,
@@ -60,18 +61,18 @@ export default class AnchorService {
    * @returns whether or not an anchor was performed
    */
   public async anchorIfTooManyPendingRequests(): Promise<boolean> {
-    if (config.merkleDepthLimit == 0 || config.merkleDepthLimit == undefined) {
+    if (this.config.merkleDepthLimit == 0 || this.config.merkleDepthLimit == undefined) {
       // If there's no limit to the size of an anchor, then there's no such thing as "too many"
       // pending requests, and we can always wait for our next scheduled anchor.
       return false
     }
 
-    const nodeLimit = Math.pow(2, config.merkleDepthLimit)
+    const nodeLimit = Math.pow(2, this.config.merkleDepthLimit)
     const requests: Request[] = await this.requestRepository.findNextToProcess();
     if (requests.length > nodeLimit) {
       logger.imp("There are " + requests.length + " pending anchor requests, which is more "
         + "than can fit into a single anchor batch given our configured merkleDepthLimit of "
-        + config.merkleDepthLimit + " (" + nodeLimit + " requests). Triggering an anchor early to "
+        + this.config.merkleDepthLimit + " (" + nodeLimit + " requests). Triggering an anchor early to "
         + "drain our queue")
       await this._anchorRequests(requests)
       return true
@@ -148,7 +149,7 @@ export default class AnchorService {
    */
   async _buildMerkleTree(candidates: Candidate[]): Promise<MerkleTree<Candidate, TreeMetadata>> {
     try {
-      const merkleTree = new MerkleTree<Candidate, TreeMetadata>(this.ipfsMerge, this.ipfsCompare, this.bloomMetadata, config.merkleDepthLimit);
+      const merkleTree = new MerkleTree<Candidate, TreeMetadata>(this.ipfsMerge, this.ipfsCompare, this.bloomMetadata, this.config.merkleDepthLimit);
       await merkleTree.build(candidates);
       return merkleTree
     } catch (e) {
@@ -262,10 +263,10 @@ export default class AnchorService {
    */
   async _loadCandidateStreams(requests: Request[]): Promise<Candidate[]> {
     let streamCountLimit = requests.length // limiting to the number of requests is equivalent to no limit at all
-    if (config.merkleDepthLimit > 0) {
+    if (this.config.merkleDepthLimit > 0) {
       // The number of streams we are able to include in a single anchor batch is limited by the
       // max depth of the merkle tree.
-      streamCountLimit = Math.pow(2, config.merkleDepthLimit)
+      streamCountLimit = Math.pow(2, this.config.merkleDepthLimit)
     }
 
     const candidates = []
@@ -284,7 +285,7 @@ export default class AnchorService {
     // return the remaining unprocessed requests to the PENDING state.
     if (index < requests.length) {
       logger.warn('More than ' + candidates.length + ' candidate streams found, ' +
-        'which is the limit that can fit in a merkle tree of depth ' + config.merkleDepthLimit +
+        'which is the limit that can fit in a merkle tree of depth ' + this.config.merkleDepthLimit +
         '. Returning unprocessed requests to PENDING status')
 
       const unprocessedRequests = requests.slice(index)

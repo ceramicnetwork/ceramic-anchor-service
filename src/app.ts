@@ -5,7 +5,7 @@ require('dotenv').config();
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const packageJson = require('../package.json')
 
-import { config } from 'node-config-ts';
+import { Config } from 'node-config-ts';
 import { instanceCachingFactory, DependencyContainer } from 'tsyringe';
 
 import { logger } from "./logger";
@@ -35,10 +35,15 @@ initializeTransactionalContext();
  */
 export default class CeramicAnchorApp {
 
-  constructor(private readonly container: DependencyContainer) {
-    CeramicAnchorApp._normalizeConfig();
+  constructor(private readonly container: DependencyContainer, private readonly config: Config) {
+    CeramicAnchorApp._normalizeConfig(config);
 
     // TODO: Selectively register only the global singletons needed based on the config
+
+    // register config
+    container.register("config", {
+      useFactory: instanceCachingFactory<Config>(c => config)
+    });
 
     // register repositories
     container.registerSingleton('anchorRepository', AnchorRepository);
@@ -46,7 +51,7 @@ export default class CeramicAnchorApp {
 
     // register services
     container.register("blockchainService", {
-      useFactory: instanceCachingFactory<EthereumBlockchainService>(c => EthereumBlockchainService.make())
+      useFactory: instanceCachingFactory<EthereumBlockchainService>(c => EthereumBlockchainService.make(config))
     });
     container.registerSingleton("anchorService", AnchorService);
     if (config.mode == "bundled" || config.mode == "anchor" || config.anchorControllerEnabled) {
@@ -70,7 +75,7 @@ export default class CeramicAnchorApp {
    * Handles normalizing the arguments passed via the config, for example turning string
    * representations of booleans and numbers into the proper types
    */
-  static _normalizeConfig() {
+  static _normalizeConfig(config: Config) {
     config.mode = config.mode.trim().toLowerCase();
     if (typeof config.merkleDepthLimit == 'string') {
       config.merkleDepthLimit = parseInt(config.merkleDepthLimit)
@@ -103,13 +108,13 @@ export default class CeramicAnchorApp {
    * Start application
    */
   public async start(): Promise<void> {
-    const configLogString = JSON.stringify(CeramicAnchorApp._cleanupConfigForLogging(config), null, 2)
+    const configLogString = JSON.stringify(CeramicAnchorApp._cleanupConfigForLogging(this.config), null, 2)
     logger.imp(`Starting Ceramic Anchor Service at version ${packageJson.version} with config:\n${configLogString}`)
 
     const blockchainService: BlockchainService = this.container.resolve<BlockchainService>('blockchainService');
     await blockchainService.connect();
 
-    switch (config.mode) {
+    switch (this.config.mode) {
       case 'server': {
         await this._startServer();
         break;
@@ -123,11 +128,11 @@ export default class CeramicAnchorApp {
         break;
       }
       default: {
-        logger.err(`Unknown application mode ${config.mode}`);
+        logger.err(`Unknown application mode ${this.config.mode}`);
         process.exit(1);
       }
     }
-    logger.imp(`Ceramic Anchor Service initiated ${config.mode} mode`);
+    logger.imp(`Ceramic Anchor Service initiated ${this.config.mode} mode`);
   }
 
   /**
@@ -150,7 +155,7 @@ export default class CeramicAnchorApp {
   private async _startServer(): Promise<void> {
     this.startWithConnectionHandling(async () => {
       const server = new CeramicAnchorServer(this.container);
-      await server.start(config.port);
+      await server.start(this.config.port);
     });
   }
 

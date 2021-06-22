@@ -2,7 +2,7 @@ import 'reflect-metadata';
 
 process.env.NODE_ENV = 'test';
 
-import { container } from "tsyringe";
+import { container, instanceCachingFactory } from 'tsyringe';
 
 import { Request } from "../../models/request";
 import { RequestStatus } from "../../models/request-status";
@@ -17,7 +17,7 @@ import { initializeTransactionalContext } from 'typeorm-transactional-cls-hooked
 import RequestRepository from "../../repositories/request-repository";
 import { IpfsService } from "../ipfs-service";
 import AnchorRepository from "../../repositories/anchor-repository";
-import { config } from 'node-config-ts';
+import { config, Config } from 'node-config-ts';
 import { StreamID } from '@ceramicnetwork/streamid';
 import { MockCeramicService, MockIpfsService } from '../../test-utils';
 
@@ -48,6 +48,7 @@ describe('ETH service',  () => {
     ipfsService = new MockIpfsService()
     ceramicService = new MockCeramicService()
 
+    container.registerInstance("config", config)
     container.registerSingleton("anchorRepository", AnchorRepository);
     container.registerSingleton("requestRepository", RequestRepository);
     container.registerSingleton("blockchainService", EthereumBlockchainService);

@@ -21,7 +21,7 @@ describe('ETH service connected to ganache',  () => {
 
   beforeAll(async () => {
     container.register("blockchainService", {
-      useFactory: instanceCachingFactory<EthereumBlockchainService>(c => EthereumBlockchainService.make())
+      useFactory: instanceCachingFactory<EthereumBlockchainService>(c => EthereumBlockchainService.make(config))
     });
 
     ethBc = container.resolve<BlockchainService>('blockchainService');
@@ -109,7 +109,7 @@ describe('ETH service with mock wallet',  () => {
   }
 
   beforeEach(async () => {
-    ethBc = new EthereumBlockchainService(wallet as any)
+    ethBc = new EthereumBlockchainService(config, wallet as any)
 
     provider.getNetwork.mockReturnValue({chainId: "1337"})
     await ethBc.connect()
