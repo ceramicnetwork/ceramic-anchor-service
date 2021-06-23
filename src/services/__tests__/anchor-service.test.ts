@@ -20,6 +20,7 @@ import AnchorRepository from "../../repositories/anchor-repository";
 import { config, Config } from 'node-config-ts';
 import { StreamID } from '@ceramicnetwork/streamid';
 import { MockCeramicService, MockIpfsService } from '../../test-utils';
+import { Connection } from 'typeorm';
 
 initializeTransactionalContext();
 
@@ -42,13 +43,15 @@ describe('ETH service',  () => {
   jest.setTimeout(10000);
   let ipfsService: MockIpfsService
   let ceramicService: MockCeramicService
+  let connection: Connection
 
   beforeAll(async () => {
-    await DBConnection.create();
+    connection = await DBConnection.create();
     ipfsService = new MockIpfsService()
     ceramicService = new MockCeramicService()
 
     container.registerInstance("config", config)
+    container.registerInstance("dbConnection", connection)
     container.registerSingleton("anchorRepository", AnchorRepository);
     container.registerSingleton("requestRepository", RequestRepository);
     container.registerSingleton("blockchainService", EthereumBlockchainService);
@@ -62,13 +65,13 @@ describe('ETH service',  () => {
   });
 
   beforeEach(async () => {
-    await DBConnection.clear();
+    await DBConnection.clear(connection);
     ipfsService.reset()
     ceramicService.reset()
   });
 
   afterAll(async () => {
-    await DBConnection.close();
+    await DBConnection.close(connection);
   });
 
   test('check state on tx fail', async () => {

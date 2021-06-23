@@ -1,5 +1,5 @@
 import CID from "cids";
-import { EntityRepository, InsertResult, UpdateResult } from "typeorm";
+import { Connection, EntityRepository, InsertResult, UpdateResult } from 'typeorm';
 import { BaseRepository } from 'typeorm-transactional-cls-hooked';
 
 import { Request, RequestUpdateFields } from "../models/request";
@@ -13,7 +13,8 @@ import { inject, singleton } from 'tsyringe';
 export default class RequestRepository extends BaseRepository<Request> {
 
   constructor(
-    @inject('config') private config?: Config) {
+    @inject('config') private config?: Config,
+    @inject('dbConnection') private connection?: Connection) {
     super()
   }
 
@@ -22,7 +23,7 @@ export default class RequestRepository extends BaseRepository<Request> {
    * @param request - Request
    */
   public async createOrUpdate(request: Request): Promise<Request> {
-    return this.manager.getRepository(Request).save(request);
+    return this.connection.getRepository(Request).save(request);
   }
 
   /**
@@ -30,7 +31,7 @@ export default class RequestRepository extends BaseRepository<Request> {
    * @param requests - Requests
    */
   public async createRequests(requests: Array<Request>): Promise<InsertResult> {
-    return this.manager.getRepository(Request)
+    return this.connection.getRepository(Request)
       .createQueryBuilder()
       .insert()
       .into(Request)
@@ -45,7 +46,7 @@ export default class RequestRepository extends BaseRepository<Request> {
    */
   public async updateRequests(fields: RequestUpdateFields, requests: Request[]): Promise<UpdateResult> {
     const ids = requests.map(r => r.id);
-    const result = await this.manager.getRepository(Request)
+    const result = await this.connection.getRepository(Request)
       .createQueryBuilder()
       .update(Request)
       .set(fields)
@@ -72,7 +73,7 @@ export default class RequestRepository extends BaseRepository<Request> {
     const now: number = new Date().getTime();
     const deadlineDate = new Date(now - this.config.expirationPeriod);
 
-    return await this.manager.getRepository(Request)
+    return await this.connection.getRepository(Request)
       .createQueryBuilder("request")
       .orderBy("request.createdAt", "DESC")
       .where("request.status = :pendingStatus", { pendingStatus: RequestStatus.PENDING })
@@ -89,7 +90,7 @@ export default class RequestRepository extends BaseRepository<Request> {
    * @param cid: Client request CID
    */
   public async findByCid(cid: CID): Promise<Request> {
-    return await this.manager.getRepository(Request)
+    return await this.connection.getRepository(Request)
       .createQueryBuilder("request")
       .where("request.cid = :cid", { cid: cid.toString() })
       .getOne();
