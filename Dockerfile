@@ -8,9 +8,11 @@ RUN apt-get update && apt-get install -y netcat
 
 WORKDIR /cas
 
-COPY . /cas
+COPY package.json package-lock.json /cas/
 
-RUN npm install
+RUN npm ci
+
+COPY . /cas
 
 RUN npm run postinstall
 
