@@ -20,8 +20,8 @@
     "lint": "./node_modules/.bin/eslint --fix ./src --ext .js,.jsx,.ts,.tsx",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules//typeorm/cli.js",
     "clean": "rm -rf ./build; rm -rf coverage; rm -rf .nyc_output",
-    "start": "node ./build/app.js",
-    "startDev": "NODE_ENV=dev APP_MODE=bundled node ./build/app.js ",
+    "start": "node ./build/main.js",
+    "startDev": "NODE_ENV=dev APP_MODE=bundled node ./build/main.js ",
     "watch": "nodemon -e ts --watch src --exec \"npm run build && npm run start\"",
     "release": "release-it --verbose --disable-metrics"
   },

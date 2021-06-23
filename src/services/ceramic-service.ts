@@ -1,7 +1,7 @@
 import CeramicClient from '@ceramicnetwork/http-client';
 import { CeramicApi, Stream, SyncOptions } from '@ceramicnetwork/common';
 
-import { config } from "node-config-ts";
+import { Config } from "node-config-ts";
 import { inject, singleton } from "tsyringe";
 import { IpfsService } from "./ipfs-service";
 import { StreamID, CommitID } from '@ceramicnetwork/streamid';
@@ -19,7 +19,8 @@ export default class CeramicServiceImpl implements CeramicService {
   /**
    * Sets dependencies
    */
-  constructor(@inject('ipfsService') private ipfsService?: IpfsService) {
+  constructor(@inject('config') private config?: Config,
+              @inject('ipfsService') private ipfsService?: IpfsService) {
     this._client = new CeramicClient(config.ceramic.apiUrl);
   }
 

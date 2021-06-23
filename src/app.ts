@@ -5,8 +5,8 @@ require('dotenv').config();
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const packageJson = require('../package.json')
 
-import { config } from 'node-config-ts';
-import { container, instanceCachingFactory } from 'tsyringe';
+import { Config } from 'node-config-ts';
+import { instanceCachingFactory, DependencyContainer } from 'tsyringe';
 
 import { logger } from "./logger";
 import CeramicAnchorServer from './server';
@@ -34,10 +34,16 @@ initializeTransactionalContext();
  * Ceramic Anchor Service application
  */
 export default class CeramicAnchorApp {
-  constructor() {
-    CeramicAnchorApp._normalizeConfig();
+
+  constructor(private readonly container: DependencyContainer, private readonly config: Config) {
+    CeramicAnchorApp._normalizeConfig(config);
 
     // TODO: Selectively register only the global singletons needed based on the config
+
+    // register config
+    container.register("config", {
+      useFactory: instanceCachingFactory<Config>(c => config)
+    });
 
     // register repositories
     container.registerSingleton('anchorRepository', AnchorRepository);
@@ -45,7 +51,7 @@ export default class CeramicAnchorApp {
 
     // register services
     container.register("blockchainService", {
-      useFactory: instanceCachingFactory<EthereumBlockchainService>(c => EthereumBlockchainService.make())
+      useFactory: instanceCachingFactory<EthereumBlockchainService>(c => EthereumBlockchainService.make(config))
     });
     container.registerSingleton("anchorService", AnchorService);
     if (config.mode == "bundled" || config.mode == "anchor" || config.anchorControllerEnabled) {
@@ -69,7 +75,7 @@ export default class CeramicAnchorApp {
    * Handles normalizing the arguments passed via the config, for example turning string
    * representations of booleans and numbers into the proper types
    */
-  static _normalizeConfig() {
+  static _normalizeConfig(config: Config) {
     config.mode = config.mode.trim().toLowerCase();
     if (typeof config.merkleDepthLimit == 'string') {
       config.merkleDepthLimit = parseInt(config.merkleDepthLimit)
@@ -102,13 +108,13 @@ export default class CeramicAnchorApp {
    * Start application
    */
   public async start(): Promise<void> {
-    const configLogString = JSON.stringify(CeramicAnchorApp._cleanupConfigForLogging(config), null, 2)
+    const configLogString = JSON.stringify(CeramicAnchorApp._cleanupConfigForLogging(this.config), null, 2)
     logger.imp(`Starting Ceramic Anchor Service at version ${packageJson.version} with config:\n${configLogString}`)
 
-    const blockchainService: BlockchainService = container.resolve<BlockchainService>('blockchainService');
+    const blockchainService: BlockchainService = this.container.resolve<BlockchainService>('blockchainService');
     await blockchainService.connect();
 
-    switch (config.mode) {
+    switch (this.config.mode) {
       case 'server': {
         await this._startServer();
         break;
@@ -122,11 +128,11 @@ export default class CeramicAnchorApp {
         break;
       }
       default: {
-        logger.err(`Unknown application mode ${config.mode}`);
+        logger.err(`Unknown application mode ${this.config.mode}`);
         process.exit(1);
       }
     }
-    logger.imp(`Ceramic Anchor Service initiated ${config.mode} mode`);
+    logger.imp(`Ceramic Anchor Service initiated ${this.config.mode} mode`);
   }
 
   /**
@@ -134,10 +140,10 @@ export default class CeramicAnchorApp {
    * @private
    */
   private async _startBundled(): Promise<void> {
-    const ipfsService: IpfsServiceImpl = container.resolve<IpfsServiceImpl>('ipfsService');
+    const ipfsService: IpfsServiceImpl = this.container.resolve<IpfsServiceImpl>('ipfsService');
     await ipfsService.init();
 
-    const schedulerService: SchedulerService = container.resolve<SchedulerService>('schedulerService');
+    const schedulerService: SchedulerService = this.container.resolve<SchedulerService>('schedulerService');
     schedulerService.start();
     await this._startServer();
   }
@@ -148,8 +154,8 @@ export default class CeramicAnchorApp {
    */
   private async _startServer(): Promise<void> {
     this.startWithConnectionHandling(async () => {
-      const server = new CeramicAnchorServer(container);
-      await server.start(config.port);
+      const server = new CeramicAnchorServer(this.container);
+      await server.start(this.config.port);
     });
   }
 
@@ -158,11 +164,11 @@ export default class CeramicAnchorApp {
    * @private
    */
   private async _startAnchor(): Promise<void> {
-    const ipfsService: IpfsServiceImpl = container.resolve<IpfsServiceImpl>('ipfsService');
+    const ipfsService: IpfsServiceImpl = this.container.resolve<IpfsServiceImpl>('ipfsService');
     await ipfsService.init();
 
     this.startWithConnectionHandling(async () => {
-      const anchorService: AnchorService = container.resolve<AnchorService>('anchorService');
+      const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService');
       await anchorService.anchorRequests();
       process.exit();
     }).catch((error) => {
@@ -191,10 +197,3 @@ export default class CeramicAnchorApp {
     await fn();
   }
 }
-
-const app = new CeramicAnchorApp();
-app.start()
-  .catch((e) => {
-    logger.err(e);
-    process.exit(1);
-  });

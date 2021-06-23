@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { Request as ExpReq, Response as ExpRes } from 'express';
 
-import { config } from 'node-config-ts';
+import { Config } from 'node-config-ts';
 
 import cors from 'cors';
 import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core';
@@ -22,6 +22,7 @@ export default class RequestController {
   #requestPresentation: RequestPresentation;
 
   constructor(
+    @inject('config') private config?: Config,
     @inject('anchorRepository') private anchorRepository?: AnchorRepository,
     @inject('requestRepository') private requestRepository?: RequestRepository,
   ) {

@@ -1,7 +1,7 @@
 import * as bodyParser from 'body-parser';
 import { Server } from '@overnightjs/core';
 
-import { config } from "node-config-ts";
+import { Config } from "node-config-ts";
 
 import AnchorController from "./controllers/anchor-controller";
 import RequestController from "./controllers/request-controller";
@@ -30,6 +30,7 @@ export default class CeramicAnchorServer extends Server {
    * @param port - Server listening port
    */
   public async start(port?: number): Promise<void> {
+    const config = this.container.resolve<Config>('config')
     const requestController = this.container.resolve<RequestController>('requestController');
     const serviceInfoController = this.container.resolve<ServiceInfoController>('serviceInfoController');
     const healthcheckController = this.container.resolve<HealthcheckController>('healthcheckController');

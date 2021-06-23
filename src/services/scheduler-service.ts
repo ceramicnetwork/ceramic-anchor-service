@@ -1,6 +1,6 @@
 import awsCronParser from "aws-cron-parser";
 
-import { config } from 'node-config-ts';
+import { Config } from 'node-config-ts';
 
 import AnchorService from './anchor-service';
 import { logger } from '../logger';
@@ -13,7 +13,8 @@ import { inject, singleton } from "tsyringe";
 export default class SchedulerService {
 
   constructor(
-    @inject("anchorService") private anchorService?: AnchorService) {
+    @inject("anchorService") private anchorService?: AnchorService,
+    @inject('config') private config?: Config) {
   }
 
   /**
@@ -22,7 +23,7 @@ export default class SchedulerService {
    * Note: setInterval() can be refactored to consecutive setTimeout(s) to avoid anchoring clashing.
    */
   public start(): void {
-    const cron = awsCronParser.parse(config.cronExpression);
+    const cron = awsCronParser.parse(this.config.cronExpression);
     let nextScheduleTime = awsCronParser.next(cron, new Date()).getTime();
 
     setInterval(async () => {
