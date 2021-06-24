@@ -114,6 +114,9 @@ export default class CeramicAnchorApp {
     const blockchainService: BlockchainService = this.container.resolve<BlockchainService>('blockchainService');
     await blockchainService.connect();
 
+    const ipfsService: IpfsServiceImpl = this.container.resolve<IpfsServiceImpl>('ipfsService');
+    await ipfsService.init();
+
     switch (this.config.mode) {
       case 'server': {
         await this._startServer();
@@ -140,9 +143,6 @@ export default class CeramicAnchorApp {
    * @private
    */
   private async _startBundled(): Promise<void> {
-    const ipfsService: IpfsServiceImpl = this.container.resolve<IpfsServiceImpl>('ipfsService');
-    await ipfsService.init();
-
     const schedulerService: SchedulerService = this.container.resolve<SchedulerService>('schedulerService');
     schedulerService.start();
     await this._startServer();
@@ -164,9 +164,6 @@ export default class CeramicAnchorApp {
    * @private
    */
   private async _startAnchor(): Promise<void> {
-    const ipfsService: IpfsServiceImpl = this.container.resolve<IpfsServiceImpl>('ipfsService');
-    await ipfsService.init();
-
     this.startWithConnectionHandling(async () => {
       const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService');
       await anchorService.anchorRequests();
