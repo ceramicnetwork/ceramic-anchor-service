@@ -2,7 +2,7 @@ import 'reflect-metadata';
 
 process.env.NODE_ENV = 'test';
 
-import { container, instanceCachingFactory } from 'tsyringe';
+import { container } from 'tsyringe';
 
 import { Request } from "../../models/request";
 import { RequestStatus } from "../../models/request-status";
@@ -13,7 +13,6 @@ import DBConnection from './db-connection';
 import EthereumBlockchainService from "../blockchain/ethereum/ethereum-blockchain-service";
 jest.mock("../blockchain/ethereum/ethereum-blockchain-service");
 
-import { initializeTransactionalContext } from 'typeorm-transactional-cls-hooked';
 import RequestRepository from "../../repositories/request-repository";
 import { IpfsService } from "../ipfs-service";
 import AnchorRepository from "../../repositories/anchor-repository";
@@ -21,8 +20,6 @@ import { config, Config } from 'node-config-ts';
 import { StreamID } from '@ceramicnetwork/streamid';
 import { MockCeramicService, MockIpfsService } from '../../test-utils';
 import { Connection } from 'typeorm';
-
-initializeTransactionalContext();
 
 async function createRequest(streamId: string, ipfsService: IpfsService): Promise<Request> {
   const cid = await ipfsService.storeRecord({})

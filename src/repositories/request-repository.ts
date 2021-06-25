@@ -1,6 +1,12 @@
 import CID from "cids";
-import { Connection, EntityRepository, InsertResult, UpdateResult } from 'typeorm';
-import { BaseRepository } from 'typeorm-transactional-cls-hooked';
+import {
+  Connection,
+  EntityManager,
+  EntityRepository,
+  InsertResult,
+  Repository,
+  UpdateResult,
+} from 'typeorm';
 
 import { Request, RequestUpdateFields } from "../models/request";
 import { RequestStatus } from "../models/request-status";
@@ -10,7 +16,7 @@ import { inject, singleton } from 'tsyringe';
 
 @singleton()
 @EntityRepository(Request)
-export default class RequestRepository extends BaseRepository<Request> {
+export default class RequestRepository extends Repository<Request> {
 
   constructor(
     @inject('config') private config?: Config,
@@ -41,12 +47,17 @@ export default class RequestRepository extends BaseRepository<Request> {
 
   /**
    * Create/updates client requests
-   * @param ids - Request IDs
    * @param fields - Fields to update
+   * @param requests - Requests to update
+   * @param manager - An optional EntityManager which if provided *must* be used for all database
+   *   access. This is needed when creating anchors as part of a larger database transaction.
    */
-  public async updateRequests(fields: RequestUpdateFields, requests: Request[]): Promise<UpdateResult> {
+  public async updateRequests(fields: RequestUpdateFields, requests: Request[], manager?: EntityManager): Promise<UpdateResult> {
+    if (!manager) {
+      manager = this.connection.manager
+    }
     const ids = requests.map(r => r.id);
-    const result = await this.connection.getRepository(Request)
+    const result = await manager.getRepository(Request)
       .createQueryBuilder()
       .update(Request)
       .set(fields)

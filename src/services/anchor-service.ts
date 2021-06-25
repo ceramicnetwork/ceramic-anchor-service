@@ -6,7 +6,6 @@ import { MerkleTree } from "../merkle/merkle-tree";
 import { PathDirection, TreeMetadata } from '../merkle/merkle';
 
 import { Config } from "node-config-ts";
-import { Transactional } from "typeorm-transactional-cls-hooked";
 
 import { logger, logEvent } from '../logger';
 import Utils from "../utils";
@@ -22,6 +21,7 @@ import BlockchainService from "./blockchain/blockchain-service";
 import { inject, singleton } from "tsyringe";
 import { StreamID, CommitID } from '@ceramicnetwork/streamid';
 import { BloomMetadata, Candidate, IpfsLeafCompare, IpfsMerge } from '../merkle/merkle-objects';
+import { Connection } from 'typeorm';
 
 const BATCH_SIZE = 100
 
@@ -40,7 +40,8 @@ export default class AnchorService {
     @inject('ipfsService') private ipfsService?: IpfsService,
     @inject('requestRepository') private requestRepository?: RequestRepository,
     @inject('ceramicService') private ceramicService?: CeramicService,
-    @inject('anchorRepository') private anchorRepository?: AnchorRepository) {
+    @inject('anchorRepository') private anchorRepository?: AnchorRepository,
+    @inject('dbConnection') private connection?: Connection) {
 
     this.ipfsMerge = new IpfsMerge(this.ipfsService);
     this.ipfsCompare = new IpfsLeafCompare();
@@ -215,14 +216,26 @@ export default class AnchorService {
    * @param anchors - Anchor objects to be persisted
    * @private
    */
-  @Transactional()
   async _persistAnchorResult(anchors: Anchor[]): Promise<void> {
-    await this.anchorRepository.createAnchors(anchors);
+    const queryRunner = this.connection.createQueryRunner()
+    await queryRunner.startTransaction()
+    try {
+      await this.anchorRepository.createAnchors(anchors, queryRunner.manager);
 
-    await this.requestRepository.updateRequests({
-        status: RS.COMPLETED,
-        message: "CID successfully anchored."
-    }, anchors.map(a => a.request));
+      await this.requestRepository.updateRequests(
+        {
+          status: RS.COMPLETED,
+          message: "CID successfully anchored."
+        },
+        anchors.map(a => a.request),
+        queryRunner.manager);
+
+      await queryRunner.commitTransaction()
+    } catch (err) {
+      await queryRunner.rollbackTransaction()
+    } finally {
+      await queryRunner.release()
+    }
   }
 
   /**

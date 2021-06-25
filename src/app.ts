@@ -16,7 +16,6 @@ import AnchorService from "./services/anchor-service";
 import SchedulerService from "./services/scheduler-service";
 import BlockchainService from "./services/blockchain/blockchain-service";
 
-import { initializeTransactionalContext } from 'typeorm-transactional-cls-hooked';
 import AnchorRepository from "./repositories/anchor-repository";
 import RequestRepository from "./repositories/request-repository";
 import CeramicServiceImpl from "./services/ceramic-service";
@@ -27,8 +26,6 @@ import ServiceInfoController from "./controllers/service-info-controller";
 import EthereumBlockchainService from "./services/blockchain/ethereum/ethereum-blockchain-service";
 
 import cloneDeep from 'lodash.clonedeep'
-
-initializeTransactionalContext();
 
 /**
  * Ceramic Anchor Service application
