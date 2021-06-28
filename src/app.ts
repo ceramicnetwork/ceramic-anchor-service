@@ -104,6 +104,10 @@ export default class CeramicAnchorApp {
     return configCopy
   }
 
+  private _shouldStartIpfs(): Boolean {
+    return this.config.mode == "anchor" || this.config.mode == "bundled" || this.config.anchorControllerEnabled;
+  }
+
   /**
    * Start application
    */
@@ -114,8 +118,10 @@ export default class CeramicAnchorApp {
     const blockchainService: BlockchainService = this.container.resolve<BlockchainService>('blockchainService');
     await blockchainService.connect();
 
-    const ipfsService: IpfsServiceImpl = this.container.resolve<IpfsServiceImpl>('ipfsService');
-    await ipfsService.init();
+    if (this._shouldStartIpfs()) {
+      const ipfsService: IpfsServiceImpl = this.container.resolve<IpfsServiceImpl>('ipfsService');
+      await ipfsService.init();
+    }
 
     switch (this.config.mode) {
       case 'server': {
