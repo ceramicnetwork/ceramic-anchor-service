@@ -54,7 +54,7 @@ export default class CeramicAnchorApp {
       useFactory: instanceCachingFactory<EthereumBlockchainService>(c => EthereumBlockchainService.make(config))
     });
     container.registerSingleton("anchorService", AnchorService);
-    if (config.mode == "bundled" || config.mode == "anchor" || config.anchorControllerEnabled) {
+    if (this._anchorsSupported()) {
       // Only register the ceramicService if we might ever need to perform an anchor
       container.registerSingleton("ceramicService", CeramicServiceImpl);
     }
@@ -104,7 +104,11 @@ export default class CeramicAnchorApp {
     return configCopy
   }
 
-  private _shouldStartIpfs(): Boolean {
+  /**
+   * Returns true when we're running in a config that may do an anchor.
+   * @private
+   */
+  private _anchorsSupported(): Boolean {
     return this.config.mode == "anchor" || this.config.mode == "bundled" || this.config.anchorControllerEnabled;
   }
 
@@ -118,7 +122,7 @@ export default class CeramicAnchorApp {
     const blockchainService: BlockchainService = this.container.resolve<BlockchainService>('blockchainService');
     await blockchainService.connect();
 
-    if (this._shouldStartIpfs()) {
+    if (this._anchorsSupported()) {
       const ipfsService: IpfsServiceImpl = this.container.resolve<IpfsServiceImpl>('ipfsService');
       await ipfsService.init();
     }
