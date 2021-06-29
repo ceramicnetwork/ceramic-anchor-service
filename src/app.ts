@@ -56,7 +56,7 @@ export default class CeramicAnchorApp {
       useFactory: instanceCachingFactory<EthereumBlockchainService>(c => EthereumBlockchainService.make(config))
     });
     container.registerSingleton("anchorService", AnchorService);
-    if (config.mode == "bundled" || config.mode == "anchor" || config.anchorControllerEnabled) {
+    if (this._anchorsSupported()) {
       // Only register the ceramicService if we might ever need to perform an anchor
       container.registerSingleton("ceramicService", CeramicServiceImpl);
     }
@@ -107,6 +107,14 @@ export default class CeramicAnchorApp {
   }
 
   /**
+   * Returns true when we're running in a config that may do an anchor.
+   * @private
+   */
+  private _anchorsSupported(): Boolean {
+    return this.config.mode == "anchor" || this.config.mode == "bundled" || this.config.anchorControllerEnabled;
+  }
+
+  /**
    * Start application
    */
   public async start(): Promise<void> {
@@ -115,6 +123,11 @@ export default class CeramicAnchorApp {
 
     const blockchainService: BlockchainService = this.container.resolve<BlockchainService>('blockchainService');
     await blockchainService.connect();
+
+    if (this._anchorsSupported()) {
+      const ipfsService: IpfsServiceImpl = this.container.resolve<IpfsServiceImpl>('ipfsService');
+      await ipfsService.init();
+    }
 
     switch (this.config.mode) {
       case 'server': {
@@ -142,9 +155,6 @@ export default class CeramicAnchorApp {
    * @private
    */
   private async _startBundled(): Promise<void> {
-    const ipfsService: IpfsServiceImpl = this.container.resolve<IpfsServiceImpl>('ipfsService');
-    await ipfsService.init();
-
     const schedulerService: SchedulerService = this.container.resolve<SchedulerService>('schedulerService');
     schedulerService.start();
     await this._startServer();
@@ -164,9 +174,6 @@ export default class CeramicAnchorApp {
    * @private
    */
   private async _startAnchor(): Promise<void> {
-    const ipfsService: IpfsServiceImpl = this.container.resolve<IpfsServiceImpl>('ipfsService');
-    await ipfsService.init();
-
     const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService');
     await anchorService.anchorRequests().catch((error) => {
       logger.err(`Error when anchoring: ${error}`);
