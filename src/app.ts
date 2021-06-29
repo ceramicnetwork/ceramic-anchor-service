@@ -10,13 +10,12 @@ import { instanceCachingFactory, DependencyContainer } from 'tsyringe';
 
 import { logger } from "./logger";
 import CeramicAnchorServer from './server';
-import { createConnection } from 'typeorm';
+import { Connection, createConnection } from 'typeorm';
 import { IpfsServiceImpl } from "./services/ipfs-service";
 import AnchorService from "./services/anchor-service";
 import SchedulerService from "./services/scheduler-service";
 import BlockchainService from "./services/blockchain/blockchain-service";
 
-import { initializeTransactionalContext } from 'typeorm-transactional-cls-hooked';
 import AnchorRepository from "./repositories/anchor-repository";
 import RequestRepository from "./repositories/request-repository";
 import CeramicServiceImpl from "./services/ceramic-service";
@@ -28,14 +27,12 @@ import EthereumBlockchainService from "./services/blockchain/ethereum/ethereum-b
 
 import cloneDeep from 'lodash.clonedeep'
 
-initializeTransactionalContext();
-
 /**
  * Ceramic Anchor Service application
  */
 export default class CeramicAnchorApp {
 
-  constructor(private readonly container: DependencyContainer, private readonly config: Config) {
+  constructor(private readonly container: DependencyContainer, private readonly config: Config, dbConnection: Connection) {
     CeramicAnchorApp._normalizeConfig(config);
 
     // TODO: Selectively register only the global singletons needed based on the config
@@ -43,6 +40,11 @@ export default class CeramicAnchorApp {
     // register config
     container.register("config", {
       useFactory: instanceCachingFactory<Config>(c => config)
+    });
+
+    // register database connection
+    container.register("dbConnection", {
+      useFactory: instanceCachingFactory<Connection>(c => dbConnection)
     });
 
     // register repositories
@@ -163,10 +165,8 @@ export default class CeramicAnchorApp {
    * @private
    */
   private async _startServer(): Promise<void> {
-    this.startWithConnectionHandling(async () => {
-      const server = new CeramicAnchorServer(this.container);
-      await server.start(this.config.port);
-    });
+    const server = new CeramicAnchorServer(this.container);
+    await server.start(this.config.port);
   }
 
   /**
@@ -174,33 +174,12 @@ export default class CeramicAnchorApp {
    * @private
    */
   private async _startAnchor(): Promise<void> {
-    this.startWithConnectionHandling(async () => {
-      const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService');
-      await anchorService.anchorRequests();
-      process.exit();
-    }).catch((error) => {
+    const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService');
+    await anchorService.anchorRequests().catch((error) => {
       logger.err(`Error when anchoring: ${error}`);
       logger.err('Exiting');
       process.exit(1);
     });
-  }
-
-  /**
-   * Wrap execution function with TypeOrm connection handling
-   * @param fn - Function to be executed
-   */
-  private async startWithConnectionHandling(fn: Function): Promise<void> {
-    // create connection with database
-    // note that it's not active database connection
-    // typeorm creates connection pools and uses them for requests
-    try {
-      logger.imp('Connecting to database...');
-      const connection = await createConnection();
-      logger.imp(`Connected to database: ${connection.name}`);
-    } catch (e) {
-      logger.err(`Database connection failed. Error: ${e.message}`);
-      process.exit(1);
-    }
-    await fn();
+    process.exit();
   }
 }

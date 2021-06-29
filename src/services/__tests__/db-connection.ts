@@ -1,4 +1,4 @@
-import { ConnectionOptions, createConnection, getConnection } from "typeorm";
+import { Connection, ConnectionOptions, createConnection, getConnection } from 'typeorm';
 import { Anchor } from "../../models/anchor";
 import { Request } from "../../models/request";
 
@@ -12,16 +12,15 @@ const sqliteConf : ConnectionOptions = {
 };
 
 const DBConnection = {
-  async create(): Promise<void> {
-    await createConnection(sqliteConf);
+  async create(): Promise<Connection> {
+    return await createConnection(sqliteConf);
   },
 
-  async close(): Promise<void>{
-    await getConnection().close();
+  async close(connection: Connection): Promise<void>{
+    await connection.close();
   },
 
-  async clear(): Promise<void>{
-    const connection = getConnection();
+  async clear(connection: Connection): Promise<void>{
     const entities = connection.entityMetadatas;
 
     await connection.transaction(async transactionEntityManager => {

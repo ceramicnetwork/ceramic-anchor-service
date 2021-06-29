@@ -1,6 +1,12 @@
 import CID from "cids";
-import { EntityRepository, InsertResult, UpdateResult } from "typeorm";
-import { BaseRepository } from 'typeorm-transactional-cls-hooked';
+import {
+  Connection,
+  EntityManager,
+  EntityRepository,
+  InsertResult,
+  Repository,
+  UpdateResult,
+} from 'typeorm';
 
 import { Request, RequestUpdateFields } from "../models/request";
 import { RequestStatus } from "../models/request-status";
@@ -10,10 +16,11 @@ import { inject, singleton } from 'tsyringe';
 
 @singleton()
 @EntityRepository(Request)
-export default class RequestRepository extends BaseRepository<Request> {
+export default class RequestRepository extends Repository<Request> {
 
   constructor(
-    @inject('config') private config?: Config) {
+    @inject('config') private config?: Config,
+    @inject('dbConnection') private connection?: Connection) {
     super()
   }
 
@@ -22,7 +29,7 @@ export default class RequestRepository extends BaseRepository<Request> {
    * @param request - Request
    */
   public async createOrUpdate(request: Request): Promise<Request> {
-    return this.manager.getRepository(Request).save(request);
+    return this.connection.getRepository(Request).save(request);
   }
 
   /**
@@ -30,7 +37,7 @@ export default class RequestRepository extends BaseRepository<Request> {
    * @param requests - Requests
    */
   public async createRequests(requests: Array<Request>): Promise<InsertResult> {
-    return this.manager.getRepository(Request)
+    return this.connection.getRepository(Request)
       .createQueryBuilder()
       .insert()
       .into(Request)
@@ -40,12 +47,17 @@ export default class RequestRepository extends BaseRepository<Request> {
 
   /**
    * Create/updates client requests
-   * @param ids - Request IDs
    * @param fields - Fields to update
+   * @param requests - Requests to update
+   * @param manager - An optional EntityManager which if provided *must* be used for all database
+   *   access. This is needed when creating anchors as part of a larger database transaction.
    */
-  public async updateRequests(fields: RequestUpdateFields, requests: Request[]): Promise<UpdateResult> {
+  public async updateRequests(fields: RequestUpdateFields, requests: Request[], manager?: EntityManager): Promise<UpdateResult> {
+    if (!manager) {
+      manager = this.connection.manager
+    }
     const ids = requests.map(r => r.id);
-    const result = await this.manager.getRepository(Request)
+    const result = await manager.getRepository(Request)
       .createQueryBuilder()
       .update(Request)
       .set(fields)
@@ -72,7 +84,7 @@ export default class RequestRepository extends BaseRepository<Request> {
     const now: number = new Date().getTime();
     const deadlineDate = new Date(now - this.config.expirationPeriod);
 
-    return await this.manager.getRepository(Request)
+    return await this.connection.getRepository(Request)
       .createQueryBuilder("request")
       .orderBy("request.createdAt", "DESC")
       .where("request.status = :pendingStatus", { pendingStatus: RequestStatus.PENDING })
@@ -89,7 +101,7 @@ export default class RequestRepository extends BaseRepository<Request> {
    * @param cid: Client request CID
    */
   public async findByCid(cid: CID): Promise<Request> {
-    return await this.manager.getRepository(Request)
+    return await this.connection.getRepository(Request)
       .createQueryBuilder("request")
       .where("request.cid = :cid", { cid: cid.toString() })
       .getOne();
