@@ -55,7 +55,7 @@
     "reflect-metadata": "^0.1.10",
     "sqlite3": "^5.0.0",
     "tsyringe": "^4.4.0",
-    "typeorm": "^0.2.29",
+    "typeorm": "^0.2.34",
     "typestub-multibase": "^0.0.5",
     "typestub-multihashes": "^0.0.4",
     "uuid": "^8.3.1"
