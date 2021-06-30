@@ -12,6 +12,8 @@ import { inject, singleton } from "tsyringe";
 @singleton()
 export default class SchedulerService {
 
+  private _task
+
   constructor(
     @inject("anchorService") private anchorService?: AnchorService,
     @inject('config') private config?: Config) {
@@ -26,7 +28,7 @@ export default class SchedulerService {
     const cron = awsCronParser.parse(this.config.cronExpression);
     let nextScheduleTime = awsCronParser.next(cron, new Date()).getTime();
 
-    setInterval(async () => {
+    this._task = setInterval(async () => {
       try {
         const currentTime = new Date().getTime();
         let performedAnchor = false
@@ -48,5 +50,9 @@ export default class SchedulerService {
       logger.err(err);
     }
     }, 10000);
+  }
+
+  public stop(): void {
+    clearInterval(this._task)
   }
 }

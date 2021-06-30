@@ -11,10 +11,13 @@ import HealthcheckController from "./controllers/healthcheck-controller";
 import { expressLoggers, logger } from './logger';
 
 import DependencyContainer from "tsyringe/dist/typings/types/dependency-container";
+import * as http from 'http'
 
 const DEFAULT_SERVER_PORT = 8081;
 
 export default class CeramicAnchorServer extends Server {
+
+  private _server: http.Server
 
   constructor(private container: DependencyContainer) {
     super(true);
@@ -44,8 +47,12 @@ export default class CeramicAnchorServer extends Server {
     this.addControllers(controllers);
 
     port = port || DEFAULT_SERVER_PORT;
-    this.app.listen(port, () => {
+    this._server = this.app.listen(port, () => {
       logger.imp(`Server ready: Listening on port ${port}`);
     });
+  }
+
+  public stop(): void {
+    this._server.close()
   }
 }

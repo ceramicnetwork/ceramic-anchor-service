@@ -32,6 +32,9 @@ import cloneDeep from 'lodash.clonedeep'
  */
 export default class CeramicAnchorApp {
 
+  private _schedulerService: SchedulerService
+  private _server: CeramicAnchorServer
+
   constructor(private readonly container: DependencyContainer, private readonly config: Config, dbConnection: Connection) {
     CeramicAnchorApp._normalizeConfig(config);
 
@@ -114,6 +117,11 @@ export default class CeramicAnchorApp {
     return this.config.mode == "anchor" || this.config.mode == "bundled" || this.config.anchorControllerEnabled;
   }
 
+  public async anchor(): Promise<void> {
+    const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService');
+    return anchorService.anchorRequests()
+  }
+
   /**
    * Start application
    */
@@ -150,13 +158,22 @@ export default class CeramicAnchorApp {
     logger.imp(`Ceramic Anchor Service initiated ${this.config.mode} mode`);
   }
 
+  public stop(): void {
+    if (this._schedulerService) {
+      this._schedulerService.stop()
+    }
+    if (this._server) {
+      this._server.stop()
+    }
+  }
+
   /**
    * Starts bundled application (API + periodic anchoring)
    * @private
    */
   private async _startBundled(): Promise<void> {
-    const schedulerService: SchedulerService = this.container.resolve<SchedulerService>('schedulerService');
-    schedulerService.start();
+    this._schedulerService = this.container.resolve<SchedulerService>('schedulerService');
+    this._schedulerService.start();
     await this._startServer();
   }
 
@@ -165,8 +182,8 @@ export default class CeramicAnchorApp {
    * @private
    */
   private async _startServer(): Promise<void> {
-    const server = new CeramicAnchorServer(this.container);
-    await server.start(this.config.port);
+    this._server = new CeramicAnchorServer(this.container);
+    await this._server.start(this.config.port);
   }
 
   /**

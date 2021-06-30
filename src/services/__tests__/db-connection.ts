@@ -2,17 +2,23 @@ import { Connection, ConnectionOptions, createConnection, getConnection } from '
 import { Anchor } from "../../models/anchor";
 import { Request } from "../../models/request";
 
-const sqliteConf : ConnectionOptions = {
-  type: "sqlite",
-  database: ":memory:",
-  entities: [Request, Anchor],
-  synchronize: true,
-  logging: false,
-  dropSchema: true,
-};
+function getSqliteConfig(name: string): ConnectionOptions {
+  return {
+    name,
+    type: "sqlite",
+    database: ":memory:",
+    entities: [Request, Anchor],
+    synchronize: true,
+    logging: false,
+    dropSchema: true,
+  }
+}
 
 const DBConnection = {
+  numConnections: 0,
+
   async create(): Promise<Connection> {
+    const sqliteConf = getSqliteConfig('testConnection' + this.numConnections++)
     return await createConnection(sqliteConf);
   },
 
