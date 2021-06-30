@@ -134,7 +134,7 @@ export async function anchorUpdate(stream: Stream, anchorService: CeramicAnchorA
 }
 
 describe('Ceramic Integration Test',  () => {
-  jest.setTimeout(60 * 1000 * 5);
+  jest.setTimeout(60 * 1000 * 10)
 
   let ipfs1: IpfsApi // Used by CAS1 directly
   let ipfs2: IpfsApi // Used by CAS2 directly
@@ -273,7 +273,7 @@ describe('Ceramic Integration Test',  () => {
     await anchorUpdate(doc2, cas2)
     expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
     expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-  });
+  }, 60 * 1000 * 3);
 
   test('Multiple anchors for same stream', async () => {
     const doc1 = await TileDocument.create(ceramic1, {foo: 1}, null, { anchor: true })
@@ -286,7 +286,7 @@ describe('Ceramic Integration Test',  () => {
     await anchorUpdate(doc1, cas1)
     expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
     expect(doc1.content).toEqual({foo:2})
-  });
+  }, 60 * 1000 * 3);
 
   test('Consensus for anchors', async () => {
     const initialContent = { foo: 0 }
@@ -317,6 +317,6 @@ describe('Ceramic Integration Test',  () => {
     // the genesis contents that it was told to anchor.
     // TODO(#253): Uncomment this.
     //expect(doc1.content).toEqual(updatedContent)
-  });
+  }, 60 * 1000 * 2);
 
 });
