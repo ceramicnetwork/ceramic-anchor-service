@@ -315,7 +315,7 @@ describe('Ceramic Integration Test',  () => {
 
     // This fails! Even though all Ceramic nodes know about the new update, 'cas1' still anchors
     // the genesis contents that it was told to anchor.
-    // TODO(#253): Uncomment this.
+    // TODO(#253): Uncomment this once CAS consensus rules are improved
     //expect(doc1.content).toEqual(updatedContent)
   }, 60 * 1000 * 2);
 
