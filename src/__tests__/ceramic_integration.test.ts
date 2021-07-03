@@ -256,6 +256,14 @@ describe('Ceramic Integration Test',  () => {
     await ganacheServer.close()
   });
 
+  beforeEach(async () => {
+    console.log(`Starting test: ${expect.getState().currentTestName}`);
+  })
+
+  afterEach(async () => {
+    console.log(`Finished test: ${expect.getState().currentTestName}`);
+  })
+
   test('Anchors are independent', async () => {
     const doc1 = await TileDocument.create(ceramic1, {foo: 1}, null, { anchor: true })
     const doc2 = await TileDocument.create(ceramic2, {foo: 1}, null, { anchor: true })
