@@ -1,49 +1,160 @@
-import CID from "cids";
+import CID from 'cids';
 
-import { Stream } from '@ceramicnetwork/common';
-import {
-  CompareFunction,
-  MergeFunction, MetadataFunction,
-  Node,
-  TreeMetadata,
-} from './merkle';
+import { AnchorStatus, Stream, StreamMetadata } from '@ceramicnetwork/common';
+import { CompareFunction, MergeFunction, MetadataFunction, Node, TreeMetadata } from './merkle';
+import { Request } from '../models/request';
 
 import { logger } from '../logger';
 import { IpfsService } from '../services/ipfs-service';
 
 import { BloomFilter } from 'bloom-filters';
+import { StreamID } from '@ceramicnetwork/streamid';
 
 const BLOOM_FILTER_TYPE = "jsnpm_bloom-filters";
 const BLOOM_FILTER_FALSE_POSITIVE_RATE = 0.0001
 
-export class Candidate {
-  public readonly cid: CID;
-  public readonly stream: Stream;
-  public readonly reqId: number;
+export interface CIDHolder {
+  cid: CID,
+}
 
-  constructor(cid: CID, reqId?: number, stream?: Stream) {
-    this.cid = cid;
-    this.reqId = reqId;
-    this.stream = stream
+/**
+ * Contains all the information about a single stream being anchored. Note that multiple Requests
+ * can correspond to the same Stream (if, for example, multiple back-to-back updates are done to the
+ * same Stream within an anchor period), so Candidate serves to group all related Requests and keep
+ * track of which CID should actually be anchored for this stream.
+ */
+export class Candidate implements CIDHolder {
+  public readonly streamId: StreamID;
+  private readonly _requests: Request[] = [];
+
+  private _cid: CID = null;
+  private _metadata: StreamMetadata;
+  private _acceptedRequests: Request[] = [];
+  private _failedRequests: Request[] = [];
+  private _rejectedRequests: Request[] = [];
+  private _newestAcceptedRequest: Request;
+  private _alreadyAnchored = false;
+
+
+  constructor(streamId: StreamID, requests: Request[]) {
+    this.streamId = streamId
+    this._requests = requests;
   }
 
-  get streamId(): string {
-    return this.stream.id.baseID.toString()
+  public get cid(): CID {
+    return this._cid
   }
 
+  public get metadata(): StreamMetadata {
+    return this._metadata
+  }
+
+  public get requests(): Request[] {
+    return this._requests
+  }
+
+  public get acceptedRequests(): Request[] {
+    return this._acceptedRequests
+  }
+
+  public get failedRequests(): Request[] {
+    return this._failedRequests
+  }
+
+  public get rejectedRequests(): Request[] {
+    return this._rejectedRequests
+  }
+
+  /**
+   * The Anchor database has a 1-1 foreign key reference to a single Request. This is a remnant
+   * of a time when every Anchor always directly corresponded to a single Request.  Now it's
+   * possible for one Anchor to satisfy multiple Requests on the same Stream, but the database
+   * still expects us to provide it a single Request to link. So we somewhat arbitrarily provide
+   * it the Request whose CID is latest in the log of all the Requests that were successfully
+   * anchored for this stream.
+   */
+  public get newestAcceptedRequest(): Request {
+    return this._newestAcceptedRequest
+  }
+
+  public get alreadyAnchored(): boolean {
+    return this._alreadyAnchored
+  }
+
+  failRequest(request: Request): void {
+    this._failedRequests.push(request)
+  }
+
+  failAllRequests(): void {
+    this._failedRequests = this._requests
+  }
+
+  allRequestsFailed(): boolean {
+    return this._failedRequests.length == this._requests.length
+  }
+
+  shouldAnchor(): boolean {
+    return this.cid != null && this._acceptedRequests.length > 0
+  }
+
+  /**
+   * Given the current version of the stream, updates this.cid to include the appropriate tip to
+   * anchor.  Note that the CID selected may be the cid corresponding to any of the pending anchor
+   * requests, or to none of them if a newer, better CID is learned about from the Ceramic node.
+   * Also updates the Candidate's internal bookkeeping to keep track of which Requests
+   * were included in the tip being anchored and which were rejected by the Ceramic node's conflict
+   * resolution.
+   * @param stream
+   */
+  setTipToAnchor(stream: Stream): void {
+    if (stream.state.anchorStatus == AnchorStatus.ANCHORED) {
+      this._alreadyAnchored = true
+    } else {
+      this._cid = stream.tip
+      this._metadata = stream.metadata
+    }
+
+    // Check the log of the Stream that was loaded from Ceramic to see which of the pending requests
+    // are for CIDs that are included in the current version of the Stream's log.
+    const includedRequests = this._requests.filter((req) => {
+      return stream.state.log.find((logEntry) => {
+        return logEntry.cid.toString() == req.cid
+      })
+    })
+    // Any requests whose CIDs don't show up in the Stream's log must have been rejected by Ceramic's
+    // conflict resolution.
+    const rejectedRequests = this._requests.filter((req) => {
+      return !includedRequests.includes(req)
+    })
+
+    // Pick which request to put in the anchor database entry for the anchor that will result
+    // from anchoring this Candidate Stream.
+    const newestRequestCid = stream.state.log.reverse().find((logEntry) => {
+      return includedRequests.find((req) => {
+        return req.cid == logEntry.cid.toString()
+      })
+    })
+    const newestRequest = includedRequests.find((req) => {
+      return req.cid == newestRequestCid.cid.toString()
+    })
+
+    this._newestAcceptedRequest = newestRequest
+    this._acceptedRequests = includedRequests
+    this._rejectedRequests = rejectedRequests
+  }
 }
 
 /**
  * Implements IPFS merge CIDs
  */
-export class IpfsMerge implements MergeFunction<Candidate, TreeMetadata> {
+export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
   private ipfsService: IpfsService;
 
   constructor(ipfsService: IpfsService) {
     this.ipfsService = ipfsService;
   }
 
-  async merge(left: Node<Candidate>, right: Node<Candidate>, metadata: TreeMetadata | null): Promise<Node<Candidate>> {
+  async merge(left: Node<CIDHolder>, right: Node<CIDHolder>, metadata: TreeMetadata | null): Promise<Node<CIDHolder>> {
     const merged = [left.data.cid, right.data.cid];
     if (metadata) {
       const metadataCid = await this.ipfsService.storeRecord(metadata);
@@ -52,7 +163,7 @@ export class IpfsMerge implements MergeFunction<Candidate, TreeMetadata> {
 
     const mergedCid = await this.ipfsService.storeRecord(merged);
     logger.debug('Merkle node ' + mergedCid + ' created.');
-    return new Node<Candidate>(new Candidate(mergedCid), left, right);
+    return new Node<CIDHolder>({ cid: mergedCid }, left, right);
   }
 }
 
@@ -61,7 +172,7 @@ export class IpfsMerge implements MergeFunction<Candidate, TreeMetadata> {
  */
 export class IpfsLeafCompare implements CompareFunction<Candidate> {
   compare(left: Node<Candidate>, right: Node<Candidate>): number {
-    return left.data.streamId.localeCompare(right.data.streamId);
+    return left.data.streamId.toString().localeCompare(right.data.streamId.toString());
   }
 }
 
@@ -72,20 +183,20 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
   generateMetadata(leaves: Array<Node<Candidate>>): TreeMetadata {
     const bloomFilterEntries = new Set<string>()
     for (const node of leaves) {
-      const stream = node.data.stream
-      bloomFilterEntries.add(`streamid-${stream.id.baseID.toString()}`)
-      if (stream.metadata.schema) {
-        bloomFilterEntries.add(`schema-${stream.metadata.schema.toString()}`)
+      const candidate = node.data
+      bloomFilterEntries.add(`streamid-${candidate.streamId.toString()}`)
+      if (candidate.metadata.schema) {
+        bloomFilterEntries.add(`schema-${candidate.metadata.schema.toString()}`)
       }
-      if (stream.metadata.family) {
-        bloomFilterEntries.add(`family-${stream.metadata.family}`)
+      if (candidate.metadata.family) {
+        bloomFilterEntries.add(`family-${candidate.metadata.family}`)
       }
-      if (stream.metadata.tags) {
-        for (const tag of stream.metadata.tags) {
+      if (candidate.metadata.tags) {
+        for (const tag of candidate.metadata.tags) {
           bloomFilterEntries.add(`tag-${tag}`)
         }
       }
-      for (const controller of stream.metadata.controllers) {
+      for (const controller of candidate.metadata.controllers) {
         bloomFilterEntries.add(`controller-${controller.toString()}`)
       }
     }

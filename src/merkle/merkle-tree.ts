@@ -1,15 +1,17 @@
 import { CompareFunction, MergeFunction, MetadataFunction, Node, PathDirection, TreeMetadata } from './merkle';
 
 /**
- * Merkle tree structure
+ * Merkle tree structure.
+ * Type 'N' is the type of the nodes in the tree. Type 'L' is the type of the leaf nodes specifically,
+ * which may be a more specific sub-type of 'N'. Type 'M' is the type of the metadata.
  */
-export class MerkleTree<T, M> {
-  private root: Node<T>;
-  private leaves: Node<T>[];
+export class MerkleTree<N, L extends N, M> {
+  private root: Node<N>;
+  private leaves: Node<L>[];
   private metadata: M;
-  private readonly mergeFn: MergeFunction<T, M>;
-  private readonly compareFn: CompareFunction<T> | undefined;
-  private readonly metadataFn: MetadataFunction<T, M> | undefined;
+  private readonly mergeFn: MergeFunction<N, M>;
+  private readonly compareFn: CompareFunction<L> | undefined;
+  private readonly metadataFn: MetadataFunction<L, M> | undefined;
   private readonly depthLimit: number;
 
   /**
@@ -19,7 +21,7 @@ export class MerkleTree<T, M> {
    * @param metadataFn - fn for generating the tree metadata from the leaves
    * @param depthLimit - limit to the number of levels the tree is allowed to have
    */
-  constructor(mergeFn: MergeFunction<T, M>, compareFn?: CompareFunction<T>, metadataFn?: MetadataFunction<T, M>, depthLimit?: number) {
+  constructor(mergeFn: MergeFunction<N, M>, compareFn?: CompareFunction<L>, metadataFn?: MetadataFunction<L, M>, depthLimit?: number) {
     this.mergeFn = mergeFn;
     this.compareFn = compareFn;
     this.metadataFn = metadataFn;
@@ -30,7 +32,7 @@ export class MerkleTree<T, M> {
    * Initialize Merkle structure
    * @private
    */
-  public async build(leaves: T[] | undefined): Promise<void> {
+  public async build(leaves: L[] | undefined): Promise<void> {
     if (!leaves || !leaves.length) {
       throw new Error('Cannot generate Merkle structure with no elements');
     }
@@ -53,7 +55,7 @@ export class MerkleTree<T, M> {
    * @param treeMetadata - metadata to add to merged node.  Should only be set for the root level.
    * @returns root of the merkle tree for the given elements
    */
-  private async _buildHelper(elements: Node<T>[], treeDepth: number, treeMetadata: M): Promise<Node<T>> {
+  private async _buildHelper(elements: Node<N>[], treeDepth: number, treeMetadata: M): Promise<Node<N>> {
     if (elements == null) {
       throw new Error('Cannot generate Merkle structure with no elements');
     }
@@ -82,14 +84,14 @@ export class MerkleTree<T, M> {
    * Get root element
    * @returns Node corresponding to the root of the merkle tree
    */
-  public getRoot(): Node<T> {
+  public getRoot(): Node<N> {
     return this.root
   }
 
   /**
    * Gets leaves
    */
-  public getLeaves(): T[] {
+  public getLeaves(): L[] {
     return this.leaves.map(n => n.data);
   }
 
@@ -104,7 +106,7 @@ export class MerkleTree<T, M> {
    * Testing-only method to inspect the raw leaf nodes of the tree
    * @private
    */
-  public _getLeafNodes(): Node<T>[] {
+  public _getLeafNodes(): Node<L>[] {
     return this.leaves
   }
 
@@ -116,11 +118,11 @@ export class MerkleTree<T, M> {
    * @param elemIndex - Element index
    * @returns Array of proof Nodes.
    */
-  public async getProof(elemIndex: number): Promise<Node<T>[]> {
+  public async getProof(elemIndex: number): Promise<Node<N>[]> {
     return (await this._getProofHelper(this.leaves[elemIndex])).reverse()
   }
 
-  private async _getProofHelper(elem: Node<T>): Promise<Node<T>[]> {
+  private async _getProofHelper(elem: Node<L>): Promise<Node<N>[]> {
     const parent = elem.parent
     if (!parent) {
       // We're at the root
@@ -141,7 +143,7 @@ export class MerkleTree<T, M> {
    * @param element - Node element
    * @returns {Promise<boolean>}
    */
-  public async verifyProof(proof: Node<T>[], element: any): Promise<boolean> {
+  public async verifyProof(proof: Node<N>[], element: any): Promise<boolean> {
     let current = new Node(element, null, null);
     for (const p of proof) {
       const left = p.parent.left == p
@@ -166,7 +168,7 @@ export class MerkleTree<T, M> {
     return (await this._getDirectPathFromRootHelper(this.leaves[elemIndex]))
   }
 
-  private async _getDirectPathFromRootHelper(elem: Node<T>) : Promise<PathDirection[]> {
+  private async _getDirectPathFromRootHelper(elem: Node<N>) : Promise<PathDirection[]> {
     const parent = elem.parent
     if (!parent) {
       // We're at the root

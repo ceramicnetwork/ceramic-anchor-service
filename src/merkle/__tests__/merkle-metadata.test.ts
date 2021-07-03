@@ -1,9 +1,11 @@
 import { CidGenerator, MockIpfsService } from '../../test-utils';
 import { MerkleTree } from '../merkle-tree';
 import { TreeMetadata } from '../merkle';
-import { BloomMetadata, Candidate, IpfsLeafCompare, IpfsMerge } from '../merkle-objects';
+import { BloomMetadata, Candidate, CIDHolder, IpfsLeafCompare, IpfsMerge } from '../merkle-objects';
 import { StreamID } from '@ceramicnetwork/streamid';
 import { BloomFilter } from 'bloom-filters';
+import { Request } from "../../models/request";
+import { AnchorStatus } from '@ceramicnetwork/common';
 
 describe('Bloom filter',  () => {
   jest.setTimeout(10000);
@@ -17,12 +19,18 @@ describe('Bloom filter',  () => {
 
   const createCandidate = function (metadata: any) {
     const cid = cidGenerator.next()
-    const stream = { id: new StreamID('tile', cid), metadata }
-    return new Candidate(cid, 0, stream as any)
+    const stream = {
+      id: new StreamID('tile', cid),
+      tip: cid,
+      metadata,
+      state: { anchorStatus: AnchorStatus.PENDING, log: [{ cid }]} }
+    const candidate = new Candidate(stream.id, [new Request()])
+    candidate.setTipToAnchor(stream as any)
+    return candidate
   }
 
   const makeMerkleTree = function() {
-    return new MerkleTree<Candidate, TreeMetadata>(
+    return new MerkleTree<CIDHolder, Candidate, TreeMetadata>(
       new IpfsMerge(ipfsService), new IpfsLeafCompare(), new BloomMetadata())
   }
 
@@ -37,7 +45,7 @@ describe('Bloom filter',  () => {
     // @ts-ignore
     const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
 
-    expect(bloomFilter.has(`streamid-${candidates[0].stream.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`streamid-${candidates[0].streamId.toString()}`)).toBeTruthy()
     expect(bloomFilter.has(`controller-a`)).toBeTruthy()
     expect(bloomFilter.has(`controller-b`)).toBeFalsy()
   });
@@ -58,7 +66,7 @@ describe('Bloom filter',  () => {
     // @ts-ignore
     const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
 
-    expect(bloomFilter.has(`streamid-${candidates[0].stream.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`streamid-${candidates[0].streamId.toString()}`)).toBeTruthy()
     expect(bloomFilter.has(`controller-a`)).toBeTruthy()
     expect(bloomFilter.has(`controller-b`)).toBeTruthy()
     expect(bloomFilter.has(`controller-c`)).toBeFalsy()
@@ -96,9 +104,9 @@ describe('Bloom filter',  () => {
     // @ts-ignore
     const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
 
-    expect(bloomFilter.has(`streamid-${candidates[0].stream.id.baseID.toString()}`)).toBeTruthy()
-    expect(bloomFilter.has(`streamid-${candidates[1].stream.id.baseID.toString()}`)).toBeTruthy()
-    expect(bloomFilter.has(`streamid-${candidates[2].stream.id.baseID.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`streamid-${candidates[0].streamId.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`streamid-${candidates[1].streamId.toString()}`)).toBeTruthy()
+    expect(bloomFilter.has(`streamid-${candidates[2].streamId.toString()}`)).toBeTruthy()
     expect(bloomFilter.has(`controller-a`)).toBeTruthy()
     expect(bloomFilter.has(`controller-b`)).toBeTruthy()
     expect(bloomFilter.has(`controller-c`)).toBeTruthy()
