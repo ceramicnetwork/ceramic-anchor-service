@@ -294,6 +294,7 @@ describe('Ceramic Integration Test',  () => {
     await anchorUpdate(doc1, cas1)
     expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
     expect(doc1.content).toEqual({foo:2})
+    console.log("MULTIPLE ANCHORS FOR SAME STREAM TEST COMPLETED SUCCESSFULLY!!!!") // todo remove
   }, 60 * 1000 * 3);
 
   test('Consensus for anchors', async () => {
