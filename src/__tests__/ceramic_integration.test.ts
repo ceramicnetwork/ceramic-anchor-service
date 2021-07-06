@@ -286,12 +286,16 @@ describe('Ceramic Integration Test',  () => {
   test('Multiple anchors for same stream', async () => {
     const doc1 = await TileDocument.create(ceramic1, {foo: 1}, null, { anchor: true })
     expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+    console.warn("AAAAAAAAAAAAAAAAAAAA")
     await anchorUpdate(doc1, cas1)
+    console.warn("BBBBBBBBBBBBBBBBBBBB")
     expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
 
     // Now that genesis commit has been anchored do an update and make sure anchoring works again
     await doc1.update({foo:2}, null, { anchor: true })
+    console.warn("CCCCCCCCCCCCCCCCCCCCCCCC")
     await anchorUpdate(doc1, cas1)
+    console.warn("DDDDDDDDDDDDDDDDDDDDDD")
     expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
     expect(doc1.content).toEqual({foo:2})
     console.log("MULTIPLE ANCHORS FOR SAME STREAM TEST COMPLETED SUCCESSFULLY!!!!") // todo remove
