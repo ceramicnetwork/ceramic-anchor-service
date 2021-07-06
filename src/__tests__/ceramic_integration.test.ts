@@ -121,7 +121,7 @@ export async function anchorUpdate(stream: Stream, anchorService: CeramicAnchorA
   // before triggering the anchor.
   // TODO: Remove this once Ceramic won't return from a request that makes an anchor without having
   // already made the anchor request against the CAS.
-  await Utils.delay(200)
+  await Utils.delay(500)
 
   const tillAnchored = stream
     .pipe(
