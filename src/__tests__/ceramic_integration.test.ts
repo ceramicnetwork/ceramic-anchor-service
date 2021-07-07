@@ -123,14 +123,13 @@ export async function anchorUpdate(stream: Stream, anchorService: CeramicAnchorA
   // already made the anchor request against the CAS.
   await Utils.delay(500)
 
-  const tillAnchored = stream
+  await anchorService.anchor();
+  await stream
     .pipe(
       filter((state) => [AnchorStatus.ANCHORED, AnchorStatus.FAILED].includes(state.anchorStatus)),
       take(1),
     )
     .toPromise();
-  await anchorService.anchor();
-  await tillAnchored;
 }
 
 describe('Ceramic Integration Test',  () => {
@@ -264,67 +263,71 @@ describe('Ceramic Integration Test',  () => {
     console.log(`Finished test: ${expect.getState().currentTestName}`);
   })
 
-  test('Anchors are independent', async () => {
-    const doc1 = await TileDocument.create(ceramic1, {foo: 1}, null, { anchor: true })
-    const doc2 = await TileDocument.create(ceramic2, {foo: 1}, null, { anchor: true })
+  describe('Multiple CAS instances in same process works',  () => {
+    test('Anchors on different CAS instances are independent', async () => {
+      const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
+      const doc2 = await TileDocument.create(ceramic2, { foo: 1 }, null, { anchor: true })
 
-    expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
-    expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+      expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
 
-    // Test that anchoring on CAS1 doesn't anchor requests made against CAS2
-    await anchorUpdate(doc1, cas1)
-    expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-    expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+      // Test that anchoring on CAS1 doesn't anchor requests made against CAS2
+      await anchorUpdate(doc1, cas1)
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+      expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
 
-    // Now test that anchoring on CAS2 doesn't anchor requests made against CAS1
-    await doc1.update({foo:2}, null, { anchor: true })
-    await anchorUpdate(doc2, cas2)
-    expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
-    expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-  }, 60 * 1000 * 3);
+      // Now test that anchoring on CAS2 doesn't anchor requests made against CAS1
+      await doc1.update({ foo: 2 }, null, { anchor: true })
+      await anchorUpdate(doc2, cas2)
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+      expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+    }, 60 * 1000 * 3);
 
-  test('Multiple anchors for same stream', async () => {
-    const doc1 = await TileDocument.create(ceramic1, {foo: 1}, null, { anchor: true })
-    expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
-    await anchorUpdate(doc1, cas1)
-    expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+    test('Multiple anchors for same stream', async () => {
+      const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+      await anchorUpdate(doc1, cas1)
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
 
-    // Now that genesis commit has been anchored do an update and make sure anchoring works again
-    await doc1.update({foo:2}, null, { anchor: true })
-    await anchorUpdate(doc1, cas1)
-    expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-    expect(doc1.content).toEqual({foo:2})
-  }, 60 * 1000 * 3);
+      // Now that genesis commit has been anchored do an update and make sure anchoring works again
+      await doc1.update({ foo: 2 }, null, { anchor: true })
+      await anchorUpdate(doc1, cas1)
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+      expect(doc1.content).toEqual({ foo: 2 })
+    }, 60 * 1000 * 3);
+  });
 
-  test('Consensus for anchors', async () => {
-    const initialContent = { foo: 0 }
-    const updatedContent = { foo: 1 }
+  describe('Consensus for anchors',  () => {
+    test('Anchors latest available tip from network', async () => {
+      const initialContent = { foo: 0 }
+      const updatedContent = { foo: 1 }
 
-    const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
-    expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+      const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
 
-    const doc2 = await TileDocument.load(ceramic2, doc1.id)
-    await doc2.update(updatedContent, null, { anchor: true })
+      const doc2 = await TileDocument.load(ceramic2, doc1.id)
+      await doc2.update(updatedContent, null, { anchor: true })
 
-    await doc1.sync({sync: SyncOptions.SYNC_ALWAYS})
-    expect(doc2.content).toEqual(updatedContent)
-    expect(doc1.content).toEqual(updatedContent)
+      await doc1.sync({ sync: SyncOptions.SYNC_ALWAYS })
+      expect(doc2.content).toEqual(updatedContent)
+      expect(doc1.content).toEqual(updatedContent)
 
-    const docOnCas1Ceramic = await TileDocument.load(casCeramic1, doc1.id)
-    const docOnCas2Ceramic = await TileDocument.load(casCeramic2, doc1.id)
-    expect(docOnCas1Ceramic.content).toEqual(updatedContent)
-    expect(docOnCas2Ceramic.content).toEqual(updatedContent)
+      const docOnCas1Ceramic = await TileDocument.load(casCeramic1, doc1.id)
+      const docOnCas2Ceramic = await TileDocument.load(casCeramic2, doc1.id)
+      expect(docOnCas1Ceramic.content).toEqual(updatedContent)
+      expect(docOnCas2Ceramic.content).toEqual(updatedContent)
 
-    // At this point we have verified that *all* involved ceramic nodes (both user-facing ceramic
-    // nodes as well as both ceramic nodes used by the 2 anchor services) all know about the newest
-    // version of the stream.
-    await anchorUpdate(doc1, cas1)
-    expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+      // At this point we have verified that *all* involved ceramic nodes (both user-facing ceramic
+      // nodes as well as both ceramic nodes used by the 2 anchor services) all know about the newest
+      // version of the stream.
+      await anchorUpdate(doc1, cas1)
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
 
-    // This fails! Even though all Ceramic nodes know about the new update, 'cas1' still anchors
-    // the genesis contents that it was told to anchor.
-    // TODO(#253): Uncomment this once CAS consensus rules are improved
-    //expect(doc1.content).toEqual(updatedContent)
-  }, 60 * 1000 * 2);
+      // This fails! Even though all Ceramic nodes know about the new update, 'cas1' still anchors
+      // the genesis contents that it was told to anchor.
+      // TODO(#253): Uncomment this once CAS consensus rules are improved
+      //expect(doc1.content).toEqual(updatedContent)
+    }, 60 * 1000 * 2);
+  });
 
 });
