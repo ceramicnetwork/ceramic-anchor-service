@@ -52,17 +52,17 @@ const hashProof = (value: any, proof: Node<Uint8Array>[]): any => {
 };
 
 const leaves: string[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
-let lettersTree: MerkleTree<string, string>;
-let hashTree: MerkleTree<Uint8Array, Uint8Array>;
+let lettersTree: MerkleTree<string, string, string>;
+let hashTree: MerkleTree<Uint8Array, Uint8Array, Uint8Array>;
 
 const root = '1b0e895690b99d3bb2138f5ea55424f004901039763c420bc126ec8aa3bbca39';
 
 describe('Merkle tree proofs tests', () => {
   beforeAll(async (done) => {
-    hashTree = new MerkleTree<Uint8Array, Uint8Array>(new HashConcat());
+    hashTree = new MerkleTree<Uint8Array, Uint8Array, Uint8Array>(new HashConcat());
     await hashTree.build(leaves.map(sha256));
 
-    lettersTree = new MerkleTree<string, string>(new StringConcat());
+    lettersTree = new MerkleTree<string, string, string>(new StringConcat());
     await lettersTree.build(leaves);
     done();
   });

@@ -14,7 +14,7 @@ class StringConcat implements MergeFunction<string, string> {
 describe('Merkle tree direct path tests',  () => {
   test('should handle the case: [A]', async () => {
     const leaves = ['A'];
-    const merkleTree = new MerkleTree<string, string>(new StringConcat());
+    const merkleTree = new MerkleTree<string, string, string>(new StringConcat());
     await merkleTree.build(leaves);
 
     const directPath = await merkleTree.getDirectPathFromRoot(0);
@@ -23,7 +23,7 @@ describe('Merkle tree direct path tests',  () => {
 
   test('should handle the case: [A]', async () => {
     const leaves = ['A', 'B', 'C', 'D'];
-    const merkleTree = new MerkleTree<string, string>(new StringConcat());
+    const merkleTree = new MerkleTree<string, string, string>(new StringConcat());
     await merkleTree.build(leaves);
 
     const directPath = await merkleTree.getDirectPathFromRoot(0);
@@ -32,7 +32,7 @@ describe('Merkle tree direct path tests',  () => {
 
   test('should handle the case: [A]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-    const merkleTree = new MerkleTree<string, string>(new StringConcat());
+    const merkleTree = new MerkleTree<string, string, string>(new StringConcat());
     await merkleTree.build(leaves);
 
     const directPath = await merkleTree.getDirectPathFromRoot(0);
@@ -41,7 +41,7 @@ describe('Merkle tree direct path tests',  () => {
 
   test('should handle the case: [B]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-    const merkleTree = new MerkleTree<string, string>(new StringConcat());
+    const merkleTree = new MerkleTree<string, string, string>(new StringConcat());
     await merkleTree.build(leaves);
 
     const directPath = await merkleTree.getDirectPathFromRoot(1);
@@ -50,7 +50,7 @@ describe('Merkle tree direct path tests',  () => {
 
   test('should handle the case: [H]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-    const merkleTree = new MerkleTree<string, string>(new StringConcat());
+    const merkleTree = new MerkleTree<string, string, string>(new StringConcat());
     await merkleTree.build(leaves);
 
     const directPath = await merkleTree.getDirectPathFromRoot(7);
@@ -59,7 +59,7 @@ describe('Merkle tree direct path tests',  () => {
 
   test('should handle the case: [G]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-    const merkleTree = new MerkleTree<string, string>(new StringConcat());
+    const merkleTree = new MerkleTree<string, string, string>(new StringConcat());
     await merkleTree.build(leaves);
 
     const directPath = await merkleTree.getDirectPathFromRoot(6);
@@ -68,7 +68,7 @@ describe('Merkle tree direct path tests',  () => {
 
   test('should handle the case: [J]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J'];
-    const merkleTree = new MerkleTree<string, string>(new StringConcat());
+    const merkleTree = new MerkleTree<string, string, string>(new StringConcat());
     await merkleTree.build(leaves);
 
     const directPath = await merkleTree.getDirectPathFromRoot(8);

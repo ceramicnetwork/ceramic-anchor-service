@@ -305,28 +305,15 @@ describe('Ceramic Integration Test',  () => {
       const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
       expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
 
+      // Perform update on ceramic2
       const doc2 = await TileDocument.load(ceramic2, doc1.id)
       await doc2.update(updatedContent, null, { anchor: true })
 
-      await doc1.sync({ sync: SyncOptions.SYNC_ALWAYS })
-      expect(doc2.content).toEqual(updatedContent)
-      expect(doc1.content).toEqual(updatedContent)
-
-      const docOnCas1Ceramic = await TileDocument.load(casCeramic1, doc1.id)
-      const docOnCas2Ceramic = await TileDocument.load(casCeramic2, doc1.id)
-      expect(docOnCas1Ceramic.content).toEqual(updatedContent)
-      expect(docOnCas2Ceramic.content).toEqual(updatedContent)
-
-      // At this point we have verified that *all* involved ceramic nodes (both user-facing ceramic
-      // nodes as well as both ceramic nodes used by the 2 anchor services) all know about the newest
-      // version of the stream.
+      // Make sure that cas1 updates the newest version that was created on ceramic2, even though
+      // the request that ceramic1 made against cas1 was for an older version.
       await anchorUpdate(doc1, cas1)
       expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-
-      // This fails! Even though all Ceramic nodes know about the new update, 'cas1' still anchors
-      // the genesis contents that it was told to anchor.
-      // TODO(#253): Uncomment this once CAS consensus rules are improved
-      //expect(doc1.content).toEqual(updatedContent)
+      expect(doc1.content).toEqual(updatedContent)
     }, 60 * 1000 * 2);
   });
 

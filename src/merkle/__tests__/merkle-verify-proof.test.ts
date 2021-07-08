@@ -12,11 +12,11 @@ class StringConcat implements MergeFunction<string, string> {
 }
 
 const leaves: string[] = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"];
-let tree: MerkleTree<string, string>;
+let tree: MerkleTree<string, string, string>;
 
 describe("Merkle tree proof verification", () => {
   beforeAll(async (done) => {
-    tree = new MerkleTree<string, string>(new StringConcat());
+    tree = new MerkleTree<string, string, string>(new StringConcat());
     await tree.build(leaves);
     done();
   });
