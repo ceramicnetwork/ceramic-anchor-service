@@ -49,18 +49,32 @@ export class Candidate implements CIDHolder {
     return this._metadata
   }
 
+  /**
+   * All requests being considered in this batch that are on this Stream
+   */
   public get requests(): Request[] {
     return this._requests
   }
 
+  /**
+   * All requests that are included in the current version of the Stream. Only available after
+   * calling 'setTipToAnchor'.
+   */
   public get acceptedRequests(): Request[] {
     return this._acceptedRequests
   }
 
+  /**
+   * All requests that failed to be loaded from the Ceramic node.
+   */
   public get failedRequests(): Request[] {
     return this._failedRequests
   }
 
+  /**
+   * All requests that were rejected by Ceramic's conflict resolution. Only available after
+   * calling 'setTipToAnchor'.
+   */
   public get rejectedRequests(): Request[] {
     return this._rejectedRequests
   }
@@ -77,14 +91,27 @@ export class Candidate implements CIDHolder {
     return this._newestAcceptedRequest
   }
 
+  /**
+   * Returns true if this Stream was already anchored at the time that it was loaded during the
+   * anchoring process (most likely by another anchoring service after the creation of the original
+   * Request(s)).
+   */
   public get alreadyAnchored(): boolean {
     return this._alreadyAnchored
   }
 
+  /**
+   * Marks that the CommitID corresponding to this Request could not be loaded from the Ceramic node.
+   * @param request
+   */
   failRequest(request: Request): void {
     this._failedRequests.push(request)
   }
 
+  /**
+   * Marks that this Stream could not be loaded from the Ceramic node and we should therefore
+   * fail all pending requests on this Stream.
+   */
   failAllRequests(): void {
     this._failedRequests = this._requests
   }
