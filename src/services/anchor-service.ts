@@ -117,14 +117,10 @@ export default class AnchorService {
     }
 
     // filter valid requests
-    const numInitialRequests = requests.length
-    requests = requests.filter((req) => {
-      return candidates.find((candidate) => {
-        return candidate.acceptedRequests.find((req2) => {
-          return req2.id == req.id
-        })
-      })
-    })
+    const acceptedRequests = []
+    for (const candidate of candidates) {
+      acceptedRequests.push(...candidate.acceptedRequests)
+    }
 
     logger.imp(`Creating Merkle tree from ${candidates.length} selected records`);
     const merkleTree = await this._buildMerkleTree(candidates)
@@ -143,13 +139,13 @@ export default class AnchorService {
 
     // Update the database to record the successful anchors
     logger.debug("Persisting results to local database")
-    await this._persistAnchorResult(anchors, requests)
+    await this._persistAnchorResult(anchors, acceptedRequests)
 
     logEvent.anchor({
       type: 'anchorRequests',
       requestIds: requests.map(r => r.id),
-      clashingRequestsCount: numInitialRequests - requests.length,
-      validRequestsCount: requests.length,
+      clashingRequestsCount: requests.length - acceptedRequests.length, // This field is poorly named
+      validRequestsCount: acceptedRequests.length,
       candidateCount: candidates.length,
       anchorCount: anchors.length
     });
