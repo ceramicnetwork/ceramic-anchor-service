@@ -370,62 +370,53 @@ export default class AnchorService {
   }
 
   /**
-   * First starts by loading the CommitID for each pending Request on this Stream. This ensures
+   * Uses a multiQuery to load the current version of the Candidate Stream, while simultaneously
+   * providing the Ceramic node the CommitIDs for each pending Request on this Stream. This ensures
    * that the Ceramic node we are using has at least heard of and considered every commit that
-   * has a pending anchor request. Then we load the current version of the Stream from that Ceramic
-   * node and can then trust that the version of the Stream we receive back is the best, most current
-   * version of the stream based on the node's internal conflict resolution mechanism. We can then
-   * use the current version of the Stream to decide what CID to anchor.
+   * has a pending anchor request, even if it hadn't heard of that tip via pubsub. We can then
+   * use the guaranteed current version of the Stream to decide what CID to anchor.
    * @param candidate
    * @param ceramicService
    * @private
    */
   static async _loadCandidate(candidate: Candidate, ceramicService: CeramicService): Promise<void> {
-    // First load all the CommitIDs for the specific tips that were requested to be anchored to
-    // ensure that the Ceramic node we're talking to is aware of each commit.
-    for (const request of candidate.requests) {
-      const commitId = candidate.streamId.atCommit(request.cid)
-      try {
-        const stream = await ceramicService.loadStream(commitId)
-        if (!stream) {
-          throw new Error(`No valid ceramic stream found with commitId ${commitId.toString()}`)
-        }
+    // Build multiquery
+    const queries = candidate.requests.map((request) => {
+      return { streamId: candidate.streamId.atCommit(request.cid).toString() };
+    })
+    queries.push({ streamId: candidate.streamId.baseID.toString() })
 
-        if (stream.tip.toString() != request.cid) {
-          // This should never happen and would indicate a bug in Ceramic.
-          logger.err(`When loading stream ${stream.id.toString()} at commit ${request.cid}, stream was returned at tip ${stream.tip.toString()}`)
-        }
-      } catch (err) {
-        logger.err(`Error while loading stream ${commitId.baseID.toString()} at commit ${commitId.commit.toString()}. ${err}`)
-        candidate.failRequest(request);
-      }
-    }
-
-    // Now load the base StreamID for the stream in question so that we can rely on Ceramic's
-    // conflict resolution to pick the best possible tip to anchor.
+    // Send multiquery
+    let response
     try {
-      if (candidate.allRequestsFailed()) {
-        // If all pending requests for this stream failed to load then don't waste time trying to
-        // load the base streamID.
-        logger.warn(`All pending request CIDs for stream ${candidate.streamId.toString()} failed to load - skipping stream`)
-        return
-      }
-
-      const stream = await ceramicService.loadStream(candidate.streamId);
-      if (!stream) {
-        throw new Error(`Could not load Ceramic stream with StreamID ${candidate.streamId.toString()}`);
-      }
-
-      // Now update the Candidate's internal state based on the current version of the stream, which
-      // will let us figure out what CID should be anchored and which Requests have been rejected
-      // by Ceramic's conflict resolution.
-      candidate.setTipToAnchor(stream);
-
+      response = await ceramicService.multiQuery(queries)
     } catch (err) {
-      logger.err(`Failed to anchor stream ${candidate.streamId.toString()}: ${err}`)
-      // If the current version of the Stream can't be loaded then we fail all the pending requests
-      // on this Stream.
+      logger.err(`Failed to load stream ${candidate.streamId.toString()}: ${err}`)
       candidate.failAllRequests()
+      return
     }
+
+    // Fail requests for tips that failed to be loaded
+    for (const request of candidate.requests) {
+      const commitId = candidate.streamId.atCommit(request.cid);
+      if (!response[commitId.toString()]) {
+        logger.err(`Failed to load stream ${commitId.baseID.toString()} at commit ${commitId.commit.toString()}`)
+        candidate.failRequest(request)
+      }
+    }
+    if (candidate.allRequestsFailed()) {
+      // If all pending requests for this stream failed to load then don't anchor the stream.
+      logger.warn(`All pending request CIDs for stream ${candidate.streamId.toString()} failed to load - skipping stream`)
+      return
+    }
+
+    // Get the current version of the Stream and select tip to anchor
+    const stream = response[candidate.streamId.toString()]
+    if (!stream) {
+      logger.err(`Failed to load stream ${candidate.streamId.toString()}`)
+      candidate.failAllRequests()
+      return
+    }
+    candidate.setTipToAnchor(stream)
   }
 }

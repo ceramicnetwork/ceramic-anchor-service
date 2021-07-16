@@ -1,5 +1,5 @@
 import CeramicClient from '@ceramicnetwork/http-client';
-import { CeramicApi, Stream, SyncOptions } from '@ceramicnetwork/common';
+import { CeramicApi, MultiQuery, Stream, SyncOptions } from '@ceramicnetwork/common';
 
 import { Config } from "node-config-ts";
 import { inject, singleton } from "tsyringe";
@@ -9,6 +9,7 @@ import { StreamID, CommitID } from '@ceramicnetwork/streamid';
 // Interface to allow injecting a mock in tests
 export interface CeramicService {
   loadStream(streamId: StreamID): Promise<any>;
+  multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>>;
 }
 
 @singleton()
@@ -39,5 +40,22 @@ export default class CeramicServiceImpl implements CeramicService {
     });
 
     return (await Promise.race([streamPromise, timeoutPromise])) as T
+  }
+
+  async multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>> {
+    let timeout: any;
+
+    const queryPromise = this._client.multiQuery(queries)
+      .finally(() => {
+        clearTimeout(timeout);
+      });
+
+    const timeoutPromise = new Promise<Record<string, Stream>>((_, reject) => {
+      timeout = setTimeout(() => {
+        reject(new Error(`Timed out loading multiquery`))
+      }, 60 * 1000);
+    });
+
+    return (await Promise.race([queryPromise, timeoutPromise]))
   }
 }
