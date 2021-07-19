@@ -295,6 +295,18 @@ describe('Ceramic Integration Test',  () => {
       expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
       expect(doc1.content).toEqual({ foo: 2 })
     }, 60 * 1000 * 3);
+
+    test('Multiple anchors in a batch', async () => {
+      const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
+      const doc2 = await TileDocument.create(ceramic1, { foo: 2 }, null, { anchor: true })
+
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+      expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+
+      await anchorUpdate(doc1, cas1)
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+      expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+    }, 60 * 1000 * 3);
   });
 
   describe('Consensus for anchors',  () => {
