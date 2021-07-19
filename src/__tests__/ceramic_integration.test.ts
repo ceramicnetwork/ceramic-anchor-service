@@ -115,7 +115,7 @@ async function makeCAS(dbConnection: Connection, minConfig: MinimalCASConfig): P
   return new CeramicAnchorApp(childContainer, configCopy, dbConnection)
 }
 
-export async function anchorUpdate(stream: Stream, anchorService: CeramicAnchorApp): Promise<void> {
+async function anchorUpdate(stream: Stream, anchorService: CeramicAnchorApp): Promise<void> {
   // The anchor request is not guaranteed to already have been sent to the CAS when the create/update
   // promise resolves, so we wait a bit to give the ceramic node time to actually send the request
   // before triggering the anchor.
@@ -124,6 +124,10 @@ export async function anchorUpdate(stream: Stream, anchorService: CeramicAnchorA
   await Utils.delay(1000)
 
   await anchorService.anchor();
+  await waitForAnchor(stream)
+}
+
+async function waitForAnchor(stream: Stream): Promise<void> {
   await stream
     .pipe(
       filter((state) => [AnchorStatus.ANCHORED, AnchorStatus.FAILED].includes(state.anchorStatus)),
@@ -305,6 +309,7 @@ describe('Ceramic Integration Test',  () => {
 
       await anchorUpdate(doc1, cas1)
       expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+      await waitForAnchor(doc2)
       expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
     }, 60 * 1000 * 3);
   });
