@@ -2,6 +2,7 @@ import CID from 'cids';
 import { CeramicService } from './services/ceramic-service';
 import { IpfsService } from './services/ipfs-service';
 import { StreamID, CommitID } from '@ceramicnetwork/streamid';
+import { MultiQuery, Stream } from '@ceramicnetwork/common';
 
 // A set of random valid CIDs to use in tests
 // TODO write a random CID generator and use that instead of this list
@@ -80,6 +81,19 @@ export class MockCeramicService implements CeramicService {
 
   async loadStream(streamId: StreamID): Promise<any> {
     return this._streams[streamId.toString()]
+  }
+
+  async multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>> {
+    const result = {}
+    for (const query of queries) {
+      const id = query.streamId.toString()
+      const stream = this._streams[id]
+      if (stream) {
+        result[id] = stream
+      }
+    }
+
+    return result
   }
 
   // Mock-only method to control what gets returned by loadStream()

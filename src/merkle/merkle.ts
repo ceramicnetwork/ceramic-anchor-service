@@ -1,39 +1,37 @@
-import CID from 'cids';
-
-interface MergeFunction<T, M> {
+interface MergeFunction<N, M> {
   /**
    * Merges two nodes
    * @param n1 - object1
    * @param n2 - object2
    * @param metadata - optional tree metadata, generally only given when building the root node.
    */
-  merge(n1: Node<T>, n2: Node<T>, metadata: M | null): Promise<Node<T>>;
+  merge(n1: Node<N>, n2: Node<N>, metadata: M | null): Promise<Node<N>>;
 }
 
-interface CompareFunction<T> {
+interface CompareFunction<L> {
   /**
-   * Compares two Merkle nodes
+   * Compares two Merkle leaf nodes
    * @param n1
    * @param n2
    */
-  compare(n1: Node<T>, n2: Node<T>): number;
+  compare(n1: Node<L>, n2: Node<L>): number;
 }
 
-interface MetadataFunction<T, M> {
+interface MetadataFunction<L, M> {
   /**
    * Generates the tree metadata from the leaf nodes
    * @param leafNodes
    */
-  generateMetadata(leafNodes: Array<Node<T>>): M;
+  generateMetadata(leafNodes: Array<Node<L>>): M;
 }
 
 /**
  * Interface of one Merkle node
  */
-class Node<T> {
-  public parent?: Node<T>;
+class Node<N> {
+  public parent?: Node<N>;
 
-  constructor(public data: T, public left: Node<T>, public right: Node<T>) {}
+  constructor(public data: N, public left: Node<N>, public right: Node<N>) {}
 
   public toString = (): string => {
     return '' + this.data;
