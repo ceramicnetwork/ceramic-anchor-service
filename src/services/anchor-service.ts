@@ -144,8 +144,8 @@ export default class AnchorService {
     logEvent.anchor({
       type: 'anchorRequests',
       requestIds: requests.map(r => r.id),
-      clashingRequestsCount: requests.length - acceptedRequests.length, // This field is poorly named
-      validRequestsCount: acceptedRequests.length,
+      failedRequestsCount: requests.length - acceptedRequests.length,
+      acceptedRequestsCount: acceptedRequests.length,
       candidateCount: candidates.length,
       anchorCount: anchors.length
     });
