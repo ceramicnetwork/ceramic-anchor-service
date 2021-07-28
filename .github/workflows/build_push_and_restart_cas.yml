@@ -102,6 +102,10 @@ jobs:
       - name: Stop running tasks
         run: |
             TASK_IDS=$(aws ecs list-tasks --cluster "${{ matrix.cluster }}" --service "${{ matrix.service }}" | grep "task/" | sed -E 's/.*task\/(.*\/[a-zA-Z0-9]*)(.*)/\1/' | tr '\n' ' ')
+            rc=$?
+            if [[ $rc -ne 0 ]]; then
+               echo "ERROR: An error occurred,  aborting ....." && exit $rc
+            fi
             echo "Task Ids: ${TASK_IDS}"
             for t in ${TASK_IDS[@]}; do
               if [[ $t ]]; then
