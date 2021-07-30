@@ -5,7 +5,7 @@ on:
     branches:
       ##MASKED## - main
       ##MASKED## - "release-candidate"
-      - develop
+      ##MASKED## - develop
       - feat/build-push-restart
   workflow_dispatch:
     inputs:
