@@ -3,10 +3,9 @@ name: build_push and Restart CAS
 on:
   push:
     branches:
-      ##MASKED## - main
-      ##MASKED## - "release-candidate"
-      ##MASKED## - develop
-      - feat/build-push-restart
+      - main
+      - "release-candidate"
+      - develop
   workflow_dispatch:
     inputs:
       environment:
