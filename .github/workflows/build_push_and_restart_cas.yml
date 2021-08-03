@@ -1,4 +1,4 @@
-name: build_push and restart_cas
+name: build_push_and_restart_cas
 
 on:
   push:
