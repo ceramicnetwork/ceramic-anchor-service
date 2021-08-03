@@ -1,4 +1,4 @@
-name: build_push and restart_CAS
+name: build_push and restart_cas
 
 on:
   push:
@@ -80,7 +80,7 @@ jobs:
 
 
   update_service:
-    name: restart_CAS
+    name: restart_cas
     runs-on: ubuntu-latest
     needs: [build_push] 
     strategy:
