@@ -5,7 +5,7 @@ on:
     branches:
       ##MASKED## - main
       ##MASKED## - "release-candidate"
-      - develop
+      # - develop
   workflow_dispatch:
     inputs:
       environment:
