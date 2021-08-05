@@ -1,11 +1,11 @@
 name: build_push_and_restart_cas
 
 on:
-  push:
-    branches:
-      ##MASKED## - main
-      ##MASKED## - "release-candidate"
-      # - develop
+#   push:
+#     branches:
+#       ##MASKED## - main
+#       ##MASKED## - "release-candidate"
+#       - develop
   workflow_dispatch:
     inputs:
       environment:
