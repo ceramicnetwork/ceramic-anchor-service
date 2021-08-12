@@ -3,8 +3,8 @@ name: Build, push, publish CAS
 on:
   push:
     branches:
-      # - main
-      # - "release-candidate"
+      - main
+      - "release-candidate"
       - develop
   workflow_dispatch:
     inputs:
