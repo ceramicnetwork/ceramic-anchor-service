@@ -1,9 +1,10 @@
 on:
   push:
     branches:
-      - main
-      - "release-candidate"
-      - develop
+      # Disable for now but remove when other workflow is done
+      # - main
+      # - "release-candidate"
+      # - develop
   workflow_dispatch:
 
 name: Build and Push Images
