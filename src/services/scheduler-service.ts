@@ -36,10 +36,6 @@ export default class SchedulerService {
           // Always anchor if the scheduled time delay has passed
           await this.anchorService.anchorRequests();
           performedAnchor = true
-        } else {
-          // Even if we're not up to the scheduled anchor time, we may want to anchor early if
-          // we have too many pending requests built up.
-          performedAnchor = await this.anchorService.anchorIfTooManyPendingRequests();
         }
 
         if (performedAnchor) {
