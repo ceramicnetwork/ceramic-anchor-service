@@ -65,7 +65,7 @@ jobs:
         DOCKERHUB_IMAGE_ID: "ceramicnetwork/ceramic-anchor-service"
         ECR_IMAGE_ID: "${{ steps.login-ecr.outputs.registry }}/${{ steps.set-vars.outputs.ECR_REPOSITORY }}"
       run: |
-        if [[ "${{steps.set-vars.outputs.IMAGE_TAG_2}}" != "none" ]]; then
+        if [[ "$IMAGE_TAG_2" != "none" ]]; then
           docker build -f Dockerfile -t cas -t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG_2 .
           docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG_2 .
         else
@@ -74,7 +74,6 @@ jobs:
         fi
         docker push $DOCKERHUB_IMAGE_ID --all-tags
         docker push $ECR_IMAGE_ID --all-tags
-        ECR_IMAGE_ID="$ECR_IMAGE_ID"
     -
       name: Publish build event
       run: |
