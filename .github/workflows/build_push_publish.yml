@@ -71,15 +71,15 @@ jobs:
         IMAGE_TAG_2: ${{ steps.set-vars.outputs.IMAGE_TAG_2 }}
       run: |
         echo "::set-output name=ECR_IMAGE_ID::$ECR_IMAGE_ID"
-        if [[ "$IMAGE_TAG_2" != "none" ]]; then
-          docker build -f Dockerfile -t cas -t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG_2 .
-          docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG_2 .
-        else
-          docker build -f Dockerfile -t cas -t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG .
-          docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG .
-        fi
-        docker push $DOCKERHUB_IMAGE_ID --all-tags
-        docker push $ECR_IMAGE_ID --all-tags
+#        if [[ "$IMAGE_TAG_2" != "none" ]]; then
+#          docker build -f Dockerfile -t cas -t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG_2 .
+#          docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG_2 .
+#        else
+#          docker build -f Dockerfile -t cas -t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG .
+#          docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG .
+#        fi
+#        docker push $DOCKERHUB_IMAGE_ID --all-tags
+#        docker push $ECR_IMAGE_ID --all-tags
     -
       name: Publish build event
       env:
@@ -88,7 +88,7 @@ jobs:
         ECR_IMAGE_ID: ${{ steps.build-image.outputs.ECR_IMAGE_ID }}
       run: |
         res=$(docker run --rm curlimages/curl \
-          curl -X POST  \
+          curl -X POST $EVENT_WEBHOOK_URL \
             -H "Content-Type: application/json" \
             --user ${{ secrets.AWS_ACCESS_KEY_ID }}:${{ secrets.AWS_SECRET_ACCESS_KEY }} \
             --aws-sigv4 "aws:amz:${{ secrets.AWS_DEFAULT_REGION }}:execute-api" \
