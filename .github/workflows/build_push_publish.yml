@@ -25,6 +25,7 @@ jobs:
       id: set-vars
       run: |
         SHA_TAG=$(git rev-parse --short=12 "${{ github.sha }}")
+        echo "::set-output name=SHA_TAG::$SHA_TAG"
         if [[ "${{github.base_ref}}" == "main" || "${{github.ref}}" == "refs/heads/main" ]]; then
           echo "::set-output name=ECR_REPOSITORY::ceramic-prod-cas"
           echo "::set-output name=IMAGE_TAG::latest"
@@ -36,10 +37,10 @@ jobs:
           echo "::set-output name=IMAGE_TAG_2::release-candidate"
           echo "::set-output name=EVENT_WEBHOOK_URL=${{ secrets.EVENT_WEBHOOK_CLAY }}"
         else
-          ECR_REPOSITORY="ceramic-dev-cas"
-          IMAGE_TAG="dev"
-          IMAGE_TAG_2="develop"
-          EVENT_WEBHOOK_URL=${{ secrets.EVENT_WEBHOOK_DEV }}
+          echo "::set-output name=ECR_REPOSITORY::ceramic-dev-cas"
+          echo "::set-output name=IMAGE_TAG::dev"
+          echo "::set-output name=IMAGE_TAG_2::develop"
+          echo "::set-output name=EVENT_WEBHOOK_URL::${{ secrets.EVENT_WEBHOOK_DEV }}"
         fi
     -
       name: Configure AWS credentials
@@ -64,7 +65,11 @@ jobs:
       env:
         DOCKERHUB_IMAGE_ID: "ceramicnetwork/ceramic-anchor-service"
         ECR_IMAGE_ID: "${{ steps.login-ecr.outputs.registry }}/${{ steps.set-vars.outputs.ECR_REPOSITORY }}"
+        SHA_TAG: ${{ steps.set-vars.outputs.SHA_TAG }}
+        IMAGE_TAG: ${{ steps.set-vars.outputs.IMAGE_TAG }}
+        IMAGE_TAG_2: ${{ steps.set-vars.outputs.IMAGE_TAG_2 }}
       run: |
+        echo "::set-output name=ECR_IMAGE_ID::$ECR_IMAGE_ID"
         if [[ "$IMAGE_TAG_2" != "none" ]]; then
           docker build -f Dockerfile -t cas -t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG_2 .
           docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG_2 .
@@ -76,6 +81,10 @@ jobs:
         docker push $ECR_IMAGE_ID --all-tags
     -
       name: Publish build event
+      env:
+        SHA_TAG: ${{ steps.set-vars.outputs.SHA_TAG }}
+        EVENT_WEBHOOK_URL: ${{ steps.set-vars.outputs.EVENT_WEBHOOK_URL }}
+        ECR_IMAGE_ID: ${{ steps.build-image.outputs.ECR_IMAGE_ID }}
       run: |
         res=$(docker run --rm curlimages/curl \
           curl -X POST  \
@@ -87,7 +96,7 @@ jobs:
               "client_payload": { \
                 "env_tag": "$IMAGE_TAG", \
                 "sha_tag": "$SHA_TAG" \
-                "image_id": "$IMAGE_TAG:$SHA_TAG" \
+                "image_id": "$ECR_IMAGE_ID:$SHA_TAG" \
               } \
             }') \
           || exit 1
