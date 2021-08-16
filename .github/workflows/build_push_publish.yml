@@ -92,7 +92,7 @@ jobs:
           -H "Content-Type: application/json" \
           --user "${{ secrets.AWS_ACCESS_KEY_ID }}:${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
           --aws-sigv4 "aws:amz:${{ secrets.AWS_DEFAULT_REGION }}:execute-api" \
-          -d @- <<'EOF'
+          -d @- <<EOF
             {
                "event_type": "new_cas_image",
                "client_payload":
