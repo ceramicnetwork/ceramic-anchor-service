@@ -66,9 +66,6 @@ jobs:
       env:
         DOCKERHUB_IMAGE_ID: "ceramicnetwork/ceramic-anchor-service"
         ECR_IMAGE_ID: "${{ steps.login-ecr.outputs.registry }}/${{ steps.set-vars.outputs.ECR_REPOSITORY }}"
-        SHA_TAG: ${{ steps.set-vars.outputs.SHA_TAG }}
-        IMAGE_TAG: ${{ steps.set-vars.outputs.IMAGE_TAG }}
-        IMAGE_TAG_2: ${{ steps.set-vars.outputs.IMAGE_TAG_2 }}
       run: |
         echo "::set-output name=ECR_IMAGE_ID::$ECR_IMAGE_ID"
 #        if [[ "$IMAGE_TAG_2" != "none" ]]; then
@@ -82,10 +79,6 @@ jobs:
 #        docker push $ECR_IMAGE_ID --all-tags
     -
       name: Publish build event
-      env:
-        SHA_TAG: ${{ steps.set-vars.outputs.SHA_TAG }}
-        EVENT_WEBHOOK_URL: ${{ steps.set-vars.outputs.EVENT_WEBHOOK_URL }}
-        ECR_IMAGE_ID: ${{ steps.build-image.outputs.ECR_IMAGE_ID }}
       run: |
         res=$(docker run --rm curlimages/curl \
           curl -X POST $EVENT_WEBHOOK_URL \
