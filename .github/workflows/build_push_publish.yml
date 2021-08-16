@@ -69,6 +69,7 @@ jobs:
         IMAGE_TAG: ${{ steps.set-vars.outputs.IMAGE_TAG }}
         IMAGE_TAG_2: ${{ steps.set-vars.outputs.IMAGE_TAG_2 }}
       run: |
+        echo "::set-output name=ECR_IMAGE_ID::$ECR_IMAGE_ID"
         docker build -f Dockerfile -t cas -t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG_2 .
         docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG_2 .
         docker push -a $DOCKERHUB_IMAGE_ID
@@ -79,7 +80,7 @@ jobs:
         SHA_TAG: ${{ steps.set-vars.outputs.SHA_TAG }}
         IMAGE_TAG: ${{ steps.set-vars.outputs.IMAGE_TAG }}
         EVENT_WEBHOOK_URL: ${{ steps.set-vars.outputs.EVENT_WEBHOOK_URL }}
-        ECR_IMAGE_ID: ${{ steps.set-vars.outputs.ECR_REPOSITORY }}
+        ECR_IMAGE_ID: ${{ steps.build-image.outputs.ECR_IMAGE_ID }}
       run: |
         res=$(docker run --rm curlimages/curl curl -X POST $EVENT_WEBHOOK_URL \
           -H "Content-Type: application/json" \
