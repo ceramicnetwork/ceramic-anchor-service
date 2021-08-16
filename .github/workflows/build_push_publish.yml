@@ -78,8 +78,8 @@ jobs:
           docker build -f Dockerfile -t cas -t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG .
           docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG .
         fi
-        docker push $DOCKERHUB_IMAGE_ID --all-tags
-        docker push $ECR_IMAGE_ID --all-tags
+        docker push "$DOCKERHUB_IMAGE_ID" --all-tags
+        docker push "$ECR_IMAGE_ID" --all-tags
     -
       name: Publish build event
       env:
