@@ -93,7 +93,7 @@ jobs:
               {
                 "env_tag": "${{ env.IMAGE_TAG }}",
                 "sha_tag": "${{ env.SHA_TAG }}",
-                "image_id": "${{ env.ECR_IMAGE_ID }"
+                "image_id": "${{ env.ECR_IMAGE_ID }}"
               }
             }
           ') || exit 1
