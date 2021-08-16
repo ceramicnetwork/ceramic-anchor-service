@@ -6,6 +6,7 @@ on:
       - main
       - "release-candidate"
       - develop
+      - fix/cd_pipeline
   workflow_dispatch:
     inputs:
       environment:
