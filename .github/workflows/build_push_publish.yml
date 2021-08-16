@@ -30,17 +30,17 @@ jobs:
           echo "::set-output name=ECR_REPOSITORY::ceramic-prod-cas"
           echo "::set-output name=IMAGE_TAG::latest"
           echo "::set-output name=IMAGE_TAG_2::prod"
-          echo "::set-output name=EVENT_WEBHOOK_URL=${{ secrets.EVENT_WEBHOOK_FIRE }}"
+          echo "::set-output name=WEBHOOK_URL=${{ secrets.WEBHOOK_URL_FIRE }}"
         elif [[ "${{github.base_ref}}" == "release-candidate" || "${{github.ref}}" == "refs/heads/release-candidate" ]]; then
           echo "::set-output name=ECR_REPOSITORY::ceramic-tnet-cas"
           echo "::set-output name=IMAGE_TAG::tnet"
           echo "::set-output name=IMAGE_TAG_2::release-candidate"
-          echo "::set-output name=EVENT_WEBHOOK_URL=${{ secrets.EVENT_WEBHOOK_CLAY }}"
+          echo "::set-output name=WEBHOOK_URL=${{ secrets.WEBHOOK_URL_CLAY }}"
         else
           echo "::set-output name=ECR_REPOSITORY::ceramic-dev-cas"
           echo "::set-output name=IMAGE_TAG::dev"
           echo "::set-output name=IMAGE_TAG_2::develop"
-          echo "::set-output name=EVENT_WEBHOOK_URL::${{ secrets.EVENT_WEBHOOK_DEV }}"
+          echo "::set-output name=WEBHOOK_URL::${{ secrets.WEBHOOK_URL_DEV }}"
         fi
     -
       name: Configure AWS credentials
@@ -75,11 +75,24 @@ jobs:
         docker push -a $DOCKERHUB_IMAGE_ID
         docker push -a $ECR_IMAGE_ID
     -
+      name: Fetch `ipfs-daemon` SHA tag from latest `js-ceramic` build
+      run: |
+        res=$(docker run --rm curlimages/curl curl "${{ env.WEBHOOK_URL }}/infra?name=ceramic" \
+          --user ${{ secrets.AWS_ACCESS_KEY_ID }}:${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+          --aws-sigv4 "aws:amz:${{ secrets.AWS_REGION }}:execute-api") || exit 1
+        if [[ $res != *"buildTag"* ]]; then
+          exit 1
+        else
+          IPFS_SHA_TAG=`echo $(jq -r '.buildTag' <<< "$res")`
+          echo $IPFS_SHA_TAG
+          echo "IPFS_SHA_TAG=$IPFS_SHA_TAG" >> $GITHUB_ENV
+        fi
+    -
       name: Publish build event
       env:
         SHA_TAG: ${{ steps.set-vars.outputs.SHA_TAG }}
         IMAGE_TAG: ${{ steps.set-vars.outputs.IMAGE_TAG }}
-        EVENT_WEBHOOK_URL: ${{ steps.set-vars.outputs.EVENT_WEBHOOK_URL }}
+        EVENT_WEBHOOK_URL: "${{ steps.set-vars.outputs.WEBHOOK_URL }}/github/event"
         ECR_IMAGE_ID: ${{ steps.build-image.outputs.ECR_IMAGE_ID }}
       run: |
         res=$(docker run --rm curlimages/curl curl -X POST $EVENT_WEBHOOK_URL \
@@ -93,7 +106,8 @@ jobs:
               {
                 "env_tag": "${{ env.IMAGE_TAG }}",
                 "sha_tag": "${{ env.SHA_TAG }}",
-                "image_id": "${{ env.ECR_IMAGE_ID }}"
+                "cas_image_id": "${{ env.ECR_IMAGE_ID }}",
+                "ipfs_sha_tag": "${{ env.IPFS_SHA_TAG }}"
               }
             }
           ') || exit 1
