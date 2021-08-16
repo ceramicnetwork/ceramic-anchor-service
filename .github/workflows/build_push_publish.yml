@@ -25,22 +25,22 @@ jobs:
       id: set-vars
       run: |
         SHA_TAG=$(git rev-parse --short=12 "${{ github.sha }}")
-        echo "SHA_TAG=$SHA_TAG" >> $GITHUB_ENV
+        echo "::set-output name=SHA_TAG::$SHA_TAG"
         if [[ "${{github.base_ref}}" == "main" || "${{github.ref}}" == "refs/heads/main" ]]; then
           echo "::set-output name=ECR_REPOSITORY::ceramic-prod-cas"
           echo "::set-output name=IMAGE_TAG::latest"
           echo "::set-output name=IMAGE_TAG_2::prod"
-          echo "EVENT_WEBHOOK_URL=${{ secrets.EVENT_WEBHOOK_FIRE }}" >> $GITHUB_ENV
+          echo "::set-output name=EVENT_WEBHOOK_URL=${{ secrets.EVENT_WEBHOOK_FIRE }}"
         elif [[ "${{github.base_ref}}" == "release-candidate" || "${{github.ref}}" == "refs/heads/release-candidate" ]]; then
           echo "::set-output name=ECR_REPOSITORY::ceramic-tnet-cas"
           echo "::set-output name=IMAGE_TAG::tnet"
           echo "::set-output name=IMAGE_TAG_2::release-candidate"
-          echo "EVENT_WEBHOOK_URL=${{ secrets.EVENT_WEBHOOK_CLAY }}" >> $GITHUB_ENV
+          echo "::set-output name=EVENT_WEBHOOK_URL=${{ secrets.EVENT_WEBHOOK_CLAY }}"
         else
           echo "::set-output name=ECR_REPOSITORY::ceramic-dev-cas"
           echo "::set-output name=IMAGE_TAG::dev"
           echo "::set-output name=IMAGE_TAG_2::develop"
-          echo "EVENT_WEBHOOK_URL=${{ secrets.EVENT_WEBHOOK_DEV }}" >> $GITHUB_ENV
+          echo "::set-output name=EVENT_WEBHOOK_URL::${{ secrets.EVENT_WEBHOOK_DEV }}"
         fi
     -
       name: Configure AWS credentials
@@ -65,22 +65,43 @@ jobs:
       env:
         DOCKERHUB_IMAGE_ID: "ceramicnetwork/ceramic-anchor-service"
         ECR_IMAGE_ID: "${{ steps.login-ecr.outputs.registry }}/${{ steps.set-vars.outputs.ECR_REPOSITORY }}"
+        SHA_TAG: ${{ steps.set-vars.outputs.SHA_TAG }}
         IMAGE_TAG: ${{ steps.set-vars.outputs.IMAGE_TAG }}
         IMAGE_TAG_2: ${{ steps.set-vars.outputs.IMAGE_TAG_2 }}
       run: |
-        if [[ "${{steps.set-vars.outputs.IMAGE_TAG_2}}" != "none" ]]; then
+        echo "::set-output name=ECR_IMAGE_ID::$ECR_IMAGE_ID"
+        if [[ "$IMAGE_TAG_2" != "none" ]]; then
           docker build -f Dockerfile -t cas -t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG_2 .
           docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG_2 .
         else
           docker build -f Dockerfile -t cas -t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG .
           docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG .
         fi
-        docker push $DOCKERHUB_IMAGE_ID --all-tags
-        docker push $ECR_IMAGE_ID --all-tags
+        docker push $DOCKERHUB_IMAGE_ID
+        docker push $ECR_IMAGE_ID
     -
       name: Publish build event
+      env:
+        SHA_TAG: ${{ steps.set-vars.outputs.SHA_TAG }}
+        IMAGE_TAG: ${{ steps.set-vars.outputs.IMAGE_TAG }}
+        EVENT_WEBHOOK_URL: ${{ steps.set-vars.outputs.EVENT_WEBHOOK_URL }}
+        ECR_IMAGE_ID: ${{ steps.build-image.outputs.ECR_IMAGE_ID }}
       run: |
-        res=$(docker run --rm curlimages/curl curl -X POST ${{ env.EVENT_WEBHOOK_URL }} -H "Content-Type: application/json" --user ${{ secrets.AWS_ACCESS_KEY_ID }}:${{ secrets.AWS_SECRET_ACCESS_KEY }} --aws-sigv4 "aws:amz:${{ secrets.AWS_DEFAULT_REGION }}:execute-api" -d '{ "event_type": "new_cas_image", "client_payload": {"env_tag": "${{ env.IMAGE_TAG }}", "sha_tag": "${{ env.SHA_TAG }}" } }') || exit 1
+        res=$(docker run --rm curlimages/curl curl -X POST $EVENT_WEBHOOK_URL \
+          -H "Content-Type: application/json" \
+          --user "${{ secrets.AWS_ACCESS_KEY_ID }}:${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+          --aws-sigv4 "aws:amz:${{ secrets.AWS_DEFAULT_REGION }}:execute-api" \
+          -d '
+            {
+              "event_type": "new_cas_image",
+              "client_payload":
+              {
+                "env_tag": "${{ env.IMAGE_TAG }}",
+                "sha_tag": "${{ env.SHA_TAG }}",
+                "image_id": "${{ env.ECR_IMAGE_ID }}:${{ env.SHA_TAG }}"
+              }
+            }
+          ') || exit 1
         echo $res
         if [[ $res != *"Forwarded event"* ]]; then
           exit 1
