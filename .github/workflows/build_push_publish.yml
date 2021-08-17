@@ -60,22 +60,6 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     -
-      name: Fetch `ipfs-daemon` SHA tag from latest `js-ceramic` build
-      id: ipfs-tag
-      env:
-        INFRA_WEBHOOK_URL: "${{ steps.set-vars.outputs.WEBHOOK_URL }}/infra"
-      run: |
-        res=$(docker run --rm curlimages/curl curl "${{ env.INFRA_WEBHOOK_URL }}?name=ceramic" \
-          --user ${{ secrets.AWS_ACCESS_KEY_ID }}:${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-          --aws-sigv4 "aws:amz:${{ secrets.AWS_REGION }}:execute-api") || exit 1
-        if [[ $res != *"buildTag"* ]]; then
-          exit 1
-        else
-          IPFS_SHA_TAG=`echo $(jq -r '.buildTag' <<< "$res")`
-          echo "IPFS_SHA_TAG=$IPFS_SHA_TAG"
-          echo "::set-output name=IPFS_SHA_TAG::$IPFS_SHA_TAG"
-        fi
-    -
       name: Build, tag, and push images ECR and DockerHub
       id: build-image
       env:
@@ -110,8 +94,7 @@ jobs:
               {
                 "env_tag": "${{ env.IMAGE_TAG }}",
                 "sha_tag": "${{ env.SHA_TAG }}",
-                "cas_image_id": "${{ env.ECR_IMAGE_ID }}",
-                "ipfs_sha_tag": "${{ env.IPFS_SHA_TAG }}"
+                "image_id": "${{ env.ECR_IMAGE_ID }}"
               }
             }
           ') || exit 1
