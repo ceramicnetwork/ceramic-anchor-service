@@ -66,20 +66,19 @@ jobs:
         DOCKERHUB_IMAGE_ID: "ceramicnetwork/ceramic-anchor-service"
         ECR_IMAGE_ID: "${{ steps.login-ecr.outputs.registry }}/${{ steps.set-vars.outputs.ECR_REPOSITORY }}"
         SHA_TAG: ${{ steps.set-vars.outputs.SHA_TAG }}
+        FULL_SHA_TAG: ${{ github.sha }}
         IMAGE_TAG: ${{ steps.set-vars.outputs.IMAGE_TAG }}
         IMAGE_TAG_2: ${{ steps.set-vars.outputs.IMAGE_TAG_2 }}
       run: |
         echo "::set-output name=ECR_IMAGE_ID::$ECR_IMAGE_ID"
-        docker build -f Dockerfile -t cas -t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG_2 .
-        docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG_2 .
+        docker build -f Dockerfile -t cas -t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$FULL_SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG_2 .
+        docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$FULL_SHA_TAG  -t $ECR_IMAGE_ID:$IMAGE_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG_2 .
         docker push -a $DOCKERHUB_IMAGE_ID
         docker push -a $ECR_IMAGE_ID
     -
       name: Publish build event
       env:
-        SHA_TAG: ${{ steps.set-vars.outputs.SHA_TAG }}
         IMAGE_TAG: ${{ steps.set-vars.outputs.IMAGE_TAG }}
-        IPFS_SHA_TAG: ${{ steps.ipfs-tag.outputs.IPFS_SHA_TAG }}
         EVENT_WEBHOOK_URL: "${{ steps.set-vars.outputs.WEBHOOK_URL }}/github/event"
         ECR_IMAGE_ID: ${{ steps.build-image.outputs.ECR_IMAGE_ID }}
       run: |
@@ -93,7 +92,7 @@ jobs:
               "client_payload":
               {
                 "env_tag": "${{ env.IMAGE_TAG }}",
-                "sha_tag": "${{ env.SHA_TAG }}",
+                "sha_tag": "${{ github.sha }}",
                 "image_id": "${{ env.ECR_IMAGE_ID }}"
               }
             }
