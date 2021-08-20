@@ -7,6 +7,6 @@ export enum RequestStatus {
 
 export class InvalidRequestStatusError extends Error {
   constructor(status: never) {
-    super(`Invalid request status: ${status}`);
+    super(`Invalid request status: ${status}`)
   }
 }

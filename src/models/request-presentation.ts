@@ -1,13 +1,16 @@
-import AnchorRepository from '../repositories/anchor-repository';
-import { InvalidRequestStatusError, RequestStatus } from './request-status';
-import awsCronParser from 'aws-cron-parser';
-import { Request } from './request';
+import AnchorRepository from '../repositories/anchor-repository'
+import { InvalidRequestStatusError, RequestStatus } from './request-status'
+import awsCronParser from 'aws-cron-parser'
+import { Request } from './request'
 
 /**
  * Render anchoring Request as JSON for a client to consume.
  */
 export class RequestPresentation {
-  constructor(private readonly cronExpression: string, private readonly anchorRepository: AnchorRepository) {}
+  constructor(
+    private readonly cronExpression: string,
+    private readonly anchorRepository: AnchorRepository
+  ) {}
 
   /**
    * Rich JSON of a request.
@@ -17,7 +20,7 @@ export class RequestPresentation {
   async body(request: Request): Promise<any> {
     switch (request.status) {
       case RequestStatus.COMPLETED: {
-        const anchor = await this.anchorRepository.findByRequest(request);
+        const anchor = await this.anchorRepository.findByRequest(request)
         return {
           id: request.id,
           status: RequestStatus[request.status],
@@ -35,10 +38,10 @@ export class RequestPresentation {
               proof: anchor.proofCid,
             },
           },
-        };
+        }
       }
       case RequestStatus.PENDING: {
-        const cron = awsCronParser.parse(this.cronExpression);
+        const cron = awsCronParser.parse(this.cronExpression)
         return {
           id: request.id,
           status: RequestStatus[request.status],
@@ -49,7 +52,7 @@ export class RequestPresentation {
           createdAt: request.createdAt.getTime(),
           updatedAt: request.updatedAt.getTime(),
           scheduledAt: awsCronParser.next(cron, new Date()),
-        };
+        }
       }
       case RequestStatus.PROCESSING:
         return {
@@ -61,7 +64,7 @@ export class RequestPresentation {
           message: request.message,
           createdAt: request.createdAt.getTime(),
           updatedAt: request.updatedAt.getTime(),
-        };
+        }
       case RequestStatus.FAILED:
         return {
           id: request.id,
@@ -72,9 +75,9 @@ export class RequestPresentation {
           message: request.message,
           createdAt: request.createdAt.getTime(),
           updatedAt: request.updatedAt.getTime(),
-        };
+        }
       default:
-        throw new InvalidRequestStatusError(request.status);
+        throw new InvalidRequestStatusError(request.status)
     }
   }
 }

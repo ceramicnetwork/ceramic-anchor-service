@@ -1,51 +1,51 @@
-import CID from "cids";
+import CID from 'cids'
 
-import { RequestStatus as RS } from "../models/request-status";
+import { RequestStatus as RS } from '../models/request-status'
 
-import { MerkleTree } from "../merkle/merkle-tree";
-import { PathDirection, TreeMetadata } from '../merkle/merkle';
+import { MerkleTree } from '../merkle/merkle-tree'
+import { PathDirection, TreeMetadata } from '../merkle/merkle'
 
-import { Config } from "node-config-ts";
+import { Config } from 'node-config-ts'
 
-import { logger, logEvent } from '../logger';
-import Utils from "../utils";
-import { Anchor } from "../models/anchor";
-import { Request } from "../models/request";
-import Transaction from "../models/transaction";
-import AnchorRepository from "../repositories/anchor-repository";
-import RequestRepository from "../repositories/request-repository";
+import { logger, logEvent } from '../logger'
+import Utils from '../utils'
+import { Anchor } from '../models/anchor'
+import { Request } from '../models/request'
+import Transaction from '../models/transaction'
+import AnchorRepository from '../repositories/anchor-repository'
+import RequestRepository from '../repositories/request-repository'
 
-import { IpfsService } from "./ipfs-service";
-import CeramicService from "./ceramic-service";
-import BlockchainService from "./blockchain/blockchain-service";
-import { inject, singleton } from "tsyringe";
-import { StreamID, CommitID } from '@ceramicnetwork/streamid';
+import { IpfsService } from './ipfs-service'
+import CeramicService from './ceramic-service'
+import BlockchainService from './blockchain/blockchain-service'
+import { inject, singleton } from 'tsyringe'
+import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import {
   BloomMetadata,
   Candidate,
   CIDHolder,
   IpfsLeafCompare,
   IpfsMerge,
-} from '../merkle/merkle-objects';
-import { Connection } from 'typeorm';
+} from '../merkle/merkle-objects'
+import { Connection } from 'typeorm'
 
 const BATCH_SIZE = 128
 
 type LoadCandidatesResult = {
-  alreadyAnchoredRequests: Request[],
-  conflictingRequests: Request[],
-  failedRequests: Request[],
-  unprocessedRequests: Request[],
-};
+  alreadyAnchoredRequests: Request[]
+  conflictingRequests: Request[]
+  failedRequests: Request[]
+  unprocessedRequests: Request[]
+}
 
 /**
  * Anchors CIDs to blockchain
  */
 @singleton()
 export default class AnchorService {
-  private readonly ipfsMerge: IpfsMerge;
-  private readonly ipfsCompare: IpfsLeafCompare;
-  private readonly bloomMetadata: BloomMetadata;
+  private readonly ipfsMerge: IpfsMerge
+  private readonly ipfsCompare: IpfsLeafCompare
+  private readonly bloomMetadata: BloomMetadata
 
   constructor(
     @inject('blockchainService') private blockchainService?: BlockchainService,
@@ -54,11 +54,11 @@ export default class AnchorService {
     @inject('requestRepository') private requestRepository?: RequestRepository,
     @inject('ceramicService') private ceramicService?: CeramicService,
     @inject('anchorRepository') private anchorRepository?: AnchorRepository,
-    @inject('dbConnection') private connection?: Connection) {
-
-    this.ipfsMerge = new IpfsMerge(this.ipfsService);
-    this.ipfsCompare = new IpfsLeafCompare();
-    this.bloomMetadata = new BloomMetadata();
+    @inject('dbConnection') private connection?: Connection
+  ) {
+    this.ipfsMerge = new IpfsMerge(this.ipfsService)
+    this.ipfsCompare = new IpfsLeafCompare()
+    this.bloomMetadata = new BloomMetadata()
   }
 
   /**
@@ -74,12 +74,19 @@ export default class AnchorService {
     }
 
     const nodeLimit = Math.pow(2, this.config.merkleDepthLimit)
-    const requests: Request[] = await this.requestRepository.findNextToProcess();
+    const requests: Request[] = await this.requestRepository.findNextToProcess()
     if (requests.length > nodeLimit) {
-      logger.imp("There are " + requests.length + " pending anchor requests, which is more "
-        + "than can fit into a single anchor batch given our configured merkleDepthLimit of "
-        + this.config.merkleDepthLimit + " (" + nodeLimit + " requests). Triggering an anchor early to "
-        + "drain our queue")
+      logger.imp(
+        'There are ' +
+          requests.length +
+          ' pending anchor requests, which is more ' +
+          'than can fit into a single anchor batch given our configured merkleDepthLimit of ' +
+          this.config.merkleDepthLimit +
+          ' (' +
+          nodeLimit +
+          ' requests). Triggering an anchor early to ' +
+          'drain our queue'
+      )
       await this._anchorRequests(requests)
       return true
     }
@@ -90,19 +97,22 @@ export default class AnchorService {
    * Creates anchors for client requests
    */
   public async anchorRequests(): Promise<void> {
-    const requests: Request[] = await this.requestRepository.findNextToProcess();
+    const requests: Request[] = await this.requestRepository.findNextToProcess()
     await this._anchorRequests(requests)
   }
 
   private async _anchorRequests(requests: Request[]): Promise<void> {
-    logger.imp('Anchoring pending requests...');
+    logger.imp('Anchoring pending requests...')
 
     if (requests.length === 0) {
-      logger.debug("No pending CID requests found. Skipping anchor.");
-      return;
+      logger.debug('No pending CID requests found. Skipping anchor.')
+      return
     }
-    logger.debug("Marking pending requests as processing")
-    await this.requestRepository.updateRequests({ status: RS.PROCESSING, message: 'Request is processing.' }, requests);
+    logger.debug('Marking pending requests as processing')
+    await this.requestRepository.updateRequests(
+      { status: RS.PROCESSING, message: 'Request is processing.' },
+      requests
+    )
 
     let streamCountLimit = 0 // 0 means no limit
     if (this.config.merkleDepthLimit > 0) {
@@ -110,10 +120,10 @@ export default class AnchorService {
       // max depth of the merkle tree.
       streamCountLimit = Math.pow(2, this.config.merkleDepthLimit)
     }
-    const candidates: Candidate[] = await this._findCandidates(requests, streamCountLimit);
+    const candidates: Candidate[] = await this._findCandidates(requests, streamCountLimit)
     if (candidates.length === 0) {
-      logger.debug("No CID to request. Skipping anchor.");
-      return;
+      logger.debug('No CID to request. Skipping anchor.')
+      return
     }
 
     // filter valid requests
@@ -122,37 +132,41 @@ export default class AnchorService {
       acceptedRequests.push(...candidate.acceptedRequests)
     }
 
-    logger.imp(`Creating Merkle tree from ${candidates.length} selected records`);
+    logger.imp(`Creating Merkle tree from ${candidates.length} selected records`)
     const merkleTree = await this._buildMerkleTree(candidates)
 
     // create and send ETH transaction
-    logger.debug("Preparing to send transaction to put merkle root on blockchain")
-    const tx: Transaction = await this.blockchainService.sendTransaction(merkleTree.getRoot().data.cid);
+    logger.debug('Preparing to send transaction to put merkle root on blockchain')
+    const tx: Transaction = await this.blockchainService.sendTransaction(
+      merkleTree.getRoot().data.cid
+    )
 
     // create proof on IPFS
-    logger.debug("Creating IPFS anchor proof")
+    logger.debug('Creating IPFS anchor proof')
     const ipfsProofCid = await this._createIPFSProof(tx, merkleTree.getRoot().data.cid)
 
     // create anchor records on IPFS
-    logger.debug("Creating anchor commit")
-    const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree);
+    logger.debug('Creating anchor commit')
+    const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
 
     // Update the database to record the successful anchors
-    logger.debug("Persisting results to local database")
+    logger.debug('Persisting results to local database')
     await this._persistAnchorResult(anchors, acceptedRequests)
 
     logEvent.anchor({
       type: 'anchorRequests',
-      requestIds: requests.map(r => r.id),
+      requestIds: requests.map((r) => r.id),
       failedRequestsCount: requests.length - acceptedRequests.length,
       acceptedRequestsCount: acceptedRequests.length,
       candidateCount: candidates.length,
-      anchorCount: anchors.length
-    });
+      anchorCount: anchors.length,
+    })
     for (const candidate of merkleTree.getLeaves()) {
-      logger.debug(`Successfully anchored CID ${candidate.cid.toString()} for stream ${candidate.streamId.toString()}`)
+      logger.debug(
+        `Successfully anchored CID ${candidate.cid.toString()} for stream ${candidate.streamId.toString()}`
+      )
     }
-    logger.imp(`Service successfully anchored ${anchors.length} CIDs.`);
+    logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
   }
 
   /**
@@ -160,13 +174,20 @@ export default class AnchorService {
    * @param candidates
    * @private
    */
-  async _buildMerkleTree(candidates: Candidate[]): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
+  async _buildMerkleTree(
+    candidates: Candidate[]
+  ): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
     try {
-      const merkleTree = new MerkleTree<CIDHolder, Candidate, TreeMetadata>(this.ipfsMerge, this.ipfsCompare, this.bloomMetadata, this.config.merkleDepthLimit);
-      await merkleTree.build(candidates);
+      const merkleTree = new MerkleTree<CIDHolder, Candidate, TreeMetadata>(
+        this.ipfsMerge,
+        this.ipfsCompare,
+        this.bloomMetadata,
+        this.config.merkleDepthLimit
+      )
+      await merkleTree.build(candidates)
       return merkleTree
     } catch (e) {
-      throw new Error('Merkle tree cannot be created: ' + e.toString());
+      throw new Error('Merkle tree cannot be created: ' + e.toString())
     }
   }
 
@@ -177,16 +198,16 @@ export default class AnchorService {
    * @param merkleRootCid - CID of the root of the merkle tree that was anchored in 'tx'
    */
   async _createIPFSProof(tx: Transaction, merkleRootCid: CID): Promise<CID> {
-    const txHashCid = Utils.convertEthHashToCid("eth-tx", tx.txHash.slice(2));
+    const txHashCid = Utils.convertEthHashToCid('eth-tx', tx.txHash.slice(2))
     const ipfsAnchorProof = {
       blockNumber: tx.blockNumber,
       blockTimestamp: tx.blockTimestamp,
       root: merkleRootCid,
       chainId: tx.chain,
-      txHash: txHashCid
-    };
+      txHash: txHashCid,
+    }
     logger.debug('Anchor proof: ' + JSON.stringify(ipfsAnchorProof))
-    const ipfsProofCid = await this.ipfsService.storeRecord(ipfsAnchorProof);
+    const ipfsProofCid = await this.ipfsService.storeRecord(ipfsAnchorProof)
     logger.debug('Anchor proof cid: ' + ipfsProofCid.toString())
     return ipfsProofCid
   }
@@ -199,24 +220,27 @@ export default class AnchorService {
    * of each anchor request.
    * @private
    */
-  async _createAnchorCommits(ipfsProofCid: CID, merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>): Promise<Anchor[]> {
-    const anchors: Anchor[] = [];
+  async _createAnchorCommits(
+    ipfsProofCid: CID,
+    merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
+  ): Promise<Anchor[]> {
+    const anchors: Anchor[] = []
     const candidates = merkleTree.getLeaves()
     for (let index = 0; index < candidates.length; index++) {
       const candidate = candidates[index]
 
-      const anchor: Anchor = new Anchor();
-      anchor.request = candidate.newestAcceptedRequest;
-      anchor.proofCid = ipfsProofCid.toString();
+      const anchor: Anchor = new Anchor()
+      anchor.request = candidate.newestAcceptedRequest
+      anchor.proofCid = ipfsProofCid.toString()
 
-      const path = await merkleTree.getDirectPathFromRoot(index);
-      anchor.path = path.map((p) => p === PathDirection.L ? 0 : 1).join("/");
+      const path = await merkleTree.getDirectPathFromRoot(index)
+      anchor.path = path.map((p) => (p === PathDirection.L ? 0 : 1)).join('/')
 
-      const ipfsAnchorRecord = { prev: candidate.cid, proof: ipfsProofCid, path: anchor.path };
-      const anchorCid = await this.ipfsService.storeRecord(ipfsAnchorRecord);
+      const ipfsAnchorRecord = { prev: candidate.cid, proof: ipfsProofCid, path: anchor.path }
+      const anchorCid = await this.ipfsService.storeRecord(ipfsAnchorRecord)
 
-      anchor.cid = anchorCid.toString();
-      anchors.push(anchor);
+      anchor.cid = anchorCid.toString()
+      anchors.push(anchor)
     }
     return anchors
   }
@@ -232,15 +256,16 @@ export default class AnchorService {
     const queryRunner = this.connection.createQueryRunner()
     await queryRunner.startTransaction()
     try {
-      await this.anchorRepository.createAnchors(anchors, queryRunner.manager);
+      await this.anchorRepository.createAnchors(anchors, queryRunner.manager)
 
       await this.requestRepository.updateRequests(
         {
           status: RS.COMPLETED,
-          message: "CID successfully anchored."
+          message: 'CID successfully anchored.',
         },
         requests,
-        queryRunner.manager);
+        queryRunner.manager
+      )
 
       await queryRunner.commitTransaction()
     } catch (err) {
@@ -261,43 +286,65 @@ export default class AnchorService {
     const candidates = AnchorService._buildCandidates(requests)
 
     logger.debug(`About to load candidate streams`)
-    const { alreadyAnchoredRequests, conflictingRequests, failedRequests, unprocessedRequests } =
-      await this._loadCandidateStreams(candidates, candidateLimit);
-    const candidatesToAnchor = candidates.filter((candidate) => { return candidate.shouldAnchor(); })
+    const {
+      alreadyAnchoredRequests,
+      conflictingRequests,
+      failedRequests,
+      unprocessedRequests,
+    } = await this._loadCandidateStreams(candidates, candidateLimit)
+    const candidatesToAnchor = candidates.filter((candidate) => {
+      return candidate.shouldAnchor()
+    })
 
     if (failedRequests.length > 0) {
       logger.debug(`About to fail requests for CIDs that could not be loaded`)
-      await this.requestRepository.updateRequests({
-        status: RS.FAILED,
-        message: "Request has failed. Commit could not be loaded"
-      }, failedRequests);
+      await this.requestRepository.updateRequests(
+        {
+          status: RS.FAILED,
+          message: 'Request has failed. Commit could not be loaded',
+        },
+        failedRequests
+      )
     }
 
     if (conflictingRequests.length > 0) {
       logger.debug(`About to fail requests rejected by conflict resolution`)
       for (const rejected of conflictingRequests) {
-        console.warn(`Rejecting request to anchor CID ${rejected.cid.toString()} for stream ${rejected.streamId} because it was rejected by Ceramic's conflict resolution rules`)
+        console.warn(
+          `Rejecting request to anchor CID ${rejected.cid.toString()} for stream ${
+            rejected.streamId
+          } because it was rejected by Ceramic's conflict resolution rules`
+        )
       }
-      await this.requestRepository.updateRequests({
-        status: RS.FAILED,
-        message: "Request has failed. Updated was rejected by conflict resolution."
-      }, conflictingRequests);
+      await this.requestRepository.updateRequests(
+        {
+          status: RS.FAILED,
+          message: 'Request has failed. Updated was rejected by conflict resolution.',
+        },
+        conflictingRequests
+      )
     }
 
     if (alreadyAnchoredRequests.length > 0) {
       logger.debug(`Marking requests for CIDs that have already been anchored as COMPLETED`)
-      await this.requestRepository.updateRequests({
-        status: RS.COMPLETED,
-        message: "Request was already anchored"
-      }, alreadyAnchoredRequests);
+      await this.requestRepository.updateRequests(
+        {
+          status: RS.COMPLETED,
+          message: 'Request was already anchored',
+        },
+        alreadyAnchoredRequests
+      )
     }
 
     if (unprocessedRequests.length > 0) {
       logger.debug(`Returning unprocessed requests to PENDING status`)
-      await this.requestRepository.updateRequests({
-        status: RS.PENDING,
-        message: "Request returned to pending.",
-      }, unprocessedRequests);
+      await this.requestRepository.updateRequests(
+        {
+          status: RS.PENDING,
+          message: 'Request returned to pending.',
+        },
+        unprocessedRequests
+      )
     }
 
     return candidatesToAnchor
@@ -308,20 +355,20 @@ export default class AnchorService {
    * @param requests
    */
   static _buildCandidates(requests: Request[]): Candidate[] {
-    const requestsByStream: Map<string, Request[]> = new Map();
+    const requestsByStream: Map<string, Request[]> = new Map()
 
     for (const request of requests) {
       let streamRequests = requestsByStream.get(request.streamId)
       if (!streamRequests) {
         streamRequests = []
-        requestsByStream.set(request.streamId, streamRequests);
+        requestsByStream.set(request.streamId, streamRequests)
       }
 
       streamRequests.push(request)
     }
 
     return Array.from(requestsByStream).map(([streamId, requests]) => {
-      return new Candidate(StreamID.fromString(streamId), requests);
+      return new Candidate(StreamID.fromString(streamId), requests)
     })
   }
 
@@ -335,14 +382,17 @@ export default class AnchorService {
    * @param candidateLimit - limit on the number of candidate streams that can be returned.
    * @private
    */
-  async _loadCandidateStreams(candidates: Candidate[], candidateLimit: number): Promise<LoadCandidatesResult> {
-    const failedRequests: Request[] = [];
-    const conflictingRequests: Request[] = [];
-    const unprocessedRequests: Request[] = [];
-    const alreadyAnchoredRequests: Request[] = [];
+  async _loadCandidateStreams(
+    candidates: Candidate[],
+    candidateLimit: number
+  ): Promise<LoadCandidatesResult> {
+    const failedRequests: Request[] = []
+    const conflictingRequests: Request[] = []
+    const unprocessedRequests: Request[] = []
+    const alreadyAnchoredRequests: Request[] = []
 
-    let index = 0;
-    let numSelectedCandidates = 0;
+    let index = 0
+    let numSelectedCandidates = 0
     if (candidateLimit == 0) {
       // 0 means no limit
       candidateLimit = candidates.length
@@ -350,20 +400,25 @@ export default class AnchorService {
 
     while (index < candidates.length && numSelectedCandidates < candidateLimit) {
       const batchSize = Math.min(BATCH_SIZE, candidateLimit - numSelectedCandidates)
-      const batchCandidates = candidates.slice(index, Math.min(index + batchSize, candidates.length))
-      index += batchSize;
+      const batchCandidates = candidates.slice(
+        index,
+        Math.min(index + batchSize, candidates.length)
+      )
+      index += batchSize
 
-      await Promise.all(batchCandidates.map(async (candidate) => {
-        await AnchorService._loadCandidate(candidate, this.ceramicService);
-        if (candidate.shouldAnchor()) {
-          numSelectedCandidates++;
-        }
-        failedRequests.push(...candidate.failedRequests)
-        conflictingRequests.push(...candidate.rejectedRequests)
-        if (candidate.alreadyAnchored) {
-          alreadyAnchoredRequests.push(...candidate.acceptedRequests)
-        }
-      }))
+      await Promise.all(
+        batchCandidates.map(async (candidate) => {
+          await AnchorService._loadCandidate(candidate, this.ceramicService)
+          if (candidate.shouldAnchor()) {
+            numSelectedCandidates++
+          }
+          failedRequests.push(...candidate.failedRequests)
+          conflictingRequests.push(...candidate.rejectedRequests)
+          if (candidate.alreadyAnchored) {
+            alreadyAnchoredRequests.push(...candidate.acceptedRequests)
+          }
+        })
+      )
     }
 
     return { alreadyAnchoredRequests, conflictingRequests, failedRequests, unprocessedRequests }
@@ -382,7 +437,7 @@ export default class AnchorService {
   static async _loadCandidate(candidate: Candidate, ceramicService: CeramicService): Promise<void> {
     // Build multiquery
     const queries = candidate.requests.map((request) => {
-      return { streamId: candidate.streamId.atCommit(request.cid).toString() };
+      return { streamId: candidate.streamId.atCommit(request.cid).toString() }
     })
     queries.push({ streamId: candidate.streamId.baseID.toString() })
 
@@ -398,15 +453,19 @@ export default class AnchorService {
 
     // Fail requests for tips that failed to be loaded
     for (const request of candidate.requests) {
-      const commitId = candidate.streamId.atCommit(request.cid);
+      const commitId = candidate.streamId.atCommit(request.cid)
       if (!response[commitId.toString()]) {
-        logger.err(`Failed to load stream ${commitId.baseID.toString()} at commit ${commitId.commit.toString()}`)
+        logger.err(
+          `Failed to load stream ${commitId.baseID.toString()} at commit ${commitId.commit.toString()}`
+        )
         candidate.failRequest(request)
       }
     }
     if (candidate.allRequestsFailed()) {
       // If all pending requests for this stream failed to load then don't anchor the stream.
-      logger.warn(`All pending request CIDs for stream ${candidate.streamId.toString()} failed to load - skipping stream`)
+      logger.warn(
+        `All pending request CIDs for stream ${candidate.streamId.toString()} failed to load - skipping stream`
+      )
       return
     }
 
