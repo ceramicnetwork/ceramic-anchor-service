@@ -1,14 +1,14 @@
-import { INTERNAL_SERVER_ERROR, OK } from 'http-status-codes';
-import { Request as ExpReq, Response as ExpRes } from 'express';
-import { logger } from '../logger';
+import { INTERNAL_SERVER_ERROR, OK } from 'http-status-codes'
+import { Request as ExpReq, Response as ExpRes } from 'express'
+import { logger } from '../logger'
 
-import cors from 'cors';
-import { Controller, Get, ClassMiddleware, Post } from "@overnightjs/core";
+import cors from 'cors'
+import { Controller, Get, ClassMiddleware, Post } from '@overnightjs/core'
 
-import AnchorService from '../services/anchor-service';
+import AnchorService from '../services/anchor-service'
 
-import type { Response } from "express-serve-static-core";
-import { singleton } from "tsyringe";
+import type { Response } from 'express-serve-static-core'
+import { singleton } from 'tsyringe'
 
 @singleton()
 @Controller('api/v0/anchors')
@@ -19,17 +19,17 @@ export default class AnchorController {
   @Post()
   private async anchor(req: ExpReq, res: ExpRes): Promise<Response> {
     try {
-      await this.anchorService.anchorRequests();
+      await this.anchorService.anchorRequests()
 
       return res.status(OK).json({
         message: 'anchored pending streams',
-      });
+      })
     } catch (err) {
       const errmsg = `Anchoring pending streams failed: ${err.message}`
-      logger.err(errmsg);
+      logger.err(errmsg)
       return res.status(INTERNAL_SERVER_ERROR).json({
         error: errmsg,
-      });
+      })
     }
   }
 }

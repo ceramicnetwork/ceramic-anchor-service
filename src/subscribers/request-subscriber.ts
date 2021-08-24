@@ -1,17 +1,11 @@
-import {
-  EntitySubscriberInterface,
-  EventSubscriber,
-  InsertEvent,
-  UpdateEvent,
-} from 'typeorm';
-import { Request } from '../models/request';
-import { logEvent } from '../logger';
+import { EntitySubscriberInterface, EventSubscriber, InsertEvent, UpdateEvent } from 'typeorm'
+import { Request } from '../models/request'
+import { logEvent } from '../logger'
 
 @EventSubscriber()
 export class RequestSubscriber implements EntitySubscriberInterface<Request> {
-
   listenTo(): typeof Request {
-    return Request;
+    return Request
   }
 
   afterInsert(event: InsertEvent<Request>): void {
@@ -19,8 +13,8 @@ export class RequestSubscriber implements EntitySubscriberInterface<Request> {
       type: 'request',
       ...event.entity,
       createdAt: event.entity.createdAt.getTime(),
-      updatedAt: event.entity.updatedAt.getTime()
-    });
+      updatedAt: event.entity.updatedAt.getTime(),
+    })
   }
 
   // Entity is only populated if save is called
@@ -30,8 +24,8 @@ export class RequestSubscriber implements EntitySubscriberInterface<Request> {
         type: 'request',
         ...event.entity,
         createdAt: event.entity.createdAt.getTime(),
-        updatedAt: event.entity.updatedAt.getTime()
-      });
+        updatedAt: event.entity.updatedAt.getTime(),
+      })
     }
   }
 }

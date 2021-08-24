@@ -6,31 +6,31 @@ import {
   UpdateDateColumn,
   OneToOne,
   JoinColumn,
-} from 'typeorm';
+} from 'typeorm'
 
-import { Request } from './request';
+import { Request } from './request'
 
 @Entity()
 export class Anchor {
   @PrimaryGeneratedColumn('uuid')
-  id: number;
+  id: number
 
   @OneToOne(() => Request)
   @JoinColumn({ name: 'request_id ' })
-  request: Request;
+  request: Request
 
   @Column({ nullable: false })
-  path: string;
+  path: string
 
   @Column({ nullable: false })
-  cid: string;
+  cid: string
 
   @Column({ nullable: false, name: 'proof_cid' })
-  proofCid: string;
+  proofCid: string
 
   @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
+  createdAt: Date
 
   @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
+  updatedAt: Date
 }

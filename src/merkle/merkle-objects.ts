@@ -1,20 +1,20 @@
-import CID from 'cids';
+import CID from 'cids'
 
-import { AnchorStatus, Stream, StreamMetadata } from '@ceramicnetwork/common';
-import { CompareFunction, MergeFunction, MetadataFunction, Node, TreeMetadata } from './merkle';
-import { Request } from '../models/request';
+import { AnchorStatus, Stream, StreamMetadata } from '@ceramicnetwork/common'
+import { CompareFunction, MergeFunction, MetadataFunction, Node, TreeMetadata } from './merkle'
+import { Request } from '../models/request'
 
-import { logger } from '../logger';
-import { IpfsService } from '../services/ipfs-service';
+import { logger } from '../logger'
+import { IpfsService } from '../services/ipfs-service'
 
-import { BloomFilter } from 'bloom-filters';
-import { StreamID } from '@ceramicnetwork/streamid';
+import { BloomFilter } from 'bloom-filters'
+import { StreamID } from '@ceramicnetwork/streamid'
 
-const BLOOM_FILTER_TYPE = "jsnpm_bloom-filters";
+const BLOOM_FILTER_TYPE = 'jsnpm_bloom-filters'
 const BLOOM_FILTER_FALSE_POSITIVE_RATE = 0.0001
 
 export interface CIDHolder {
-  cid: CID,
+  cid: CID
 }
 
 /**
@@ -24,21 +24,20 @@ export interface CIDHolder {
  * track of which CID should actually be anchored for this stream.
  */
 export class Candidate implements CIDHolder {
-  public readonly streamId: StreamID;
-  private readonly _requests: Request[] = [];
+  public readonly streamId: StreamID
+  private readonly _requests: Request[] = []
 
-  private _cid: CID = null;
-  private _metadata: StreamMetadata;
-  private _acceptedRequests: Request[] = [];
-  private _failedRequests: Request[] = [];
-  private _rejectedRequests: Request[] = [];
-  private _newestAcceptedRequest: Request;
-  private _alreadyAnchored = false;
-
+  private _cid: CID = null
+  private _metadata: StreamMetadata
+  private _acceptedRequests: Request[] = []
+  private _failedRequests: Request[] = []
+  private _rejectedRequests: Request[] = []
+  private _newestAcceptedRequest: Request
+  private _alreadyAnchored = false
 
   constructor(streamId: StreamID, requests: Request[]) {
     this.streamId = streamId
-    this._requests = requests;
+    this._requests = requests
   }
 
   public get cid(): CID {
@@ -175,22 +174,26 @@ export class Candidate implements CIDHolder {
  * Implements IPFS merge CIDs
  */
 export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
-  private ipfsService: IpfsService;
+  private ipfsService: IpfsService
 
   constructor(ipfsService: IpfsService) {
-    this.ipfsService = ipfsService;
+    this.ipfsService = ipfsService
   }
 
-  async merge(left: Node<CIDHolder>, right: Node<CIDHolder>, metadata: TreeMetadata | null): Promise<Node<CIDHolder>> {
-    const merged = [left.data.cid, right.data.cid];
+  async merge(
+    left: Node<CIDHolder>,
+    right: Node<CIDHolder>,
+    metadata: TreeMetadata | null
+  ): Promise<Node<CIDHolder>> {
+    const merged = [left.data.cid, right.data.cid]
     if (metadata) {
-      const metadataCid = await this.ipfsService.storeRecord(metadata);
+      const metadataCid = await this.ipfsService.storeRecord(metadata)
       merged.push(metadataCid)
     }
 
-    const mergedCid = await this.ipfsService.storeRecord(merged);
-    logger.debug('Merkle node ' + mergedCid + ' created.');
-    return new Node<CIDHolder>({ cid: mergedCid }, left, right);
+    const mergedCid = await this.ipfsService.storeRecord(merged)
+    logger.debug('Merkle node ' + mergedCid + ' created.')
+    return new Node<CIDHolder>({ cid: mergedCid }, left, right)
   }
 }
 
@@ -199,7 +202,7 @@ export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
  */
 export class IpfsLeafCompare implements CompareFunction<Candidate> {
   compare(left: Node<Candidate>, right: Node<Candidate>): number {
-    return left.data.streamId.toString().localeCompare(right.data.streamId.toString());
+    return left.data.streamId.toString().localeCompare(right.data.streamId.toString())
   }
 }
 
@@ -230,7 +233,9 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
     const bloomFilter = BloomFilter.from(bloomFilterEntries, BLOOM_FILTER_FALSE_POSITIVE_RATE)
     // @ts-ignore
     const serializedBloomFilter = bloomFilter.saveAsJSON()
-    return { numEntries: leaves.length,
-             bloomFilter: {type: BLOOM_FILTER_TYPE, data: serializedBloomFilter} }
+    return {
+      numEntries: leaves.length,
+      bloomFilter: { type: BLOOM_FILTER_TYPE, data: serializedBloomFilter },
+    }
   }
 }
