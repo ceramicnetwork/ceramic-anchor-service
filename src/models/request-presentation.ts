@@ -38,6 +38,14 @@ export class RequestPresentation {
               proof: anchor.proofCid,
             },
           },
+          anchorCommit: {
+            cid: anchor.cid,
+            content: {
+              path: anchor.path,
+              prev: anchor.request.cid,
+              proof: anchor.proofCid,
+            },
+          },
         }
       }
       case RequestStatus.PENDING: {
