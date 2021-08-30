@@ -30,7 +30,15 @@ export class RequestPresentation {
           message: request.message,
           createdAt: request.createdAt.getTime(),
           updatedAt: request.updatedAt.getTime(),
-          anchorRecord: {
+          anchorRecord: {  // TODO: Remove this backwards compatibility field
+            cid: anchor.cid,
+            content: {
+              path: anchor.path,
+              prev: anchor.request.cid,
+              proof: anchor.proofCid,
+            },
+          },
+          anchorCommit: {
             cid: anchor.cid,
             content: {
               path: anchor.path,
