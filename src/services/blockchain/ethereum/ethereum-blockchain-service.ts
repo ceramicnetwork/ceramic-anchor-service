@@ -25,8 +25,11 @@ const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
  */
 export default class EthereumBlockchainService implements BlockchainService {
   private _chainId: string
+  private readonly network: string
 
-  constructor(private readonly config: Config, private readonly wallet: ethers.Wallet) {}
+  constructor(private readonly config: Config, private readonly wallet: ethers.Wallet) {
+    this.network = config.blockchain.connectors.ethereum.network
+  }
 
   public static make(config: Config): EthereumBlockchainService {
     const { network } = config.blockchain.connectors.ethereum
@@ -53,16 +56,9 @@ export default class EthereumBlockchainService implements BlockchainService {
    * Connects to blockchain
    */
   public async connect(): Promise<void> {
-    logger.imp(
-      'Connecting to ' + this.config.blockchain.connectors.ethereum.network + ' blockchain...'
-    )
+    logger.imp('Connecting to ' + this.network + ' blockchain...')
     await this._loadChainId()
-    logger.imp(
-      'Connected to ' +
-        this.config.blockchain.connectors.ethereum.network +
-        ' blockchain with chain ID ' +
-        this.chainId
-    )
+    logger.imp('Connected to ' + this.network + ' blockchain with chain ID ' + this.chainId)
   }
 
   /**
@@ -91,13 +87,15 @@ export default class EthereumBlockchainService implements BlockchainService {
     } else {
       const feeData = await this.wallet.provider.getFeeData()
       // Add extra to gas price for each subsequent attempt
-      const nextMaxPriorityFeePerGas  = EthereumBlockchainService.increaseGasPricePerAttempt(
+      const nextMaxPriorityFeePerGas = EthereumBlockchainService.increaseGasPricePerAttempt(
         feeData,
         attempt,
         txData.maxPriorityFeePerGas
       )
       txData.maxPriorityFeePerGas = nextMaxPriorityFeePerGas
-      logger.debug('Estimated maxPriorityFeePerGas (in wei): ' + nextMaxPriorityFeePerGas.toString())
+      logger.debug(
+        'Estimated maxPriorityFeePerGas (in wei): ' + nextMaxPriorityFeePerGas.toString()
+      )
 
       txData.gasLimit = await this.wallet.provider.estimateGas(txData)
       logger.debug('Estimated Gas limit: ' + txData.gasLimit.toString())
@@ -156,12 +154,10 @@ export default class EthereumBlockchainService implements BlockchainService {
    * One attempt at submitting the prepared TransactionRequest to the ethereum blockchain.
    * @param txData
    * @param attemptNum
-   * @param network
    */
   async _trySendTransaction(
     txData: TransactionRequest,
-    attemptNum: number,
-    network: string
+    attemptNum: number
   ): Promise<providers.TransactionResponse> {
     logger.imp('Transaction data:' + JSON.stringify(txData))
 
@@ -171,7 +167,7 @@ export default class EthereumBlockchainService implements BlockchainService {
       type: 'txRequest',
       ...(loggableTxData as Omit<TransactionRequest, 'type'>),
     })
-    logger.imp(`Sending transaction to Ethereum ${network} network...`)
+    logger.imp(`Sending transaction to Ethereum ${this.network} network...`)
     const txResponse: providers.TransactionResponse = await this.wallet.sendTransaction(txData)
     logEvent.ethereum({
       type: 'txResponse',
@@ -191,12 +187,10 @@ export default class EthereumBlockchainService implements BlockchainService {
    * Queries the blockchain to see if the submitted transaction was successfully mined, and returns
    * the transaction info if so.
    * @param txResponse - response from when the transaction was submitted to the mempool
-   * @param network
    * @param transactionTimeoutSecs
    */
   async _confirmTransactionSuccess(
     txResponse: providers.TransactionResponse,
-    network: string,
     transactionTimeoutSecs: number
   ): Promise<Transaction> {
     const caip2ChainId = 'eip155:' + txResponse.chainId
@@ -227,7 +221,7 @@ export default class EthereumBlockchainService implements BlockchainService {
       statusMessage = 'unknown'
     }
     logger.imp(
-      `Transaction completed on Ethereum ${network} network. Transaction hash: ${txReceipt.transactionHash}. Status: ${statusMessage}.`
+      `Transaction completed on Ethereum ${this.network} network. Transaction hash: ${txReceipt.transactionHash}. Status: ${statusMessage}.`
     )
     if (status == TX_FAILURE) {
       throw new Error('Transaction completed with a failure status')
@@ -255,11 +249,7 @@ export default class EthereumBlockchainService implements BlockchainService {
   ): Promise<Transaction> {
     for (let i = txResponses.length - 1; i >= 0; i--) {
       try {
-        return await this._confirmTransactionSuccess(
-          txResponses[i],
-          network,
-          transactionTimeoutSecs
-        )
+        return await this._confirmTransactionSuccess(txResponses[i], transactionTimeoutSecs)
       } catch (err) {
         logger.err(err)
       }
@@ -280,7 +270,6 @@ export default class EthereumBlockchainService implements BlockchainService {
 
     const txData = await this._buildTransactionRequest(rootCid)
     const transactionTimeoutSecs = this.config.blockchain.connectors.ethereum.transactionTimeoutSecs
-    const { network } = this.config.blockchain.connectors.ethereum
 
     let attemptNum = 0
     const txResponses: Array<providers.TransactionResponse> = []
@@ -288,9 +277,9 @@ export default class EthereumBlockchainService implements BlockchainService {
       try {
         await this.setGasPrice(txData, attemptNum)
 
-        const txResponse = await this._trySendTransaction(txData, attemptNum, network)
+        const txResponse = await this._trySendTransaction(txData, attemptNum)
         txResponses.push(txResponse)
-        return await this._confirmTransactionSuccess(txResponse, network, transactionTimeoutSecs)
+        return await this._confirmTransactionSuccess(txResponse, transactionTimeoutSecs)
       } catch (err) {
         logger.err(err)
 
@@ -336,7 +325,7 @@ export default class EthereumBlockchainService implements BlockchainService {
 
             return await this._checkForPreviousTransactionSuccess(
               txResponses,
-              network,
+              this.network,
               transactionTimeoutSecs
             )
           }
