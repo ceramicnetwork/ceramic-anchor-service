@@ -20,6 +20,13 @@ export const MAX_RETRIES = 3
 
 const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
 
+function logWalletBalance(balance: BigNumber) {
+  logMetric.ethereum({
+    type: 'walletBalance',
+    balance: ethers.utils.formatUnits(balance, 'gwei'),
+  })
+}
+
 /**
  * Ethereum blockchain service
  */
@@ -69,7 +76,6 @@ export default class EthereumBlockchainService implements BlockchainService {
     const idnum = (await this.wallet.provider.getNetwork()).chainId
     this._chainId = BASE_CHAIN_ID + ':' + idnum
   }
-
 
   /**
    * Returns the cached 'chainId' representing the CAIP-2 ID of the configured blockchain.
@@ -263,10 +269,7 @@ export default class EthereumBlockchainService implements BlockchainService {
    */
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
     const walletBalance = await this.wallet.provider.getBalance(this.wallet.address)
-    logMetric.ethereum({
-      type: 'walletBalance',
-      balance: ethers.utils.formatUnits(walletBalance, 'gwei'),
-    })
+    logWalletBalance(walletBalance)
     logger.imp(`Current wallet balance is ` + walletBalance)
 
     const txData = await this._buildTransactionRequest(rootCid)
@@ -342,10 +345,14 @@ export default class EthereumBlockchainService implements BlockchainService {
       }
     }
 
-    const finalWalletBalance = await this.wallet.provider.getBalance(this.wallet.address)
-    logMetric.ethereum({
-      type: 'walletBalance',
-      balance: ethers.utils.formatUnits(finalWalletBalance, 'gwei'),
-    })
+    const finalWalletBalance = await this.walletBalance()
+    logWalletBalance(finalWalletBalance)
+  }
+
+  /**
+   * Current balance of the wallet in wei.
+   */
+  walletBalance(): Promise<BigNumber> {
+    return this.wallet.provider.getBalance(this.wallet.address)
   }
 }
