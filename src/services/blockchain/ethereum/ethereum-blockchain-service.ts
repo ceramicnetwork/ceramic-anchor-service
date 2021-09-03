@@ -118,15 +118,12 @@ export default class EthereumBlockchainService implements BlockchainService {
     attempt: number,
     previousGas: BigNumberish | undefined
   ): BigNumber {
-    const tenPercent = currentGasEstimate.div(10)
-    const additionalGas = tenPercent.mul(attempt)
-    const newGas = currentGasEstimate.add(additionalGas)
+    const newGas = currentGasEstimate.mul(1 + 0.1 * attempt)
     if (attempt == 0 || previousGas == undefined) {
       return newGas
     }
 
-    const previousGasBN = BigNumber.from(previousGas)
-    const minGas = previousGasBN.add(previousGasBN.div(10))
+    const minGas = BigNumber.from(previousGas).mul(1.1)
     return newGas.gt(minGas) ? newGas : minGas
   }
 
