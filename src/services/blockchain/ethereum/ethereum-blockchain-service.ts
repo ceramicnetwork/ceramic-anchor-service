@@ -20,22 +20,17 @@ export const MAX_RETRIES = 3
 
 const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
 
-function logWalletBalance(balance: BigNumber) {
-  logMetric.ethereum({
-    type: 'walletBalance',
-    balance: ethers.utils.formatUnits(balance, 'gwei'),
-  })
-}
-
 /**
  * Ethereum blockchain service
  */
 export default class EthereumBlockchainService implements BlockchainService {
   private _chainId: string
   private readonly network: string
+  private readonly transactionTimeoutSecs: number
 
   constructor(private readonly config: Config, private readonly wallet: ethers.Wallet) {
     this.network = config.blockchain.connectors.ethereum.network
+    this.transactionTimeoutSecs = this.config.blockchain.connectors.ethereum.transactionTimeoutSecs
   }
 
   public static make(config: Config): EthereumBlockchainService {
@@ -270,91 +265,96 @@ export default class EthereumBlockchainService implements BlockchainService {
    * Sends transaction with root CID as data
    */
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
-    const walletBalance = await this.walletBalance()
-    logWalletBalance(walletBalance)
-    logger.imp(`Current wallet balance is ` + walletBalance)
+    return this.withWalletBalance(async (walletBalance) => {
+      const txData = await this._buildTransactionRequest(rootCid)
 
-    const txData = await this._buildTransactionRequest(rootCid)
-    const transactionTimeoutSecs = this.config.blockchain.connectors.ethereum.transactionTimeoutSecs
+      let attemptNum = 0
+      const txResponses: Array<providers.TransactionResponse> = []
+      while (attemptNum < MAX_RETRIES) {
+        try {
+          await this.setGasPrice(txData, attemptNum)
 
-    let attemptNum = 0
-    const txResponses: Array<providers.TransactionResponse> = []
-    while (attemptNum < MAX_RETRIES) {
-      try {
-        await this.setGasPrice(txData, attemptNum)
+          const txResponse = await this._trySendTransaction(txData, attemptNum)
+          txResponses.push(txResponse)
+          return await this._confirmTransactionSuccess(txResponse, this.transactionTimeoutSecs)
+        } catch (err) {
+          logger.err(err)
 
-        const txResponse = await this._trySendTransaction(txData, attemptNum)
-        txResponses.push(txResponse)
-        return await this._confirmTransactionSuccess(txResponse, transactionTimeoutSecs)
-      } catch (err) {
-        logger.err(err)
+          const { code } = err
+          if (code) {
+            if (code === ErrorCode.INSUFFICIENT_FUNDS) {
+              const txCost = (txData.gasLimit as BigNumber).mul(txData.gasPrice)
+              if (txCost.gt(walletBalance)) {
+                logEvent.ethereum({
+                  type: 'insufficientFunds',
+                  txCost: txCost,
+                  balance: ethers.utils.formatUnits(walletBalance, 'gwei'),
+                })
 
-        const { code } = err
-        if (code) {
-          if (code === ErrorCode.INSUFFICIENT_FUNDS) {
-            const txCost = (txData.gasLimit as BigNumber).mul(txData.gasPrice)
-            if (txCost.gt(walletBalance)) {
+                const errMsg =
+                  'Transaction cost is greater than our current balance. [txCost: ' +
+                  txCost.toHexString() +
+                  ', balance: ' +
+                  walletBalance.toHexString() +
+                  ']'
+                logger.err(errMsg)
+                throw new Error(errMsg)
+              }
+            } else if (code === ErrorCode.TIMEOUT) {
               logEvent.ethereum({
-                type: 'insufficientFunds',
-                txCost: txCost,
-                balance: ethers.utils.formatUnits(walletBalance, 'gwei'),
+                type: 'transactionTimeout',
+                transactionTimeoutSecs: this.transactionTimeoutSecs,
               })
+              logger.err(
+                `Transaction timed out after ${this.transactionTimeoutSecs} seconds without being mined`
+              )
+              // Fall through and retry if we have retries remaining
+            } else if (code === ErrorCode.NONCE_EXPIRED) {
+              // If this happens it most likely means that one of our previous attempts timed out, but
+              // then actually wound up being successfully mined
+              logEvent.ethereum({
+                type: 'nonceExpired',
+                nonce: txData.nonce,
+              })
+              if (attemptNum == 0 || txResponses.length == 0) {
+                throw err
+              }
 
-              const errMsg =
-                'Transaction cost is greater than our current balance. [txCost: ' +
-                txCost.toHexString() +
-                ', balance: ' +
-                walletBalance.toHexString() +
-                ']'
-              logger.err(errMsg)
-              throw new Error(errMsg)
+              return await this._checkForPreviousTransactionSuccess(
+                txResponses,
+                this.network,
+                this.transactionTimeoutSecs
+              )
             }
-          } else if (code === ErrorCode.TIMEOUT) {
-            logEvent.ethereum({
-              type: 'transactionTimeout',
-              transactionTimeoutSecs,
-            })
-            logger.err(
-              `Transaction timed out after ${transactionTimeoutSecs} seconds without being mined`
-            )
-            // Fall through and retry if we have retries remaining
-          } else if (code === ErrorCode.NONCE_EXPIRED) {
-            // If this happens it most likely means that one of our previous attempts timed out, but
-            // then actually wound up being successfully mined
-            logEvent.ethereum({
-              type: 'nonceExpired',
-              nonce: txData.nonce,
-            })
-            if (attemptNum == 0 || txResponses.length == 0) {
-              throw err
-            }
+          }
 
-            return await this._checkForPreviousTransactionSuccess(
-              txResponses,
-              this.network,
-              transactionTimeoutSecs
-            )
+          attemptNum++
+          if (attemptNum >= MAX_RETRIES) {
+            throw new Error('Failed to send transaction')
+          } else {
+            logger.warn(`Failed to send transaction; ${MAX_RETRIES - attemptNum} retries remain`)
+            await Utils.delay(5000)
           }
         }
-
-        attemptNum++
-        if (attemptNum >= MAX_RETRIES) {
-          throw new Error('Failed to send transaction')
-        } else {
-          logger.warn(`Failed to send transaction; ${MAX_RETRIES - attemptNum} retries remain`)
-          await Utils.delay(5000)
-        }
       }
-    }
-
-    const finalWalletBalance = await this.walletBalance()
-    logWalletBalance(finalWalletBalance)
+    })
   }
 
-  /**
-   * Current balance of the wallet in wei.
-   */
-  walletBalance(): Promise<BigNumber> {
-    return this.wallet.provider.getBalance(this.wallet.address)
+  async withWalletBalance<T>(action: (balance: BigNumber) => Promise<T>): Promise<T> {
+    const before = await this.wallet.provider.getBalance(this.wallet.address)
+    logMetric.ethereum({
+      type: 'walletBalance',
+      balance: ethers.utils.formatUnits(before, 'gwei'),
+    })
+    logger.imp(`Current wallet balance is ` + before)
+
+    const result = await action(before)
+
+    const after = await this.wallet.provider.getBalance(this.wallet.address)
+    logMetric.ethereum({
+      type: 'walletBalance',
+      balance: ethers.utils.formatUnits(after, 'gwei'),
+    })
+    return result
   }
 }
