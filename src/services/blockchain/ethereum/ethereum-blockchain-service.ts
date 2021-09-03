@@ -89,14 +89,15 @@ export default class EthereumBlockchainService implements BlockchainService {
       txData.gasLimit = BigNumber.from(this.config.blockchain.connectors.ethereum.gasLimit)
       logger.debug('Overriding Gas limit: ' + txData.gasLimit.toString())
     } else {
-      const gasPriceEstimate = await this.wallet.provider.getGasPrice() // in wei
+      const feeData = await this.wallet.provider.getFeeData()
       // Add extra to gas price for each subsequent attempt
-      txData.gasPrice = EthereumBlockchainService.increaseGasPricePerAttempt(
-        gasPriceEstimate,
+      const nextMaxPriorityFeePerGas  = EthereumBlockchainService.increaseGasPricePerAttempt(
+        feeData,
         attempt,
-        txData.gasPrice
+        txData.maxPriorityFeePerGas
       )
-      logger.debug('Estimated Gas price (in wei): ' + txData.gasPrice.toString())
+      txData.maxPriorityFeePerGas = nextMaxPriorityFeePerGas
+      logger.debug('Estimated maxPriorityFeePerGas (in wei): ' + nextMaxPriorityFeePerGas.toString())
 
       txData.gasLimit = await this.wallet.provider.estimateGas(txData)
       logger.debug('Estimated Gas limit: ' + txData.gasLimit.toString())
@@ -109,16 +110,16 @@ export default class EthereumBlockchainService implements BlockchainService {
    * previous attempt's gas, even if the gas price on chain has gone down since then. This is because
    * retries of the same transaction (using the same nonce) need to have a gas price at least 10% higher
    * than any previous attempts or the transaction will fail.
-   * @param currentGasEstimate
+   * @param feeData
    * @param attempt
    * @param previousGas
    */
   static increaseGasPricePerAttempt(
-    currentGasEstimate: BigNumber,
+    feeData: providers.FeeData,
     attempt: number,
     previousGas: BigNumberish | undefined
   ): BigNumber {
-    const newGas = currentGasEstimate.mul(1 + 0.1 * attempt)
+    const newGas = feeData.maxPriorityFeePerGas.mul(1 + 0.1 * attempt)
     if (attempt == 0 || previousGas == undefined) {
       return newGas
     }
@@ -164,9 +165,11 @@ export default class EthereumBlockchainService implements BlockchainService {
   ): Promise<providers.TransactionResponse> {
     logger.imp('Transaction data:' + JSON.stringify(txData))
 
+    const loggableTxData = Object.assign({}, txData)
+    delete loggableTxData.type
     logEvent.ethereum({
       type: 'txRequest',
-      ...txData,
+      ...(loggableTxData as Omit<TransactionRequest, 'type'>),
     })
     logger.imp(`Sending transaction to Ethereum ${network} network...`)
     const txResponse: providers.TransactionResponse = await this.wallet.sendTransaction(txData)
@@ -210,9 +213,11 @@ export default class EthereumBlockchainService implements BlockchainService {
       NUM_BLOCKS_TO_WAIT,
       transactionTimeoutSecs * 1000
     )
+    const loggableReceipt = Object.assign({}, txReceipt)
+    delete loggableReceipt.type
     logEvent.ethereum({
       type: 'txReceipt',
-      ...txReceipt,
+      ...(txReceipt as Omit<TransactionRequest, 'type'>),
     })
     const block: providers.Block = await this.wallet.provider.getBlock(txReceipt.blockHash)
 
