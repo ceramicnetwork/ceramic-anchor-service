@@ -9,7 +9,7 @@ import { Config } from 'node-config-ts'
 import { logger, logEvent, logMetric } from '../../../logger'
 import Transaction from '../../../models/transaction'
 import BlockchainService from '../blockchain-service'
-import { TransactionRequest } from '@ethersproject/abstract-provider'
+import type { TransactionRequest, TransactionResponse } from '@ethersproject/abstract-provider'
 import Utils from '../../../utils'
 
 const BASE_CHAIN_ID = 'eip155'
@@ -162,7 +162,7 @@ export default class EthereumBlockchainService implements BlockchainService {
   async _trySendTransaction(
     txData: TransactionRequest,
     attemptNum: number
-  ): Promise<providers.TransactionResponse> {
+  ): Promise<TransactionResponse> {
     logger.imp('Transaction data:' + JSON.stringify(txData))
 
     const loggableTxData = Object.assign({}, txData)
@@ -172,7 +172,7 @@ export default class EthereumBlockchainService implements BlockchainService {
       ...(loggableTxData as Omit<TransactionRequest, 'type'>),
     })
     logger.imp(`Sending transaction to Ethereum ${this.network} network...`)
-    const txResponse: providers.TransactionResponse = await this.wallet.sendTransaction(txData)
+    const txResponse: TransactionResponse = await this.wallet.sendTransaction(txData)
     logEvent.ethereum({
       type: 'txResponse',
       hash: txResponse.hash,
@@ -191,12 +191,8 @@ export default class EthereumBlockchainService implements BlockchainService {
    * Queries the blockchain to see if the submitted transaction was successfully mined, and returns
    * the transaction info if so.
    * @param txResponse - response from when the transaction was submitted to the mempool
-   * @param transactionTimeoutSecs
    */
-  async _confirmTransactionSuccess(
-    txResponse: providers.TransactionResponse,
-    transactionTimeoutSecs: number
-  ): Promise<Transaction> {
+  async _confirmTransactionSuccess(txResponse: TransactionResponse): Promise<Transaction> {
     const caip2ChainId = 'eip155:' + txResponse.chainId
     if (caip2ChainId != this.chainId) {
       // TODO: This should be process-fatal
@@ -209,7 +205,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     const txReceipt: providers.TransactionReceipt = await this.wallet.provider.waitForTransaction(
       txResponse.hash,
       NUM_BLOCKS_TO_WAIT,
-      transactionTimeoutSecs * 1000
+      this.transactionTimeoutSecs * 1000
     )
     const loggableReceipt = Object.assign({}, txReceipt)
     delete loggableReceipt.type
@@ -243,17 +239,13 @@ export default class EthereumBlockchainService implements BlockchainService {
    * Queries the blockchain to see if any of the previously submitted transactions that had timed
    * out went on to be successfully mined, and returns the transaction info if so.
    * @param txResponses - responses from previous transaction submissions.
-   * @param network
-   * @param transactionTimeoutSecs
    */
   async _checkForPreviousTransactionSuccess(
-    txResponses: Array<providers.TransactionResponse>,
-    network: string,
-    transactionTimeoutSecs: number
+    txResponses: Array<TransactionResponse>
   ): Promise<Transaction> {
     for (let i = txResponses.length - 1; i >= 0; i--) {
       try {
-        return await this._confirmTransactionSuccess(txResponses[i], transactionTimeoutSecs)
+        return await this._confirmTransactionSuccess(txResponses[i])
       } catch (err) {
         logger.err(err)
       }
@@ -269,14 +261,14 @@ export default class EthereumBlockchainService implements BlockchainService {
       const txData = await this._buildTransactionRequest(rootCid)
 
       let attemptNum = 0
-      const txResponses: Array<providers.TransactionResponse> = []
+      const txResponses: Array<TransactionResponse> = []
       while (attemptNum < MAX_RETRIES) {
         try {
           await this.setGasPrice(txData, attemptNum)
 
           const txResponse = await this._trySendTransaction(txData, attemptNum)
           txResponses.push(txResponse)
-          return await this._confirmTransactionSuccess(txResponse, this.transactionTimeoutSecs)
+          return await this._confirmTransactionSuccess(txResponse)
         } catch (err) {
           logger.err(err)
 
@@ -320,11 +312,7 @@ export default class EthereumBlockchainService implements BlockchainService {
                 throw err
               }
 
-              return await this._checkForPreviousTransactionSuccess(
-                txResponses,
-                this.network,
-                this.transactionTimeoutSecs
-              )
+              return await this._checkForPreviousTransactionSuccess(txResponses)
             }
           }
 
