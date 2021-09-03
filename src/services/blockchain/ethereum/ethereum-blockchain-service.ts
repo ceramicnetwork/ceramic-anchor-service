@@ -36,9 +36,9 @@ export default class EthereumBlockchainService implements BlockchainService {
     const { host, port, url } = config.blockchain.connectors.ethereum.rpc
 
     let provider
-    if (url && url != '') {
+    if (url) {
       provider = new ethers.providers.JsonRpcProvider(url)
-    } else if (host && host != '' && port && port != '') {
+    } else if (host && port) {
       provider = new ethers.providers.JsonRpcProvider(`${host}:${port}`)
     } else {
       provider = ethers.getDefaultProvider(network)
@@ -68,6 +68,15 @@ export default class EthereumBlockchainService implements BlockchainService {
   private async _loadChainId(): Promise<void> {
     const idnum = (await this.wallet.provider.getNetwork()).chainId
     this._chainId = BASE_CHAIN_ID + ':' + idnum
+  }
+
+
+  /**
+   * Returns the cached 'chainId' representing the CAIP-2 ID of the configured blockchain.
+   * Invalid to call before calling connect()
+   */
+  public get chainId(): string {
+    return this._chainId
   }
 
   /**
@@ -124,14 +133,6 @@ export default class EthereumBlockchainService implements BlockchainService {
 
     const minGas = BigNumber.from(previousGas).mul(1.1)
     return newGas.gt(minGas) ? newGas : minGas
-  }
-
-  /**
-   * Returns the cached 'chainId' representing the CAIP-2 ID of the configured blockchain.
-   * Invalid to call before calling connect()
-   */
-  public get chainId(): string {
-    return this._chainId
   }
 
   async _buildTransactionRequest(rootCid: CID): Promise<TransactionRequest> {
