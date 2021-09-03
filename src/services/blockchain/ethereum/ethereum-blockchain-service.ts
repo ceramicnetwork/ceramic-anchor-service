@@ -102,11 +102,14 @@ export default class EthereumBlockchainService implements BlockchainService {
     } else {
       const feeData = await this.wallet.provider.getFeeData()
       // Add extra to gas price for each subsequent attempt
+      const prevMaxPriorityFeePerGas = BigNumber.from(txData.maxPriorityFeePerGas || 0)
       const nextMaxPriorityFeePerGas = EthereumBlockchainService.increaseGasPricePerAttempt(
         feeData,
         attempt,
-        txData.maxPriorityFeePerGas
+        prevMaxPriorityFeePerGas
       )
+      const difference = nextMaxPriorityFeePerGas.sub(prevMaxPriorityFeePerGas)
+      txData.maxFeePerGas = feeData.maxFeePerGas.add(difference)
       txData.maxPriorityFeePerGas = nextMaxPriorityFeePerGas
       logger.debug(
         'Estimated maxPriorityFeePerGas (in wei): ' + nextMaxPriorityFeePerGas.toString()
@@ -149,12 +152,11 @@ export default class EthereumBlockchainService implements BlockchainService {
     logger.debug('Preparing ethereum transaction')
     const baseNonce = await this.wallet.provider.getTransactionCount(this.wallet.address)
 
-    const txData: TransactionRequest = {
+    return {
       to: this.wallet.address,
       data: hexEncoded,
       nonce: baseNonce,
     }
-    return txData
   }
 
   /**
@@ -268,7 +270,7 @@ export default class EthereumBlockchainService implements BlockchainService {
    * Sends transaction with root CID as data
    */
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
-    const walletBalance = await this.wallet.provider.getBalance(this.wallet.address)
+    const walletBalance = await this.walletBalance()
     logWalletBalance(walletBalance)
     logger.imp(`Current wallet balance is ` + walletBalance)
 
