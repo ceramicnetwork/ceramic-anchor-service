@@ -20,22 +20,32 @@ export const MAX_RETRIES = 3
 
 const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
 
+function logWalletBalance(balance: BigNumber) {
+  logMetric.ethereum({
+    type: 'walletBalance',
+    balance: ethers.utils.formatUnits(balance, 'gwei'),
+  })
+}
+
 /**
  * Ethereum blockchain service
  */
 export default class EthereumBlockchainService implements BlockchainService {
   private _chainId: string
+  private readonly network: string
 
-  constructor(private readonly config: Config, private readonly wallet: ethers.Wallet) {}
+  constructor(private readonly config: Config, private readonly wallet: ethers.Wallet) {
+    this.network = config.blockchain.connectors.ethereum.network
+  }
 
   public static make(config: Config): EthereumBlockchainService {
     const { network } = config.blockchain.connectors.ethereum
     const { host, port, url } = config.blockchain.connectors.ethereum.rpc
 
     let provider
-    if (url && url != '') {
+    if (url) {
       provider = new ethers.providers.JsonRpcProvider(url)
-    } else if (host && host != '' && port && port != '') {
+    } else if (host && port) {
       provider = new ethers.providers.JsonRpcProvider(`${host}:${port}`)
     } else {
       provider = ethers.getDefaultProvider(network)
@@ -53,16 +63,9 @@ export default class EthereumBlockchainService implements BlockchainService {
    * Connects to blockchain
    */
   public async connect(): Promise<void> {
-    logger.imp(
-      'Connecting to ' + this.config.blockchain.connectors.ethereum.network + ' blockchain...'
-    )
+    logger.imp('Connecting to ' + this.network + ' blockchain...')
     await this._loadChainId()
-    logger.imp(
-      'Connected to ' +
-        this.config.blockchain.connectors.ethereum.network +
-        ' blockchain with chain ID ' +
-        this.chainId
-    )
+    logger.imp('Connected to ' + this.network + ' blockchain with chain ID ' + this.chainId)
   }
 
   /**
@@ -72,6 +75,14 @@ export default class EthereumBlockchainService implements BlockchainService {
   private async _loadChainId(): Promise<void> {
     const idnum = (await this.wallet.provider.getNetwork()).chainId
     this._chainId = BASE_CHAIN_ID + ':' + idnum
+  }
+
+  /**
+   * Returns the cached 'chainId' representing the CAIP-2 ID of the configured blockchain.
+   * Invalid to call before calling connect()
+   */
+  public get chainId(): string {
+    return this._chainId
   }
 
   /**
@@ -91,13 +102,18 @@ export default class EthereumBlockchainService implements BlockchainService {
     } else {
       const feeData = await this.wallet.provider.getFeeData()
       // Add extra to gas price for each subsequent attempt
-      const nextMaxPriorityFeePerGas  = EthereumBlockchainService.increaseGasPricePerAttempt(
+      const prevMaxPriorityFeePerGas = BigNumber.from(txData.maxPriorityFeePerGas || 0)
+      const nextMaxPriorityFeePerGas = EthereumBlockchainService.increaseGasPricePerAttempt(
         feeData,
         attempt,
-        txData.maxPriorityFeePerGas
+        prevMaxPriorityFeePerGas
       )
+      const difference = nextMaxPriorityFeePerGas.sub(prevMaxPriorityFeePerGas)
+      txData.maxFeePerGas = feeData.maxFeePerGas.add(difference)
       txData.maxPriorityFeePerGas = nextMaxPriorityFeePerGas
-      logger.debug('Estimated maxPriorityFeePerGas (in wei): ' + nextMaxPriorityFeePerGas.toString())
+      logger.debug(
+        'Estimated maxPriorityFeePerGas (in wei): ' + nextMaxPriorityFeePerGas.toString()
+      )
 
       txData.gasLimit = await this.wallet.provider.estimateGas(txData)
       logger.debug('Estimated Gas limit: ' + txData.gasLimit.toString())
@@ -128,14 +144,6 @@ export default class EthereumBlockchainService implements BlockchainService {
     return newGas.gt(minGas) ? newGas : minGas
   }
 
-  /**
-   * Returns the cached 'chainId' representing the CAIP-2 ID of the configured blockchain.
-   * Invalid to call before calling connect()
-   */
-  public get chainId(): string {
-    return this._chainId
-  }
-
   async _buildTransactionRequest(rootCid: CID): Promise<TransactionRequest> {
     const rootStrHex = rootCid.toString('base16')
     const hexEncoded = '0x' + (rootStrHex.length % 2 == 0 ? rootStrHex : '0' + rootStrHex)
@@ -144,24 +152,21 @@ export default class EthereumBlockchainService implements BlockchainService {
     logger.debug('Preparing ethereum transaction')
     const baseNonce = await this.wallet.provider.getTransactionCount(this.wallet.address)
 
-    const txData: TransactionRequest = {
+    return {
       to: this.wallet.address,
       data: hexEncoded,
       nonce: baseNonce,
     }
-    return txData
   }
 
   /**
    * One attempt at submitting the prepared TransactionRequest to the ethereum blockchain.
    * @param txData
    * @param attemptNum
-   * @param network
    */
   async _trySendTransaction(
     txData: TransactionRequest,
-    attemptNum: number,
-    network: string
+    attemptNum: number
   ): Promise<providers.TransactionResponse> {
     logger.imp('Transaction data:' + JSON.stringify(txData))
 
@@ -171,7 +176,7 @@ export default class EthereumBlockchainService implements BlockchainService {
       type: 'txRequest',
       ...(loggableTxData as Omit<TransactionRequest, 'type'>),
     })
-    logger.imp(`Sending transaction to Ethereum ${network} network...`)
+    logger.imp(`Sending transaction to Ethereum ${this.network} network...`)
     const txResponse: providers.TransactionResponse = await this.wallet.sendTransaction(txData)
     logEvent.ethereum({
       type: 'txResponse',
@@ -191,12 +196,10 @@ export default class EthereumBlockchainService implements BlockchainService {
    * Queries the blockchain to see if the submitted transaction was successfully mined, and returns
    * the transaction info if so.
    * @param txResponse - response from when the transaction was submitted to the mempool
-   * @param network
    * @param transactionTimeoutSecs
    */
   async _confirmTransactionSuccess(
     txResponse: providers.TransactionResponse,
-    network: string,
     transactionTimeoutSecs: number
   ): Promise<Transaction> {
     const caip2ChainId = 'eip155:' + txResponse.chainId
@@ -227,7 +230,7 @@ export default class EthereumBlockchainService implements BlockchainService {
       statusMessage = 'unknown'
     }
     logger.imp(
-      `Transaction completed on Ethereum ${network} network. Transaction hash: ${txReceipt.transactionHash}. Status: ${statusMessage}.`
+      `Transaction completed on Ethereum ${this.network} network. Transaction hash: ${txReceipt.transactionHash}. Status: ${statusMessage}.`
     )
     if (status == TX_FAILURE) {
       throw new Error('Transaction completed with a failure status')
@@ -255,11 +258,7 @@ export default class EthereumBlockchainService implements BlockchainService {
   ): Promise<Transaction> {
     for (let i = txResponses.length - 1; i >= 0; i--) {
       try {
-        return await this._confirmTransactionSuccess(
-          txResponses[i],
-          network,
-          transactionTimeoutSecs
-        )
+        return await this._confirmTransactionSuccess(txResponses[i], transactionTimeoutSecs)
       } catch (err) {
         logger.err(err)
       }
@@ -271,16 +270,12 @@ export default class EthereumBlockchainService implements BlockchainService {
    * Sends transaction with root CID as data
    */
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
-    const walletBalance = await this.wallet.provider.getBalance(this.wallet.address)
-    logMetric.ethereum({
-      type: 'walletBalance',
-      balance: ethers.utils.formatUnits(walletBalance, 'gwei'),
-    })
+    const walletBalance = await this.walletBalance()
+    logWalletBalance(walletBalance)
     logger.imp(`Current wallet balance is ` + walletBalance)
 
     const txData = await this._buildTransactionRequest(rootCid)
     const transactionTimeoutSecs = this.config.blockchain.connectors.ethereum.transactionTimeoutSecs
-    const { network } = this.config.blockchain.connectors.ethereum
 
     let attemptNum = 0
     const txResponses: Array<providers.TransactionResponse> = []
@@ -288,9 +283,9 @@ export default class EthereumBlockchainService implements BlockchainService {
       try {
         await this.setGasPrice(txData, attemptNum)
 
-        const txResponse = await this._trySendTransaction(txData, attemptNum, network)
+        const txResponse = await this._trySendTransaction(txData, attemptNum)
         txResponses.push(txResponse)
-        return await this._confirmTransactionSuccess(txResponse, network, transactionTimeoutSecs)
+        return await this._confirmTransactionSuccess(txResponse, transactionTimeoutSecs)
       } catch (err) {
         logger.err(err)
 
@@ -336,7 +331,7 @@ export default class EthereumBlockchainService implements BlockchainService {
 
             return await this._checkForPreviousTransactionSuccess(
               txResponses,
-              network,
+              this.network,
               transactionTimeoutSecs
             )
           }
@@ -352,10 +347,14 @@ export default class EthereumBlockchainService implements BlockchainService {
       }
     }
 
-    const finalWalletBalance = await this.wallet.provider.getBalance(this.wallet.address)
-    logMetric.ethereum({
-      type: 'walletBalance',
-      balance: ethers.utils.formatUnits(finalWalletBalance, 'gwei'),
-    })
+    const finalWalletBalance = await this.walletBalance()
+    logWalletBalance(finalWalletBalance)
+  }
+
+  /**
+   * Current balance of the wallet in wei.
+   */
+  walletBalance(): Promise<BigNumber> {
+    return this.wallet.provider.getBalance(this.wallet.address)
   }
 }
