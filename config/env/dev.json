@@ -21,7 +21,7 @@
         "network": "@@ETH_NETWORK",
         "overrideGasConfig": "@@ETH_OVERRIDE_GAS_CONFIG",
         "gasLimit": "@@ETH_GAS_LIMIT",
-        "gasPrice": "@@ETH_GAS_PRICE",
+        "maxPriorityFeePerGas": "@@ETH_MAX_PRIORITY_FEE",
         "rpc": {
           "host": "@@ETH_RPC_HOST",
           "port": "@@ETH_RPC_PORT",

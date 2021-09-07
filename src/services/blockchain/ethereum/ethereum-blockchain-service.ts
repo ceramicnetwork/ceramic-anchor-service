@@ -89,8 +89,11 @@ export default class EthereumBlockchainService implements BlockchainService {
    */
   async setGasPrice(txData: TransactionRequest, attempt: number): Promise<void> {
     if (this.config.blockchain.connectors.ethereum.overrideGasConfig) {
-      txData.gasPrice = BigNumber.from(this.config.blockchain.connectors.ethereum.gasPrice)
-      logger.debug('Overriding Gas price: ' + txData.gasPrice.toString())
+      const feeData = await this.wallet.provider.getFeeData()
+      const baseFee = feeData.maxFeePerGas.sub(feeData.maxPriorityFeePerGas)
+      txData.maxPriorityFeePerGas = BigNumber.from(this.config.blockchain.connectors.ethereum.maxPriorityFeePerGas)
+      txData.maxFeePerGas = baseFee.add(txData.maxPriorityFeePerGas)
+      logger.debug('Overriding Gas price: max priority fee:' + txData.maxPriorityFeePerGas.toString())
 
       txData.gasLimit = BigNumber.from(this.config.blockchain.connectors.ethereum.gasLimit)
       logger.debug('Overriding Gas limit: ' + txData.gasLimit.toString())
