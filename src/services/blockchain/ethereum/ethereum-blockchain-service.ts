@@ -104,8 +104,12 @@ export default class EthereumBlockchainService implements BlockchainService {
         prevMaxPriorityFeePerGas
       )
       const difference = nextMaxPriorityFeePerGas.sub(prevMaxPriorityFeePerGas)
-      txData.maxFeePerGas = feeData.maxFeePerGas.add(difference)
-      txData.maxPriorityFeePerGas = nextMaxPriorityFeePerGas
+      if (feeData.maxPriorityFeePerGas) {
+        txData.maxFeePerGas = feeData.maxFeePerGas.add(difference)
+        txData.maxPriorityFeePerGas = nextMaxPriorityFeePerGas
+      } else {
+        txData.gasPrice = nextMaxPriorityFeePerGas
+      }
       logger.debug(
         'Estimated maxPriorityFeePerGas (in wei): ' + nextMaxPriorityFeePerGas.toString()
       )
@@ -130,12 +134,19 @@ export default class EthereumBlockchainService implements BlockchainService {
     attempt: number,
     previousGas: BigNumberish | undefined
   ): BigNumber {
-    const newGas = feeData.maxPriorityFeePerGas.mul(1 + 0.1 * attempt)
+    // Ganache still does not support 1559, so here is a workaround
+    const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas || feeData.gasPrice
+    // Ethers BigNumber does not support non-integer numbers for operations
+    const decimalPart = maxPriorityFeePerGas.div(10)
+    const increase = decimalPart.mul(attempt)
+    const newGas = maxPriorityFeePerGas.add(increase)
     if (attempt == 0 || previousGas == undefined) {
       return newGas
     }
 
-    const minGas = BigNumber.from(previousGas).mul(1.1)
+    const previousGasBN = BigNumber.from(previousGas)
+    const previousGasDecimalPart = previousGasBN.div(10)
+    const minGas = previousGasBN.add(previousGasDecimalPart)
     return newGas.gt(minGas) ? newGas : minGas
   }
 
@@ -275,7 +286,8 @@ export default class EthereumBlockchainService implements BlockchainService {
           const { code } = err
           if (code) {
             if (code === ErrorCode.INSUFFICIENT_FUNDS) {
-              const txCost = (txData.gasLimit as BigNumber).mul(txData.gasPrice)
+              const gasPrice = txData.maxFeePerGas || txData.gasPrice
+              const txCost = (txData.gasLimit as BigNumber).mul(gasPrice)
               if (txCost.gt(walletBalance)) {
                 logEvent.ethereum({
                   type: 'insufficientFunds',

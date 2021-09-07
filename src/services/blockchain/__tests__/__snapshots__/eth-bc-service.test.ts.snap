@@ -23,7 +23,11 @@ Object {
     "hex": "0x2710",
     "type": "BigNumber",
   },
-  "gasPrice": Object {
+  "maxFeePerGas": Object {
+    "hex": "0x0834",
+    "type": "BigNumber",
+  },
+  "maxPriorityFeePerGas": Object {
     "hex": "0x044c",
     "type": "BigNumber",
   },
@@ -39,7 +43,11 @@ Object {
     "hex": "0x2710",
     "type": "BigNumber",
   },
-  "gasPrice": Object {
+  "maxFeePerGas": Object {
+    "hex": "0x0834",
+    "type": "BigNumber",
+  },
+  "maxPriorityFeePerGas": Object {
     "hex": "0x044c",
     "type": "BigNumber",
   },
@@ -89,7 +97,11 @@ Object {
     "hex": "0x2710",
     "type": "BigNumber",
   },
-  "gasPrice": Object {
+  "maxFeePerGas": Object {
+    "hex": "0x0bb8",
+    "type": "BigNumber",
+  },
+  "maxPriorityFeePerGas": Object {
     "hex": "0x03e8",
     "type": "BigNumber",
   },
@@ -97,4 +109,3 @@ Object {
   "to": "abcd1234",
 }
 `;
-
