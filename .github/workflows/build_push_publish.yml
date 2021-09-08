@@ -30,12 +30,12 @@ jobs:
           echo "::set-output name=ECR_REPOSITORY::ceramic-prod-cas"
           echo "::set-output name=IMAGE_TAG::latest"
           echo "::set-output name=IMAGE_TAG_2::prod"
-          echo "::set-output name=WEBHOOK_URL=${{ secrets.WEBHOOK_URL_FIRE }}"
+          echo "::set-output name=WEBHOOK_URL::${{ secrets.WEBHOOK_URL_FIRE }}"
         elif [[ "${{github.base_ref}}" == "release-candidate" || "${{github.ref}}" == "refs/heads/release-candidate" ]]; then
           echo "::set-output name=ECR_REPOSITORY::ceramic-tnet-cas"
           echo "::set-output name=IMAGE_TAG::tnet"
           echo "::set-output name=IMAGE_TAG_2::release-candidate"
-          echo "::set-output name=WEBHOOK_URL=${{ secrets.WEBHOOK_URL_CLAY }}"
+          echo "::set-output name=WEBHOOK_URL::${{ secrets.WEBHOOK_URL_CLAY }}"
         else
           echo "::set-output name=ECR_REPOSITORY::ceramic-dev-cas"
           echo "::set-output name=IMAGE_TAG::dev"
