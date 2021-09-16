@@ -63,17 +63,15 @@ async function swarmConnect(a: IpfsApi, b: IpfsApi) {
 
 async function makeCeramicCore(
   ipfs: IpfsApi,
-  anchorServiceUrl: string | null,
+  anchorServiceUrl: string,
   ethereumRpcUrl: string | null
 ): Promise<Ceramic> {
   const tmpFolder = await tmp.dir({ unsafeCleanup: true })
-  const gateway = !anchorServiceUrl
   const ceramic = await Ceramic.create(ipfs, {
     networkName: 'local',
     pubsubTopic: TOPIC,
     stateStoreDirectory: tmpFolder.path,
     anchorServiceUrl,
-    gateway,
     ethereumRpcUrl,
   })
   ceramic.did = makeDID()
@@ -216,19 +214,9 @@ describe('Ceramic Integration Test', () => {
     const ganacheURL = 'http://localhost:' + ganachePort
     ganacheServer = await makeGanache(blockchainStartTime, ganachePort)
 
-    // Make the Ceramic nodes that will be used by the CAS.
-    ;[casCeramic1, casCeramic2] = await Promise.all([
-      makeCeramicCore(ipfs3, null, ganacheURL),
-      makeCeramicCore(ipfs4, null, ganacheURL),
-    ])
+    // Start anchor services
     const daemonPort1 = await getPort()
     const daemonPort2 = await getPort()
-    daemon1 = new CeramicDaemon(casCeramic1, { port: daemonPort1 })
-    daemon2 = new CeramicDaemon(casCeramic1, { port: daemonPort2 })
-    await daemon1.listen()
-    await daemon2.listen()
-
-    // Start anchor services
     dbConnection1 = await DBConnection.create()
     const casPort1 = await getPort()
     cas1 = await makeCAS(dbConnection1, {
@@ -250,6 +238,16 @@ describe('Ceramic Integration Test', () => {
       port: casPort2,
     })
     await cas2.start()
+
+    // Make the Ceramic nodes that will be used by the CAS.
+    ;[casCeramic1, casCeramic2] = await Promise.all([
+      makeCeramicCore(ipfs3, 'http://localhost:' + casPort1, ganacheURL),
+      makeCeramicCore(ipfs4, 'http://localhost:' + casPort2, ganacheURL),
+    ])
+    daemon1 = new CeramicDaemon(casCeramic1, { port: daemonPort1 })
+    daemon2 = new CeramicDaemon(casCeramic1, { port: daemonPort2 })
+    await daemon1.listen()
+    await daemon2.listen()
 
     // Finally make the Ceramic nodes that will be used in the tests.
     ceramic1 = await makeCeramicCore(ipfs5, 'http://localhost:' + casPort1, ganacheURL)

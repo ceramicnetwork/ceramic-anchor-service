@@ -45,6 +45,7 @@
     "express": "^4.17.1",
     "http-status-codes": "^2.1.4",
     "ipfs-http-client": "^48.1.2",
+    "ipld-dag-cbor": "^0.17.0",
     "lodash.clonedeep": "^4.5.0",
     "lru-cache": "^6.0.0",
     "morgan": "^1.10.0",

@@ -126,12 +126,6 @@ export default class AnchorService {
       return
     }
 
-    // filter valid requests
-    const acceptedRequests = []
-    for (const candidate of candidates) {
-      acceptedRequests.push(...candidate.acceptedRequests)
-    }
-
     logger.imp(`Creating Merkle tree from ${candidates.length} selected records`)
     const merkleTree = await this._buildMerkleTree(candidates)
 
@@ -151,13 +145,13 @@ export default class AnchorService {
 
     // Update the database to record the successful anchors
     logger.debug('Persisting results to local database')
-    await this._persistAnchorResult(anchors, acceptedRequests)
+    const numAnchoredRequests = await this._persistAnchorResult(anchors, candidates)
 
     logEvent.anchor({
       type: 'anchorRequests',
       requestIds: requests.map((r) => r.id),
-      failedRequestsCount: requests.length - acceptedRequests.length,
-      acceptedRequestsCount: acceptedRequests.length,
+      failedRequestsCount: requests.length - numAnchoredRequests,
+      acceptedRequestsCount: numAnchoredRequests,
       candidateCount: candidates.length,
       anchorCount: anchors.length,
     })
@@ -236,10 +230,31 @@ export default class AnchorService {
       const path = await merkleTree.getDirectPathFromRoot(index)
       anchor.path = path.map((p) => (p === PathDirection.L ? 0 : 1)).join('/')
 
-      const ipfsAnchorRecord = { prev: candidate.cid, proof: ipfsProofCid, path: anchor.path }
-      const anchorCid = await this.ipfsService.storeRecord(ipfsAnchorRecord)
+      const ipfsAnchorCommit = {
+        id: candidate.streamId.cid,
+        prev: candidate.cid,
+        proof: ipfsProofCid,
+        path: anchor.path,
+      }
 
-      anchor.cid = anchorCid.toString()
+      try {
+        const anchorCid = await this.ceramicService.publishAnchorCommit(
+          candidate.streamId,
+          ipfsAnchorCommit
+        )
+
+        anchor.cid = anchorCid.toString()
+      } catch (err) {
+        const msg = `Error publishing anchor commit of commit ${
+          candidate.cid
+        } for stream ${candidate.streamId.toString()}: ${err}`
+        logger.err(msg)
+        await this.requestRepository.updateRequests(
+          { status: RS.FAILED, message: msg },
+          candidate.acceptedRequests
+        )
+        candidate.failAllRequests()
+      }
       anchors.push(anchor)
     }
     return anchors
@@ -249,10 +264,17 @@ export default class AnchorService {
    * Updates the anchor and request repositories in the local database with the results
    * of the anchor
    * @param anchors - Anchor objects to be persisted
-   * @param requests - Requests to be marked as successful
+   * @param candidates - todo
+   * @returns The number of successfully anchored requests
    * @private
    */
-  async _persistAnchorResult(anchors: Anchor[], requests: Request[]): Promise<void> {
+  async _persistAnchorResult(anchors: Anchor[], candidates: Candidate[]): Promise<number> {
+    // filter valid requests
+    const acceptedRequests = []
+    for (const candidate of candidates) {
+      acceptedRequests.push(...candidate.acceptedRequests)
+    }
+
     const queryRunner = this.connection.createQueryRunner()
     await queryRunner.startTransaction()
     try {
@@ -263,7 +285,7 @@ export default class AnchorService {
           status: RS.COMPLETED,
           message: 'CID successfully anchored.',
         },
-        requests,
+        acceptedRequests,
         queryRunner.manager
       )
 
@@ -274,6 +296,8 @@ export default class AnchorService {
     } finally {
       await queryRunner.release()
     }
+
+    return acceptedRequests.length
   }
 
   /**

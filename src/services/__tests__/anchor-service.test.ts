@@ -42,13 +42,7 @@ async function anchorCandidates(
   const merkleTree = await anchorService._buildMerkleTree(candidates)
   const ipfsProofCid = await ipfsService.storeRecord({})
   const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree)
-
-  const requests = []
-  for (const candidate of candidates) {
-    requests.push(...candidate.acceptedRequests)
-  }
-
-  await anchorService._persistAnchorResult(anchors, requests)
+  await anchorService._persistAnchorResult(anchors, candidates)
   return anchors
 }
 
@@ -75,7 +69,7 @@ describe('ETH service', () => {
   beforeAll(async () => {
     connection = await DBConnection.create()
     ipfsService = new MockIpfsService()
-    ceramicService = new MockCeramicService()
+    ceramicService = new MockCeramicService(ipfsService)
 
     container.registerInstance('config', config)
     container.registerInstance('dbConnection', connection)

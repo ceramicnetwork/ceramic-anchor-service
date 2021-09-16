@@ -2,7 +2,8 @@ import CID from 'cids'
 import { CeramicService } from './services/ceramic-service'
 import { IpfsService } from './services/ipfs-service'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
-import { MultiQuery, Stream } from '@ceramicnetwork/common'
+import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
+import dagCBOR from 'ipld-dag-cbor'
 
 // A set of random valid CIDs to use in tests
 // TODO write a random CID generator and use that instead of this list
@@ -77,7 +78,11 @@ export class MockIpfsService implements IpfsService {
 }
 
 export class MockCeramicService implements CeramicService {
-  constructor(private _streams: Record<string, any> = {}, private _cidIndex = 0) {}
+  constructor(
+    private _ipfsService: IpfsService,
+    private _streams: Record<string, any> = {},
+    private _cidIndex = 0
+  ) {}
 
   async loadStream(streamId: StreamID): Promise<any> {
     return this._streams[streamId.toString()]
@@ -94,6 +99,10 @@ export class MockCeramicService implements CeramicService {
     }
 
     return result
+  }
+
+  async publishAnchorCommit(streamId: StreamID, anchorCommit: AnchorCommit): Promise<CID> {
+    return this._ipfsService.storeRecord(anchorCommit)
   }
 
   // Mock-only method to control what gets returned by loadStream()
