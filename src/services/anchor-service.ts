@@ -264,12 +264,13 @@ export default class AnchorService {
    * Updates the anchor and request repositories in the local database with the results
    * of the anchor
    * @param anchors - Anchor objects to be persisted
-   * @param candidates - todo
+   * @param candidates - Candidate objects for the Streams that had anchor attempts. Note that some
+   *   of them may have encountered failures during the anchor attempt.
    * @returns The number of successfully anchored requests
    * @private
    */
   async _persistAnchorResult(anchors: Anchor[], candidates: Candidate[]): Promise<number> {
-    // filter valid requests
+    // filter to requests for streams that were actually anchored successfully
     const acceptedRequests = []
     for (const candidate of candidates) {
       acceptedRequests.push(...candidate.acceptedRequests)
