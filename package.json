@@ -31,11 +31,11 @@
     }
   },
   "dependencies": {
-    "@ceramicnetwork/common": "^1.4.0",
-    "@ceramicnetwork/http-client": "^1.2.2",
+    "@ceramicnetwork/common": "^1.5.0",
+    "@ceramicnetwork/http-client": "^1.3.0",
     "@ceramicnetwork/logger": "^1.0.4",
-    "@ceramicnetwork/stream-tile": "^1.3.0",
-    "@ceramicnetwork/streamid": "^1.2.0",
+    "@ceramicnetwork/stream-tile": "^1.3.1",
+    "@ceramicnetwork/streamid": "^1.2.1",
     "@overnightjs/core": "^1.7.5",
     "aws-cron-parser": "1.1.10",
     "bloom-filters": "^1.3.1",
