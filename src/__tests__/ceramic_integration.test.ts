@@ -1,4 +1,4 @@
-import { CeramicDaemon } from '@ceramicnetwork/cli'
+import { CeramicDaemon, DaemonConfig } from '@ceramicnetwork/cli';
 import Ceramic from '@ceramicnetwork/core'
 import { AnchorStatus, IpfsApi, Stream, SyncOptions } from '@ceramicnetwork/common'
 
@@ -223,8 +223,8 @@ describe('Ceramic Integration Test', () => {
     ])
     const daemonPort1 = await getPort()
     const daemonPort2 = await getPort()
-    daemon1 = new CeramicDaemon(casCeramic1, { port: daemonPort1 })
-    daemon2 = new CeramicDaemon(casCeramic1, { port: daemonPort2 })
+    daemon1 = new CeramicDaemon(casCeramic1, DaemonConfig.fromObject({ port: daemonPort1 }))
+    daemon2 = new CeramicDaemon(casCeramic1, DaemonConfig.fromObject({ port: daemonPort2 }))
     await daemon1.listen()
     await daemon2.listen()
 
