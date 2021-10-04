@@ -129,6 +129,9 @@ export default class AnchorService {
     // filter valid requests
     const acceptedRequests = []
     for (const candidate of candidates) {
+      logger.debug(
+        `Anchoring CID ${candidate.cid.toString()} for stream ${candidate.streamId.toString()}`
+      )
       acceptedRequests.push(...candidate.acceptedRequests)
     }
 
@@ -146,7 +149,7 @@ export default class AnchorService {
     const ipfsProofCid = await this._createIPFSProof(tx, merkleTree.getRoot().data.cid)
 
     // create anchor records on IPFS
-    logger.debug('Creating anchor commit')
+    logger.debug('Creating anchor commits')
     const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
 
     // Update the database to record the successful anchors
@@ -238,6 +241,9 @@ export default class AnchorService {
 
       const ipfsAnchorRecord = { prev: candidate.cid, proof: ipfsProofCid, path: anchor.path }
       const anchorCid = await this.ipfsService.storeRecord(ipfsAnchorRecord)
+      logger.debug(
+        `Created anchor commit with CID ${anchorCid.toString()} for stream ${candidate.streamId.toString()}`
+      )
 
       anchor.cid = anchorCid.toString()
       anchors.push(anchor)
