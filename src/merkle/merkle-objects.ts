@@ -121,7 +121,7 @@ export class Candidate implements CIDHolder {
   }
 
   shouldAnchor(): boolean {
-    return this.cid != null && this._acceptedRequests.length > 0
+    return this.cid != null && this._acceptedRequests.length > 0 && !this._alreadyAnchored
   }
 
   /**
@@ -217,7 +217,7 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
       const candidate = node.data
       bloomFilterEntries.add(`streamid-${candidate.streamId.toString()}`)
       if (candidate.metadata.schema) {
-        bloomFilterEntries.add(`schema-${candidate.metadata.schema.toString()}`)
+        bloomFilterEntries.add(`schema-${candidate.metadata.schema}`)
       }
       if (candidate.metadata.family) {
         bloomFilterEntries.add(`family-${candidate.metadata.family}`)
@@ -228,7 +228,7 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
         }
       }
       for (const controller of candidate.metadata.controllers) {
-        bloomFilterEntries.add(`controller-${controller.toString()}`)
+        bloomFilterEntries.add(`controller-${controller}`)
       }
     }
     const bloomFilter = BloomFilter.from(bloomFilterEntries, BLOOM_FILTER_FALSE_POSITIVE_RATE)

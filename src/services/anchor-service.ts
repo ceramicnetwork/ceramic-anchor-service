@@ -140,7 +140,7 @@ export default class AnchorService {
     const ipfsProofCid = await this._createIPFSProof(tx, merkleTree.getRoot().data.cid)
 
     // create anchor records on IPFS
-    logger.debug('Creating anchor commit')
+    logger.debug('Creating anchor commits')
     const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
 
     // Update the database to record the successful anchors
@@ -242,8 +242,11 @@ export default class AnchorService {
           candidate.streamId,
           ipfsAnchorCommit
         )
-
         anchor.cid = anchorCid.toString()
+
+        logger.debug(
+          `Created anchor commit with CID ${anchorCid.toString()} for stream ${candidate.streamId.toString()}`
+        )
       } catch (err) {
         const msg = `Error publishing anchor commit of commit ${
           candidate.cid
