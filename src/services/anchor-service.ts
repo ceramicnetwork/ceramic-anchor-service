@@ -218,49 +218,64 @@ export default class AnchorService {
     ipfsProofCid: CID,
     merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
   ): Promise<Anchor[]> {
-    const anchors: Anchor[] = []
     const candidates = merkleTree.getLeaves()
-    for (let index = 0; index < candidates.length; index++) {
-      const candidate = candidates[index]
-
-      const anchor: Anchor = new Anchor()
-      anchor.request = candidate.newestAcceptedRequest
-      anchor.proofCid = ipfsProofCid.toString()
-
-      const path = await merkleTree.getDirectPathFromRoot(index)
-      anchor.path = path.map((p) => (p === PathDirection.L ? 0 : 1)).join('/')
-
-      const ipfsAnchorCommit = {
-        id: candidate.streamId.cid,
-        prev: candidate.cid,
-        proof: ipfsProofCid,
-        path: anchor.path,
-      }
-
-      try {
-        const anchorCid = await this.ceramicService.publishAnchorCommit(
-          candidate.streamId,
-          ipfsAnchorCommit
-        )
-        anchor.cid = anchorCid.toString()
-
-        logger.debug(
-          `Created anchor commit with CID ${anchorCid.toString()} for stream ${candidate.streamId.toString()}`
-        )
-      } catch (err) {
-        const msg = `Error publishing anchor commit of commit ${
-          candidate.cid
-        } for stream ${candidate.streamId.toString()}: ${err}`
-        logger.err(msg)
-        await this.requestRepository.updateRequests(
-          { status: RS.FAILED, message: msg },
-          candidate.acceptedRequests
-        )
-        candidate.failAllRequests()
-      }
-      anchors.push(anchor)
-    }
+    const anchors = await Promise.all(
+      Array.from(candidates.entries()).map(([index, candidate]) =>
+        this._createAnchorCommit(candidate, index, ipfsProofCid, merkleTree)
+      )
+    )
     return anchors
+  }
+
+  /**
+   * Helper function for _createAnchorCommits that creates a single anchor commit for a single candidate.
+   * @param candidate
+   * @param candidateIndex - index of the candidate within the leaves of the merkle tree.
+   * @param ipfsProofCid
+   * @param merkleTree
+   */
+  async _createAnchorCommit(
+    candidate: Candidate,
+    candidateIndex: number,
+    ipfsProofCid: CID,
+    merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
+  ): Promise<Anchor> {
+    const anchor: Anchor = new Anchor()
+    anchor.request = candidate.newestAcceptedRequest
+    anchor.proofCid = ipfsProofCid.toString()
+
+    const path = await merkleTree.getDirectPathFromRoot(candidateIndex)
+    anchor.path = path.map((p) => (p === PathDirection.L ? 0 : 1)).join('/')
+
+    const ipfsAnchorCommit = {
+      id: candidate.streamId.cid,
+      prev: candidate.cid,
+      proof: ipfsProofCid,
+      path: anchor.path,
+    }
+
+    try {
+      const anchorCid = await this.ceramicService.publishAnchorCommit(
+        candidate.streamId,
+        ipfsAnchorCommit
+      )
+      anchor.cid = anchorCid.toString()
+
+      logger.debug(
+        `Created anchor commit with CID ${anchorCid.toString()} for stream ${candidate.streamId.toString()}`
+      )
+    } catch (err) {
+      const msg = `Error publishing anchor commit of commit ${
+        candidate.cid
+      } for stream ${candidate.streamId.toString()}: ${err}`
+      logger.err(msg)
+      await this.requestRepository.updateRequests(
+        { status: RS.FAILED, message: msg },
+        candidate.acceptedRequests
+      )
+      candidate.failAllRequests()
+    }
+    return anchor
   }
 
   /**
