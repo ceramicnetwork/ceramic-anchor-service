@@ -113,6 +113,7 @@ export class Candidate implements CIDHolder {
    */
   failAllRequests(): void {
     this._failedRequests = this._requests
+    this._acceptedRequests = []
   }
 
   allRequestsFailed(): boolean {
