@@ -73,6 +73,8 @@ export class MockCeramicService implements CeramicService {
     return new StreamID('tile', cid)
   }
 
+  unpinStream(streamId: StreamID) {}
+
   reset() {
     this._cidIndex = 0
     this._streams = {}

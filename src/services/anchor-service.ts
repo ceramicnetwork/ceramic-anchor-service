@@ -101,6 +101,11 @@ export default class AnchorService {
     await this._anchorRequests(requests)
   }
 
+  public async garbageCollectPinnedStreams(): Promise<void> {
+    const requests: Request[] = await this.requestRepository.findRequestsToGarbageCollect()
+    await this._garbageCollect(requests)
+  }
+
   private async _anchorRequests(requests: Request[]): Promise<void> {
     logger.imp('Anchoring pending requests...')
 
@@ -161,6 +166,37 @@ export default class AnchorService {
       )
     }
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
+  }
+
+  private async _garbageCollect(requests: Request[]): Promise<void> {
+    const streamIds = new Set<string>()
+    requests.forEach((request) => streamIds.add(request.streamId))
+
+    logger.imp(
+      `Garbage collecting ${streamIds.size} pinned Streams from ${requests.length} Requests`
+    )
+
+    const unpinnedStreams = new Set<string>()
+    for (const streamIdStr of streamIds) {
+      try {
+        const streamId = StreamID.fromString(streamIdStr)
+        await this.ceramicService.unpinStream(streamId)
+        unpinnedStreams.add(streamIdStr)
+        logger.debug(`Stream ${streamIdStr.toString()} successfully unpinned`)
+      } catch (err) {
+        logger.err(`Error unpinning Stream ${streamIdStr}: ${err}`)
+      }
+    }
+
+    logger.imp(`Successfully unpinned ${unpinnedStreams.size} Streams`)
+
+    const garbageCollectedRequests = requests.filter((request) =>
+      unpinnedStreams.has(request.streamId)
+    )
+
+    await this.requestRepository.updateRequests({ pinned: false }, garbageCollectedRequests)
+
+    logger.imp(`Successfully garbage collected ${garbageCollectedRequests.length} Requests`)
   }
 
   /**

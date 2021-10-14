@@ -14,6 +14,12 @@ import { logEvent } from '../logger'
 import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
 
+/**
+ * How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
+ * AnchorCommit available to the network.
+ */
+const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
+
 @singleton()
 @EntityRepository(Request)
 export default class RequestRepository extends Repository<Request> {
@@ -94,9 +100,9 @@ export default class RequestRepository extends Repository<Request> {
     return await this.connection
       .getRepository(Request)
       .createQueryBuilder('request')
-      .orderBy('request.createdAt', 'DESC')
+      .orderBy('request.created_at', 'DESC')
       .where('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
-      .orWhere('request.status = :processingStatus AND request.updatedAt < :deadlineDate', {
+      .orWhere('request.status = :processingStatus AND request.updated_at < :deadlineDate', {
         processingStatus: RequestStatus.PROCESSING,
         deadlineDate: deadlineDate.toISOString(),
       })
@@ -113,5 +119,37 @@ export default class RequestRepository extends Repository<Request> {
       .createQueryBuilder('request')
       .where('request.cid = :cid', { cid: cid.toString() })
       .getOne()
+  }
+
+  /**
+   * Gets all requests that were anchored over a month ago, and that are on streams that have had
+   * no other requests in the last month.
+   */
+  public async findRequestsToGarbageCollect(): Promise<Request[]> {
+    const now: number = new Date().getTime()
+    const deadlineDate = new Date(now - ANCHOR_DATA_RETENTION_WINDOW)
+
+    const expiredRequests = await this.connection
+      .getRepository(Request)
+      .createQueryBuilder('request')
+      .orderBy('request.updated_at', 'DESC')
+      .where('request.status = :anchoredStatus', { anchoredStatus: RequestStatus.COMPLETED })
+      .andWhere('request.pinned = :pinned', { pinned: true })
+      .andWhere('request.updated_at < :deadlineDate', { deadlineDate: deadlineDate.toISOString() })
+
+    return expiredRequests
+      .andWhere((qb) => {
+        const recentRequestsStreamIds = qb
+          .subQuery()
+          .select('doc_id')
+          .from(Request, 'recent_request')
+          .orderBy('recent_request.updated_at', 'DESC')
+          .where('recent_request.updated_at >= :deadlineDate', {
+            deadlineDate: deadlineDate.toISOString(),
+          })
+          .getQuery()
+        return 'request.doc_id NOT IN ' + recentRequestsStreamIds
+      })
+      .getMany()
   }
 }

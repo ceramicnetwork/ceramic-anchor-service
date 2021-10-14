@@ -160,7 +160,7 @@ export default class CeramicAnchorApp {
         break
       }
       case 'anchor': {
-        await this._startAnchor()
+        await this._startAnchorAndGarbageCollection()
         break
       }
       case 'bundled': {
@@ -204,13 +204,22 @@ export default class CeramicAnchorApp {
   }
 
   /**
-   * Starts application in anchoring mode, without the API server. This will cause the process to startup, read the database for pending anchors requests, and perform a single anchor on chain before shutting down.
+   * Starts application in anchoring mode, without the API server. This will cause the process to
+   * startup, read the database for pending anchors requests, and perform a single anchor on chain
+   * before shutting down.
+   * If the anchor is successful, will also perform a round of garbage collecting old pinned streams
+   * before shutting down.
    * @private
    */
-  private async _startAnchor(): Promise<void> {
+  private async _startAnchorAndGarbageCollection(): Promise<void> {
     const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService')
     await anchorService.anchorRequests().catch((error) => {
       logger.err(`Error when anchoring: ${error}`)
+      logger.err('Exiting')
+      process.exit(1)
+    })
+    await anchorService.garbageCollectPinnedStreams().catch((error) => {
+      logger.err(`Error when garbage collecting pinned streams: ${error}`)
       logger.err('Exiting')
       process.exit(1)
     })

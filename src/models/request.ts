@@ -40,7 +40,7 @@ export class Request {
  * Request update  fields
  */
 export interface RequestUpdateFields {
-  message: string
-  status: RequestStatus
+  message?: string
+  status?: RequestStatus
   pinned?: boolean
 }
