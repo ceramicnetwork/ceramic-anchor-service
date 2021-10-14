@@ -26,6 +26,9 @@ export class Request {
   @Column({ nullable: true })
   message: string
 
+  @Column({ nullable: false, default: false })
+  pinned: boolean
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date
 
@@ -39,4 +42,5 @@ export class Request {
 export interface RequestUpdateFields {
   message: string
   status: RequestStatus
+  pinned?: boolean
 }
