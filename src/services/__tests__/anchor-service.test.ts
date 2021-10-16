@@ -60,7 +60,7 @@ function createStream(id: StreamID, log: CID[], anchorStatus: AnchorStatus = Anc
   }
 }
 
-describe('ETH service', () => {
+describe('anchor service', () => {
   jest.setTimeout(10000)
   let ipfsService: MockIpfsService
   let ceramicService: MockCeramicService
@@ -102,7 +102,7 @@ describe('ETH service', () => {
       throw new Error('Failed to send transaction!')
     })
 
-    const streamId = ceramicService.generateBaseStreamID()
+    const streamId = await ceramicService.generateBaseStreamID()
     const cid = await ipfsService.storeRecord({})
     const streamCommitId = streamId.atCommit(cid)
     const stream = createStream(streamId, [cid])
@@ -140,7 +140,7 @@ describe('ETH service', () => {
     const requests = []
     const numRequests = 4
     for (let i = 0; i < numRequests; i++) {
-      const streamId = ceramicService.generateBaseStreamID()
+      const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
       requests.push(request)
@@ -188,7 +188,7 @@ describe('ETH service', () => {
 
     // Create pending requests
     for (let i = 0; i < numRequests; i++) {
-      const streamId = ceramicService.generateBaseStreamID()
+      const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
       const commitId = streamId.atCommit(request.cid)
@@ -228,7 +228,7 @@ describe('ETH service', () => {
 
     // Create pending requests
     for (let i = 0; i < numRequests; i++) {
-      const streamId = ceramicService.generateBaseStreamID()
+      const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
       const commitId = streamId.atCommit(request.cid)
@@ -253,7 +253,7 @@ describe('ETH service', () => {
     const anchorService = container.resolve<AnchorService>('anchorService')
 
     const makeRequest = async function (valid: boolean) {
-      const streamId = ceramicService.generateBaseStreamID()
+      const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
 
@@ -294,7 +294,7 @@ describe('ETH service', () => {
       const anchorService = container.resolve<AnchorService>('anchorService')
 
       // 1 stream with 2 pending requests, one request is newer and inclusive of the other.
-      const streamId = ceramicService.generateBaseStreamID()
+      const streamId = await ceramicService.generateBaseStreamID()
       const request0 = await createRequest(streamId.toString(), ipfsService)
       const request1 = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request0)
@@ -338,7 +338,7 @@ describe('ETH service', () => {
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const anchorService = container.resolve<AnchorService>('anchorService')
 
-      const streamId = ceramicService.generateBaseStreamID()
+      const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
       const commitId = streamId.atCommit(request.cid)
@@ -373,7 +373,7 @@ describe('ETH service', () => {
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const anchorService = container.resolve<AnchorService>('anchorService')
 
-      const streamId = ceramicService.generateBaseStreamID()
+      const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
       const commitId = streamId.atCommit(request.cid)
@@ -394,7 +394,7 @@ describe('ETH service', () => {
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const anchorService = container.resolve<AnchorService>('anchorService')
 
-      const streamId = ceramicService.generateBaseStreamID()
+      const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
       const commitId = streamId.atCommit(request.cid)
