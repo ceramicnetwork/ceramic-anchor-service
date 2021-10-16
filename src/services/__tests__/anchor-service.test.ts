@@ -423,7 +423,7 @@ describe('anchor service', () => {
       const anchorService = container.resolve<AnchorService>('anchorService')
 
       // 1 stream being anchored
-      const streamId = ceramicService.generateBaseStreamID()
+      const streamId = await ceramicService.generateBaseStreamID()
       const request0 = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request0)
       const request0FromDB = await requestRepository.findByCid(new CID(request0.cid))
