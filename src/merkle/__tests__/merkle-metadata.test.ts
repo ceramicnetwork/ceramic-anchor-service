@@ -1,4 +1,4 @@
-import { CidGenerator, MockIpfsService } from '../../test-utils'
+import { MockIpfsService, randomCID } from '../../test-utils'
 import { MerkleTree } from '../merkle-tree'
 import { TreeMetadata } from '../merkle'
 import { BloomMetadata, Candidate, CIDHolder, IpfsLeafCompare, IpfsMerge } from '../merkle-objects'
@@ -9,16 +9,14 @@ import { AnchorStatus } from '@ceramicnetwork/common'
 
 describe('Bloom filter', () => {
   jest.setTimeout(10000)
-  const cidGenerator = new CidGenerator()
-  const ipfsService = new MockIpfsService(cidGenerator)
+  const ipfsService = new MockIpfsService()
 
   beforeEach(async () => {
-    cidGenerator.reset()
     ipfsService.reset()
   })
 
-  const createCandidate = function (metadata: any) {
-    const cid = cidGenerator.next()
+  const createCandidate = async function (metadata: any): Promise<Candidate> {
+    const cid = await randomCID()
     const stream = {
       id: new StreamID('tile', cid),
       tip: cid,
@@ -40,7 +38,7 @@ describe('Bloom filter', () => {
 
   test('Single stream minimal metadata', async () => {
     const merkleTree = makeMerkleTree()
-    const candidates = [createCandidate({ controllers: ['a'] })]
+    const candidates = [await createCandidate({ controllers: ['a'] })]
     await merkleTree.build(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(1)
@@ -62,7 +60,7 @@ describe('Bloom filter', () => {
       family: 'family',
       tags: ['a', 'b'],
     }
-    const candidates = [createCandidate(streamMetadata)]
+    const candidates = [await createCandidate(streamMetadata)]
     await merkleTree.build(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(1)
@@ -103,11 +101,11 @@ describe('Bloom filter', () => {
       family: 'family1',
       tags: ['a', 'c', 'e'],
     }
-    const candidates = [
+    const candidates = await Promise.all([
       createCandidate(streamMetadata0),
       createCandidate(streamMetadata1),
       createCandidate(streamMetadata2),
-    ]
+    ])
     await merkleTree.build(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(3)
