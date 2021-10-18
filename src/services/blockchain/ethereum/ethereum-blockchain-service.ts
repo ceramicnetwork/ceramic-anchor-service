@@ -252,8 +252,8 @@ export default class EthereumBlockchainService implements BlockchainService {
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
     const txData = await this._buildTransactionRequest(rootCid)
     return this.withWalletBalance(async (walletBalance) => {
-      let attemptNum = 0
       const txResponses: Array<providers.TransactionResponse> = []
+      let attemptNum = 0
       while (attemptNum < MAX_RETRIES) {
         try {
           await this.setGasPrice(txData, attemptNum)
@@ -309,14 +309,12 @@ export default class EthereumBlockchainService implements BlockchainService {
           }
 
           attemptNum++
-          if (attemptNum >= MAX_RETRIES) {
-            throw new Error('Failed to send transaction')
-          } else {
-            logger.warn(`Failed to send transaction; ${MAX_RETRIES - attemptNum} retries remain`)
-            await Utils.delay(5000)
-          }
+          logger.warn(`Failed to send transaction; ${MAX_RETRIES - attemptNum} retries remain`)
+          await Utils.delay(5000)
         }
       }
+      // All attempts spent
+      throw new Error('Failed to send transaction')
     })
   }
 
