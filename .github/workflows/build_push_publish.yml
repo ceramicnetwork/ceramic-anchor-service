@@ -93,7 +93,8 @@ jobs:
               {
                 "env_tag": "${{ env.IMAGE_TAG }}",
                 "sha_tag": "${{ github.sha }}",
-                "image_id": "${{ env.ECR_IMAGE_ID }}"
+                "image_id": "${{ env.ECR_IMAGE_ID }}",
+                "attempt": "${{ github.run_attempt }}"
               }
             }
           ') || exit 1
