@@ -250,85 +250,95 @@ export default class EthereumBlockchainService implements BlockchainService {
    * Sends transaction with root CID as data
    */
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
-    const walletBalance = await this.wallet.provider.getBalance(this.wallet.address)
-    logMetric.ethereum({
-      type: 'walletBalance',
-      balance: ethers.utils.formatUnits(walletBalance, 'gwei'),
-    })
-    logger.imp(`Current wallet balance is ` + walletBalance)
-
     const txData = await this._buildTransactionRequest(rootCid)
+    return this.withWalletBalance(async (walletBalance) => {
+      let attemptNum = 0
+      const txResponses: Array<providers.TransactionResponse> = []
+      while (attemptNum < MAX_RETRIES) {
+        try {
+          await this.setGasPrice(txData, attemptNum)
 
-    let attemptNum = 0
-    const txResponses: Array<providers.TransactionResponse> = []
-    while (attemptNum < MAX_RETRIES) {
-      try {
-        await this.setGasPrice(txData, attemptNum)
+          const txResponse = await this._trySendTransaction(txData, attemptNum)
+          txResponses.push(txResponse)
+          return await this._confirmTransactionSuccess(txResponse)
+        } catch (err) {
+          logger.err(err)
 
-        const txResponse = await this._trySendTransaction(txData, attemptNum)
-        txResponses.push(txResponse)
-        return await this._confirmTransactionSuccess(txResponse)
-      } catch (err) {
-        logger.err(err)
+          const { code } = err
+          if (code) {
+            if (code === ErrorCode.INSUFFICIENT_FUNDS) {
+              const txCost = (txData.gasLimit as BigNumber).mul(txData.gasPrice)
+              if (txCost.gt(walletBalance)) {
+                logEvent.ethereum({
+                  type: 'insufficientFunds',
+                  txCost: txCost,
+                  balance: ethers.utils.formatUnits(walletBalance, 'gwei'),
+                })
 
-        const { code } = err
-        if (code) {
-          if (code === ErrorCode.INSUFFICIENT_FUNDS) {
-            const txCost = (txData.gasLimit as BigNumber).mul(txData.gasPrice)
-            if (txCost.gt(walletBalance)) {
+                const errMsg =
+                  'Transaction cost is greater than our current balance. [txCost: ' +
+                  txCost.toHexString() +
+                  ', balance: ' +
+                  walletBalance.toHexString() +
+                  ']'
+                logger.err(errMsg)
+                throw new Error(errMsg)
+              }
+            } else if (code === ErrorCode.TIMEOUT) {
               logEvent.ethereum({
-                type: 'insufficientFunds',
-                txCost: txCost,
-                balance: ethers.utils.formatUnits(walletBalance, 'gwei'),
+                type: 'transactionTimeout',
+                transactionTimeoutSecs: this._transactionTimeoutSecs,
               })
+              logger.err(
+                `Transaction timed out after ${this._transactionTimeoutSecs} seconds without being mined`
+              )
+              // Fall through and retry if we have retries remaining
+            } else if (code === ErrorCode.NONCE_EXPIRED) {
+              // If this happens it most likely means that one of our previous attempts timed out, but
+              // then actually wound up being successfully mined
+              logEvent.ethereum({
+                type: 'nonceExpired',
+                nonce: txData.nonce,
+              })
+              if (attemptNum == 0 || txResponses.length == 0) {
+                throw err
+              }
 
-              const errMsg =
-                'Transaction cost is greater than our current balance. [txCost: ' +
-                txCost.toHexString() +
-                ', balance: ' +
-                walletBalance.toHexString() +
-                ']'
-              logger.err(errMsg)
-              throw new Error(errMsg)
+              return await this._checkForPreviousTransactionSuccess(txResponses)
             }
-          } else if (code === ErrorCode.TIMEOUT) {
-            logEvent.ethereum({
-              type: 'transactionTimeout',
-              transactionTimeoutSecs: this._transactionTimeoutSecs,
-            })
-            logger.err(
-              `Transaction timed out after ${this._transactionTimeoutSecs} seconds without being mined`
-            )
-            // Fall through and retry if we have retries remaining
-          } else if (code === ErrorCode.NONCE_EXPIRED) {
-            // If this happens it most likely means that one of our previous attempts timed out, but
-            // then actually wound up being successfully mined
-            logEvent.ethereum({
-              type: 'nonceExpired',
-              nonce: txData.nonce,
-            })
-            if (attemptNum == 0 || txResponses.length == 0) {
-              throw err
-            }
+          }
 
-            return await this._checkForPreviousTransactionSuccess(txResponses)
+          attemptNum++
+          if (attemptNum >= MAX_RETRIES) {
+            throw new Error('Failed to send transaction')
+          } else {
+            logger.warn(`Failed to send transaction; ${MAX_RETRIES - attemptNum} retries remain`)
+            await Utils.delay(5000)
           }
         }
-
-        attemptNum++
-        if (attemptNum >= MAX_RETRIES) {
-          throw new Error('Failed to send transaction')
-        } else {
-          logger.warn(`Failed to send transaction; ${MAX_RETRIES - attemptNum} retries remain`)
-          await Utils.delay(5000)
-        }
       }
-    }
+    })
+  }
 
-    const finalWalletBalance = await this.wallet.provider.getBalance(this.wallet.address)
+  /**
+   * Report wallet balance before and after +operation+.
+   * @param operation
+   */
+  async withWalletBalance<T>(operation: (balance: BigNumber) => Promise<T>): Promise<T> {
+    const startingWalletBalance = await this.wallet.provider.getBalance(this.wallet.address)
     logMetric.ethereum({
       type: 'walletBalance',
-      balance: ethers.utils.formatUnits(finalWalletBalance, 'gwei'),
+      balance: ethers.utils.formatUnits(startingWalletBalance, 'gwei'),
     })
+    logger.imp(`Current wallet balance is ` + startingWalletBalance)
+
+    const result = await operation(startingWalletBalance)
+
+    const endingWalletBalance = await this.wallet.provider.getBalance(this.wallet.address)
+    logMetric.ethereum({
+      type: 'walletBalance',
+      balance: ethers.utils.formatUnits(endingWalletBalance, 'gwei'),
+    })
+    return result
   }
 }
