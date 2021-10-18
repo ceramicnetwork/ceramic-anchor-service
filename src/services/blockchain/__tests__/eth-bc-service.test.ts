@@ -166,11 +166,10 @@ describe('ETH service with mock wallet', () => {
       gasLimit: gasEstimate,
     }
     const attempt = 0
-    const transactionTimeoutSecs = 10
 
     const txResponse = await ethBc._trySendTransaction(txRequest, attempt)
     expect(txResponse).toMatchSnapshot()
-    const tx = await ethBc._confirmTransactionSuccess(txResponse, transactionTimeoutSecs)
+    const tx = await ethBc._confirmTransactionSuccess(txResponse)
     expect(tx).toMatchSnapshot()
 
     const txData = wallet.sendTransaction.mock.calls[0][0]
@@ -206,10 +205,7 @@ describe('ETH service with mock wallet', () => {
     expect(txData).toMatchSnapshot()
 
     expect(mockConfirmTransactionSuccess).toHaveBeenCalledTimes(1)
-    const [txResponseReceived, transactionTimeoutSecs] = mockConfirmTransactionSuccess.mock.calls[0]
-    expect(transactionTimeoutSecs).toEqual(
-      config.blockchain.connectors.ethereum.transactionTimeoutSecs
-    )
+    const [txResponseReceived] = mockConfirmTransactionSuccess.mock.calls[0]
     expect(txResponseReceived).toEqual(txResponse)
   })
 
