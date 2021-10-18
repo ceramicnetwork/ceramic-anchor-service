@@ -34,8 +34,8 @@ export default class EthereumBlockchainService implements BlockchainService {
   }
 
   public static make(config: Config): EthereumBlockchainService {
-    const { network } = config.blockchain.connectors.ethereum
-    const { host, port, url } = config.blockchain.connectors.ethereum.rpc
+    const ethereum = config.blockchain.connectors.ethereum
+    const { host, port, url } = ethereum.rpc
 
     let provider
     if (url) {
@@ -43,14 +43,11 @@ export default class EthereumBlockchainService implements BlockchainService {
     } else if (host && port) {
       provider = new ethers.providers.JsonRpcProvider(`${host}:${port}`)
     } else {
-      provider = ethers.getDefaultProvider(network)
+      provider = ethers.getDefaultProvider(ethereum.network)
     }
 
     provider.pollingInterval = POLLING_INTERVAL
-    const wallet = new ethers.Wallet(
-      config.blockchain.connectors.ethereum.account.privateKey,
-      provider
-    )
+    const wallet = new ethers.Wallet(ethereum.account.privateKey, provider)
     return new EthereumBlockchainService(config, wallet)
   }
 
