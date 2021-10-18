@@ -416,4 +416,38 @@ describe('anchor service', () => {
       expect(updatedRequest.status).toEqual(RequestStatus.COMPLETED)
     })
   })
+
+  describe('Request pinning', () => {
+    test('Successful anchor pins request', async () => {
+      const requestRepository = container.resolve<RequestRepository>('requestRepository')
+      const anchorService = container.resolve<AnchorService>('anchorService')
+
+      // 1 stream being anchored
+      const streamId = await ceramicService.generateBaseStreamID()
+      const request0 = await createRequest(streamId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request0)
+      const request0FromDB = await requestRepository.findByCid(new CID(request0.cid))
+      expect(request0FromDB.pinned).toEqual(false)
+      const commitId0 = streamId.atCommit(request0.cid)
+
+      // Create stream in Ceramic
+      ceramicService.putStream(commitId0, createStream(streamId, [new CID(request0.cid)]))
+      ceramicService.putStream(streamId, createStream(streamId, [new CID(request0.cid)]))
+
+      const candidates = await anchorService._findCandidates([request0], 0)
+      const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
+      expect(candidates.length).toEqual(1)
+      const candidate = candidates[0]
+      expect(candidate.streamId).toEqual(streamId)
+      expect(candidate.cid.toString()).toEqual(request0.cid)
+
+      // Request should be marked as completed and pinned
+      const updatedRequest0 = await requestRepository.findByCid(new CID(request0.cid))
+      expect(updatedRequest0.status).toEqual(RequestStatus.COMPLETED)
+      expect(updatedRequest0.cid).toEqual(request0.cid)
+      expect(updatedRequest0.streamId).toEqual(streamId.toString())
+      expect(updatedRequest0.message).toEqual('CID successfully anchored.')
+      expect(updatedRequest0.pinned).toEqual(true)
+    })
+  })
 })

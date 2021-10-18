@@ -303,6 +303,7 @@ export default class AnchorService {
         {
           status: RS.COMPLETED,
           message: 'CID successfully anchored.',
+          pinned: true,
         },
         acceptedRequests,
         queryRunner.manager
