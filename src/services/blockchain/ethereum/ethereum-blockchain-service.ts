@@ -21,6 +21,68 @@ export const MAX_RETRIES = 3
 const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
 
 /**
+ * Do up to +max+ attempts of an +operation+. Expect the +operation+ to return a defined value.
+ * If no defined value is returned, iterate at most +max+ times.
+ *
+ * @param max - Maximum number of attempts.
+ * @param operation - Operation to run.
+ */
+async function attempt<T>(
+  max: number,
+  operation: (attempt: number) => Promise<T | undefined | void>
+): Promise<T> {
+  let attempt = 0
+  while (attempt < max) {
+    const result = await operation(attempt)
+    if (result) {
+      return result
+    }
+    attempt++
+    logger.warn(`Failed to send transaction; ${max - attempt} retries remain`)
+    await Utils.delay(5000)
+  }
+  // All attempts spent
+  throw new Error('Failed to send transaction')
+}
+
+/**
+ * Throw if a transaction requires more funds than available.
+ *
+ * @param txData - Transaction to write.
+ * @param walletBalance - Available funds.
+ */
+function handleInsufficientFundsError(txData: TransactionRequest, walletBalance: BigNumber): void {
+  const txCost = (txData.gasLimit as BigNumber).mul(txData.gasPrice)
+  if (txCost.gt(walletBalance)) {
+    logEvent.ethereum({
+      type: 'insufficientFunds',
+      txCost: txCost,
+      balance: ethers.utils.formatUnits(walletBalance, 'gwei'),
+    })
+
+    const errMsg =
+      'Transaction cost is greater than our current balance. [txCost: ' +
+      txCost.toHexString() +
+      ', balance: ' +
+      walletBalance.toHexString() +
+      ']'
+    logger.err(errMsg)
+    throw new Error(errMsg)
+  }
+}
+
+/**
+ * Just log a timeout error.
+ */
+function handleTimeoutError(transactionTimeoutSecs: number): void {
+  logEvent.ethereum({
+    type: 'transactionTimeout',
+    transactionTimeoutSecs: transactionTimeoutSecs,
+  })
+  logger.err(`Transaction timed out after ${transactionTimeoutSecs} seconds without being mined`)
+}
+
+/**
  * Ethereum blockchain service
  */
 export default class EthereumBlockchainService implements BlockchainService {
@@ -251,13 +313,11 @@ export default class EthereumBlockchainService implements BlockchainService {
    */
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
     const txData = await this._buildTransactionRequest(rootCid)
-    return this.withWalletBalance(async (walletBalance) => {
+    return this.withWalletBalance((walletBalance) => {
       const txResponses: Array<providers.TransactionResponse> = []
-      let attemptNum = 0
-      while (attemptNum < MAX_RETRIES) {
+      return attempt(MAX_RETRIES, async (attemptNum) => {
         try {
           await this.setGasPrice(txData, attemptNum)
-
           const txResponse = await this._trySendTransaction(txData, attemptNum)
           txResponses.push(txResponse)
           return await this._confirmTransactionSuccess(txResponse)
@@ -267,32 +327,9 @@ export default class EthereumBlockchainService implements BlockchainService {
           const { code } = err
           if (code) {
             if (code === ErrorCode.INSUFFICIENT_FUNDS) {
-              const txCost = (txData.gasLimit as BigNumber).mul(txData.gasPrice)
-              if (txCost.gt(walletBalance)) {
-                logEvent.ethereum({
-                  type: 'insufficientFunds',
-                  txCost: txCost,
-                  balance: ethers.utils.formatUnits(walletBalance, 'gwei'),
-                })
-
-                const errMsg =
-                  'Transaction cost is greater than our current balance. [txCost: ' +
-                  txCost.toHexString() +
-                  ', balance: ' +
-                  walletBalance.toHexString() +
-                  ']'
-                logger.err(errMsg)
-                throw new Error(errMsg)
-              }
+              handleInsufficientFundsError(txData, walletBalance)
             } else if (code === ErrorCode.TIMEOUT) {
-              logEvent.ethereum({
-                type: 'transactionTimeout',
-                transactionTimeoutSecs: this._transactionTimeoutSecs,
-              })
-              logger.err(
-                `Transaction timed out after ${this._transactionTimeoutSecs} seconds without being mined`
-              )
-              // Fall through and retry if we have retries remaining
+              handleTimeoutError(this._transactionTimeoutSecs)
             } else if (code === ErrorCode.NONCE_EXPIRED) {
               // If this happens it most likely means that one of our previous attempts timed out, but
               // then actually wound up being successfully mined
@@ -303,18 +340,11 @@ export default class EthereumBlockchainService implements BlockchainService {
               if (attemptNum == 0 || txResponses.length == 0) {
                 throw err
               }
-
-              return await this._checkForPreviousTransactionSuccess(txResponses)
+              return this._checkForPreviousTransactionSuccess(txResponses)
             }
           }
-
-          attemptNum++
-          logger.warn(`Failed to send transaction; ${MAX_RETRIES - attemptNum} retries remain`)
-          await Utils.delay(5000)
         }
-      }
-      // All attempts spent
-      throw new Error('Failed to send transaction')
+      })
     })
   }
 
