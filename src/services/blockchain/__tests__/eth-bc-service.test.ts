@@ -166,12 +166,11 @@ describe('ETH service with mock wallet', () => {
       gasLimit: gasEstimate,
     }
     const attempt = 0
-    const network = 'eip1455:1337'
     const transactionTimeoutSecs = 10
 
-    const txResponse = await ethBc._trySendTransaction(txRequest, attempt, network)
+    const txResponse = await ethBc._trySendTransaction(txRequest, attempt)
     expect(txResponse).toMatchSnapshot()
-    const tx = await ethBc._confirmTransactionSuccess(txResponse, network, transactionTimeoutSecs)
+    const tx = await ethBc._confirmTransactionSuccess(txResponse, transactionTimeoutSecs)
     expect(tx).toMatchSnapshot()
 
     const txData = wallet.sendTransaction.mock.calls[0][0]
@@ -202,18 +201,12 @@ describe('ETH service with mock wallet', () => {
     await expect(ethBc.sendTransaction(cid)).resolves.toEqual(finalTransactionResult)
 
     expect(mockTrySendTransaction).toHaveBeenCalledTimes(1)
-    const [txData, attemptNum, network0] = mockTrySendTransaction.mock.calls[0]
+    const [txData, attemptNum] = mockTrySendTransaction.mock.calls[0]
     expect(attemptNum).toEqual(0)
-    expect(network0).toEqual(config.blockchain.connectors.ethereum.network)
     expect(txData).toMatchSnapshot()
 
     expect(mockConfirmTransactionSuccess).toHaveBeenCalledTimes(1)
-    const [
-      txResponseReceived,
-      network1,
-      transactionTimeoutSecs,
-    ] = mockConfirmTransactionSuccess.mock.calls[0]
-    expect(network1).toEqual(config.blockchain.connectors.ethereum.network)
+    const [txResponseReceived, transactionTimeoutSecs] = mockConfirmTransactionSuccess.mock.calls[0]
     expect(transactionTimeoutSecs).toEqual(
       config.blockchain.connectors.ethereum.transactionTimeoutSecs
     )
@@ -247,14 +240,12 @@ describe('ETH service with mock wallet', () => {
     // causing the attempt to be aborted.
     expect(mockTrySendTransaction).toHaveBeenCalledTimes(2)
 
-    const [txData0, attemptNum0, network0] = mockTrySendTransaction.mock.calls[0]
+    const [txData0, attemptNum0] = mockTrySendTransaction.mock.calls[0]
     expect(attemptNum0).toEqual(0)
-    expect(network0).toEqual(config.blockchain.connectors.ethereum.network)
     expect(txData0).toMatchSnapshot()
 
-    const [txData1, attemptNum1, network1] = mockTrySendTransaction.mock.calls[1]
+    const [txData1, attemptNum1] = mockTrySendTransaction.mock.calls[1]
     expect(attemptNum1).toEqual(1)
-    expect(network1).toEqual(config.blockchain.connectors.ethereum.network)
     expect(txData1).toMatchSnapshot()
   })
 
