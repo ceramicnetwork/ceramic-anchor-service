@@ -20,6 +20,16 @@ export const MAX_RETRIES = 3
 
 const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
 
+class WrongChainIdError extends Error {
+  constructor(expected: number, actual: number) {
+    super(
+      `Chain ID of connected blockchain changed from ${caipChainId(expected)} to ${caipChainId(
+        actual
+      )}`
+    )
+  }
+}
+
 /**
  * Do up to +max+ attempts of an +operation+. Expect the +operation+ to return a defined value.
  * If no defined value is returned, iterate at most +max+ times.
@@ -71,6 +81,17 @@ function handleInsufficientFundsError(txData: TransactionRequest, walletBalance:
   }
 }
 
+function caipChainId(chainId: number) {
+  return `${BASE_CHAIN_ID}:${chainId}`
+}
+
+function assertSameChainId(actual: number, expected: number) {
+  if (actual != expected) {
+    // TODO: This should be process-fatal
+    throw new WrongChainIdError(expected, actual)
+  }
+}
+
 /**
  * Just log a timeout error.
  */
@@ -86,7 +107,7 @@ function handleTimeoutError(transactionTimeoutSecs: number): void {
  * Ethereum blockchain service
  */
 export default class EthereumBlockchainService implements BlockchainService {
-  private _chainId: string
+  private _chainId: number
   private readonly _network: string
   private readonly _transactionTimeoutSecs: number
 
@@ -127,8 +148,8 @@ export default class EthereumBlockchainService implements BlockchainService {
    * connected blockchain to ask for it.
    */
   private async _loadChainId(): Promise<void> {
-    const idnum = (await this.wallet.provider.getNetwork()).chainId
-    this._chainId = BASE_CHAIN_ID + ':' + idnum
+    const network = await this.wallet.provider.getNetwork()
+    this._chainId = network.chainId
   }
 
   /**
@@ -192,7 +213,7 @@ export default class EthereumBlockchainService implements BlockchainService {
    * Invalid to call before calling connect()
    */
   public get chainId(): string {
-    return this._chainId
+    return `${BASE_CHAIN_ID}:${this._chainId}`
   }
 
   async _buildTransactionRequest(rootCid: CID): Promise<TransactionRequest> {
@@ -239,6 +260,7 @@ export default class EthereumBlockchainService implements BlockchainService {
       raw: txResponse.raw,
     })
 
+    assertSameChainId(txResponse.chainId, this._chainId)
     return txResponse
   }
 
@@ -250,14 +272,6 @@ export default class EthereumBlockchainService implements BlockchainService {
   async _confirmTransactionSuccess(
     txResponse: providers.TransactionResponse
   ): Promise<Transaction> {
-    const caip2ChainId = 'eip155:' + txResponse.chainId
-    if (caip2ChainId != this.chainId) {
-      // TODO: This should be process-fatal
-      throw new Error(
-        'Chain ID of connected blockchain changed from ' + this.chainId + ' to ' + caip2ChainId
-      )
-    }
-
     logger.imp(`Waiting to confirm transaction with hash ${txResponse.hash}`)
     const txReceipt: providers.TransactionReceipt = await this.wallet.provider.waitForTransaction(
       txResponse.hash,
@@ -283,7 +297,7 @@ export default class EthereumBlockchainService implements BlockchainService {
     }
 
     return new Transaction(
-      caip2ChainId,
+      this.chainId,
       txReceipt.transactionHash,
       txReceipt.blockNumber,
       block.timestamp
