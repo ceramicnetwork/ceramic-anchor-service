@@ -1,6 +1,5 @@
 import CID from 'cids'
 
-import * as providers from '@ethersproject/providers'
 import { ErrorCode } from '@ethersproject/logger'
 
 import { BigNumber, BigNumberish, ethers } from 'ethers'
@@ -9,7 +8,11 @@ import { Config } from 'node-config-ts'
 import { logger, logEvent, logMetric } from '../../../logger'
 import Transaction from '../../../models/transaction'
 import BlockchainService from '../blockchain-service'
-import { TransactionRequest } from '@ethersproject/abstract-provider'
+import {
+  TransactionRequest,
+  TransactionResponse,
+  TransactionReceipt,
+} from '@ethersproject/abstract-provider'
 import Utils from '../../../utils'
 
 const BASE_CHAIN_ID = 'eip155'
@@ -240,7 +243,7 @@ export default class EthereumBlockchainService implements BlockchainService {
   async _trySendTransaction(
     txData: TransactionRequest,
     attemptNum: number
-  ): Promise<providers.TransactionResponse> {
+  ): Promise<TransactionResponse> {
     logger.imp('Transaction data:' + JSON.stringify(txData))
 
     logEvent.ethereum({
@@ -248,7 +251,7 @@ export default class EthereumBlockchainService implements BlockchainService {
       ...txData,
     })
     logger.imp(`Sending transaction to Ethereum ${this._network} network...`)
-    const txResponse: providers.TransactionResponse = await this.wallet.sendTransaction(txData)
+    const txResponse: TransactionResponse = await this.wallet.sendTransaction(txData)
     logEvent.ethereum({
       type: 'txResponse',
       hash: txResponse.hash,
@@ -269,11 +272,9 @@ export default class EthereumBlockchainService implements BlockchainService {
    * the transaction info if so.
    * @param txResponse - response from when the transaction was submitted to the mempool
    */
-  async _confirmTransactionSuccess(
-    txResponse: providers.TransactionResponse
-  ): Promise<Transaction> {
+  async _confirmTransactionSuccess(txResponse: TransactionResponse): Promise<Transaction> {
     logger.imp(`Waiting to confirm transaction with hash ${txResponse.hash}`)
-    const txReceipt: providers.TransactionReceipt = await this.wallet.provider.waitForTransaction(
+    const txReceipt: TransactionReceipt = await this.wallet.provider.waitForTransaction(
       txResponse.hash,
       NUM_BLOCKS_TO_WAIT,
       this._transactionTimeoutSecs * 1000
@@ -282,7 +283,7 @@ export default class EthereumBlockchainService implements BlockchainService {
       type: 'txReceipt',
       ...txReceipt,
     })
-    const block: providers.Block = await this.wallet.provider.getBlock(txReceipt.blockHash)
+    const block = await this.wallet.provider.getBlock(txReceipt.blockHash)
 
     const status = txReceipt.byzantium ? txReceipt.status : -1
     let statusMessage = status == TX_SUCCESS ? 'success' : 'failure'
@@ -310,7 +311,7 @@ export default class EthereumBlockchainService implements BlockchainService {
    * @param txResponses - responses from previous transaction submissions.
    */
   async _checkForPreviousTransactionSuccess(
-    txResponses: Array<providers.TransactionResponse>
+    txResponses: Array<TransactionResponse>
   ): Promise<Transaction> {
     for (let i = txResponses.length - 1; i >= 0; i--) {
       try {
@@ -328,7 +329,7 @@ export default class EthereumBlockchainService implements BlockchainService {
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
     const txData = await this._buildTransactionRequest(rootCid)
     return this.withWalletBalance((walletBalance) => {
-      const txResponses: Array<providers.TransactionResponse> = []
+      const txResponses: Array<TransactionResponse> = []
       return attempt(MAX_RETRIES, async (attemptNum) => {
         try {
           await this.setGasPrice(txData, attemptNum)
