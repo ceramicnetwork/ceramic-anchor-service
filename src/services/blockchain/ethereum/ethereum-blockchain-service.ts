@@ -84,10 +84,20 @@ function handleInsufficientFundsError(txData: TransactionRequest, walletBalance:
   }
 }
 
+/**
+ * Represent chainId in CAIP format.
+ * @param chainId - Numeric chain id.
+ */
 function caipChainId(chainId: number) {
   return `${BASE_CHAIN_ID}:${chainId}`
 }
 
+/**
+ * Throw if +actual+ and +expected+ chain ids are not equal.
+ *
+ * @param actual - Chain id we received.
+ * @param expected - Chain id we expect.
+ */
 function assertSameChainId(actual: number, expected: number) {
   if (actual != expected) {
     // TODO: This should be process-fatal
@@ -328,8 +338,9 @@ export default class EthereumBlockchainService implements BlockchainService {
    */
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
     const txData = await this._buildTransactionRequest(rootCid)
+    const txResponses: Array<TransactionResponse> = []
+
     return this.withWalletBalance((walletBalance) => {
-      const txResponses: Array<TransactionResponse> = []
       return attempt(MAX_RETRIES, async (attemptNum) => {
         try {
           await this.setGasPrice(txData, attemptNum)
@@ -367,7 +378,7 @@ export default class EthereumBlockchainService implements BlockchainService {
    * Report wallet balance before and after +operation+.
    * @param operation
    */
-  async withWalletBalance<T>(operation: (balance: BigNumber) => Promise<T>): Promise<T> {
+  private async withWalletBalance<T>(operation: (balance: BigNumber) => Promise<T>): Promise<T> {
     const startingWalletBalance = await this.wallet.provider.getBalance(this.wallet.address)
     logMetric.ethereum({
       type: 'walletBalance',
