@@ -475,11 +475,11 @@ describe('anchor service', () => {
 
       const now = new Date()
       const TWO_MONTHS = 1000 * 60 * 60 * 24 * 60
-      const past = new Date(now.getTime() - TWO_MONTHS)
+      const expiredDate = new Date(now.getTime() - TWO_MONTHS)
 
       // Make 2 of the 3 requests be expired
-      requests[0].updatedAt = past
-      requests[1].updatedAt = past
+      requests[0].updatedAt = expiredDate
+      requests[1].updatedAt = expiredDate
       await requestRepository.createOrUpdate(requests[0])
       await requestRepository.createOrUpdate(requests[1])
 
@@ -497,7 +497,7 @@ describe('anchor service', () => {
       expect(unpinStreamSpy).toHaveBeenCalledTimes(2)
 
       // Running garbage collection on already unpinned streams shouldn't unpin again
-      updatedRequests[0].updatedAt = past
+      updatedRequests[0].updatedAt = expiredDate
       await requestRepository.createOrUpdate(updatedRequests[0])
       await anchorService.garbageCollectPinnedStreams()
 
