@@ -1,7 +1,7 @@
 import 'reflect-metadata'
 
 import CID from 'cids'
-import Ganache from 'ganache-core'
+import Ganache from 'ganache'
 
 import { config } from 'node-config-ts'
 import { logger } from '../../../logger'
@@ -39,17 +39,8 @@ describe('ETH service connected to ganache', () => {
       networkId: 1337,
     })
 
-    const localPort = config.blockchain.connectors.ethereum.rpc.port
-    const done = new Promise<void>((resolve, reject) => {
-      ganacheServer.listen(localPort, async (err: Error) => {
-        if (err) {
-          reject(err)
-          return
-        }
-        resolve()
-      })
-    })
-    await done
+    const localPort = Number(config.blockchain.connectors.ethereum.rpc.port)
+    await ganacheServer.listen(localPort)
     await ethBc.connect()
   })
 

@@ -1,13 +1,13 @@
 import { CeramicDaemon, DaemonConfig } from '@ceramicnetwork/cli'
 import Ceramic from '@ceramicnetwork/core'
-import { AnchorStatus, IpfsApi, Stream, SyncOptions } from '@ceramicnetwork/common'
+import { AnchorStatus, IpfsApi, Stream } from '@ceramicnetwork/common'
 
 import IPFS from 'ipfs-core'
 import HttpApi from 'ipfs-http-server'
 import dagJose from 'dag-jose'
 import { convert } from 'blockcodec-to-ipld-format'
 
-import Ganache from 'ganache-core'
+import Ganache from 'ganache'
 import tmp from 'tmp-promise'
 import getPort from 'get-port'
 import { Connection } from 'typeorm'
@@ -87,6 +87,7 @@ function makeDID(): DID {
   return new DID({ provider, resolver })
 }
 
+// @ts-ignore
 async function makeGanache(startTime: Date, port: number): Promise<Ganache.Server> {
   const ganacheServer = Ganache.server({
     gasLimit: 7000000,
@@ -178,6 +179,7 @@ describe('Ceramic Integration Test', () => {
 
   const blockchainStartTime = new Date(1586784002000)
   let ganachePort
+  // @ts-ignore
   let ganacheServer: Ganache.Server = null
 
   beforeAll(async () => {
