@@ -11,6 +11,7 @@ import { container, instanceCachingFactory } from 'tsyringe'
 import BlockchainService from '../blockchain-service'
 import EthereumBlockchainService, { MAX_RETRIES } from '../ethereum/ethereum-blockchain-service'
 import { BigNumber } from 'ethers'
+import type { FeeData } from '@ethersproject/abstract-provider'
 import { ErrorCode } from '@ethersproject/logger'
 
 describe('ETH service connected to ganache', () => {
@@ -72,16 +73,24 @@ describe('ETH service connected to ganache', () => {
   })
 
   test('gas price increase math', () => {
-    const gasEstimate = BigNumber.from(1000)
+    const gasEstimate: FeeData = {
+      maxFeePerGas: BigNumber.from(2000),
+      maxPriorityFeePerGas: BigNumber.from(1000),
+      gasPrice: BigNumber.from(0),
+    }
     const firstRetry = BigNumber.from(1100)
     // Note that this is not 1200. It needs to be 10% over the previous attempt's gas,
     // not 20% over the gas estimate
     const secondRetry = BigNumber.from(1210)
     expect(
       EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate, 0, undefined).toNumber()
-    ).toEqual(gasEstimate.toNumber())
+    ).toEqual(gasEstimate.maxPriorityFeePerGas.toNumber())
     expect(
-      EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate, 1, gasEstimate).toNumber()
+      EthereumBlockchainService.increaseGasPricePerAttempt(
+        gasEstimate,
+        1,
+        gasEstimate.maxPriorityFeePerGas
+      ).toNumber()
     ).toEqual(firstRetry.toNumber())
     expect(
       EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate, 2, firstRetry).toNumber()
@@ -99,6 +108,7 @@ describe('ETH service with mock wallet', () => {
     getNetwork: jest.fn(),
     getTransactionCount: jest.fn(),
     waitForTransaction: jest.fn(),
+    getFeeData: jest.fn(),
   }
   const wallet = {
     address: 'abcd1234',
@@ -170,15 +180,20 @@ describe('ETH service with mock wallet', () => {
   test('successful mocked transaction', async () => {
     const balance = BigNumber.from(10 * 1000 * 1000)
     const nonce = 5
-    const gasPrice = BigNumber.from(1000)
+    const feeData = {
+      maxFeePerGas: BigNumber.from(2000),
+      maxPriorityFeePerGas: BigNumber.from(1000),
+      gasPrice: BigNumber.from(1000),
+    }
     const gasEstimate = BigNumber.from(10 * 1000)
     const txResponse = { foo: 'bar' }
     const finalTransactionResult = { txHash: '0x12345' }
 
     provider.getBalance.mockReturnValue(balance)
     provider.getTransactionCount.mockReturnValue(nonce)
-    provider.getGasPrice.mockReturnValue(gasPrice)
+    provider.getGasPrice.mockReturnValue(feeData.gasPrice)
     provider.estimateGas.mockReturnValue(gasEstimate)
+    provider.getFeeData.mockReturnValue(feeData)
 
     const mockTrySendTransaction = jest.fn()
     const mockConfirmTransactionSuccess = jest.fn()
@@ -205,11 +220,17 @@ describe('ETH service with mock wallet', () => {
     const nonce = 5
     const gasPrice = BigNumber.from(1000)
     const gasEstimate = BigNumber.from(10 * 1000)
+    const feeData = {
+      maxFeePerGas: BigNumber.from(2000),
+      maxPriorityFeePerGas: BigNumber.from(1000),
+      gasPrice: BigNumber.from(1000),
+    }
 
     provider.getBalance.mockReturnValue(balance)
     provider.getTransactionCount.mockReturnValue(nonce)
     provider.getGasPrice.mockReturnValue(gasPrice)
     provider.estimateGas.mockReturnValue(gasEstimate)
+    provider.getFeeData.mockReturnValue(feeData)
 
     const mockTrySendTransaction = jest.fn()
     ethBc._trySendTransaction = mockTrySendTransaction
@@ -242,11 +263,17 @@ describe('ETH service with mock wallet', () => {
     const gasPrice = BigNumber.from(1000)
     const gasEstimate = BigNumber.from(10 * 1000)
     const txResponse = { foo: 'bar' }
+    const feeData = {
+      maxFeePerGas: BigNumber.from(2000),
+      maxPriorityFeePerGas: BigNumber.from(1000),
+      gasPrice: BigNumber.from(1000),
+    }
 
     provider.getBalance.mockReturnValue(balance)
     provider.getTransactionCount.mockReturnValue(nonce)
     provider.getGasPrice.mockReturnValue(gasPrice)
     provider.estimateGas.mockReturnValue(gasEstimate)
+    provider.getFeeData.mockReturnValue(feeData)
 
     const mockTrySendTransaction = jest.fn()
     const mockConfirmTransactionSuccess = jest.fn()
@@ -271,11 +298,17 @@ describe('ETH service with mock wallet', () => {
     const gasEstimate = BigNumber.from(10 * 1000)
     const txResponses = [{ attempt: 1 }, { attempt: 2 }]
     const finalTransactionResult = { txHash: '0x12345' }
+    const feeData = {
+      maxFeePerGas: BigNumber.from(2000),
+      maxPriorityFeePerGas: BigNumber.from(1000),
+      gasPrice: BigNumber.from(1000),
+    }
 
     provider.getBalance.mockReturnValue(balance)
     provider.getTransactionCount.mockReturnValue(nonce)
     provider.getGasPrice.mockReturnValue(gasPrice)
     provider.estimateGas.mockReturnValue(gasEstimate)
+    provider.getFeeData.mockReturnValue(feeData)
 
     const mockTrySendTransaction = jest.fn()
     const mockConfirmTransactionSuccess = jest.fn()

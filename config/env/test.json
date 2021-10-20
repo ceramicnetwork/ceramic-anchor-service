@@ -11,7 +11,7 @@
         "network": "ganache",
         "overrideGasConfig": false,
         "gasLimit": 4712388,
-        "gasPrice": "100000000000",
+        "maxPriorityFeePerGas": "@@ETH_MAX_PRIORITY_FEE",
         "rpc": {
           "host": "http://localhost",
           "port": "6000"
