@@ -228,10 +228,10 @@ export default class EthereumBlockchainService implements BlockchainService {
         attempt,
         prevMaxPriorityFeePerGas
       )
-      const difference = nextMaxPriorityFeePerGas.sub(prevMaxPriorityFeePerGas)
       const is1559 = Boolean(feeData.maxFeePerGas && feeData.maxPriorityFeePerGas)
       if (is1559) {
-        txData.maxFeePerGas = feeData.maxFeePerGas.add(difference)
+        const priorityFeeDifference = nextMaxPriorityFeePerGas.sub(prevMaxPriorityFeePerGas)
+        txData.maxFeePerGas = feeData.maxFeePerGas.add(priorityFeeDifference)
         txData.maxPriorityFeePerGas = nextMaxPriorityFeePerGas
       } else {
         txData.gasPrice = nextMaxPriorityFeePerGas
