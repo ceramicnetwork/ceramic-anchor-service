@@ -418,36 +418,97 @@ describe('anchor service', () => {
   })
 
   describe('Request pinning', () => {
-    test('Successful anchor pins request', async () => {
+    async function anchorRequests(numRequests: number): Promise<Request[]> {
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const anchorService = container.resolve<AnchorService>('anchorService')
 
-      // 1 stream being anchored
-      const streamId = await ceramicService.generateBaseStreamID()
-      const request0 = await createRequest(streamId.toString(), ipfsService)
-      await requestRepository.createOrUpdate(request0)
-      const request0FromDB = await requestRepository.findByCid(new CID(request0.cid))
-      expect(request0FromDB.pinned).toEqual(false)
-      const commitId0 = streamId.atCommit(request0.cid)
+      // Create Requests
+      const streamIds = await Promise.all(
+        [...Array(numRequests)].map(() => ceramicService.generateBaseStreamID())
+      )
+      const requests = await Promise.all(
+        streamIds.map((streamId) => createRequest(streamId.toString(), ipfsService))
+      )
+      await requestRepository.createRequests(requests)
 
-      // Create stream in Ceramic
-      ceramicService.putStream(commitId0, createStream(streamId, [new CID(request0.cid)]))
-      ceramicService.putStream(streamId, createStream(streamId, [new CID(request0.cid)]))
+      // Create streams in Ceramic
+      for (let i = 0; i < numRequests; i++) {
+        const request = requests[i]
+        const streamId = streamIds[i]
+        const commitId = streamId.atCommit(request.cid)
 
-      const candidates = await anchorService._findCandidates([request0], 0)
-      const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
-      expect(candidates.length).toEqual(1)
-      const candidate = candidates[0]
-      expect(candidate.streamId).toEqual(streamId)
-      expect(candidate.cid.toString()).toEqual(request0.cid)
+        const stream = createStream(streamId, [new CID(request.cid)])
+        ceramicService.putStream(commitId, stream)
+        ceramicService.putStream(streamId, stream)
+      }
+
+      const candidates = await anchorService._findCandidates(requests, 0)
+      await anchorCandidates(candidates, anchorService, ipfsService)
+      expect(candidates.length).toEqual(numRequests)
+
+      return requests
+    }
+
+    test('Successful anchor pins request', async () => {
+      const requestRepository = container.resolve<RequestRepository>('requestRepository')
+
+      const [request0] = await anchorRequests(1)
 
       // Request should be marked as completed and pinned
       const updatedRequest0 = await requestRepository.findByCid(new CID(request0.cid))
       expect(updatedRequest0.status).toEqual(RequestStatus.COMPLETED)
       expect(updatedRequest0.cid).toEqual(request0.cid)
-      expect(updatedRequest0.streamId).toEqual(streamId.toString())
       expect(updatedRequest0.message).toEqual('CID successfully anchored.')
       expect(updatedRequest0.pinned).toEqual(true)
+
+      console.log(updatedRequest0.updatedAt.toISOString())
+    })
+
+    test('Request garbage collection', async () => {
+      const requestRepository = container.resolve<RequestRepository>('requestRepository')
+      const anchorService = container.resolve<AnchorService>('anchorService')
+
+      const requestCIDs = (await anchorRequests(3)).map((request) => request.cid)
+      const requests = await Promise.all(
+        requestCIDs.map((cid) => requestRepository.findByCid(new CID(cid)))
+      )
+
+      const now = new Date()
+      const TWO_MONTHS = 1000 * 60 * 60 * 24 * 60
+      const expiredDate = new Date(now.getTime() - TWO_MONTHS)
+
+      // Make 2 of the 3 requests be expired
+      requests[0].updatedAt = expiredDate
+      requests[1].updatedAt = expiredDate
+      await requestRepository.createOrUpdate(requests[0])
+      await requestRepository.createOrUpdate(requests[1])
+
+      // run garbage collection
+      const unpinStreamSpy = jest.spyOn(ceramicService, 'unpinStream')
+      await anchorService.garbageCollectPinnedStreams()
+
+      const updatedRequests = await Promise.all(
+        requests.map((req) => requestRepository.findByCid(new CID(req.cid)))
+      )
+      // Expired requests should be unpinned, but recent request should still be pinned
+      expect(updatedRequests[0].pinned).toBeFalsy()
+      expect(updatedRequests[1].pinned).toBeFalsy()
+      expect(updatedRequests[2].pinned).toBeTruthy()
+      expect(unpinStreamSpy).toHaveBeenCalledTimes(2)
+
+      // Running garbage collection on already unpinned streams shouldn't unpin again
+      updatedRequests[0].updatedAt = expiredDate
+      await requestRepository.createOrUpdate(updatedRequests[0])
+      await anchorService.garbageCollectPinnedStreams()
+
+      const finalRequests = await Promise.all(
+        updatedRequests.map((req) => requestRepository.findByCid(new CID(req.cid)))
+      )
+      expect(finalRequests[0].pinned).toBeFalsy()
+      expect(finalRequests[1].pinned).toBeFalsy()
+      expect(finalRequests[2].pinned).toBeTruthy()
+      // No additional calls to unpinStream
+      expect(unpinStreamSpy).toHaveBeenCalledTimes(2)
     })
   })
 })

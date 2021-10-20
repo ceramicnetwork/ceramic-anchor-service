@@ -80,4 +80,14 @@ export default class CeramicServiceImpl implements CeramicService {
     }
     return expectedCID
   }
+
+  /**
+   * Unpins the given stream from the connected Ceramic node.  Also instructs that Ceramic node
+   * to publish the stream's tip before unpinning it, giving other nodes on the network one last
+   * chance to fetch the tip before it is lost from the anchor service's Ceramic node.
+   * @param streamId
+   */
+  async unpinStream(streamId: StreamID): Promise<void> {
+    await this._client.pin.rm(streamId, { publish: true })
+  }
 }
