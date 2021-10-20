@@ -87,7 +87,6 @@ function makeDID(): DID {
   return new DID({ provider, resolver })
 }
 
-// @ts-ignore
 async function makeGanache(startTime: Date, port: number): Promise<Ganache.Server> {
   const ganacheServer = Ganache.server({
     gasLimit: 7000000,
@@ -179,7 +178,6 @@ describe('Ceramic Integration Test', () => {
 
   const blockchainStartTime = new Date(1586784002000)
   let ganachePort
-  // @ts-ignore
   let ganacheServer: Ganache.Server = null
 
   beforeAll(async () => {
