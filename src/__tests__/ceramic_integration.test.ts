@@ -7,7 +7,7 @@ import HttpApi from 'ipfs-http-server'
 import dagJose from 'dag-jose'
 import { convert } from 'blockcodec-to-ipld-format'
 
-import Ganache from 'ganache'
+import Ganache from 'ganache-core'
 import tmp from 'tmp-promise'
 import getPort from 'get-port'
 import { Connection } from 'typeorm'

@@ -1,7 +1,7 @@
 import 'reflect-metadata'
 
 import CID from 'cids'
-import Ganache from 'ganache'
+import Ganache from 'ganache-core'
 
 import { config } from 'node-config-ts'
 import { logger } from '../../../logger'
