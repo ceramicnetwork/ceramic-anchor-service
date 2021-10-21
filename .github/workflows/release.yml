@@ -55,7 +55,7 @@ jobs:
         run: |
           git config user.email "${{ github.actor }}@users.noreply.github.com"
           git config user.name ${{ github.actor }}
-          npm run release -- --ci --github.release --no-npm
+          npm run release -- --ci --github.release --no-npm-publish
       -
         name: Update and push code to `release-candidate` and `develop`
         if: ${{ steps.set-vars.outputs.full == 'true' }}
@@ -126,7 +126,7 @@ jobs:
         run: |
           git config user.email "${{ github.actor }}@users.noreply.github.com"
           git config user.name ${{ github.actor }}
-          npm run release -- --ci --preRelease=rc --github.release --no-npm
+          npm run release -- --ci --preRelease=rc --github.preRelease --no-npm-publish
       -
         name: Update and push code to `develop`
         if: ${{ steps.set-vars.outputs.rc == 'true' }}
