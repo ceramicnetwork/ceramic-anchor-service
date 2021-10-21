@@ -48,10 +48,10 @@ jobs:
           npm set unsafe-perm true
           npm ci && npm run build
       -
-        name: Publish packages to NPM
+        name: Publish release
         if: ${{ steps.set-vars.outputs.full == 'true' }}
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git config user.email "${{ github.actor }}@users.noreply.github.com"
           git config user.name ${{ github.actor }}
@@ -118,10 +118,10 @@ jobs:
           npm set unsafe-perm true
           npm ci && npm run build
       -
-        name: Publish packages to NPM
+        name: Publish pre-release
         if: ${{ steps.set-vars.outputs.rc == 'true' }}
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git config user.email "${{ github.actor }}@users.noreply.github.com"
           git config user.name ${{ github.actor }}
