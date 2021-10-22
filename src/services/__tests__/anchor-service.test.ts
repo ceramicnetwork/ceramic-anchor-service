@@ -320,8 +320,9 @@ describe('anchor service', () => {
       }
       const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
       expect(anchors.length).toEqual(2)
-      expect(anchors[0].request.streamId).toEqual(requests[0].streamId)
-      expect(anchors[1].request.streamId).toEqual(requests[2].streamId)
+      expect(anchors.find((anchor) => anchor.request.streamId == requests[0].streamId)).toBeTruthy()
+      expect(anchors.find((anchor) => anchor.request.streamId == requests[1].streamId)).toBeFalsy()
+      expect(anchors.find((anchor) => anchor.request.streamId == requests[2].streamId)).toBeTruthy()
     } finally {
       ceramicService.publishAnchorCommit = originalPublishAnchorCommit
     }
