@@ -198,6 +198,12 @@ export default class EthereumBlockchainService implements BlockchainService {
    * Here we calculate a difference between previously sent `maxPriorityFeePerGas` and the increased one. It is our voluntary increase in gas price we agree to pay to mine our transaction.
    * We just add the difference to a currently estimated `maxFeePerGas` so that we conform to the equality `maxFeePerGas = baseFee + maxPriorityFeePerGas`.
    *
+   * NB. EIP1559 now uses two components of gas cost: `baseFee` and `maxPriorityFeePerGas`. `maxPriorityFeePerGas` is a tip to a miner to include a transaction into a block. `baseFee` is a slowly changing amount of gas or ether that is going to be burned. `baseFee` is set by _network_. Since we do not know what `baseFee` will be, EIP1559 introduces `maxFeePerGas` which is an absolute maximum you are willing to pay for a transaction. `maxFeePerGas` must be `>= maxPriorityFeePerGas + baseFee`. The inequality here is to accommodate for changes in `baseFee`. If `maxFeePerGas` appears to be less than the sum, the transaction is underpriced. If it is greater than the sum (`maxFeePerGas = maxPriorityFeePerGas + baseFee + δ`):
+   * - if `baseFee` changes up to `δ`, the transaction can be mined still; `δ` is like a safety buffer;
+   * - transaction fee that is deducted from your wallet still equals `maxPriorityFeePerGas + baseFee`, no matter what `maxFeePerGas` you have set.
+   *
+   * To price a 1559 transaction, we use an estimate from `provider.getFeeData`. It returns `maxFeePerGas` and `maxPriorityFeePerGas`. It is worth noting here that `maxFeePerGas` returned from ethers uses a [widely recommended](https://www.blocknative.com/blog/eip-1559-fees) formula: `(baseFee of the latest block)*2 + (constant 2.5Gwei)`. If we only increase `maxPriorityFeePerGas` per attempt, we effectively deduct from our baseFee safety buffer `δ` which reduces transaction's chances. Our intent though is to increase a transaction's "mineability". So, when increasing `maxPriorityFeePerGas` we also increase `maxFeePerGas` by the same amount. Now the safety buffer reflects current network conditions, and we actually increase our transaction's "mineability".
+   *
    * @param txData - transaction request data
    * @param attempt - what number attempt this is at submitting the transaction.  We increase
    *   the gas price we set by a 10% multiple with each subsequent attempt
@@ -261,7 +267,7 @@ export default class EthereumBlockchainService implements BlockchainService {
    * retries of the same transaction (using the same nonce) need to have a gas price at least 10% higher
    * than any previous attempts or the transaction will fail.
    *
-   * @param estimate - Currently estimated gas price (contains both pre-1559 gasPrice and 1559-related parameters)
+   * @param estimate - Currently estimated gas price
    * @param attempt - Index of a current attempt, starts with 0.
    * @param previousGas - Either gasPrice for pre-1559 tx or maxPriorityFeePerGas for 1559 tx.
    */
