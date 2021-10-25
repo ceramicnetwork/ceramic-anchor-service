@@ -260,7 +260,7 @@ export default class AnchorService {
         this._createAnchorCommit(candidate, index, ipfsProofCid, merkleTree)
       )
     )
-    return anchors
+    return anchors.filter((anchor) => anchor != null)
   }
 
   /**
@@ -275,7 +275,7 @@ export default class AnchorService {
     candidateIndex: number,
     ipfsProofCid: CID,
     merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
-  ): Promise<Anchor> {
+  ): Promise<Anchor | null> {
     const anchor: Anchor = new Anchor()
     anchor.request = candidate.newestAcceptedRequest
     anchor.proofCid = ipfsProofCid.toString()
@@ -310,6 +310,7 @@ export default class AnchorService {
         candidate.acceptedRequests
       )
       candidate.failAllRequests()
+      return null
     }
     return anchor
   }

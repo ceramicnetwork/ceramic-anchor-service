@@ -288,6 +288,46 @@ describe('anchor service', () => {
     expect(request3.status).toEqual(RequestStatus.FAILED)
   })
 
+  test('filters anchors that fail to publish AnchorCommit to Ceramic', async () => {
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    const anchorService = container.resolve<AnchorService>('anchorService')
+
+    // Create pending requests
+    const numRequests = 3
+    for (let i = 0; i < numRequests; i++) {
+      const streamId = await ceramicService.generateBaseStreamID()
+      const request = await createRequest(streamId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request)
+      const commitId = streamId.atCommit(request.cid)
+      const stream = createStream(streamId, [new CID(request.cid)])
+      ceramicService.putStream(streamId, stream)
+      ceramicService.putStream(commitId, stream)
+    }
+
+    const requests = await requestRepository.findNextToProcess()
+    expect(requests.length).toEqual(numRequests)
+    const candidates = await anchorService._findCandidates(requests, 0)
+    expect(candidates.length).toEqual(numRequests)
+
+    const originalPublishAnchorCommit = ceramicService.publishAnchorCommit
+    try {
+      ceramicService.publishAnchorCommit = function (streamId, anchorCommit) {
+        if (streamId.toString() == requests[1].streamId) {
+          throw new Error('publishAnchorCommit failed!')
+        } else {
+          return originalPublishAnchorCommit.apply(ceramicService, [streamId, anchorCommit])
+        }
+      }
+      const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
+      expect(anchors.length).toEqual(2)
+      expect(anchors.find((anchor) => anchor.request.streamId == requests[0].streamId)).toBeTruthy()
+      expect(anchors.find((anchor) => anchor.request.streamId == requests[1].streamId)).toBeFalsy()
+      expect(anchors.find((anchor) => anchor.request.streamId == requests[2].streamId)).toBeTruthy()
+    } finally {
+      ceramicService.publishAnchorCommit = originalPublishAnchorCommit
+    }
+  })
+
   describe('Picks proper commit to anchor', () => {
     test('Anchor more recent of two commits', async () => {
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
