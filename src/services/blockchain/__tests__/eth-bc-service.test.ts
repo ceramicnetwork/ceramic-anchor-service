@@ -83,17 +83,17 @@ describe('ETH service connected to ganache', () => {
     // not 20% over the gas estimate
     const secondRetry = BigNumber.from(1210)
     expect(
-      EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate, 0, undefined).toNumber()
+      EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate.maxPriorityFeePerGas, 0, undefined).toNumber()
     ).toEqual(gasEstimate.maxPriorityFeePerGas.toNumber())
     expect(
       EthereumBlockchainService.increaseGasPricePerAttempt(
-        gasEstimate,
+        gasEstimate.maxPriorityFeePerGas,
         1,
         gasEstimate.maxPriorityFeePerGas
       ).toNumber()
     ).toEqual(firstRetry.toNumber())
     expect(
-      EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate, 2, firstRetry).toNumber()
+      EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate.maxPriorityFeePerGas, 2, firstRetry).toNumber()
     ).toEqual(secondRetry.toNumber())
   })
 })

@@ -276,20 +276,20 @@ export default class EthereumBlockchainService implements BlockchainService {
     attempt: number,
     previousGas: BigNumberish | undefined
   ): BigNumber {
-    // First be smart: increase `maxPriorityFeePerGas` from feeData by 10%
+    // Try to increase an estimated gas price first
     const estimateBN = BigNumber.from(estimate)
-    const increase = estimateBN.div(10).mul(attempt) // 10% increase
-    const estimatedGasPriceIncrement = estimateBN.add(increase)
+    const increase = estimateBN.div(10).mul(attempt) // 10% increase per attempt
+    const increaseEstimate = estimateBN.add(increase)
 
     if (attempt == 0 || previousGas == undefined) {
-      return estimatedGasPriceIncrement
+      return increaseEstimate
     }
-    // Then be dumb: increase `maxPriorityFeePerGas` from transaction by 10%
+    // Then try to increase a current transaction gas price
     const previousGasBN = BigNumber.from(previousGas)
-    const dumbIncrement = previousGasBN.add(previousGasBN.div(10)) // +10%
+    const increaseTransaction = previousGasBN.add(previousGasBN.div(10)) // +10%
 
-    // Choose the bigger increase, either dumb or smart one
-    return estimatedGasPriceIncrement.gt(dumbIncrement) ? estimatedGasPriceIncrement : dumbIncrement
+    // Choose the bigger increase, either from current transaction or from increment
+    return increaseEstimate.gt(increaseTransaction) ? increaseEstimate : increaseTransaction
   }
 
   /**
