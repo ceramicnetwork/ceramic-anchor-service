@@ -220,25 +220,33 @@ export default class EthereumBlockchainService implements BlockchainService {
     } else {
       const feeData = await this.wallet.provider.getFeeData()
       // Add extra to gas price for each subsequent attempt
-      const prevMaxPriorityFeePerGas = BigNumber.from(
-        txData.maxPriorityFeePerGas || feeData.gasPrice
-      )
-      const nextMaxPriorityFeePerGas = EthereumBlockchainService.increaseGasPricePerAttempt(
-        feeData,
-        attempt,
-        prevMaxPriorityFeePerGas
-      )
       const is1559 = Boolean(feeData.maxFeePerGas && feeData.maxPriorityFeePerGas)
       if (is1559) {
-        const priorityFeeDifference = nextMaxPriorityFeePerGas.sub(prevMaxPriorityFeePerGas)
+        // When attempt 0, use currently estimated maxPriorityFeePerGas; otherwise use previous transaction maxPriorityFeePerGas
+        const prevPriorityFee = BigNumber.from(
+          txData.maxPriorityFeePerGas || feeData.maxPriorityFeePerGas
+        )
+        const nextPriorityFee = EthereumBlockchainService.increaseGasPricePerAttempt(
+          feeData.maxPriorityFeePerGas,
+          attempt,
+          prevPriorityFee
+        )
+        const priorityFeeDifference = nextPriorityFee.sub(prevPriorityFee)
         txData.maxFeePerGas = feeData.maxFeePerGas.add(priorityFeeDifference)
-        txData.maxPriorityFeePerGas = nextMaxPriorityFeePerGas
+        txData.maxPriorityFeePerGas = nextPriorityFee
+        logger.debug(
+          `Estimated maxPriorityFeePerGas: ${nextPriorityFee.toString()} wei; maxFeePerGas: ${txData.maxFeePerGas.toString()} wei`
+        )
       } else {
-        txData.gasPrice = nextMaxPriorityFeePerGas
+        // When attempt 0, use currently estimated gasPrice; otherwise use previous transaction gasPrice
+        const prevGasPrice = BigNumber.from(txData.gasPrice || feeData.gasPrice)
+        txData.gasPrice = EthereumBlockchainService.increaseGasPricePerAttempt(
+          feeData.gasPrice,
+          attempt,
+          prevGasPrice
+        )
+        logger.debug(`Estimated gasPrice: ${txData.gasPrice.toString()} wei`)
       }
-      logger.debug(
-        'Estimated maxPriorityFeePerGas (in wei): ' + nextMaxPriorityFeePerGas.toString()
-      )
 
       txData.gasLimit = await this.wallet.provider.estimateGas(txData)
       logger.debug('Estimated Gas limit: ' + txData.gasLimit.toString())
@@ -253,19 +261,19 @@ export default class EthereumBlockchainService implements BlockchainService {
    * retries of the same transaction (using the same nonce) need to have a gas price at least 10% higher
    * than any previous attempts or the transaction will fail.
    *
-   * @param feeData - Currently estimated gas price (contains both pre-1559 gasPrice and 1559-related parameters)
+   * @param estimate - Currently estimated gas price (contains both pre-1559 gasPrice and 1559-related parameters)
    * @param attempt - Index of a current attempt, starts with 0.
    * @param previousGas - Either gasPrice for pre-1559 tx or maxPriorityFeePerGas for 1559 tx.
    */
   static increaseGasPricePerAttempt(
-    feeData: FeeData,
+    estimate: BigNumberish,
     attempt: number,
     previousGas: BigNumberish | undefined
   ): BigNumber {
     // First be smart: increase `maxPriorityFeePerGas` from feeData by 10%
-    const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas || feeData.gasPrice
-    const increase = maxPriorityFeePerGas.div(10).mul(attempt) // 10% increase
-    const estimatedGasPriceIncrement = maxPriorityFeePerGas.add(increase)
+    const estimateBN = BigNumber.from(estimate)
+    const increase = estimateBN.div(10).mul(attempt) // 10% increase
+    const estimatedGasPriceIncrement = estimateBN.add(increase)
 
     if (attempt == 0 || previousGas == undefined) {
       return estimatedGasPriceIncrement
