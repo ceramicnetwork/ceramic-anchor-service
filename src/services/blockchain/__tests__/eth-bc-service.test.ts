@@ -11,6 +11,7 @@ import { container, instanceCachingFactory } from 'tsyringe'
 import BlockchainService from '../blockchain-service'
 import EthereumBlockchainService, { MAX_RETRIES } from '../ethereum/ethereum-blockchain-service'
 import { BigNumber } from 'ethers'
+import type { FeeData } from '@ethersproject/abstract-provider'
 import { ErrorCode } from '@ethersproject/logger'
 
 describe('ETH service connected to ganache', () => {
@@ -39,17 +40,8 @@ describe('ETH service connected to ganache', () => {
       networkId: 1337,
     })
 
-    const localPort = config.blockchain.connectors.ethereum.rpc.port
-    const done = new Promise<void>((resolve, reject) => {
-      ganacheServer.listen(localPort, async (err: Error) => {
-        if (err) {
-          reject(err)
-          return
-        }
-        resolve()
-      })
-    })
-    await done
+    const localPort = Number(config.blockchain.connectors.ethereum.rpc.port)
+    await ganacheServer.listen(localPort)
     await ethBc.connect()
   })
 
@@ -81,19 +73,27 @@ describe('ETH service connected to ganache', () => {
   })
 
   test('gas price increase math', () => {
-    const gasEstimate = BigNumber.from(1000)
+    const gasEstimate: FeeData = {
+      maxFeePerGas: BigNumber.from(2000),
+      maxPriorityFeePerGas: BigNumber.from(1000),
+      gasPrice: BigNumber.from(0),
+    }
     const firstRetry = BigNumber.from(1100)
     // Note that this is not 1200. It needs to be 10% over the previous attempt's gas,
     // not 20% over the gas estimate
     const secondRetry = BigNumber.from(1210)
     expect(
-      EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate, 0, undefined).toNumber()
-    ).toEqual(gasEstimate.toNumber())
+      EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate.maxPriorityFeePerGas, 0, undefined).toNumber()
+    ).toEqual(gasEstimate.maxPriorityFeePerGas.toNumber())
     expect(
-      EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate, 1, gasEstimate).toNumber()
+      EthereumBlockchainService.increaseGasPricePerAttempt(
+        gasEstimate.maxPriorityFeePerGas,
+        1,
+        gasEstimate.maxPriorityFeePerGas
+      ).toNumber()
     ).toEqual(firstRetry.toNumber())
     expect(
-      EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate, 2, firstRetry).toNumber()
+      EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate.maxPriorityFeePerGas, 2, firstRetry).toNumber()
     ).toEqual(secondRetry.toNumber())
   })
 })
@@ -108,6 +108,7 @@ describe('ETH service with mock wallet', () => {
     getNetwork: jest.fn(),
     getTransactionCount: jest.fn(),
     waitForTransaction: jest.fn(),
+    getFeeData: jest.fn(),
   }
   const wallet = {
     address: 'abcd1234',
@@ -166,12 +167,10 @@ describe('ETH service with mock wallet', () => {
       gasLimit: gasEstimate,
     }
     const attempt = 0
-    const network = 'eip1455:1337'
-    const transactionTimeoutSecs = 10
 
-    const txResponse = await ethBc._trySendTransaction(txRequest, attempt, network)
+    const txResponse = await ethBc._trySendTransaction(txRequest, attempt)
     expect(txResponse).toMatchSnapshot()
-    const tx = await ethBc._confirmTransactionSuccess(txResponse, network, transactionTimeoutSecs)
+    const tx = await ethBc._confirmTransactionSuccess(txResponse)
     expect(tx).toMatchSnapshot()
 
     const txData = wallet.sendTransaction.mock.calls[0][0]
@@ -181,15 +180,20 @@ describe('ETH service with mock wallet', () => {
   test('successful mocked transaction', async () => {
     const balance = BigNumber.from(10 * 1000 * 1000)
     const nonce = 5
-    const gasPrice = BigNumber.from(1000)
+    const feeData = {
+      maxFeePerGas: BigNumber.from(2000),
+      maxPriorityFeePerGas: BigNumber.from(1000),
+      gasPrice: BigNumber.from(1000),
+    }
     const gasEstimate = BigNumber.from(10 * 1000)
     const txResponse = { foo: 'bar' }
     const finalTransactionResult = { txHash: '0x12345' }
 
     provider.getBalance.mockReturnValue(balance)
     provider.getTransactionCount.mockReturnValue(nonce)
-    provider.getGasPrice.mockReturnValue(gasPrice)
+    provider.getGasPrice.mockReturnValue(feeData.gasPrice)
     provider.estimateGas.mockReturnValue(gasEstimate)
+    provider.getFeeData.mockReturnValue(feeData)
 
     const mockTrySendTransaction = jest.fn()
     const mockConfirmTransactionSuccess = jest.fn()
@@ -202,21 +206,12 @@ describe('ETH service with mock wallet', () => {
     await expect(ethBc.sendTransaction(cid)).resolves.toEqual(finalTransactionResult)
 
     expect(mockTrySendTransaction).toHaveBeenCalledTimes(1)
-    const [txData, attemptNum, network0] = mockTrySendTransaction.mock.calls[0]
+    const [txData, attemptNum] = mockTrySendTransaction.mock.calls[0]
     expect(attemptNum).toEqual(0)
-    expect(network0).toEqual(config.blockchain.connectors.ethereum.network)
     expect(txData).toMatchSnapshot()
 
     expect(mockConfirmTransactionSuccess).toHaveBeenCalledTimes(1)
-    const [
-      txResponseReceived,
-      network1,
-      transactionTimeoutSecs,
-    ] = mockConfirmTransactionSuccess.mock.calls[0]
-    expect(network1).toEqual(config.blockchain.connectors.ethereum.network)
-    expect(transactionTimeoutSecs).toEqual(
-      config.blockchain.connectors.ethereum.transactionTimeoutSecs
-    )
+    const [txResponseReceived] = mockConfirmTransactionSuccess.mock.calls[0]
     expect(txResponseReceived).toEqual(txResponse)
   })
 
@@ -225,11 +220,17 @@ describe('ETH service with mock wallet', () => {
     const nonce = 5
     const gasPrice = BigNumber.from(1000)
     const gasEstimate = BigNumber.from(10 * 1000)
+    const feeData = {
+      maxFeePerGas: BigNumber.from(2000),
+      maxPriorityFeePerGas: BigNumber.from(1000),
+      gasPrice: BigNumber.from(1000),
+    }
 
     provider.getBalance.mockReturnValue(balance)
     provider.getTransactionCount.mockReturnValue(nonce)
     provider.getGasPrice.mockReturnValue(gasPrice)
     provider.estimateGas.mockReturnValue(gasEstimate)
+    provider.getFeeData.mockReturnValue(feeData)
 
     const mockTrySendTransaction = jest.fn()
     ethBc._trySendTransaction = mockTrySendTransaction
@@ -247,14 +248,12 @@ describe('ETH service with mock wallet', () => {
     // causing the attempt to be aborted.
     expect(mockTrySendTransaction).toHaveBeenCalledTimes(2)
 
-    const [txData0, attemptNum0, network0] = mockTrySendTransaction.mock.calls[0]
+    const [txData0, attemptNum0] = mockTrySendTransaction.mock.calls[0]
     expect(attemptNum0).toEqual(0)
-    expect(network0).toEqual(config.blockchain.connectors.ethereum.network)
     expect(txData0).toMatchSnapshot()
 
-    const [txData1, attemptNum1, network1] = mockTrySendTransaction.mock.calls[1]
+    const [txData1, attemptNum1] = mockTrySendTransaction.mock.calls[1]
     expect(attemptNum1).toEqual(1)
-    expect(network1).toEqual(config.blockchain.connectors.ethereum.network)
     expect(txData1).toMatchSnapshot()
   })
 
@@ -264,11 +263,17 @@ describe('ETH service with mock wallet', () => {
     const gasPrice = BigNumber.from(1000)
     const gasEstimate = BigNumber.from(10 * 1000)
     const txResponse = { foo: 'bar' }
+    const feeData = {
+      maxFeePerGas: BigNumber.from(2000),
+      maxPriorityFeePerGas: BigNumber.from(1000),
+      gasPrice: BigNumber.from(1000),
+    }
 
     provider.getBalance.mockReturnValue(balance)
     provider.getTransactionCount.mockReturnValue(nonce)
     provider.getGasPrice.mockReturnValue(gasPrice)
     provider.estimateGas.mockReturnValue(gasEstimate)
+    provider.getFeeData.mockReturnValue(feeData)
 
     const mockTrySendTransaction = jest.fn()
     const mockConfirmTransactionSuccess = jest.fn()
@@ -293,11 +298,17 @@ describe('ETH service with mock wallet', () => {
     const gasEstimate = BigNumber.from(10 * 1000)
     const txResponses = [{ attempt: 1 }, { attempt: 2 }]
     const finalTransactionResult = { txHash: '0x12345' }
+    const feeData = {
+      maxFeePerGas: BigNumber.from(2000),
+      maxPriorityFeePerGas: BigNumber.from(1000),
+      gasPrice: BigNumber.from(1000),
+    }
 
     provider.getBalance.mockReturnValue(balance)
     provider.getTransactionCount.mockReturnValue(nonce)
     provider.getGasPrice.mockReturnValue(gasPrice)
     provider.estimateGas.mockReturnValue(gasEstimate)
+    provider.getFeeData.mockReturnValue(feeData)
 
     const mockTrySendTransaction = jest.fn()
     const mockConfirmTransactionSuccess = jest.fn()

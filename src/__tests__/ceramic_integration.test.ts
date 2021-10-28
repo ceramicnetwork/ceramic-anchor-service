@@ -1,6 +1,6 @@
 import { CeramicDaemon, DaemonConfig } from '@ceramicnetwork/cli'
 import Ceramic from '@ceramicnetwork/core'
-import { AnchorStatus, IpfsApi, Stream, SyncOptions } from '@ceramicnetwork/common'
+import { AnchorStatus, IpfsApi, Stream } from '@ceramicnetwork/common'
 
 import IPFS from 'ipfs-core'
 import HttpApi from 'ipfs-http-server'
