@@ -117,26 +117,6 @@ function handleTimeoutError(transactionTimeoutSecs: number): void {
 }
 
 /**
- * Post `txRequest` event to a log. TransactionRequest contains `type` property which indicates
- * if it is a 1559 transaction. For logging, we effectively rename `type` property to `typ`.
- *
- * @param type - type of a log event: `txRequest` or `txReceipt`
- * @param tx - TransactionRequest.
- */
-function logTransaction(
-  type: 'txRequest' | 'txReceipt',
-  tx: TransactionRequest | TransactionReceipt
-) {
-  const filtered = Object.assign<any, TransactionRequest | TransactionReceipt>({}, tx)
-  filtered.typ = filtered.type
-  delete filtered.type
-  logEvent.ethereum({
-    type: type,
-    ...filtered,
-  })
-}
-
-/**
  * Ethereum blockchain service
  */
 export default class EthereumBlockchainService implements BlockchainService {
@@ -315,7 +295,10 @@ export default class EthereumBlockchainService implements BlockchainService {
   ): Promise<TransactionResponse> {
     logger.imp('Transaction data:' + JSON.stringify(txData))
 
-    logTransaction('txRequest', txData)
+    logEvent.ethereum({
+      type: 'txRequest',
+      tx: txData,
+    })
     logger.imp(`Sending transaction to Ethereum ${this._network} network...`)
     const txResponse: TransactionResponse = await this.wallet.sendTransaction(txData)
     logEvent.ethereum({
@@ -345,7 +328,10 @@ export default class EthereumBlockchainService implements BlockchainService {
       NUM_BLOCKS_TO_WAIT,
       this._transactionTimeoutSecs * 1000
     )
-    logTransaction('txReceipt', txReceipt)
+    logEvent.ethereum({
+      type: 'txReceipt',
+      tx: txReceipt,
+    })
     const block = await this.wallet.provider.getBlock(txReceipt.blockHash)
 
     const status = txReceipt.byzantium ? txReceipt.status : -1
