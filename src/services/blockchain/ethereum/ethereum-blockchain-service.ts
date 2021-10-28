@@ -12,7 +12,6 @@ import {
   TransactionRequest,
   TransactionResponse,
   TransactionReceipt,
-  FeeData,
 } from '@ethersproject/abstract-provider'
 import Utils from '../../../utils'
 
@@ -210,17 +209,7 @@ export default class EthereumBlockchainService implements BlockchainService {
    * @private
    */
   async setGasPrice(txData: TransactionRequest, attempt: number): Promise<void> {
-    if (this.config.blockchain.connectors.ethereum.overrideGasConfig) {
-      const feeData = await this.wallet.provider.getFeeData()
-      const baseFee = feeData.maxFeePerGas.sub(feeData.maxPriorityFeePerGas)
-      txData.maxPriorityFeePerGas = BigNumber.from(
-        this.config.blockchain.connectors.ethereum.maxPriorityFeePerGas
-      )
-      txData.maxFeePerGas = baseFee.add(txData.maxPriorityFeePerGas)
-      logger.debug(
-        'Overriding Gas price: max priority fee:' + txData.maxPriorityFeePerGas.toString()
-      )
-
+    if (this.config.blockchain.connectors.ethereum.gasLimit) {
       txData.gasLimit = BigNumber.from(this.config.blockchain.connectors.ethereum.gasLimit)
       logger.debug('Overriding Gas limit: ' + txData.gasLimit.toString())
     } else {
@@ -308,12 +297,11 @@ export default class EthereumBlockchainService implements BlockchainService {
     logger.debug('Preparing ethereum transaction')
     const baseNonce = await this.wallet.provider.getTransactionCount(this.wallet.address)
 
-    const txData: TransactionRequest = {
+    return {
       to: this.wallet.address,
       data: hexEncoded,
       nonce: baseNonce,
     }
-    return txData
   }
 
   /**
