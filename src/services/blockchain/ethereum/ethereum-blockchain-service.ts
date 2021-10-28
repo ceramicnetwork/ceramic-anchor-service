@@ -189,7 +189,7 @@ export default class EthereumBlockchainService implements BlockchainService {
    * @private
    */
   async setGasPrice(txData: TransactionRequest, attempt: number): Promise<void> {
-    if (this.config.blockchain.connectors.ethereum.gasLimit) {
+    if (this.config.blockchain.connectors.ethereum.overrideGasConfig) {
       txData.gasLimit = BigNumber.from(this.config.blockchain.connectors.ethereum.gasLimit)
       logger.debug('Overriding Gas limit: ' + txData.gasLimit.toString())
     } else {
