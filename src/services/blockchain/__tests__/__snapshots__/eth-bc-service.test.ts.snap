@@ -109,3 +109,111 @@ Object {
   "to": "abcd1234",
 }
 `;
+
+exports[`setGasPrice EIP1559 transaction 1`] = `
+Object {
+  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
+  "gasLimit": Object {
+    "hex": "0x0a",
+    "type": "BigNumber",
+  },
+  "maxFeePerGas": Object {
+    "hex": "0x07d0",
+    "type": "BigNumber",
+  },
+  "maxPriorityFeePerGas": Object {
+    "hex": "0x03e8",
+    "type": "BigNumber",
+  },
+  "nonce": undefined,
+  "to": "abcd1234",
+}
+`;
+
+exports[`setGasPrice EIP1559 transaction 2`] = `
+Object {
+  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
+  "gasLimit": Object {
+    "hex": "0x0a",
+    "type": "BigNumber",
+  },
+  "maxFeePerGas": Object {
+    "hex": "0x0834",
+    "type": "BigNumber",
+  },
+  "maxPriorityFeePerGas": Object {
+    "hex": "0x044c",
+    "type": "BigNumber",
+  },
+  "nonce": undefined,
+  "to": "abcd1234",
+}
+`;
+
+exports[`setGasPrice EIP1559 transaction 3`] = `
+Object {
+  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
+  "gasLimit": Object {
+    "hex": "0x0a",
+    "type": "BigNumber",
+  },
+  "maxFeePerGas": Object {
+    "hex": "0x08a2",
+    "type": "BigNumber",
+  },
+  "maxPriorityFeePerGas": Object {
+    "hex": "0x04ba",
+    "type": "BigNumber",
+  },
+  "nonce": undefined,
+  "to": "abcd1234",
+}
+`;
+
+exports[`setGasPrice legacy transaction 1`] = `
+Object {
+  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
+  "gasLimit": Object {
+    "hex": "0x0a",
+    "type": "BigNumber",
+  },
+  "gasPrice": Object {
+    "hex": "0x03e8",
+    "type": "BigNumber",
+  },
+  "nonce": undefined,
+  "to": "abcd1234",
+}
+`;
+
+exports[`setGasPrice legacy transaction 2`] = `
+Object {
+  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
+  "gasLimit": Object {
+    "hex": "0x0a",
+    "type": "BigNumber",
+  },
+  "gasPrice": Object {
+    "hex": "0x044c",
+    "type": "BigNumber",
+  },
+  "nonce": undefined,
+  "to": "abcd1234",
+}
+`;
+
+exports[`setGasPrice legacy transaction 3`] = `
+Object {
+  "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
+  "gasLimit": Object {
+    "hex": "0x0a",
+    "type": "BigNumber",
+  },
+  "gasPrice": Object {
+    "hex": "0x04ba",
+    "type": "BigNumber",
+  },
+  "nonce": undefined,
+  "to": "abcd1234",
+}
+`;
