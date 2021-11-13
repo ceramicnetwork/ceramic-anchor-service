@@ -13,6 +13,7 @@ import EthereumBlockchainService, { MAX_RETRIES } from '../ethereum/ethereum-blo
 import { BigNumber } from 'ethers'
 import type { FeeData } from '@ethersproject/abstract-provider'
 import { ErrorCode } from '@ethersproject/logger'
+import type { TransactionRequest } from '@ethersproject/abstract-provider'
 
 describe('ETH service connected to ganache', () => {
   jest.setTimeout(25000)
@@ -83,7 +84,11 @@ describe('ETH service connected to ganache', () => {
     // not 20% over the gas estimate
     const secondRetry = BigNumber.from(1210)
     expect(
-      EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate.maxPriorityFeePerGas, 0, undefined).toNumber()
+      EthereumBlockchainService.increaseGasPricePerAttempt(
+        gasEstimate.maxPriorityFeePerGas,
+        0,
+        undefined
+      ).toNumber()
     ).toEqual(gasEstimate.maxPriorityFeePerGas.toNumber())
     expect(
       EthereumBlockchainService.increaseGasPricePerAttempt(
@@ -93,8 +98,60 @@ describe('ETH service connected to ganache', () => {
       ).toNumber()
     ).toEqual(firstRetry.toNumber())
     expect(
-      EthereumBlockchainService.increaseGasPricePerAttempt(gasEstimate.maxPriorityFeePerGas, 2, firstRetry).toNumber()
+      EthereumBlockchainService.increaseGasPricePerAttempt(
+        gasEstimate.maxPriorityFeePerGas,
+        2,
+        firstRetry
+      ).toNumber()
     ).toEqual(secondRetry.toNumber())
+  })
+})
+
+describe('setGasPrice', () => {
+  const cid = new CID('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
+  const feeData = {
+    maxFeePerGas: BigNumber.from(2000),
+    maxPriorityFeePerGas: BigNumber.from(1000),
+    gasPrice: BigNumber.from(1000),
+  }
+  const gasLimit = BigNumber.from(10)
+  const provider = {
+    estimateGas: jest.fn(() => gasLimit),
+    getNetwork: jest.fn(() => ({ chainId: '1337' })),
+    getTransactionCount: jest.fn(),
+    getFeeData: jest.fn(() => feeData),
+  }
+
+  const buildBlockchainService = async (provider: any): Promise<EthereumBlockchainService> => {
+    const wallet = {
+      address: 'abcd1234',
+      provider: provider,
+      sendTransaction: jest.fn(),
+    }
+    const ethBc = new EthereumBlockchainService(config, wallet as any)
+    await ethBc.connect()
+    return ethBc
+  }
+
+  test('legacy transaction', async () => {
+    const legacyProvider = Object.assign({}, provider, {
+      getFeeData: jest.fn(() => ({ gasPrice: feeData.gasPrice })),
+    })
+    const ethBc = await buildBlockchainService(legacyProvider)
+    const txData = await ethBc._buildTransactionRequest(cid)
+    for (const attempt of [0, 1, 2]) {
+      await ethBc.setGasPrice(txData, attempt)
+      expect(txData).toMatchSnapshot()
+    }
+  })
+
+  test('EIP1559 transaction', async () => {
+    const ethBc = await buildBlockchainService(provider)
+    const txData = await ethBc._buildTransactionRequest(cid)
+    for (const attempt of [0, 1, 2]) {
+      await ethBc.setGasPrice(txData, attempt)
+      expect(txData).toMatchSnapshot()
+    }
   })
 })
 
