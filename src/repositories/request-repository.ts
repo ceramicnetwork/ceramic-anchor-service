@@ -100,7 +100,7 @@ export default class RequestRepository extends Repository<Request> {
     return await this.connection
       .getRepository(Request)
       .createQueryBuilder('request')
-      .orderBy('request.created_at', 'DESC')
+      .orderBy('request.created_at', 'ASC')
       .where('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
       .orWhere('request.status = :processingStatus AND request.updated_at < :deadlineDate', {
         processingStatus: RequestStatus.PROCESSING,
