@@ -126,7 +126,7 @@ describe('anchor service', () => {
     request = await requestRepository.findByCid(cid)
     expect(request).toHaveProperty('status', RequestStatus.PROCESSING)
 
-    const requests = await requestRepository.findNextToProcess()
+    const requests = await requestRepository.findNextToProcess(100)
     expect(requests).toBeDefined()
     expect(requests).toBeInstanceOf(Array)
     expect(requests).toHaveLength(1)
@@ -198,7 +198,7 @@ describe('anchor service', () => {
     }
 
     // First pass anchors half the pending requests
-    let requests = await requestRepository.findNextToProcess()
+    let requests = await requestRepository.findNextToProcess(100)
     expect(requests.length).toEqual(numRequests)
     const anchorPendingRequests = async function (requests: Request[]): Promise<void> {
       const candidates = await anchorService._findCandidates(requests, anchorLimit)
@@ -208,14 +208,14 @@ describe('anchor service', () => {
     }
     await anchorPendingRequests(requests)
 
-    requests = await requestRepository.findNextToProcess()
+    requests = await requestRepository.findNextToProcess(100)
     expect(requests.length).toEqual(numRequests / 2)
 
     // Second pass anchors the remaining half of the original requests
     await anchorPendingRequests(requests)
 
     // All requests should have been processed
-    requests = await requestRepository.findNextToProcess()
+    requests = await requestRepository.findNextToProcess(100)
     expect(requests.length).toEqual(0)
   })
 
@@ -237,14 +237,14 @@ describe('anchor service', () => {
       ceramicService.putStream(commitId, stream)
     }
 
-    let requests = await requestRepository.findNextToProcess()
+    let requests = await requestRepository.findNextToProcess(100)
     expect(requests.length).toEqual(numRequests)
     const candidates = await anchorService._findCandidates(requests, anchorLimit)
     expect(candidates.length).toEqual(numRequests)
     await anchorCandidates(candidates, anchorService, ipfsService)
 
     // All requests should have been processed
-    requests = await requestRepository.findNextToProcess()
+    requests = await requestRepository.findNextToProcess(100)
     expect(requests.length).toEqual(0)
   })
 
@@ -282,9 +282,9 @@ describe('anchor service', () => {
     const request1 = await requestRepository.findByCid(new CID(requests[1].cid))
     const request2 = await requestRepository.findByCid(new CID(requests[2].cid))
     const request3 = await requestRepository.findByCid(new CID(requests[3].cid))
-    expect(request0.status).toEqual(RequestStatus.PENDING)
+    expect(request0.status).toEqual(RequestStatus.PROCESSING)
     expect(request1.status).toEqual(RequestStatus.FAILED)
-    expect(request2.status).toEqual(RequestStatus.PENDING)
+    expect(request2.status).toEqual(RequestStatus.PROCESSING)
     expect(request3.status).toEqual(RequestStatus.FAILED)
   })
 
@@ -304,7 +304,7 @@ describe('anchor service', () => {
       ceramicService.putStream(commitId, stream)
     }
 
-    const requests = await requestRepository.findNextToProcess()
+    const requests = await requestRepository.findNextToProcess(100)
     expect(requests.length).toEqual(numRequests)
     const candidates = await anchorService._findCandidates(requests, 0)
     expect(candidates.length).toEqual(numRequests)

@@ -74,10 +74,11 @@ export default class AnchorService {
     }
 
     const nodeLimit = Math.pow(2, this.config.merkleDepthLimit)
-    const requests: Request[] = await this.requestRepository.findNextToProcess()
+    const requestLimit = 10 * nodeLimit
+    const requests: Request[] = await this.requestRepository.findNextToProcess(requestLimit)
     if (requests.length > nodeLimit) {
       logger.imp(
-        'There are ' +
+        'There are at least ' +
           requests.length +
           ' pending anchor requests, which is more ' +
           'than can fit into a single anchor batch given our configured merkleDepthLimit of ' +
@@ -97,7 +98,14 @@ export default class AnchorService {
    * Creates anchors for client requests
    */
   public async anchorRequests(): Promise<void> {
-    const requests: Request[] = await this.requestRepository.findNextToProcess()
+    // We try to fill our batch with 2^merkleDepthLimit streams at the leaf nodes of the merkle tree.
+    // But we don't want to look at *every* pending request just to make sure we can fill our batch,
+    // so we limit ourselves to processing 10x more requests than the number of streams we ultimately
+    // want to anchor.  If we don't find enough unique streams in all those requests, then we wind
+    // up with an under-full batch, but that's okay.
+    const streamLimit = Math.pow(2, this.config.merkleDepthLimit)
+    const requestLimit = 10 * streamLimit
+    const requests: Request[] = await this.requestRepository.findNextToProcess(requestLimit)
     await this._anchorRequests(requests)
   }
 
@@ -113,11 +121,6 @@ export default class AnchorService {
       logger.debug('No pending CID requests found. Skipping anchor.')
       return
     }
-    logger.debug('Marking pending requests as processing')
-    await this.requestRepository.updateRequests(
-      { status: RS.PROCESSING, message: 'Request is processing.' },
-      requests
-    )
 
     let streamCountLimit = 0 // 0 means no limit
     if (this.config.merkleDepthLimit > 0) {
@@ -378,7 +381,9 @@ export default class AnchorService {
     })
 
     if (failedRequests.length > 0) {
-      logger.debug(`About to fail requests for CIDs that could not be loaded`)
+      logger.debug(
+        `About to fail ${failedRequests.length} requests for CIDs that could not be loaded`
+      )
       await this.requestRepository.updateRequests(
         {
           status: RS.FAILED,
@@ -389,7 +394,9 @@ export default class AnchorService {
     }
 
     if (conflictingRequests.length > 0) {
-      logger.debug(`About to fail requests rejected by conflict resolution`)
+      logger.debug(
+        `About to fail ${conflictingRequests.length} requests rejected by conflict resolution`
+      )
       for (const rejected of conflictingRequests) {
         console.warn(
           `Rejecting request to anchor CID ${rejected.cid.toString()} for stream ${
@@ -407,7 +414,9 @@ export default class AnchorService {
     }
 
     if (alreadyAnchoredRequests.length > 0) {
-      logger.debug(`Marking requests for CIDs that have already been anchored as COMPLETED`)
+      logger.debug(
+        `Marking ${alreadyAnchoredRequests.length} requests for CIDs that have already been anchored as COMPLETED`
+      )
       await this.requestRepository.updateRequests(
         {
           status: RS.COMPLETED,
@@ -418,13 +427,25 @@ export default class AnchorService {
     }
 
     if (unprocessedRequests.length > 0) {
-      logger.debug(`Returning unprocessed requests to PENDING status`)
+      logger.debug(`Returning ${unprocessedRequests.length} unprocessed requests to PENDING status`)
       await this.requestRepository.updateRequests(
         {
           status: RS.PENDING,
           message: 'Request returned to pending.',
         },
         unprocessedRequests
+      )
+    }
+
+    if (candidatesToAnchor.length > 0) {
+      const acceptedRequests = []
+      for (const candidate of candidates) {
+        acceptedRequests.push(...candidate.acceptedRequests)
+      }
+      logger.debug(`Marking ${acceptedRequests.length} pending requests as processing`)
+      await this.requestRepository.updateRequests(
+        { status: RS.PROCESSING, message: 'Request is processing.' },
+        acceptedRequests
       )
     }
 
