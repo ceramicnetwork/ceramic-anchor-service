@@ -427,13 +427,8 @@ export default class AnchorService {
     }
 
     if (unprocessedRequests.length > 0) {
-      logger.debug(`Returning ${unprocessedRequests.length} unprocessed requests to PENDING status`)
-      await this.requestRepository.updateRequests(
-        {
-          status: RS.PENDING,
-          message: 'Request returned to pending.',
-        },
-        unprocessedRequests
+      logger.debug(
+        `There were ${unprocessedRequests.length} unprocessed requests that didn't make it into this batch.  Leaving them in PENDING state as they were.`
       )
     }
 
