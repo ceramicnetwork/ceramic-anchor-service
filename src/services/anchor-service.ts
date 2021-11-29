@@ -74,7 +74,7 @@ export default class AnchorService {
     }
 
     const nodeLimit = Math.pow(2, this.config.merkleDepthLimit)
-    const requestLimit = 10 * nodeLimit
+    const requestLimit = 2 * nodeLimit
     const requests: Request[] = await this.requestRepository.findNextToProcess(requestLimit)
     if (requests.length > nodeLimit) {
       logger.imp(
@@ -100,11 +100,11 @@ export default class AnchorService {
   public async anchorRequests(): Promise<void> {
     // We try to fill our batch with 2^merkleDepthLimit streams at the leaf nodes of the merkle tree.
     // But we don't want to look at *every* pending request just to make sure we can fill our batch,
-    // so we limit ourselves to processing 10x more requests than the number of streams we ultimately
+    // so we limit ourselves to processing twice as many requests as the number of streams we ultimately
     // want to anchor.  If we don't find enough unique streams in all those requests, then we wind
     // up with an under-full batch, but that's okay.
     const streamLimit = Math.pow(2, this.config.merkleDepthLimit)
-    const requestLimit = 10 * streamLimit
+    const requestLimit = 2 * streamLimit
     const requests: Request[] = await this.requestRepository.findNextToProcess(requestLimit)
     await this._anchorRequests(requests)
   }
