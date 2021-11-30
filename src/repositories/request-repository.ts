@@ -93,7 +93,7 @@ export default class RequestRepository extends Repository<Request> {
   /**
    * Gets all requests by status
    */
-  public async findNextToProcess(): Promise<Request[]> {
+  public async findNextToProcess(limit: number): Promise<Request[]> {
     const now: number = new Date().getTime()
     const deadlineDate = new Date(now - this.config.expirationPeriod)
 
@@ -106,6 +106,7 @@ export default class RequestRepository extends Repository<Request> {
         processingStatus: RequestStatus.PROCESSING,
         deadlineDate: deadlineDate.toISOString(),
       })
+      .limit(limit)
       .getMany()
   }
 
