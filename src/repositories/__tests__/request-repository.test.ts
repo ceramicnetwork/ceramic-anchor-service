@@ -9,7 +9,7 @@ import { randomCID } from '../../test-utils'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { RequestStatus } from '../../models/request-status'
 
-async function generateRequest(expired: boolean, streamId?: StreamID): Promise<Request> {
+async function generateCompletedRequest(expired: boolean, streamId?: StreamID): Promise<Request> {
   const request = new Request()
   const cid = await randomCID()
   request.cid = cid.toString()
@@ -29,6 +29,26 @@ async function generateRequest(expired: boolean, streamId?: StreamID): Promise<R
   }
 
   return request
+}
+
+async function generatePendingRequests(count: number): Promise<Request[]> {
+  const now = new Date()
+  const requests = []
+
+  for (let i = 0; i < count; i++) {
+    const request = new Request()
+    const cid = await randomCID()
+    request.cid = cid.toString()
+    request.streamId = new StreamID('tile', cid).toString()
+    request.status = RequestStatus.PENDING
+    const createdAt = new Date(now)
+    createdAt.setHours(now.getHours() + i)
+    request.createdAt = createdAt
+
+    requests.push(request)
+  }
+
+  return requests
 }
 
 describe('request repository test', () => {
@@ -58,10 +78,10 @@ describe('request repository test', () => {
     // Create two requests that are expired and should be garbage collected, and two that should not
     // be.
     const requests = await Promise.all([
-      generateRequest(false),
-      generateRequest(true),
-      generateRequest(false),
-      generateRequest(true),
+      generateCompletedRequest(false),
+      generateCompletedRequest(true),
+      generateCompletedRequest(false),
+      generateCompletedRequest(true),
     ])
 
     await requestRepository.createRequests(requests)
@@ -78,10 +98,10 @@ describe('request repository test', () => {
     // Create two requests that are expired and should be garbage collected, and two that should not
     // be.
     const requests = await Promise.all([
-      generateRequest(false),
-      generateRequest(true),
-      generateRequest(false),
-      generateRequest(true),
+      generateCompletedRequest(false),
+      generateCompletedRequest(true),
+      generateCompletedRequest(false),
+      generateCompletedRequest(true),
     ])
 
     // Set an expired and non-expired request to be on the same streamId. The expired request should
@@ -93,5 +113,20 @@ describe('request repository test', () => {
     const expiredRequests = await requestRepository.findRequestsToGarbageCollect()
     expect(expiredRequests.length).toEqual(1)
     expect(expiredRequests[0].cid).toEqual(requests[1].cid)
+  })
+
+  test('Process requests oldest to newest', async () => {
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+
+    const requests = await generatePendingRequests(2)
+    await requestRepository.createRequests(requests)
+    const loadedRequests = await requestRepository.findNextToProcess(100)
+
+    expect(loadedRequests.length).toEqual(2)
+    expect(loadedRequests[0].createdAt.getTime()).toBeLessThan(
+      loadedRequests[1].createdAt.getTime()
+    )
+    expect(loadedRequests[0].cid).toEqual(requests[0].cid)
+    expect(loadedRequests[1].cid).toEqual(requests[1].cid)
   })
 })
