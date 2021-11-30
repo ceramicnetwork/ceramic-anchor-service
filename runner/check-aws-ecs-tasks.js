@@ -27,7 +27,11 @@ function sendNotification(taskArns) {
   ]
   const data = { embeds: message, username: 'cas-runner' }
   const retryDelayMs = 300000 // 300k ms = 5 mins
-  sendDiscordNotification(process.env.DISCORD_WEBHOOK_URL_WARNINGS, data, retryDelayMs)
+  if (process.env.AWS_ECS_CLUSTER.includes('prod')) {
+    sendDiscordNotification(process.env.DISCORD_WEBHOOK_URL_ALERTS, data, retryDelayMs)
+  } else {
+    sendDiscordNotification(process.env.DISCORD_WEBHOOK_URL_WARNINGS, data, retryDelayMs)
+  }
 }
 
 main()
