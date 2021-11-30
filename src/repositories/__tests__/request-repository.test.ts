@@ -120,7 +120,7 @@ describe('request repository test', () => {
 
     const requests = await generatePendingRequests(2)
     await requestRepository.createRequests(requests)
-    const loadedRequests = await requestRepository.findNextToProcess()
+    const loadedRequests = await requestRepository.findNextToProcess(100)
 
     expect(loadedRequests.length).toEqual(2)
     expect(loadedRequests[0].createdAt.getTime()).toBeLessThan(
