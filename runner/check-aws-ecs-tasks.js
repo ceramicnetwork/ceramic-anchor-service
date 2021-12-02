@@ -13,6 +13,8 @@ async function main() {
     console.log('OK')
     console.log('Only one running task found (assumed to be self)')
     if (process.env.AWS_ECS_CLUSTER.includes('prod')) {
+      // Only do this in prod because it's too noisy given the short interval of
+      // tnet and dev anchoring
       sendStartNotification(taskArns)
     }
   }
