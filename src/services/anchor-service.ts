@@ -263,9 +263,9 @@ export default class AnchorService {
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i]
       logger.debug(
-        `Creating anchor commit #${i} for stream ${candidate.streamId.toString()} at commit CID ${
-          candidate.cid
-        }`
+        `Creating anchor commit #${i} of ${
+          candidates.length
+        }: stream id ${candidate.streamId.toString()} at commit CID ${candidate.cid}`
       )
       const anchor = await this._createAnchorCommit(candidate, i, ipfsProofCid, merkleTree)
       if (anchor) {
@@ -506,11 +506,13 @@ export default class AnchorService {
 
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i]
-      logger.debug(`Loading candidate stream #${i} with streamid ${candidate.streamId}`)
 
       await AnchorService._loadCandidate(candidate, this.ceramicService)
       if (candidate.shouldAnchor()) {
         numSelectedCandidates++
+        logger.debug(
+          `Selected candidate stream #${numSelectedCandidates} of ${candidateLimit}: streamid ${candidate.streamId}`
+        )
       }
       failedRequests.push(...candidate.failedRequests)
       conflictingRequests.push(...candidate.rejectedRequests)
