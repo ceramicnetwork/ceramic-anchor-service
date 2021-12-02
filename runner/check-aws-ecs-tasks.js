@@ -8,20 +8,23 @@ async function main() {
     console.log('HALT')
     console.log('More than one task already running')
     console.log(taskArns)
-    sendNotification(taskArns)
+    sendHangingNotification(taskArns)
   } else {
     console.log('OK')
     console.log('Only one running task found (assumed to be self)')
+    if (process.env.AWS_ECS_CLUSTER.includes('prod')) {
+      sendStartNotification(taskArns)
+    }
   }
 }
 
-function sendNotification(taskArns) {
+function sendHangingNotification(taskArns) {
   const fields = generateDiscordCloudwatchFields(taskArns)
   const message = [
     {
       title: `CAS still running (${process.env.AWS_ECS_CLUSTER})`,
       description: `A new CAS anchor task was not started because there is already at least one running.`,
-      color: 16776960,
+      color: 16776960, // Yellow
       fields,
     },
   ]
@@ -32,6 +35,21 @@ function sendNotification(taskArns) {
   } else {
     sendDiscordNotification(process.env.DISCORD_WEBHOOK_URL_WARNINGS, data, retryDelayMs)
   }
+}
+
+function sendStartNotification(taskArns) {
+    const fields = generateDiscordCloudwatchFields(taskArns)
+    const message = [
+        {
+            title: `CAS anchor task started (${process.env.AWS_ECS_CLUSTER})`,
+            description: '',
+            color: 3447003, // Blue
+            fields,
+        },
+    ]
+    const data = { embeds: message, username: 'cas-runner'}
+    const retryDelayMs = 300000 // 300k ms = 5 mins
+    sendDiscordNotification(process.env.DISCORD_WEBHOOK_URL_INFO_CAS, data, retryDelayMs)
 }
 
 main()
