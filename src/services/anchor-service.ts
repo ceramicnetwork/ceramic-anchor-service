@@ -258,12 +258,17 @@ export default class AnchorService {
     merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
   ): Promise<Anchor[]> {
     const candidates = merkleTree.getLeaves()
-    const anchors = await Promise.all(
-      Array.from(candidates.entries()).map(([index, candidate]) =>
-        this._createAnchorCommit(candidate, index, ipfsProofCid, merkleTree)
-      )
-    )
-    return anchors.filter((anchor) => anchor != null)
+    const anchors = []
+
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i]
+      const anchor = await this._createAnchorCommit(candidate, i, ipfsProofCid, merkleTree)
+      if (anchor) {
+        anchors.push(anchor)
+      }
+    }
+
+    return anchors
   }
 
   /**
