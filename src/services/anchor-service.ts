@@ -488,34 +488,26 @@ export default class AnchorService {
     const unprocessedRequests: Request[] = []
     const alreadyAnchoredRequests: Request[] = []
 
-    let index = 0
     let numSelectedCandidates = 0
     if (candidateLimit == 0) {
       // 0 means no limit
       candidateLimit = candidates.length
     }
 
-    while (index < candidates.length && numSelectedCandidates < candidateLimit) {
-      const batchSize = Math.min(BATCH_SIZE, candidateLimit - numSelectedCandidates)
-      const batchCandidates = candidates.slice(
-        index,
-        Math.min(index + batchSize, candidates.length)
-      )
-      index += batchSize
+    for (const candidate of candidates) {
+      await AnchorService._loadCandidate(candidate, this.ceramicService)
+      if (candidate.shouldAnchor()) {
+        numSelectedCandidates++
+      }
+      failedRequests.push(...candidate.failedRequests)
+      conflictingRequests.push(...candidate.rejectedRequests)
+      if (candidate.alreadyAnchored) {
+        alreadyAnchoredRequests.push(...candidate.acceptedRequests)
+      }
 
-      await Promise.all(
-        batchCandidates.map(async (candidate) => {
-          await AnchorService._loadCandidate(candidate, this.ceramicService)
-          if (candidate.shouldAnchor()) {
-            numSelectedCandidates++
-          }
-          failedRequests.push(...candidate.failedRequests)
-          conflictingRequests.push(...candidate.rejectedRequests)
-          if (candidate.alreadyAnchored) {
-            alreadyAnchoredRequests.push(...candidate.acceptedRequests)
-          }
-        })
-      )
+      if (numSelectedCandidates >= candidateLimit) {
+        break
+      }
     }
 
     return { alreadyAnchoredRequests, conflictingRequests, failedRequests, unprocessedRequests }
