@@ -6,7 +6,7 @@ async function main() {
   const message = [
     {
       title: `CAS failed (${process.env.AWS_ECS_CLUSTER})`,
-      color: 16711712,
+      color: 16711712, // Red
       fields,
     },
   ]
