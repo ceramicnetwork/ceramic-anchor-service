@@ -218,11 +218,16 @@ export default class CeramicAnchorApp {
       logger.err('Exiting')
       process.exit(1)
     })
-    await anchorService.garbageCollectPinnedStreams().catch((error) => {
-      logger.err(`Error when garbage collecting pinned streams: ${error}`)
-      logger.err('Exiting')
-      process.exit(1)
-    })
+    logger.imp(
+      `Temporarily skipping stream garbage collection to avoid unpinning important streams from private node`
+    )
+
+    // TODO: Uncomment once CAS has its own Ceramic node
+    // await anchorService.garbageCollectPinnedStreams().catch((error) => {
+    //   logger.err(`Error when garbage collecting pinned streams: ${error}`)
+    //   logger.err('Exiting')
+    //   process.exit(1)
+    // })
     process.exit()
   }
 }
