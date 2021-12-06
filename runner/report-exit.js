@@ -1,7 +1,7 @@
 const { generateDiscordCloudwatchFields, sendDiscordNotification, listECSTasks } = require('./helpers')
 
 async function main() {
-  if (process.env.AWS_ECS_CLUSTER.includes('prod')) {
+  if (process.env.AWS_ECS_CLUSTER.includes('prod') || process.env.AWS_ECS_CLUSTER.includes('dev')) {
     // Only do this in prod because it's too noisy given the short interval of
     // tnet and dev anchoring
     const taskArns = await listECSTasks()
