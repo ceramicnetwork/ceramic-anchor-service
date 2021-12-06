@@ -163,12 +163,17 @@ export default class AnchorService {
       candidateCount: candidates.length,
       anchorCount: anchors.length,
     })
+    logger.debug('About to log CIDs that were anchored')
     for (const candidate of merkleTree.getLeaves()) {
       logger.debug(
         `Successfully anchored CID ${candidate.cid.toString()} for stream ${candidate.streamId.toString()}`
       )
     }
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
+
+    logger.debug(`Sleeping 10 seconds for logs to flush`)
+    await Utils.delay(10000)
+    logger.debug(`10 second sleep complete!`)
   }
 
   private async _garbageCollect(requests: Request[]): Promise<void> {
