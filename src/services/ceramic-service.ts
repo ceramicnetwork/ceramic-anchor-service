@@ -7,6 +7,7 @@ import { IpfsService } from './ipfs-service'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import CID from 'cids'
 import dagCBOR from 'ipld-dag-cbor'
+import { logger } from '../logger'
 
 // Interface to allow injecting a mock in tests
 export interface CeramicService {
@@ -14,6 +15,8 @@ export interface CeramicService {
   multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>>
   publishAnchorCommit(streamId: StreamID, anchorCommit: AnchorCommit): Promise<CID>
 }
+
+const MULTIQUERY_TIMEOUT = 1000 * 60 // 1 minute
 
 @singleton()
 export default class CeramicServiceImpl implements CeramicService {
@@ -50,14 +53,15 @@ export default class CeramicServiceImpl implements CeramicService {
   async multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>> {
     let timeout: any
 
-    const queryPromise = this._client.multiQuery(queries).finally(() => {
+    const queryPromise = this._client.multiQuery(queries, MULTIQUERY_TIMEOUT).finally(() => {
       clearTimeout(timeout)
     })
 
     const timeoutPromise = new Promise<Record<string, Stream>>((_, reject) => {
       timeout = setTimeout(() => {
+        logger.warn(`Timed out loading multiquery`)
         reject(new Error(`Timed out loading multiquery`))
-      }, 60 * 1000)
+      }, MULTIQUERY_TIMEOUT)
     })
 
     return await Promise.race([queryPromise, timeoutPromise])
