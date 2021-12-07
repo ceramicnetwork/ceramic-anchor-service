@@ -164,9 +164,9 @@ export default class AnchorService {
       anchorCount: anchors.length,
     })
     logger.debug('About to log CIDs that were anchored')
-    for (const candidate of merkleTree.getLeaves()) {
+    for (const anchor of anchors) {
       logger.debug(
-        `Successfully anchored CID ${candidate.cid.toString()} for stream ${candidate.streamId.toString()}`
+        `Successfully anchored CID ${anchor.request.cid.toString()} with anchor commit ${anchor.cid.toString()} for stream ${anchor.request.streamId.toString()}`
       )
     }
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
