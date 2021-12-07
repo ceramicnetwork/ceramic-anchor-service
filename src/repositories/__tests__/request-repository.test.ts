@@ -9,12 +9,12 @@ import { randomCID } from '../../test-utils'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { RequestStatus } from '../../models/request-status'
 
-async function generateCompletedRequest(expired: boolean, streamId?: StreamID): Promise<Request> {
+async function generateCompletedRequest(expired: boolean, failed: boolean): Promise<Request> {
   const request = new Request()
   const cid = await randomCID()
   request.cid = cid.toString()
-  request.streamId = streamId ? streamId.toString() : new StreamID('tile', cid).toString()
-  request.status = RequestStatus.COMPLETED
+  request.streamId = new StreamID('tile', cid).toString()
+  request.status = failed ? RequestStatus.FAILED : RequestStatus.COMPLETED
   request.message = 'cid anchored successfully'
   request.pinned = true
 
@@ -78,10 +78,10 @@ describe('request repository test', () => {
     // Create two requests that are expired and should be garbage collected, and two that should not
     // be.
     const requests = await Promise.all([
-      generateCompletedRequest(false),
-      generateCompletedRequest(true),
-      generateCompletedRequest(false),
-      generateCompletedRequest(true),
+      generateCompletedRequest(false, false),
+      generateCompletedRequest(true, false),
+      generateCompletedRequest(false, true),
+      generateCompletedRequest(true, true),
     ])
 
     await requestRepository.createRequests(requests)
@@ -98,10 +98,10 @@ describe('request repository test', () => {
     // Create two requests that are expired and should be garbage collected, and two that should not
     // be.
     const requests = await Promise.all([
-      generateCompletedRequest(false),
-      generateCompletedRequest(true),
-      generateCompletedRequest(false),
-      generateCompletedRequest(true),
+      generateCompletedRequest(false, false),
+      generateCompletedRequest(true, false),
+      generateCompletedRequest(false, true),
+      generateCompletedRequest(true, true),
     ])
 
     // Set an expired and non-expired request to be on the same streamId. The expired request should
