@@ -359,7 +359,7 @@ describe('Ceramic Integration Test', () => {
 
       // Perform update on ceramic2
       const doc2 = await TileDocument.load(ceramic2, doc1.id)
-      await doc2.update(updatedContent, null, { anchor: true })
+      await doc2.update(updatedContent, null, { anchor: false })
 
       // Make sure that cas1 updates the newest version that was created on ceramic2, even though
       // the request that ceramic1 made against cas1 was for an older version.
