@@ -12,6 +12,7 @@ import { logger } from '../logger'
 // Interface to allow injecting a mock in tests
 export interface CeramicService {
   loadStream(streamId: StreamID): Promise<any>
+  pinStream(streamId: StreamID): Promise<void>
   multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>>
   publishAnchorCommit(streamId: StreamID, anchorCommit: AnchorCommit): Promise<CID>
 }
@@ -48,6 +49,26 @@ export default class CeramicServiceImpl implements CeramicService {
     })
 
     return (await Promise.race([streamPromise, timeoutPromise])) as T
+  }
+
+  async pinStream(streamId: StreamID): Promise<void> {
+    try {
+      let timeout: any
+
+      const streamPromise = this._client.pin.add(streamId).finally(() => {
+        clearTimeout(timeout)
+      })
+
+      const timeoutPromise = new Promise((_, reject) => {
+        timeout = setTimeout(() => {
+          reject(new Error(`Timed out pinning stream: ${streamId.toString()}`))
+        }, 60 * 1000)
+      })
+
+      await Promise.race([streamPromise, timeoutPromise])
+    } catch (e) {
+      throw new Error(`Error pinning stream ${streamId.toString()}: ${e.toString()}`)
+    }
   }
 
   async multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>> {

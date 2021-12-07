@@ -45,6 +45,8 @@ export class MockCeramicService implements CeramicService {
     return this._streams[streamId.toString()]
   }
 
+  async pinStream(streamId: StreamID): Promise<any> {}
+
   async multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>> {
     const result = {}
     for (const query of queries) {
