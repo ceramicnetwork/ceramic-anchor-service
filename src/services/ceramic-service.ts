@@ -57,7 +57,7 @@ export default class CeramicServiceImpl implements CeramicService {
     try {
       let timeout: any
 
-      const streamPromise = this._client.pin.add(streamId).finally(() => {
+      const pinPromise = this._client.pin.add(streamId).finally(() => {
         clearTimeout(timeout)
       })
 
@@ -67,7 +67,7 @@ export default class CeramicServiceImpl implements CeramicService {
         }, PIN_TIMEOUT)
       })
 
-      await Promise.race([streamPromise, timeoutPromise])
+      await Promise.race([pinPromise, timeoutPromise])
     } catch (e) {
       throw new Error(`Error pinning stream ${streamId.toString()}: ${e.toString()}`)
     }
