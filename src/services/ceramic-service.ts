@@ -17,7 +17,9 @@ export interface CeramicService {
   publishAnchorCommit(streamId: StreamID, anchorCommit: AnchorCommit): Promise<CID>
 }
 
-const MULTIQUERY_TIMEOUT = 1000 * 60 // 1 minute
+const LOAD_TIMEOUT = 1000 * 60 // 1 minute
+const MULTIQUERY_TIMEOUT = 1000 * 60 * 2 // 2 minutes
+const PIN_TIMEOUT = 1000 * 60 * 2 // 2 minutes
 
 @singleton()
 export default class CeramicServiceImpl implements CeramicService {
@@ -45,7 +47,7 @@ export default class CeramicServiceImpl implements CeramicService {
     const timeoutPromise = new Promise((_, reject) => {
       timeout = setTimeout(() => {
         reject(new Error(`Timed out loading stream: ${streamId.toString()}`))
-      }, 60 * 1000)
+      }, LOAD_TIMEOUT)
     })
 
     return (await Promise.race([streamPromise, timeoutPromise])) as T
@@ -62,7 +64,7 @@ export default class CeramicServiceImpl implements CeramicService {
       const timeoutPromise = new Promise((_, reject) => {
         timeout = setTimeout(() => {
           reject(new Error(`Timed out pinning stream: ${streamId.toString()}`))
-        }, 60 * 1000)
+        }, PIN_TIMEOUT)
       })
 
       await Promise.race([streamPromise, timeoutPromise])
