@@ -318,6 +318,8 @@ describe('Ceramic Integration Test', () => {
         await anchorUpdate(doc2, cas2)
         expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
         expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+
+        console.log('Test complete: Anchors on different CAS instances are independent')
       },
       60 * 1000 * 3
     )
@@ -335,6 +337,8 @@ describe('Ceramic Integration Test', () => {
         await anchorUpdate(doc1, cas1)
         expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
         expect(doc1.content).toEqual({ foo: 2 })
+
+        console.log('Test complete: Multiple anchors for same stream')
       },
       60 * 1000 * 3
     )
@@ -352,6 +356,8 @@ describe('Ceramic Integration Test', () => {
         expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
         await waitForAnchor(doc2)
         expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+
+        console.log('Test complete: Multiple anchors in a batch')
       },
       60 * 1000 * 3
     )
@@ -376,6 +382,8 @@ describe('Ceramic Integration Test', () => {
         await anchorUpdate(doc1, cas1)
         expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
         expect(doc1.content).toEqual(updatedContent)
+
+        console.log('Test complete: Anchors latest available tip from network')
       },
       60 * 1000 * 2
     )
