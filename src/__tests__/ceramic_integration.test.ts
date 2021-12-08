@@ -132,9 +132,9 @@ async function anchorUpdate(stream: Stream, anchorService: CeramicAnchorApp): Pr
   // The anchor request is not guaranteed to already have been sent to the CAS when the create/update
   // promise resolves, so we wait a bit to give the ceramic node time to actually send the request
   // before triggering the anchor.
-  // TODO: Remove this once Ceramic won't return from a request that makes an anchor without having
-  // already made the anchor request against the CAS.
-  await Utils.delay(1000)
+  // TODO(js-ceramic #1919): Remove this once Ceramic won't return from a request that makes an
+  // anchor without having already made the anchor request against the CAS.
+  await Utils.delay(5000)
 
   await anchorService.anchor()
   await waitForAnchor(stream)
