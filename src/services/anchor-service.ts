@@ -1,4 +1,4 @@
-import CID from 'cids'
+import { CID } from 'multiformats/cid'
 
 import { RequestStatus as RS } from '../models/request-status'
 
@@ -19,7 +19,7 @@ import { IpfsService } from './ipfs-service'
 import CeramicService from './ceramic-service'
 import BlockchainService from './blockchain/blockchain-service'
 import { inject, singleton } from 'tsyringe'
-import { StreamID, CommitID } from '@ceramicnetwork/streamid'
+import { StreamID } from '@ceramicnetwork/streamid'
 import {
   BloomMetadata,
   Candidate,
@@ -236,7 +236,7 @@ export default class AnchorService {
    * @param merkleRootCid - CID of the root of the merkle tree that was anchored in 'tx'
    */
   async _createIPFSProof(tx: Transaction, merkleRootCid: CID): Promise<CID> {
-    const txHashCid = Utils.convertEthHashToCid('eth-tx', tx.txHash.slice(2))
+    const txHashCid = Utils.convertEthHashToCid(tx.txHash.slice(2))
     const ipfsAnchorProof = {
       blockNumber: tx.blockNumber,
       blockTimestamp: tx.blockTimestamp,
@@ -385,12 +385,8 @@ export default class AnchorService {
     const candidates = AnchorService._buildCandidates(requests)
 
     logger.debug(`About to load candidate streams`)
-    const {
-      alreadyAnchoredRequests,
-      conflictingRequests,
-      failedRequests,
-      unprocessedRequests,
-    } = await this._loadCandidateStreams(candidates, candidateLimit)
+    const { alreadyAnchoredRequests, conflictingRequests, failedRequests, unprocessedRequests } =
+      await this._loadCandidateStreams(candidates, candidateLimit)
     const candidatesToAnchor = candidates.filter((candidate) => {
       return candidate.shouldAnchor()
     })

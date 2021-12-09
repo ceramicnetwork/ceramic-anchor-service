@@ -1,4 +1,4 @@
-import CID from 'cids'
+import { CID } from 'multiformats/cid'
 
 import { AnchorStatus, Stream, StreamMetadata } from '@ceramicnetwork/common'
 import { CompareFunction, MergeFunction, MetadataFunction, Node, TreeMetadata } from './merkle'

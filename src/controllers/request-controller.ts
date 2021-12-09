@@ -6,7 +6,7 @@ import { Config } from 'node-config-ts'
 import cors from 'cors'
 import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core'
 
-import CID from 'cids'
+import { toCID } from '@ceramicnetwork/common'
 import { RequestStatus } from '../models/request-status'
 import AnchorRepository from '../repositories/anchor-repository'
 import RequestRepository from '../repositories/request-repository'
@@ -34,7 +34,7 @@ export default class RequestController {
     logger.debug(`Get info for ${req.params.cid}`)
 
     try {
-      const cid = new CID(req.params.cid)
+      const cid = toCID(req.params.cid)
       if (cid) {
         const request = await this.requestRepository.findByCid(cid)
         if (request) {
@@ -82,7 +82,7 @@ export default class RequestController {
         })
       }
 
-      const cidObj = new CID(cid)
+      const cidObj = toCID(cid)
       let request = await this.requestRepository.findByCid(cidObj)
       if (request) {
         const body = await this.#requestPresentation.body(request)

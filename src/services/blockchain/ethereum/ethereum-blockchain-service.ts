@@ -1,4 +1,5 @@
-import CID from 'cids'
+import type { CID } from 'multiformats/cid'
+import { base16 } from 'multiformats/bases/base16'
 
 import { ErrorCode } from '@ethersproject/logger'
 
@@ -270,7 +271,7 @@ export default class EthereumBlockchainService implements BlockchainService {
   }
 
   async _buildTransactionRequest(rootCid: CID): Promise<TransactionRequest> {
-    const rootStrHex = rootCid.toString('base16')
+    const rootStrHex = rootCid.toString(base16)
     const hexEncoded = '0x' + (rootStrHex.length % 2 == 0 ? rootStrHex : '0' + rootStrHex)
     logger.imp(`Hex encoded root CID ${hexEncoded}`)
 

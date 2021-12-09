@@ -10,7 +10,7 @@ import { instanceCachingFactory, DependencyContainer } from 'tsyringe'
 
 import { logger } from './logger'
 import CeramicAnchorServer from './server'
-import { Connection, createConnection } from 'typeorm'
+import { Connection } from 'typeorm'
 import { IpfsServiceImpl } from './services/ipfs-service'
 import AnchorService from './services/anchor-service'
 import SchedulerService from './services/scheduler-service'
@@ -85,7 +85,7 @@ export default class CeramicAnchorApp {
    * Handles normalizing the arguments passed via the config, for example turning string
    * representations of booleans and numbers into the proper types
    */
-  static _normalizeConfig(config: Config) {
+  static _normalizeConfig(config: Config): void {
     config.mode = config.mode.trim().toLowerCase()
     if (typeof config.merkleDepthLimit == 'string') {
       config.merkleDepthLimit = parseInt(config.merkleDepthLimit)
@@ -144,9 +144,8 @@ export default class CeramicAnchorApp {
       `Starting Ceramic Anchor Service at version ${packageJson.version} with config:\n${configLogString}`
     )
 
-    const blockchainService: BlockchainService = this.container.resolve<BlockchainService>(
-      'blockchainService'
-    )
+    const blockchainService: BlockchainService =
+      this.container.resolve<BlockchainService>('blockchainService')
     await blockchainService.connect()
 
     if (this._anchorsSupported()) {

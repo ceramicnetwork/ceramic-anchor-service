@@ -5,8 +5,10 @@ import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
 import { IpfsService } from './ipfs-service'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
-import CID from 'cids'
-import dagCBOR from 'ipld-dag-cbor'
+import type { CID } from 'multiformats/cid'
+import * as Block from 'multiformats/block'
+import * as codec from '@ipld/dag-cbor'
+import { sha256 as hasher } from 'multiformats/hashes/sha2'
 import { logger } from '../logger'
 
 // Interface to allow injecting a mock in tests
@@ -68,7 +70,8 @@ export default class CeramicServiceImpl implements CeramicService {
   }
 
   async publishAnchorCommit(streamId: StreamID, anchorCommit: AnchorCommit): Promise<CID> {
-    const expectedCID = await dagCBOR.util.cid(new Uint8Array(dagCBOR.util.serialize(anchorCommit)))
+    const block = await Block.encode({ value: anchorCommit, codec, hasher })
+    const expectedCID = block.cid
     const stream = await this._client.applyCommit(streamId, anchorCommit, {
       publish: true,
       anchor: false,
