@@ -165,12 +165,14 @@ export default class AnchorService {
     logEvent.anchor({
       type: 'anchorRequests',
       requestIds: requests.map((r) => r.id),
-      acceptedRequestsCount: groupedRequests.acceptedRequests,
-      alreadyAnchoredRequests: groupedRequests.alreadyAnchoredRequests,
-      anchoredRequests: numAnchoredRequests,
-      conflictingRequest: groupedRequests.conflictingRequests,
-      failedRequestsCount: groupedRequests.failedRequests,
-      unprocessedRequest: groupedRequests.unprocessedRequests,
+      acceptedRequestsCount: groupedRequests.acceptedRequests.length,
+      alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
+      anchoredRequestsCount: numAnchoredRequests,
+      conflictingRequestCount: groupedRequests.conflictingRequests.length,
+      failedRequestsCount: groupedRequests.failedRequests.length,
+      failedToPublishAnchorCommitCount:
+        groupedRequests.acceptedRequests.length - numAnchoredRequests,
+      unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
       candidateCount: candidates.length,
       anchorCount: anchors.length,
     })
