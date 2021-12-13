@@ -29,13 +29,12 @@ import {
 } from '../merkle/merkle-objects'
 import { Connection } from 'typeorm'
 
-const BATCH_SIZE = 128
-
-type LoadCandidatesResult = {
+type RequestGroups = {
   alreadyAnchoredRequests: Request[]
   conflictingRequests: Request[]
   failedRequests: Request[]
   unprocessedRequests: Request[]
+  acceptedRequests: Request[]
 }
 
 /**
@@ -98,6 +97,7 @@ export default class AnchorService {
    * Creates anchors for client requests
    */
   public async anchorRequests(): Promise<void> {
+    logger.imp('Anchoring pending requests...')
     // We try to fill our batch with 2^merkleDepthLimit streams at the leaf nodes of the merkle tree.
     // But we don't want to look at *every* pending request just to make sure we can fill our batch,
     // so we limit ourselves to processing twice as many requests as the number of streams we ultimately
@@ -105,6 +105,7 @@ export default class AnchorService {
     // up with an under-full batch, but that's okay.
     const streamLimit = Math.pow(2, this.config.merkleDepthLimit)
     const requestLimit = 2 * streamLimit
+    logger.debug(`Loading Requests from the database`)
     const requests: Request[] = await this.requestRepository.findNextToProcess(requestLimit)
     await this._anchorRequests(requests)
   }
@@ -115,8 +116,6 @@ export default class AnchorService {
   }
 
   private async _anchorRequests(requests: Request[]): Promise<void> {
-    logger.imp('Anchoring pending requests...')
-
     if (requests.length === 0) {
       logger.debug('No pending CID requests found. Skipping anchor.')
       return
@@ -128,13 +127,13 @@ export default class AnchorService {
       // max depth of the merkle tree.
       streamCountLimit = Math.pow(2, this.config.merkleDepthLimit)
     }
-    const candidates: Candidate[] = await this._findCandidates(requests, streamCountLimit)
+    const [candidates, groupedRequests] = await this._findCandidates(requests, streamCountLimit)
     if (candidates.length === 0) {
       logger.debug('No CID to request. Skipping anchor.')
       return
     }
 
-    logger.imp(`Creating Merkle tree from ${candidates.length} selected records`)
+    logger.imp(`Creating Merkle tree from ${candidates.length} selected streams`)
     const merkleTree = await this._buildMerkleTree(candidates)
 
     // create and send ETH transaction
@@ -155,14 +154,6 @@ export default class AnchorService {
     logger.debug('Persisting results to local database')
     const numAnchoredRequests = await this._persistAnchorResult(anchors, candidates)
 
-    logEvent.anchor({
-      type: 'anchorRequests',
-      requestIds: requests.map((r) => r.id),
-      failedRequestsCount: requests.length - numAnchoredRequests,
-      acceptedRequestsCount: numAnchoredRequests,
-      candidateCount: candidates.length,
-      anchorCount: anchors.length,
-    })
     logger.debug('About to log CIDs that were anchored')
     for (const anchor of anchors) {
       logger.debug(
@@ -170,6 +161,19 @@ export default class AnchorService {
       )
     }
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
+
+    logEvent.anchor({
+      type: 'anchorRequests',
+      requestIds: requests.map((r) => r.id),
+      acceptedRequestsCount: groupedRequests.acceptedRequests,
+      alreadyAnchoredRequests: groupedRequests.alreadyAnchoredRequests,
+      anchoredRequests: numAnchoredRequests,
+      conflictingRequest: groupedRequests.conflictingRequests,
+      failedRequestsCount: groupedRequests.failedRequests,
+      unprocessedRequest: groupedRequests.unprocessedRequests,
+      candidateCount: candidates.length,
+      anchorCount: anchors.length,
+    })
 
     logger.debug(`Sleeping 10 seconds for logs to flush`)
     await Utils.delay(10000)
@@ -376,24 +380,18 @@ export default class AnchorService {
   }
 
   /**
-   * Find candidates for the anchoring. Also updates the Request database for the Requests that we
-   * already know at this point have failed, already been anchored, or were excluded from processing
-   * in this batch.
-   * @private
+   * After loading Candidate streams, we are left with several groups of requests that for various
+   * reasons will not be included in this batch.  This function takes those requests and updates
+   * the database for them as needed.
+   * @param requests
    */
-  async _findCandidates(requests: Request[], candidateLimit: number): Promise<Candidate[]> {
-    const candidates = AnchorService._buildCandidates(requests)
-
-    logger.debug(`About to load candidate streams`)
+  async _updateNonSelectedRequests(requests: RequestGroups) {
     const {
       alreadyAnchoredRequests,
       conflictingRequests,
       failedRequests,
       unprocessedRequests,
-    } = await this._loadCandidateStreams(candidates, candidateLimit)
-    const candidatesToAnchor = candidates.filter((candidate) => {
-      return candidate.shouldAnchor()
-    })
+    } = requests
 
     if (failedRequests.length > 0) {
       logger.debug(
@@ -446,20 +444,43 @@ export default class AnchorService {
         `There were ${unprocessedRequests.length} unprocessed requests that didn't make it into this batch.  Leaving them in PENDING state as they were.`
       )
     }
+  }
+
+  /**
+   * Find candidates for the anchoring. Also updates the Request database for the Requests that we
+   * already know at this point have failed, already been anchored, or were excluded from processing
+   * in this batch.
+   * @private
+   */
+  async _findCandidates(
+    requests: Request[],
+    candidateLimit: number
+  ): Promise<[Candidate[], RequestGroups]> {
+    logger.debug(`Grouping requests by stream`)
+    const candidates = AnchorService._buildCandidates(requests)
+
+    logger.debug(`Loading candidate streams`)
+    const groupedRequests = await this._loadCandidateStreams(candidates, candidateLimit)
+    await this._updateNonSelectedRequests(groupedRequests)
+
+    const candidatesToAnchor = candidates.filter((candidate) => {
+      return candidate.shouldAnchor()
+    })
 
     if (candidatesToAnchor.length > 0) {
-      const acceptedRequests = []
       for (const candidate of candidates) {
-        acceptedRequests.push(...candidate.acceptedRequests)
+        groupedRequests.acceptedRequests.push(...candidate.acceptedRequests)
       }
-      logger.debug(`Marking ${acceptedRequests.length} pending requests as processing`)
+      logger.debug(
+        `Marking ${groupedRequests.acceptedRequests.length} pending requests as processing`
+      )
       await this.requestRepository.updateRequests(
         { status: RS.PROCESSING, message: 'Request is processing.' },
-        acceptedRequests
+        groupedRequests.acceptedRequests
       )
     }
 
-    return candidatesToAnchor
+    return [candidatesToAnchor, groupedRequests]
   }
 
   /**
@@ -497,7 +518,7 @@ export default class AnchorService {
   async _loadCandidateStreams(
     candidates: Candidate[],
     candidateLimit: number
-  ): Promise<LoadCandidatesResult> {
+  ): Promise<RequestGroups> {
     const failedRequests: Request[] = []
     const conflictingRequests: Request[] = []
     const unprocessedRequests: Request[] = []
@@ -530,7 +551,13 @@ export default class AnchorService {
       }
     }
 
-    return { alreadyAnchoredRequests, conflictingRequests, failedRequests, unprocessedRequests }
+    return {
+      alreadyAnchoredRequests,
+      acceptedRequests: [],
+      conflictingRequests,
+      failedRequests,
+      unprocessedRequests,
+    }
   }
 
   /**
