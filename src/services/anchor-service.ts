@@ -177,9 +177,7 @@ export default class AnchorService {
       anchorCount: anchors.length,
     })
 
-    logger.debug(`Sleeping 10 seconds for logs to flush`)
-    await Utils.delay(10000)
-    logger.debug(`10 second sleep complete!`)
+    await Utils.delay(5000)
   }
 
   private async _garbageCollect(requests: Request[]): Promise<void> {
