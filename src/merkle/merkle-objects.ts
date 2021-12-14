@@ -116,6 +116,21 @@ export class Candidate implements CIDHolder {
     this._acceptedRequests = []
   }
 
+  /**
+   * Used after a Candidate has been loaded to reset its state to the way it was when it was first
+   * constructed. This is useful because sometimes while loading streams concurrently to fill the
+   * batch we wind up overshooting and loading more candidates than we can fit in the batch.
+   * Resetting the extra candidates ensures we don't accidentally include more Candidates in the
+   * batch than we intend, or update the database entry for Requests erroneously.
+   */
+  reset(): void {
+    this._acceptedRequests = []
+    this._failedRequests = []
+    this._rejectedRequests = []
+    this._alreadyAnchored = false
+    this._cid = null
+  }
+
   allRequestsFailed(): boolean {
     return this._failedRequests.length == this._requests.length
   }

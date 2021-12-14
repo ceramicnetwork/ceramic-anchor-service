@@ -19,7 +19,7 @@ import { IpfsService } from './ipfs-service'
 import CeramicService from './ceramic-service'
 import BlockchainService from './blockchain/blockchain-service'
 import { inject, singleton } from 'tsyringe'
-import { StreamID, CommitID } from '@ceramicnetwork/streamid'
+import { StreamID } from '@ceramicnetwork/streamid'
 import {
   BloomMetadata,
   Candidate,
@@ -28,6 +28,7 @@ import {
   IpfsMerge,
 } from '../merkle/merkle-objects'
 import { Connection } from 'typeorm'
+import { Semaphore } from 'await-semaphore'
 
 type RequestGroups = {
   alreadyAnchoredRequests: Request[]
@@ -36,6 +37,9 @@ type RequestGroups = {
   unprocessedRequests: Request[]
   acceptedRequests: Request[]
 }
+
+// Max number of streams to load at once
+const CONCURRENT_LOAD_LIMIT = 5
 
 /**
  * Anchors CIDs to blockchain
@@ -530,10 +534,23 @@ export default class AnchorService {
       candidateLimit = candidates.length
     }
 
-    for (let i = 0; i < candidates.length; i++) {
-      const candidate = candidates[i]
+    const semaphore = new Semaphore(CONCURRENT_LOAD_LIMIT)
+    const ceramicService = this.ceramicService
 
-      await AnchorService._loadCandidate(candidate, this.ceramicService)
+    // Closure for loading candidate and sorting the Requests from the candidate
+    // appropriately after.
+    const loadAndProcessCandidate = async function (candidate) {
+      if (numSelectedCandidates >= candidateLimit) {
+        // No need to process this candidate, we've already filled our anchor batch
+        return
+      }
+
+      await AnchorService._loadCandidate(candidate, ceramicService)
+      if (numSelectedCandidates >= candidateLimit) {
+        // We filled our batch while loading this candidate
+        candidate.reset()
+        return
+      }
       if (candidate.shouldAnchor()) {
         numSelectedCandidates++
         logger.debug(
@@ -545,11 +562,16 @@ export default class AnchorService {
       if (candidate.alreadyAnchored) {
         alreadyAnchoredRequests.push(...candidate.acceptedRequests)
       }
-
-      if (numSelectedCandidates >= candidateLimit) {
-        break
-      }
     }
+
+    // load multiple candidates concurrently, but only up to CONCURRENT_LOAD_LIMIT at once.
+    const loadCandidatePromises = []
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i]
+
+      loadCandidatePromises.push(semaphore.use(() => loadAndProcessCandidate(candidate)))
+    }
+    await Promise.all(loadCandidatePromises)
 
     return {
       alreadyAnchoredRequests,
