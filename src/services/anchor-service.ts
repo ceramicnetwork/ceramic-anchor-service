@@ -38,8 +38,8 @@ type RequestGroups = {
   acceptedRequests: Request[]
 }
 
-// Max number of streams to load at once
-const CONCURRENT_LOAD_LIMIT = 5
+const CONCURRENT_CANDIDATE_LOAD_LIMIT = 5
+const CONCURRENT_ANCHOR_PUBLISH_LIMIT = 5
 
 /**
  * Anchors CIDs to blockchain
@@ -271,21 +271,22 @@ export default class AnchorService {
     merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
   ): Promise<Anchor[]> {
     const candidates = merkleTree.getLeaves()
-    const anchors = []
+    const anchorPromises = []
 
+    // Publish anchor commits for multiple streams concurrently, but only up to
+    // CONCURRENT_ANCHOR_PUBLISH_LIMIT at once.
+    const semaphore = new Semaphore(CONCURRENT_ANCHOR_PUBLISH_LIMIT)
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i]
-      logger.debug(
-        `Creating anchor commit #${i} of ${
-          candidates.length
-        }: stream id ${candidate.streamId.toString()} at commit CID ${candidate.cid}`
+
+      anchorPromises.push(
+        semaphore.use(() =>
+          this._createAnchorCommit(candidate, i, candidates.length, ipfsProofCid, merkleTree)
+        )
       )
-      const anchor = await this._createAnchorCommit(candidate, i, ipfsProofCid, merkleTree)
-      if (anchor) {
-        anchors.push(anchor)
-      }
     }
 
+    const anchors = (await Promise.all(anchorPromises)).filter((anchor) => anchor != null)
     return anchors
   }
 
@@ -299,9 +300,18 @@ export default class AnchorService {
   async _createAnchorCommit(
     candidate: Candidate,
     candidateIndex: number,
+    numCandidates: number,
     ipfsProofCid: CID,
     merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
   ): Promise<Anchor | null> {
+    logger.debug(
+      `Creating anchor commit #${
+        candidateIndex + 1
+      } of ${numCandidates}: stream id ${candidate.streamId.toString()} at commit CID ${
+        candidate.cid
+      }`
+    )
+
     const anchor: Anchor = new Anchor()
     anchor.request = candidate.newestAcceptedRequest
     anchor.proofCid = ipfsProofCid.toString()
@@ -534,7 +544,7 @@ export default class AnchorService {
       candidateLimit = candidates.length
     }
 
-    const semaphore = new Semaphore(CONCURRENT_LOAD_LIMIT)
+    const semaphore = new Semaphore(CONCURRENT_CANDIDATE_LOAD_LIMIT)
     const ceramicService = this.ceramicService
 
     // Closure for loading candidate and sorting the Requests from the candidate
@@ -564,7 +574,7 @@ export default class AnchorService {
       }
     }
 
-    // load multiple candidates concurrently, but only up to CONCURRENT_LOAD_LIMIT at once.
+    // load multiple candidates concurrently, but only up to CONCURRENT_CANDIDATE_LOAD_LIMIT at once.
     const loadCandidatePromises = []
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i]
