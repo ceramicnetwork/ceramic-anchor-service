@@ -105,7 +105,7 @@ export default class AnchorService {
     // up with an under-full batch, but that's okay.
     const streamLimit = Math.pow(2, this.config.merkleDepthLimit)
     const requestLimit = 2 * streamLimit
-    logger.debug(`Loading Requests from the database`)
+    logger.debug(`Loading requests from the database`)
     const requests: Request[] = await this.requestRepository.findNextToProcess(requestLimit)
     await this._anchorRequests(requests)
   }
@@ -177,6 +177,7 @@ export default class AnchorService {
       anchorCount: anchors.length,
     })
 
+    // Sleep 5 seconds befor exiting the process to give time for the logs to flush.
     await Utils.delay(5000)
   }
 
