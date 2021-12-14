@@ -69,7 +69,8 @@ export default class CeramicServiceImpl implements CeramicService {
 
       await Promise.race([pinPromise, timeoutPromise])
     } catch (e) {
-      throw new Error(`Error pinning stream ${streamId.toString()}: ${e.toString()}`)
+      // Pinning is best-effort, as we don't want to fail requests if the Ceramic node is unavailable
+      logger.err(`Error pinning stream ${streamId.toString()}: ${e.toString()}`)
     }
   }
 
