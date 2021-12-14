@@ -16,7 +16,10 @@ export interface CeramicService {
   publishAnchorCommit(streamId: StreamID, anchorCommit: AnchorCommit): Promise<CID>
 }
 
-const MULTIQUERY_TIMEOUT = 1000 * 60 // 1 minute
+const MULTIQUERY_SERVER_TIMEOUT = 1000 * 60 // 1 minute
+// 10 seconds more than server-side timeout so server-side timeout can fire first, which gives us a
+// more useful error message
+const MULTIQUERY_CLIENT_TIMEOUT = 1000 * 70 // 1 minute and 10 seconds
 
 @singleton()
 export default class CeramicServiceImpl implements CeramicService {
@@ -53,7 +56,7 @@ export default class CeramicServiceImpl implements CeramicService {
   async multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>> {
     let timeout: any
 
-    const queryPromise = this._client.multiQuery(queries, MULTIQUERY_TIMEOUT).finally(() => {
+    const queryPromise = this._client.multiQuery(queries, MULTIQUERY_SERVER_TIMEOUT).finally(() => {
       clearTimeout(timeout)
     })
 
@@ -61,7 +64,7 @@ export default class CeramicServiceImpl implements CeramicService {
       timeout = setTimeout(() => {
         logger.warn(`Timed out loading multiquery`)
         reject(new Error(`Timed out loading multiquery`))
-      }, MULTIQUERY_TIMEOUT)
+      }, MULTIQUERY_CLIENT_TIMEOUT)
     })
 
     return await Promise.race([queryPromise, timeoutPromise])
