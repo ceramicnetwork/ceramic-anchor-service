@@ -154,14 +154,7 @@ export default class AnchorService {
     logger.debug('Persisting results to local database')
     const numAnchoredRequests = await this._persistAnchorResult(anchors, candidates)
 
-    logger.debug('About to log CIDs that were anchored')
-    for (const anchor of anchors) {
-      logger.debug(
-        `Successfully anchored CID ${anchor.request.cid.toString()} with anchor commit ${anchor.cid.toString()} for stream ${anchor.request.streamId.toString()}`
-      )
-    }
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
-
     logEvent.anchor({
       type: 'anchorRequests',
       requestIds: requests.map((r) => r.id),
@@ -170,8 +163,7 @@ export default class AnchorService {
       anchoredRequestsCount: numAnchoredRequests,
       conflictingRequestCount: groupedRequests.conflictingRequests.length,
       failedRequestsCount: groupedRequests.failedRequests.length,
-      failedToPublishAnchorCommitCount:
-        groupedRequests.acceptedRequests.length - numAnchoredRequests,
+      failedToPublishAnchorCommitCount: merkleTree.getLeaves().length - numAnchoredRequests,
       unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
       candidateCount: candidates.length,
       anchorCount: anchors.length,
@@ -540,12 +532,12 @@ export default class AnchorService {
         logger.debug(
           `Selected candidate stream #${numSelectedCandidates} of ${candidateLimit}: streamid ${candidate.streamId}`
         )
+      } else if (candidate.alreadyAnchored) {
+        logger.debug(`Stream ${candidate.streamId.toString()} is already anchored`)
+        alreadyAnchoredRequests.push(...candidate.acceptedRequests)
       }
       failedRequests.push(...candidate.failedRequests)
       conflictingRequests.push(...candidate.rejectedRequests)
-      if (candidate.alreadyAnchored) {
-        alreadyAnchoredRequests.push(...candidate.acceptedRequests)
-      }
 
       if (numSelectedCandidates >= candidateLimit) {
         break
