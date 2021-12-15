@@ -100,11 +100,11 @@ export default class AnchorService {
     logger.imp('Anchoring pending requests...')
     // We try to fill our batch with 2^merkleDepthLimit streams at the leaf nodes of the merkle tree.
     // But we don't want to look at *every* pending request just to make sure we can fill our batch,
-    // so we limit ourselves to processing twice as many requests as the number of streams we ultimately
+    // so we limit ourselves to processing 3x as many requests as the number of streams we ultimately
     // want to anchor.  If we don't find enough unique streams in all those requests, then we wind
     // up with an under-full batch, but that's okay.
     const streamLimit = Math.pow(2, this.config.merkleDepthLimit)
-    const requestLimit = 2 * streamLimit
+    const requestLimit = 3 * streamLimit
     logger.debug(`Loading requests from the database`)
     const requests: Request[] = await this.requestRepository.findNextToProcess(requestLimit)
     await this._anchorRequests(requests)
@@ -169,7 +169,7 @@ export default class AnchorService {
       anchorCount: anchors.length,
     })
 
-    // Sleep 5 seconds befor exiting the process to give time for the logs to flush.
+    // Sleep 5 seconds before exiting the process to give time for the logs to flush.
     await Utils.delay(5000)
   }
 
