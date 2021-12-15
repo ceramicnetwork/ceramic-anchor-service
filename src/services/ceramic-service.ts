@@ -60,9 +60,14 @@ export default class CeramicServiceImpl implements CeramicService {
     try {
       let timeout: any
 
-      const pinPromise = this._client.pin.add(streamId).finally(() => {
-        clearTimeout(timeout)
-      })
+      const pinPromise = this._client.pin
+        .add(streamId)
+        .then(() => {
+          logger.debug(`Successfully pinned stream ${streamId.toString()}`)
+        })
+        .finally(() => {
+          clearTimeout(timeout)
+        })
 
       const timeoutPromise = new Promise((_, reject) => {
         timeout = setTimeout(() => {

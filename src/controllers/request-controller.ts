@@ -90,7 +90,8 @@ export default class RequestController {
         const body = await this.#requestPresentation.body(request)
         return res.status(StatusCodes.ACCEPTED).json(body)
       } else {
-        await this.ceramicService.pinStream(streamId)
+        // Intentionally don't await the pinStream promise, let it happen in the background.
+        this.ceramicService.pinStream(streamId)
 
         request = new Request()
         request.cid = cid.toString()
