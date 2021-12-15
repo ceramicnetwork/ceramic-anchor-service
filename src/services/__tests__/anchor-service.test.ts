@@ -18,7 +18,7 @@ import { Connection } from 'typeorm'
 import CID from 'cids'
 import { Candidate } from '../../merkle/merkle-objects'
 import { Anchor } from '../../models/anchor'
-import { AnchorStatus } from '@ceramicnetwork/common'
+import { AnchorStatus, MultiQuery } from '@ceramicnetwork/common'
 
 process.env.NODE_ENV = 'test'
 
@@ -286,6 +286,49 @@ describe('anchor service', () => {
     expect(request1.status).toEqual(RequestStatus.FAILED)
     expect(request2.status).toEqual(RequestStatus.PROCESSING)
     expect(request3.status).toEqual(RequestStatus.FAILED)
+  })
+
+  test('sends multiquery for missing commits', async () => {
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    const anchorService = container.resolve<AnchorService>('anchorService')
+
+    const streamId = await ceramicService.generateBaseStreamID()
+
+    // First request is already present in ceramic
+    const request0 = await createRequest(streamId.toString(), ipfsService)
+    await requestRepository.createOrUpdate(request0)
+    const commitId0 = streamId.atCommit(request0.cid)
+    const streamWithoutRequest1 = createStream(streamId, [new CID(request0.cid)])
+    ceramicService.putStream(streamId, streamWithoutRequest1)
+    ceramicService.putStream(commitId0, streamWithoutRequest1)
+
+    // Second request does not yet show up in ceramic
+    const request1 = await createRequest(streamId.toString(), ipfsService)
+    await requestRepository.createOrUpdate(request1)
+    const streamWithRequest1 = createStream(StreamID.fromString(request0.streamId), [
+      new CID(request0.cid),
+      new CID(request1.cid),
+    ])
+    const commitId1 = streamId.atCommit(request1.cid)
+    ceramicService.putStream(commitId1, streamWithRequest1)
+
+    const multiQuerySpy = jest.spyOn(ceramicService, 'multiQuery')
+    multiQuerySpy.mockImplementationOnce(async (queries) => {
+      const result = {}
+      result[streamId.toString()] = streamWithRequest1
+      result[commitId1.toString()] = streamWithRequest1
+      return result
+    })
+
+    const [candidates, _] = await anchorService._findCandidates([request0, request1], 0)
+    expect(candidates.length).toEqual(1)
+    expect(candidates[0].streamId.toString()).toEqual(streamId.toString())
+    expect(candidates[0].cid.toString()).toEqual(request1.cid)
+
+    expect(multiQuerySpy).toHaveBeenCalledTimes(1)
+    expect(multiQuerySpy.mock.calls[0][0].length).toEqual(2)
+    expect(multiQuerySpy.mock.calls[0][0][0].streamId.toString()).toEqual(commitId1.toString())
+    expect(multiQuerySpy.mock.calls[0][0][1].streamId.toString()).toEqual(streamId.toString())
   })
 
   test('filters anchors that fail to publish AnchorCommit to Ceramic', async () => {
