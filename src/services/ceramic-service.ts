@@ -104,7 +104,7 @@ export default class CeramicServiceImpl implements CeramicService {
     const stream = await this._client.applyCommit(streamId, anchorCommit, {
       publish: true,
       anchor: false,
-      pin: true,
+      pin: true, // Important in case the stream wasn't pinned on the original request
     })
 
     const commitFound: boolean =

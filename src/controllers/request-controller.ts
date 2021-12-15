@@ -98,6 +98,9 @@ export default class RequestController {
         request.streamId = streamId
         request.status = RequestStatus.PENDING
         request.message = 'Request is pending.'
+        // We don't actually know with certainty that the stream is pinned, since the pinStream
+        // call above can fail and swallows errors, but marking it as pinned incorrectly is harmless,
+        // and this way we ensure the request is picked up by garbage collection.
         request.pinned = true
 
         request = await this.requestRepository.createOrUpdate(request)
