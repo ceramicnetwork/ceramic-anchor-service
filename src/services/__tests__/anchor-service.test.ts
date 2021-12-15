@@ -19,6 +19,7 @@ import CID from 'cids'
 import { Candidate } from '../../merkle/merkle-objects'
 import { Anchor } from '../../models/anchor'
 import { AnchorStatus, MultiQuery } from '@ceramicnetwork/common'
+import cloneDeep from 'lodash.clonedeep'
 
 process.env.NODE_ENV = 'test'
 
@@ -292,43 +293,69 @@ describe('anchor service', () => {
     const requestRepository = container.resolve<RequestRepository>('requestRepository')
     const anchorService = container.resolve<AnchorService>('anchorService')
 
-    const streamId = await ceramicService.generateBaseStreamID()
+    const makeRequest = async function (streamId: StreamID, includeInBaseStream: boolean) {
+      const request = await createRequest(streamId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request)
+      const commitId = streamId.atCommit(request.cid)
 
-    // First request is already present in ceramic
-    const request0 = await createRequest(streamId.toString(), ipfsService)
-    await requestRepository.createOrUpdate(request0)
-    const commitId0 = streamId.atCommit(request0.cid)
-    const streamWithoutRequest1 = createStream(streamId, [new CID(request0.cid)])
-    ceramicService.putStream(streamId, streamWithoutRequest1)
-    ceramicService.putStream(commitId0, streamWithoutRequest1)
+      const existingStream = await ceramicService.loadStream(streamId).catch(() => null)
+      let streamWithCommit
+      if (existingStream) {
+        const log = cloneDeep(existingStream.state.log).map(({ cid }) => cid)
+        log.push(new CID(request.cid))
+        streamWithCommit = createStream(streamId, log)
+      } else {
+        streamWithCommit = createStream(streamId, [new CID(request.cid)])
+      }
 
-    // Second request does not yet show up in ceramic
-    const request1 = await createRequest(streamId.toString(), ipfsService)
-    await requestRepository.createOrUpdate(request1)
-    const streamWithRequest1 = createStream(StreamID.fromString(request0.streamId), [
-      new CID(request0.cid),
-      new CID(request1.cid),
-    ])
-    const commitId1 = streamId.atCommit(request1.cid)
-    ceramicService.putStream(commitId1, streamWithRequest1)
+      ceramicService.putStream(commitId, streamWithCommit)
 
+      if (includeInBaseStream) {
+        ceramicService.putStream(streamId, streamWithCommit)
+      }
+
+      return request
+    }
+
+    // One stream where 1 commit is present in the stream in ceramic already and one commit is not
+    const streamIdA = await ceramicService.generateBaseStreamID()
+    const requestA0 = await makeRequest(streamIdA, true)
+    const requestA1 = await makeRequest(streamIdA, false)
+    // A second stream where both commits are included in the ceramic already
+    const streamIdB = await ceramicService.generateBaseStreamID()
+    const requestB0 = await makeRequest(streamIdB, true)
+    const requestB1 = await makeRequest(streamIdB, true)
+
+    // Set up mock multiquery implementation to make sure that it finds requestA1 in streamA,
+    // even though it isn't there in the MockCeramicService
+    const commitIdA1 = streamIdA.atCommit(requestA1.cid)
+    const streamAWithRequest1 = await ceramicService.loadStream(commitIdA1.toString() as any)
     const multiQuerySpy = jest.spyOn(ceramicService, 'multiQuery')
     multiQuerySpy.mockImplementationOnce(async (queries) => {
       const result = {}
-      result[streamId.toString()] = streamWithRequest1
-      result[commitId1.toString()] = streamWithRequest1
+      result[streamIdA.toString()] = streamAWithRequest1
+      result[commitIdA1.toString()] = streamAWithRequest1
       return result
     })
 
-    const [candidates, _] = await anchorService._findCandidates([request0, request1], 0)
-    expect(candidates.length).toEqual(1)
-    expect(candidates[0].streamId.toString()).toEqual(streamId.toString())
-    expect(candidates[0].cid.toString()).toEqual(request1.cid)
+    const [candidates, _] = await anchorService._findCandidates(
+      [requestA0, requestA1, requestB0, requestB1],
+      0
+    )
+    expect(candidates.length).toEqual(2)
+    expect(candidates[0].streamId.toString()).toEqual(streamIdA.toString())
+    expect(candidates[0].cid.toString()).toEqual(requestA1.cid)
+    expect(candidates[1].streamId.toString()).toEqual(streamIdB.toString())
+    expect(candidates[1].cid.toString()).toEqual(requestB1.cid)
 
+    // Should only get 1 multiquery, for streamA.  StreamB already had all commits included so no
+    // need to issue multiquery
     expect(multiQuerySpy).toHaveBeenCalledTimes(1)
     expect(multiQuerySpy.mock.calls[0][0].length).toEqual(2)
-    expect(multiQuerySpy.mock.calls[0][0][0].streamId.toString()).toEqual(commitId1.toString())
-    expect(multiQuerySpy.mock.calls[0][0][1].streamId.toString()).toEqual(streamId.toString())
+    expect(multiQuerySpy.mock.calls[0][0][0].streamId.toString()).toEqual(commitIdA1.toString())
+    expect(multiQuerySpy.mock.calls[0][0][1].streamId.toString()).toEqual(streamIdA.toString())
+
+    multiQuerySpy.mockRestore()
   })
 
   test('filters anchors that fail to publish AnchorCommit to Ceramic', async () => {

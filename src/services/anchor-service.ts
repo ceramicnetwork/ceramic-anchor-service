@@ -576,8 +576,8 @@ export default class AnchorService {
 
     // Now filter out requests from the Candidate that are already present in the stream log
     const missingRequests = candidate.requests.filter((req) => {
-      const found = stream.state.log.find((logEntry) => {
-        return logEntry.cid.toString() == req.cid
+      const found = stream.state.log.find(({ cid }) => {
+        return cid.toString() == req.cid
       })
       return !found
     })
