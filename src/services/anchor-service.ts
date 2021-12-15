@@ -177,7 +177,7 @@ export default class AnchorService {
       anchorCount: anchors.length,
     })
 
-    // Sleep 5 seconds befor exiting the process to give time for the logs to flush.
+    // Sleep 5 seconds before exiting the process to give time for the logs to flush.
     await Utils.delay(5000)
   }
 
