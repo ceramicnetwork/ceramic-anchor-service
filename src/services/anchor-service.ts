@@ -163,7 +163,7 @@ export default class AnchorService {
       anchoredRequestsCount: numAnchoredRequests,
       conflictingRequestCount: groupedRequests.conflictingRequests.length,
       failedRequestsCount: groupedRequests.failedRequests.length,
-      failedToPublishAnchorCommitCount: merkleTree.getLeaves().length - numAnchoredRequests,
+      failedToPublishAnchorCommitCount: merkleTree.getLeaves().length - anchors.length,
       unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
       candidateCount: candidates.length,
       anchorCount: anchors.length,
