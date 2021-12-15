@@ -42,7 +42,7 @@ export default class CeramicServiceImpl implements CeramicService {
     let timeout: any
 
     const streamPromise = this._client
-      .loadStream(streamId, { sync: SyncOptions.PREFER_CACHE })
+      .loadStream(streamId, { sync: SyncOptions.PREFER_CACHE, pin: true })
       .finally(() => {
         clearTimeout(timeout)
       })

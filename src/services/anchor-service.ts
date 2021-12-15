@@ -564,8 +564,36 @@ export default class AnchorService {
    * @private
    */
   static async _loadCandidate(candidate: Candidate, ceramicService: CeramicService): Promise<void> {
-    // Build multiquery
-    const queries = candidate.requests.map((request) => {
+    // First, load the current known stream state from the ceramic node
+    let stream
+    try {
+      stream = await ceramicService.loadStream(candidate.streamId)
+    } catch (err) {
+      logger.err(`Failed to load stream ${candidate.streamId.toString()}: ${err}`)
+      candidate.failAllRequests()
+      return
+    }
+
+    // Now filter out requests from the Candidate that are already present in the stream log
+    const missingRequests = candidate.requests.filter((req) => {
+      const found = stream.state.log.find((logEntry) => {
+        return logEntry.cid.toString() == req.cid
+      })
+      return !found
+    })
+
+    // If stream already knows about all CIDs that we have requests for, great!
+    if (missingRequests.length == 0) {
+      candidate.setTipToAnchor(stream)
+      return
+    }
+
+    // If there were CIDs that we have requests for but didn't show up in the stream state that
+    // we loaded from Ceramic, we can't tell if that is because those commits were rejected by
+    // Ceramic's conflict resolution, or if our local Ceramic node just never heard about those
+    // commits before.  So we build a multiquery including all missing commits and send that to
+    // Ceramic, forcing it to at least consider every CID that we have a request for.
+    const queries = missingRequests.map((request) => {
       return { streamId: candidate.streamId.atCommit(request.cid).toString() }
     })
     queries.push({ streamId: candidate.streamId.baseID.toString() })
@@ -575,13 +603,17 @@ export default class AnchorService {
     try {
       response = await ceramicService.multiQuery(queries)
     } catch (err) {
-      logger.err(`Failed to load stream ${candidate.streamId.toString()}: ${err}`)
+      logger.err(
+        `Multiquery failed for stream ${candidate.streamId.toString()} with ${
+          missingRequests.length
+        } missing commits: ${err}`
+      )
       candidate.failAllRequests()
       return
     }
 
     // Fail requests for tips that failed to be loaded
-    for (const request of candidate.requests) {
+    for (const request of missingRequests) {
       const commitId = candidate.streamId.atCommit(request.cid)
       if (!response[commitId.toString()]) {
         logger.err(
@@ -598,8 +630,9 @@ export default class AnchorService {
       return
     }
 
-    // Get the current version of the Stream and select tip to anchor
-    const stream = response[candidate.streamId.toString()]
+    // Get the current version of the Stream that has considered all pending request CIDs and select
+    // tip to anchor
+    stream = response[candidate.streamId.toString()]
     if (!stream) {
       logger.err(`Failed to load stream ${candidate.streamId.toString()}`)
       candidate.failAllRequests()
