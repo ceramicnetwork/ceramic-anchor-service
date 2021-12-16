@@ -42,7 +42,11 @@ export class MockCeramicService implements CeramicService {
   ) {}
 
   async loadStream(streamId: StreamID): Promise<any> {
-    return this._streams[streamId.toString()]
+    const stream = this._streams[streamId.toString()]
+    if (!stream) {
+      throw new Error(`No stream found with streamid ${streamId.toString()}`)
+    }
+    return stream
   }
 
   async pinStream(streamId: StreamID): Promise<any> {}
