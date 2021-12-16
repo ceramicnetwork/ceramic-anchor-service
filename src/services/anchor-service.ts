@@ -588,6 +588,12 @@ export default class AnchorService {
       return
     }
 
+    for (const req of missingRequests) {
+      console.debug(
+        `Commit CID ${req.cid} is missing from stream ${req.streamId}. Sending multiquery to force ceramic to load it`
+      )
+    }
+
     // If there were CIDs that we have requests for but didn't show up in the stream state that
     // we loaded from Ceramic, we can't tell if that is because those commits were rejected by
     // Ceramic's conflict resolution, or if our local Ceramic node just never heard about those
