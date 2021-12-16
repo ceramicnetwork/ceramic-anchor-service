@@ -468,7 +468,7 @@ export default class AnchorService {
         `Marking ${groupedRequests.acceptedRequests.length} pending requests as processing`
       )
       await this.requestRepository.updateRequests(
-        { status: RS.PROCESSING, message: 'Request is processing.' },
+        { status: RS.PROCESSING, message: 'Request is processing.', pinned: true },
         groupedRequests.acceptedRequests
       )
     }
