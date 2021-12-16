@@ -22,6 +22,7 @@ import { inject, singleton } from 'tsyringe'
 import CeramicClient from '@ceramicnetwork/http-client'
 
 const MAX_CACHE_ENTRIES = 100
+const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
 
 export interface IpfsService {
   /**
@@ -106,6 +107,18 @@ export class IpfsServiceImpl implements IpfsService {
    * @param record - Record value
    */
   public async storeRecord(record: Record<string, unknown>): Promise<CID> {
-    return this._ipfs.dag.put(record)
+    let timeout: any
+
+    const putPromise = this._ipfs.dag.put(record).finally(() => {
+      clearTimeout(timeout)
+    })
+
+    const timeoutPromise = new Promise((_, reject) => {
+      timeout = setTimeout(() => {
+        reject(new Error(`Timed out storing record in IPFS`))
+      }, IPFS_PUT_TIMEOUT)
+    })
+
+    return await Promise.race([putPromise, timeoutPromise])
   }
 }

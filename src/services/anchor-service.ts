@@ -306,10 +306,12 @@ export default class AnchorService {
     }
 
     try {
-      const anchorCid = await this.ceramicService.publishAnchorCommit(
-        candidate.streamId,
-        ipfsAnchorCommit
-      )
+      // TODO(#548): Publish anchor commits via Ceramic
+      // const anchorCid = await this.ceramicService.publishAnchorCommit(
+      //   candidate.streamId,
+      //   ipfsAnchorCommit
+      // )
+      const anchorCid = await this.ipfsService.storeRecord(ipfsAnchorCommit)
       anchor.cid = anchorCid.toString()
 
       logger.debug(
@@ -355,7 +357,6 @@ export default class AnchorService {
         {
           status: RS.COMPLETED,
           message: 'CID successfully anchored.',
-          pinned: true,
         },
         acceptedRequests,
         queryRunner.manager
