@@ -358,7 +358,7 @@ describe('anchor service', () => {
     multiQuerySpy.mockRestore()
   })
 
-  test('filters anchors that fail to publish AnchorCommit to Ceramic', async () => {
+  test('filters anchors that fail to publish AnchorCommit', async () => {
     const requestRepository = container.resolve<RequestRepository>('requestRepository')
     const anchorService = container.resolve<AnchorService>('anchorService')
 
@@ -379,23 +379,22 @@ describe('anchor service', () => {
     const [candidates, _] = await anchorService._findCandidates(requests, 0)
     expect(candidates.length).toEqual(numRequests)
 
-    const originalPublishAnchorCommit = ceramicService.publishAnchorCommit
-    try {
-      ceramicService.publishAnchorCommit = function (streamId, anchorCommit) {
-        if (streamId.toString() == requests[1].streamId) {
-          throw new Error('publishAnchorCommit failed!')
-        } else {
-          return originalPublishAnchorCommit.apply(ceramicService, [streamId, anchorCommit])
-        }
+    const originalStoreRecord = ipfsService.storeRecord
+    const storeRecordSpy = jest.spyOn(ipfsService, 'storeRecord')
+    storeRecordSpy.mockImplementation(async (ipfsAnchorCommit) => {
+      if (ipfsAnchorCommit.prev && ipfsAnchorCommit.prev.toString() == requests[1].cid.toString()) {
+        throw new Error('publishing anchor commit failed')
       }
-      const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
-      expect(anchors.length).toEqual(2)
-      expect(anchors.find((anchor) => anchor.request.streamId == requests[0].streamId)).toBeTruthy()
-      expect(anchors.find((anchor) => anchor.request.streamId == requests[1].streamId)).toBeFalsy()
-      expect(anchors.find((anchor) => anchor.request.streamId == requests[2].streamId)).toBeTruthy()
-    } finally {
-      ceramicService.publishAnchorCommit = originalPublishAnchorCommit
-    }
+
+      return originalStoreRecord.apply(ceramicService, [ipfsAnchorCommit])
+    })
+
+    const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
+    expect(anchors.length).toEqual(2)
+    expect(anchors.find((anchor) => anchor.request.streamId == requests[0].streamId)).toBeTruthy()
+    expect(anchors.find((anchor) => anchor.request.streamId == requests[1].streamId)).toBeFalsy()
+    expect(anchors.find((anchor) => anchor.request.streamId == requests[2].streamId)).toBeTruthy()
+    storeRecordSpy.mockRestore()
   })
 
   describe('Picks proper commit to anchor', () => {
