@@ -488,9 +488,20 @@ export default class AnchorService {
       streamRequests.push(request)
     }
 
-    return Array.from(requestsByStream).map(([streamId, requests]) => {
+    const candidates = Array.from(requestsByStream).map(([streamId, requests]) => {
       return new Candidate(StreamID.fromString(streamId), requests)
     })
+    // Make sure we process candidate streams in order of their earliest request.
+    candidates.sort((candidate0, candidate1) => {
+      if (candidate0.earliestRequestDate < candidate1.earliestRequestDate) {
+        return -1
+      }
+      if (candidate0.earliestRequestDate > candidate1.earliestRequestDate) {
+        return 1
+      }
+      return 0
+    })
+    return candidates
   }
 
   /**
