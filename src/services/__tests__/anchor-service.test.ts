@@ -20,6 +20,7 @@ import { Candidate } from '../../merkle/merkle-objects'
 import { Anchor } from '../../models/anchor'
 import { AnchorStatus, MultiQuery } from '@ceramicnetwork/common'
 import cloneDeep from 'lodash.clonedeep'
+import Utils from '../../utils'
 
 process.env.NODE_ENV = 'test'
 
@@ -218,6 +219,88 @@ describe('anchor service', () => {
     // All requests should have been processed
     requests = await requestRepository.findNextToProcess(100)
     expect(requests.length).toEqual(0)
+  })
+
+  test('Anchors in request order', async () => {
+    jest.setTimeout(30000)
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    const anchorService = container.resolve<AnchorService>('anchorService')
+
+    const anchorLimit = 4
+    const numStreams = anchorLimit * 2 // twice as many streams as can fit in a batch
+
+    // Create pending requests
+    // We want 2 requests per streamId, but don't want the requests on the same stream to be created
+    // back-to-back.  So we do one pass to generate the first request for each stream, then another
+    // to make the second requests.
+    const requests = []
+    for (let i = 0; i < numStreams; i++) {
+      const streamId = await ceramicService.generateBaseStreamID()
+
+      const request = await createRequest(streamId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request)
+      requests.push(request)
+
+      // Make sure each stream gets a unique 'createdAt' Date
+      await Utils.delay(1000)
+    }
+
+    // Second pass, a second request per stream.  Create the 2nd request per stream in the opposite
+    // order from how the first request per stream was.
+    for (let i = numStreams - 1; i >= 0; i--) {
+      const prevRequest = requests[i]
+      const streamId = prevRequest.streamId
+
+      const request = await createRequest(streamId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request)
+      requests.push(request)
+      const stream = createStream(streamId, [new CID(prevRequest.cid), new CID(request.cid)])
+      ceramicService.putStream(streamId, stream)
+
+      // Make sure each stream gets a unique 'createdAt' Date
+      await Utils.delay(1000)
+    }
+
+    // First pass anchors half the pending requests
+    expect((await requestRepository.findNextToProcess(100)).length).toEqual(requests.length)
+    const anchorPendingRequests = async function (requests: Request[]): Promise<void> {
+      const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
+      expect(candidates.length).toEqual(anchorLimit)
+
+      await anchorCandidates(candidates, anchorService, ipfsService)
+    }
+    await anchorPendingRequests(requests)
+
+    const remainingRequests = await requestRepository.findNextToProcess(100)
+    expect(remainingRequests.length).toEqual(requests.length / 2)
+
+    for (let i = 0; i < anchorLimit; i++) {
+      // The first 'anchorLimit' requests created should have been anchored, so should not show up
+      // as remaining
+      const remaining = remainingRequests.find((req) => req.id == requests[i].id)
+      expect(remaining).toBeFalsy()
+    }
+
+    for (let i = anchorLimit; i < numStreams; i++) {
+      // The remaining half of the requests from the first batch created are on streams that
+      // weren't included in the batch, and so should still be remaining
+      const remaining = remainingRequests.find((req) => req.id == requests[i].id)
+      expect(remaining).toBeTruthy()
+    }
+
+    for (let i = numStreams; i < numStreams + anchorLimit; i++) {
+      // The earlier created requests from the second request batch correspond to the later
+      // created streams, and thus should still be remaining
+      const remaining = remainingRequests.find((req) => req.id == requests[i].id)
+      expect(remaining).toBeTruthy()
+    }
+
+    for (let i = numStreams + anchorLimit; i < numStreams * 2; i++) {
+      // The later created requests from the second request batch correspond to the earlier
+      // created streams, and thus should be anchored and not remaining
+      const remaining = remainingRequests.find((req) => req.id == requests[i].id)
+      expect(remaining).toBeFalsy()
+    }
   })
 
   test('Unlimited anchor requests', async () => {
