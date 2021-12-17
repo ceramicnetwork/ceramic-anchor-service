@@ -493,13 +493,9 @@ export default class AnchorService {
     })
     // Make sure we process candidate streams in order of their earliest request.
     candidates.sort((candidate0, candidate1) => {
-      if (candidate0.earliestRequestDate < candidate1.earliestRequestDate) {
-        return -1
-      }
-      if (candidate0.earliestRequestDate > candidate1.earliestRequestDate) {
-        return 1
-      }
-      return 0
+      return Math.sign(
+        candidate0.earliestRequestDate.getTime() - candidate1.earliestRequestDate.getTime()
+      )
     })
     return candidates
   }
