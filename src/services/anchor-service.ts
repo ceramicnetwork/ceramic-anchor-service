@@ -527,12 +527,11 @@ export default class AnchorService {
     const alreadyAnchoredRequests: Request[] = []
 
     let numSelectedCandidates = 0
-    if (candidateLimit == 0) {
-      // 0 means no limit
+    if (candidateLimit == 0 || candidates.length < candidateLimit) {
       candidateLimit = candidates.length
     }
 
-    for (let i = 0; i < candidates.length; i++) {
+    for (let i = 0; i < candidateLimit; i++) {
       const candidate = candidates[i]
 
       await AnchorService._loadCandidate(candidate, this.ceramicService)
@@ -547,10 +546,11 @@ export default class AnchorService {
       }
       failedRequests.push(...candidate.failedRequests)
       conflictingRequests.push(...candidate.rejectedRequests)
+    }
 
-      if (numSelectedCandidates >= candidateLimit) {
-        break
-      }
+    for (let i = numSelectedCandidates; i < candidates.length; i++) {
+      const unselectedCandidate = candidates[i]
+      unprocessedRequests.push(...unselectedCandidate.requests)
     }
 
     return {
