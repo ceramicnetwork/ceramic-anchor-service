@@ -98,9 +98,16 @@ export default class AnchorService {
    */
   public async anchorRequests(): Promise<void> {
     logger.imp('Anchoring pending requests...')
+    // We try to fill our batch with 2^merkleDepthLimit streams at the leaf nodes of the merkle tree.
+    // To make sure we find enough requests on unique streamids to fill the batch, we pull in 100x
+    // the number of requests as the number of unique streams we are looking for. If we *still*
+    // don't find enough unique streams in all those requests, then we wind up with an under-full
+    // batch.  More likely, we pull in more requests than we need, but the remainder will just
+    // be picked up by the next anchor batch.
     const streamLimit = Math.pow(2, this.config.merkleDepthLimit)
+    const requestLimit = streamLimit * 100
     logger.debug(`Loading requests from the database`)
-    const requests: Request[] = await this.requestRepository.findNextToProcess(streamLimit)
+    const requests: Request[] = await this.requestRepository.findNextToProcess(requestLimit)
     await this._anchorRequests(requests)
   }
 
@@ -520,12 +527,11 @@ export default class AnchorService {
     const alreadyAnchoredRequests: Request[] = []
 
     let numSelectedCandidates = 0
-    if (candidateLimit == 0) {
-      // 0 means no limit
+    if (candidateLimit == 0 || candidates.length < candidateLimit) {
       candidateLimit = candidates.length
     }
 
-    for (let i = 0; i < candidates.length; i++) {
+    for (let i = 0; i < candidateLimit; i++) {
       const candidate = candidates[i]
 
       await AnchorService._loadCandidate(candidate, this.ceramicService)
@@ -540,10 +546,11 @@ export default class AnchorService {
       }
       failedRequests.push(...candidate.failedRequests)
       conflictingRequests.push(...candidate.rejectedRequests)
+    }
 
-      if (numSelectedCandidates >= candidateLimit) {
-        break
-      }
+    for (let i = numSelectedCandidates; i < candidates.length; i++) {
+      const unselectedCandidate = candidates[i]
+      unprocessedRequests.push(...unselectedCandidate.requests)
     }
 
     return {
