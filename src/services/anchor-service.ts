@@ -158,7 +158,6 @@ export default class AnchorService {
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
     logEvent.anchor({
       type: 'anchorRequests',
-      requestIds: requests.map((r) => r.id),
       acceptedRequestsCount: groupedRequests.acceptedRequests.length,
       alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
       anchoredRequestsCount: numAnchoredRequests,
@@ -599,7 +598,7 @@ export default class AnchorService {
 
     for (const req of missingRequests) {
       console.debug(
-        `Commit CID ${req.cid} is missing from stream ${req.streamId}. Sending multiquery to force ceramic to load it`
+        `Stream ${req.streamId} is missing Commit CID ${req.cid}. Sending multiquery to force ceramic to load it`
       )
     }
 
