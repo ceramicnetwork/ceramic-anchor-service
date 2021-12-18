@@ -14,6 +14,7 @@ import { Request } from '../models/request'
 import { inject, singleton } from 'tsyringe'
 import { logger } from '../logger'
 import { RequestPresentation } from '../models/request-presentation'
+import { CeramicService } from '../services/ceramic-service'
 
 @singleton()
 @Controller('api/v0/requests')
@@ -24,7 +25,8 @@ export default class RequestController {
   constructor(
     @inject('config') private config?: Config,
     @inject('anchorRepository') private anchorRepository?: AnchorRepository,
-    @inject('requestRepository') private requestRepository?: RequestRepository
+    @inject('requestRepository') private requestRepository?: RequestRepository,
+    @inject('ceramicService') private ceramicService?: CeramicService
   ) {
     this.#requestPresentation = new RequestPresentation(config.cronExpression, anchorRepository)
   }
@@ -88,11 +90,18 @@ export default class RequestController {
         const body = await this.#requestPresentation.body(request)
         return res.status(StatusCodes.ACCEPTED).json(body)
       } else {
+        // Intentionally don't await the pinStream promise, let it happen in the background.
+        this.ceramicService.pinStream(streamId)
+
         request = new Request()
         request.cid = cid.toString()
         request.streamId = streamId
         request.status = RequestStatus.PENDING
         request.message = 'Request is pending.'
+        // We don't actually know with certainty that the stream is pinned, since the pinStream
+        // call above can fail and swallows errors, but marking it as pinned incorrectly is harmless,
+        // and this way we ensure the request is picked up by garbage collection.
+        request.pinned = true
 
         request = await this.requestRepository.createOrUpdate(request)
 

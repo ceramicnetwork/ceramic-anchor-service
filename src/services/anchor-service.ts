@@ -103,13 +103,14 @@ export default class AnchorService {
   public async anchorRequests(): Promise<void> {
     logger.imp('Anchoring pending requests...')
     // We try to fill our batch with 2^merkleDepthLimit streams at the leaf nodes of the merkle tree.
-    // But we don't want to look at *every* pending request just to make sure we can fill our batch,
-    // so we limit ourselves to processing twice as many requests as the number of streams we ultimately
-    // want to anchor.  If we don't find enough unique streams in all those requests, then we wind
-    // up with an under-full batch, but that's okay.
+    // To make sure we find enough requests on unique streamids to fill the batch, we pull in 100x
+    // the number of requests as the number of unique streams we are looking for. If we *still*
+    // don't find enough unique streams in all those requests, then we wind up with an under-full
+    // batch.  More likely, we pull in more requests than we need, but the remainder will just
+    // be picked up by the next anchor batch.
     const streamLimit = Math.pow(2, this.config.merkleDepthLimit)
-    const requestLimit = 2 * streamLimit
-    logger.debug(`Loading Requests from the database`)
+    const requestLimit = streamLimit * 100
+    logger.debug(`Loading requests from the database`)
     const requests: Request[] = await this.requestRepository.findNextToProcess(requestLimit)
     await this._anchorRequests(requests)
   }
@@ -158,29 +159,21 @@ export default class AnchorService {
     logger.debug('Persisting results to local database')
     const numAnchoredRequests = await this._persistAnchorResult(anchors, candidates)
 
-    logger.debug('About to log CIDs that were anchored')
-    for (const anchor of anchors) {
-      logger.debug(
-        `Successfully anchored CID ${anchor.request.cid.toString()} with anchor commit ${anchor.cid.toString()} for stream ${anchor.request.streamId.toString()}`
-      )
-    }
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
-
     logEvent.anchor({
       type: 'anchorRequests',
-      requestIds: requests.map((r) => r.id),
       acceptedRequestsCount: groupedRequests.acceptedRequests.length,
       alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
       anchoredRequestsCount: numAnchoredRequests,
       conflictingRequestCount: groupedRequests.conflictingRequests.length,
       failedRequestsCount: groupedRequests.failedRequests.length,
-      failedToPublishAnchorCommitCount:
-        groupedRequests.acceptedRequests.length - numAnchoredRequests,
+      failedToPublishAnchorCommitCount: merkleTree.getLeaves().length - anchors.length,
       unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
       candidateCount: candidates.length,
       anchorCount: anchors.length,
     })
 
+    // Sleep 5 seconds before exiting the process to give time for the logs to flush.
     await Utils.delay(5000)
   }
 
@@ -317,10 +310,12 @@ export default class AnchorService {
     }
 
     try {
-      const anchorCid = await this.ceramicService.publishAnchorCommit(
-        candidate.streamId,
-        ipfsAnchorCommit
-      )
+      // TODO(#548): Publish anchor commits via Ceramic
+      // const anchorCid = await this.ceramicService.publishAnchorCommit(
+      //   candidate.streamId,
+      //   ipfsAnchorCommit
+      // )
+      const anchorCid = await this.ipfsService.storeRecord(ipfsAnchorCommit)
       anchor.cid = anchorCid.toString()
 
       logger.debug(
@@ -366,7 +361,6 @@ export default class AnchorService {
         {
           status: RS.COMPLETED,
           message: 'CID successfully anchored.',
-          pinned: true,
         },
         acceptedRequests,
         queryRunner.manager
@@ -479,7 +473,7 @@ export default class AnchorService {
         `Marking ${groupedRequests.acceptedRequests.length} pending requests as processing`
       )
       await this.requestRepository.updateRequests(
-        { status: RS.PROCESSING, message: 'Request is processing.' },
+        { status: RS.PROCESSING, message: 'Request is processing.', pinned: true },
         groupedRequests.acceptedRequests
       )
     }
@@ -504,9 +498,16 @@ export default class AnchorService {
       streamRequests.push(request)
     }
 
-    return Array.from(requestsByStream).map(([streamId, requests]) => {
+    const candidates = Array.from(requestsByStream).map(([streamId, requests]) => {
       return new Candidate(StreamID.fromString(streamId), requests)
     })
+    // Make sure we process candidate streams in order of their earliest request.
+    candidates.sort((candidate0, candidate1) => {
+      return Math.sign(
+        candidate0.earliestRequestDate.getTime() - candidate1.earliestRequestDate.getTime()
+      )
+    })
+    return candidates
   }
 
   /**
@@ -529,19 +530,17 @@ export default class AnchorService {
     const alreadyAnchoredRequests: Request[] = []
 
     let numSelectedCandidates = 0
-    if (candidateLimit == 0) {
-      // 0 means no limit
+    if (candidateLimit == 0 || candidates.length < candidateLimit) {
       candidateLimit = candidates.length
     }
 
     const semaphore = new Semaphore(CONCURRENT_LOAD_LIMIT)
     const ceramicService = this.ceramicService
 
-    // Closure for loading candidate and sorting the Requests from the candidate
-    // appropriately after.
     const loadAndProcessCandidate = async function (candidate) {
       if (numSelectedCandidates >= candidateLimit) {
         // No need to process this candidate, we've already filled our anchor batch
+        unprocessedRequests.push(...candidate.requests)
         return
       }
 
@@ -549,6 +548,7 @@ export default class AnchorService {
       if (numSelectedCandidates >= candidateLimit) {
         // We filled our batch while loading this candidate
         candidate.reset()
+        unprocessedRequests.push(...candidate.requests)
         return
       }
       if (candidate.shouldAnchor()) {
@@ -556,12 +556,12 @@ export default class AnchorService {
         logger.debug(
           `Selected candidate stream #${numSelectedCandidates} of ${candidateLimit}: streamid ${candidate.streamId}`
         )
+      } else if (candidate.alreadyAnchored) {
+        logger.debug(`Stream ${candidate.streamId.toString()} is already anchored`)
+        alreadyAnchoredRequests.push(...candidate.acceptedRequests)
       }
       failedRequests.push(...candidate.failedRequests)
       conflictingRequests.push(...candidate.rejectedRequests)
-      if (candidate.alreadyAnchored) {
-        alreadyAnchoredRequests.push(...candidate.acceptedRequests)
-      }
     }
 
     // load multiple candidates concurrently, but only up to CONCURRENT_LOAD_LIMIT at once.
@@ -593,8 +593,42 @@ export default class AnchorService {
    * @private
    */
   static async _loadCandidate(candidate: Candidate, ceramicService: CeramicService): Promise<void> {
-    // Build multiquery
-    const queries = candidate.requests.map((request) => {
+    // First, load the current known stream state from the ceramic node
+    let stream
+    try {
+      stream = await ceramicService.loadStream(candidate.streamId)
+    } catch (err) {
+      logger.err(`Failed to load stream ${candidate.streamId.toString()}: ${err}`)
+      candidate.failAllRequests()
+      return
+    }
+
+    // Now filter out requests from the Candidate that are already present in the stream log
+    const missingRequests = candidate.requests.filter((req) => {
+      const found = stream.state.log.find(({ cid }) => {
+        return cid.toString() == req.cid
+      })
+      return !found
+    })
+
+    // If stream already knows about all CIDs that we have requests for, great!
+    if (missingRequests.length == 0) {
+      candidate.setTipToAnchor(stream)
+      return
+    }
+
+    for (const req of missingRequests) {
+      console.debug(
+        `Stream ${req.streamId} is missing Commit CID ${req.cid}. Sending multiquery to force ceramic to load it`
+      )
+    }
+
+    // If there were CIDs that we have requests for but didn't show up in the stream state that
+    // we loaded from Ceramic, we can't tell if that is because those commits were rejected by
+    // Ceramic's conflict resolution, or if our local Ceramic node just never heard about those
+    // commits before.  So we build a multiquery including all missing commits and send that to
+    // Ceramic, forcing it to at least consider every CID that we have a request for.
+    const queries = missingRequests.map((request) => {
       return { streamId: candidate.streamId.atCommit(request.cid).toString() }
     })
     queries.push({ streamId: candidate.streamId.baseID.toString() })
@@ -604,13 +638,17 @@ export default class AnchorService {
     try {
       response = await ceramicService.multiQuery(queries)
     } catch (err) {
-      logger.err(`Failed to load stream ${candidate.streamId.toString()}: ${err}`)
+      logger.err(
+        `Multiquery failed for stream ${candidate.streamId.toString()} with ${
+          missingRequests.length
+        } missing commits: ${err}`
+      )
       candidate.failAllRequests()
       return
     }
 
     // Fail requests for tips that failed to be loaded
-    for (const request of candidate.requests) {
+    for (const request of missingRequests) {
       const commitId = candidate.streamId.atCommit(request.cid)
       if (!response[commitId.toString()]) {
         logger.err(
@@ -627,8 +665,9 @@ export default class AnchorService {
       return
     }
 
-    // Get the current version of the Stream and select tip to anchor
-    const stream = response[candidate.streamId.toString()]
+    // Get the current version of the Stream that has considered all pending request CIDs and select
+    // tip to anchor
+    stream = response[candidate.streamId.toString()]
     if (!stream) {
       logger.err(`Failed to load stream ${candidate.streamId.toString()}`)
       candidate.failAllRequests()
