@@ -547,7 +547,7 @@ export default class AnchorService {
       conflictingRequests.push(...candidate.rejectedRequests)
     }
 
-    for (let i = numSelectedCandidates; i < candidates.length; i++) {
+    for (let i = candidateLimit; i < candidates.length; i++) {
       const unselectedCandidate = candidates[i]
       unprocessedRequests.push(...unselectedCandidate.requests)
     }
