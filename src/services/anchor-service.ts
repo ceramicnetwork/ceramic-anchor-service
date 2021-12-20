@@ -130,7 +130,7 @@ export default class AnchorService {
     }
     const [candidates, groupedRequests] = await this._findCandidates(requests, streamCountLimit)
     if (candidates.length === 0) {
-      logger.debug('No CID to request. Skipping anchor.')
+      logger.debug('No candidates found. Skipping anchor.')
       return
     }
 
@@ -265,7 +265,7 @@ export default class AnchorService {
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i]
       logger.debug(
-        `Creating anchor commit #${i} of ${
+        `Creating anchor commit #${i + 1} of ${
           candidates.length
         }: stream id ${candidate.streamId.toString()} at commit CID ${candidate.cid}`
       )
@@ -453,6 +453,13 @@ export default class AnchorService {
     logger.debug(`Grouping requests by stream`)
     const candidates = AnchorService._buildCandidates(requests)
 
+    if (candidates.length < candidateLimit / 2) {
+      logger.imp(
+        `Only ${candidates.length} candidate streams found, which is less than half of the ${candidateLimit} desired. Skipping anchor`
+      )
+      return [[], null]
+    }
+
     logger.debug(`Loading candidate streams`)
     const groupedRequests = await this._loadCandidateStreams(candidates, candidateLimit)
     await this._updateNonSelectedRequests(groupedRequests)
@@ -530,8 +537,14 @@ export default class AnchorService {
       candidateLimit = candidates.length
     }
 
-    for (let i = 0; i < candidateLimit; i++) {
+    for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i]
+
+      if (numSelectedCandidates >= candidateLimit) {
+        // No need to process this candidate, we've already filled our anchor batch
+        unprocessedRequests.push(...candidate.requests)
+        continue
+      }
 
       await AnchorService._loadCandidate(candidate, this.ceramicService)
       if (candidate.shouldAnchor()) {
@@ -545,11 +558,6 @@ export default class AnchorService {
       }
       failedRequests.push(...candidate.failedRequests)
       conflictingRequests.push(...candidate.rejectedRequests)
-    }
-
-    for (let i = candidateLimit; i < candidates.length; i++) {
-      const unselectedCandidate = candidates[i]
-      unprocessedRequests.push(...unselectedCandidate.requests)
     }
 
     return {

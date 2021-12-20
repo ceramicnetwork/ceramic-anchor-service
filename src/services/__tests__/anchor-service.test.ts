@@ -181,6 +181,32 @@ describe('anchor service', () => {
     expect(anchors[3].path).toEqual('1/1')
   })
 
+  test('Too few anchor requests', async () => {
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    const anchorService = container.resolve<AnchorService>('anchorService')
+
+    const anchorLimit = 8
+    const numRequests = anchorLimit / 2 - 1 // Batch is less than half full
+
+    // Create pending requests
+    for (let i = 0; i < numRequests; i++) {
+      const streamId = await ceramicService.generateBaseStreamID()
+      const request = await createRequest(streamId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request)
+      const commitId = streamId.atCommit(request.cid)
+      const stream = createStream(streamId, [new CID(request.cid)])
+      ceramicService.putStream(streamId, stream)
+      ceramicService.putStream(commitId, stream)
+    }
+
+    const requests = await requestRepository.findNextToProcess(100)
+    expect(requests.length).toEqual(numRequests)
+    // If we can't find at least half the desired number of candidates, we actually return 0
+    // candidates so as to skip the batch entirely
+    const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
+    expect(candidates.length).toEqual(0)
+  })
+
   test('Too many anchor requests', async () => {
     const requestRepository = container.resolve<RequestRepository>('requestRepository')
     const anchorService = container.resolve<AnchorService>('anchorService')
