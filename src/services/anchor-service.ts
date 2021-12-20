@@ -128,7 +128,14 @@ export default class AnchorService {
       // max depth of the merkle tree.
       streamCountLimit = Math.pow(2, this.config.merkleDepthLimit)
     }
-    const [candidates, groupedRequests] = await this._findCandidates(requests, streamCountLimit)
+    const minStreamCount = this.config.minStreamCount
+      ? this.config.minStreamCount
+      : streamCountLimit / 2
+    const [candidates, groupedRequests] = await this._findCandidates(
+      requests,
+      streamCountLimit,
+      minStreamCount
+    )
     if (candidates.length === 0) {
       logger.imp('No candidates found. Skipping anchor.')
       logger.debug(
@@ -453,12 +460,13 @@ export default class AnchorService {
    */
   async _findCandidates(
     requests: Request[],
-    candidateLimit: number
+    candidateLimit: number,
+    minStreamCount: number
   ): Promise<[Candidate[], RequestGroups]> {
     logger.debug(`Grouping requests by stream`)
     const candidates = AnchorService._buildCandidates(requests)
 
-    if (candidates.length < candidateLimit / 2) {
+    if (candidates.length < minStreamCount) {
       logger.imp(
         `Only ${candidates.length} candidate streams found, which is less than half of the ${candidateLimit} desired. Skipping anchor`
       )

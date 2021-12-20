@@ -5,6 +5,7 @@
   "cronExpression": "0/5 * * * ? *",
   "expirationPeriod": 5400000,
   "merkleDepthLimit": 0,
+  "minStreamCount": 1,
   "ipfsConfig": {
     "url": "http://localhost:5001",
     "pubsubTopic": "/ceramic/testnet-clay",
