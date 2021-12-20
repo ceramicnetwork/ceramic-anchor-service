@@ -130,7 +130,12 @@ export default class AnchorService {
     }
     const [candidates, groupedRequests] = await this._findCandidates(requests, streamCountLimit)
     if (candidates.length === 0) {
-      logger.debug('No candidates found. Skipping anchor.')
+      logger.imp('No candidates found. Skipping anchor.')
+      logger.debug(
+        'Sleeping 30 minutes before shutting down to prevent constantly running empty anchor batches'
+      )
+      await Utils.delay(1000 * 60 * 30)
+      logger.debug(`Sleep complete, shutting down`)
       return
     }
 
