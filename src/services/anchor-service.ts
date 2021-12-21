@@ -98,8 +98,11 @@ export default class AnchorService {
    */
   public async anchorRequests(): Promise<void> {
     // TODO: Remove this after restart loop removed as part of switching to go-ipfs
-    logger.imp('sleeping one minute for ipfs to stabilize')
-    await Utils.delay(1000 * 60)
+    // Skip sleep for unit tests
+    if (process.env.NODE_ENV != 'test') {
+      logger.imp('sleeping one minute for ipfs to stabilize')
+      await Utils.delay(1000 * 60)
+    }
 
     logger.imp('Anchoring pending requests...')
     // We try to fill our batch with 2^merkleDepthLimit streams at the leaf nodes of the merkle tree.
