@@ -120,6 +120,7 @@ async function makeCAS(
   configCopy.port = minConfig.port
   configCopy.anchorControllerEnabled = true
   configCopy.merkleDepthLimit = 10
+  configCopy.minStreamCount = 1
   configCopy.ipfsConfig.url = 'http://localhost:' + minConfig.ipfsPort
   configCopy.ipfsConfig.pubsubTopic = TOPIC
   configCopy.ceramic.apiUrl = 'http://localhost:' + minConfig.ceramicPort

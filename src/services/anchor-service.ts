@@ -128,9 +128,19 @@ export default class AnchorService {
       // max depth of the merkle tree.
       streamCountLimit = Math.pow(2, this.config.merkleDepthLimit)
     }
-    const [candidates, groupedRequests] = await this._findCandidates(requests, streamCountLimit)
+    const minStreamCount = this.config.minStreamCount || streamCountLimit / 2
+    const [candidates, groupedRequests] = await this._findCandidates(
+      requests,
+      streamCountLimit,
+      minStreamCount
+    )
     if (candidates.length === 0) {
-      logger.debug('No CID to request. Skipping anchor.')
+      logger.imp('No candidates found. Skipping anchor.')
+      logger.debug(
+        'Sleeping 10 minutes before shutting down to prevent constantly running empty anchor batches'
+      )
+      await Utils.delay(1000 * 60 * 10)
+      logger.debug(`Sleep complete, shutting down`)
       return
     }
 
@@ -265,7 +275,7 @@ export default class AnchorService {
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i]
       logger.debug(
-        `Creating anchor commit #${i} of ${
+        `Creating anchor commit #${i + 1} of ${
           candidates.length
         }: stream id ${candidate.streamId.toString()} at commit CID ${candidate.cid}`
       )
@@ -448,10 +458,18 @@ export default class AnchorService {
    */
   async _findCandidates(
     requests: Request[],
-    candidateLimit: number
+    candidateLimit: number,
+    minStreamCount: number
   ): Promise<[Candidate[], RequestGroups]> {
     logger.debug(`Grouping requests by stream`)
     const candidates = AnchorService._buildCandidates(requests)
+
+    if (candidates.length < minStreamCount) {
+      logger.imp(
+        `Only ${candidates.length} candidate streams found, which is less than half of the ${candidateLimit} desired. Skipping anchor`
+      )
+      return [[], null]
+    }
 
     logger.debug(`Loading candidate streams`)
     const groupedRequests = await this._loadCandidateStreams(candidates, candidateLimit)
@@ -530,8 +548,14 @@ export default class AnchorService {
       candidateLimit = candidates.length
     }
 
-    for (let i = 0; i < candidateLimit; i++) {
+    for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i]
+
+      if (numSelectedCandidates >= candidateLimit) {
+        // No need to process this candidate, we've already filled our anchor batch
+        unprocessedRequests.push(...candidate.requests)
+        continue
+      }
 
       await AnchorService._loadCandidate(candidate, this.ceramicService)
       if (candidate.shouldAnchor()) {
@@ -545,11 +569,6 @@ export default class AnchorService {
       }
       failedRequests.push(...candidate.failedRequests)
       conflictingRequests.push(...candidate.rejectedRequests)
-    }
-
-    for (let i = candidateLimit; i < candidates.length; i++) {
-      const unselectedCandidate = candidates[i]
-      unprocessedRequests.push(...unselectedCandidate.requests)
     }
 
     return {

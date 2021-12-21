@@ -5,6 +5,7 @@
   "cronExpression": "@@ANCHOR_SCHEDULE_EXPRESSION",
   "expirationPeriod": "@@ANCHOR_EXPIRATION_PERIOD",
   "merkleDepthLimit": "@@MERKLE_DEPTH_LIMIT",
+  "minStreamCount": "@@MIN_STREAM_COUNT",
   "ipfsConfig": {
     "url": "@@IPFS_API_URL",
     "pubsubTopic": "@@IPFS_PUBSUB_TOPIC",
