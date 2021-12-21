@@ -128,9 +128,7 @@ export default class AnchorService {
       // max depth of the merkle tree.
       streamCountLimit = Math.pow(2, this.config.merkleDepthLimit)
     }
-    const minStreamCount = this.config.minStreamCount
-      ? this.config.minStreamCount
-      : streamCountLimit / 2
+    const minStreamCount = this.config.minStreamCount || streamCountLimit / 2
     const [candidates, groupedRequests] = await this._findCandidates(
       requests,
       streamCountLimit,
@@ -139,9 +137,9 @@ export default class AnchorService {
     if (candidates.length === 0) {
       logger.imp('No candidates found. Skipping anchor.')
       logger.debug(
-        'Sleeping 30 minutes before shutting down to prevent constantly running empty anchor batches'
+        'Sleeping 10 minutes before shutting down to prevent constantly running empty anchor batches'
       )
-      await Utils.delay(1000 * 60 * 30)
+      await Utils.delay(1000 * 60 * 10)
       logger.debug(`Sleep complete, shutting down`)
       return
     }
