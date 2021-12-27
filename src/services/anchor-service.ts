@@ -141,13 +141,15 @@ export default class AnchorService {
       streamCountLimit,
       minStreamCount
     )
-    if (candidates.length === 0 && process.env.NODE_ENV !== 'dev') {
+    if (candidates.length === 0) {
       logger.imp('No candidates found. Skipping anchor.')
-      logger.debug(
-        'Sleeping 10 minutes before shutting down to prevent constantly running empty anchor batches'
-      )
-      await Utils.delay(1000 * 60 * 10)
-      logger.debug(`Sleep complete, shutting down`)
+      if (process.env.NODE_ENV !== 'dev') {
+        logger.debug(
+            'Sleeping 10 minutes before shutting down to prevent constantly running empty anchor batches'
+        )
+        await Utils.delay(1000 * 60 * 10)
+        logger.debug(`Sleep complete, shutting down`)
+      }
       return
     }
 
