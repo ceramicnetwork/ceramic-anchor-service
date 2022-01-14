@@ -19,6 +19,8 @@ import { CID } from 'multiformats/cid'
 import { Candidate } from '../../merkle/merkle-objects'
 import { Anchor } from '../../models/anchor'
 import { AnchorStatus, toCID } from '@ceramicnetwork/common'
+import cloneDeep from 'lodash.clonedeep'
+import Utils from '../../utils'
 
 process.env.NODE_ENV = 'test'
 
@@ -153,7 +155,7 @@ describe('anchor service', () => {
       return a.streamId.localeCompare(b.streamId)
     })
 
-    const candidates = await anchorService._findCandidates(requests, 0)
+    const [candidates, _] = await anchorService._findCandidates(requests, 0, 1)
     const merkleTree = await anchorService._buildMerkleTree(candidates)
     const ipfsProofCid = await ipfsService.storeRecord({})
 
@@ -179,6 +181,36 @@ describe('anchor service', () => {
     expect(anchors[3].path).toEqual('1/1')
   })
 
+  test('Too few anchor requests', async () => {
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    const anchorService = container.resolve<AnchorService>('anchorService')
+
+    const anchorLimit = 8
+    const numRequests = anchorLimit / 2 - 1 // Batch is less than half full
+
+    // Create pending requests
+    for (let i = 0; i < numRequests; i++) {
+      const streamId = await ceramicService.generateBaseStreamID()
+      const request = await createRequest(streamId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request)
+      const commitId = streamId.atCommit(request.cid)
+      const stream = createStream(streamId, [toCID(request.cid)])
+      ceramicService.putStream(streamId, stream)
+      ceramicService.putStream(commitId, stream)
+    }
+
+    const requests = await requestRepository.findNextToProcess(100)
+    expect(requests.length).toEqual(numRequests)
+    // If we can't find at least half the desired number of candidates, we actually return 0
+    // candidates so as to skip the batch entirely
+    const [candidates, _] = await anchorService._findCandidates(
+      requests,
+      anchorLimit,
+      anchorLimit / 2
+    )
+    expect(candidates.length).toEqual(0)
+  })
+
   test('Too many anchor requests', async () => {
     const requestRepository = container.resolve<RequestRepository>('requestRepository')
     const anchorService = container.resolve<AnchorService>('anchorService')
@@ -201,7 +233,7 @@ describe('anchor service', () => {
     let requests = await requestRepository.findNextToProcess(100)
     expect(requests.length).toEqual(numRequests)
     const anchorPendingRequests = async function (requests: Request[]): Promise<void> {
-      const candidates = await anchorService._findCandidates(requests, anchorLimit)
+      const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit, 1)
       expect(candidates.length).toEqual(anchorLimit)
 
       await anchorCandidates(candidates, anchorService, ipfsService)
@@ -217,6 +249,88 @@ describe('anchor service', () => {
     // All requests should have been processed
     requests = await requestRepository.findNextToProcess(100)
     expect(requests.length).toEqual(0)
+  })
+
+  test('Anchors in request order', async () => {
+    jest.setTimeout(30000)
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    const anchorService = container.resolve<AnchorService>('anchorService')
+
+    const anchorLimit = 4
+    const numStreams = anchorLimit * 2 // twice as many streams as can fit in a batch
+
+    // Create pending requests
+    // We want 2 requests per streamId, but don't want the requests on the same stream to be created
+    // back-to-back.  So we do one pass to generate the first request for each stream, then another
+    // to make the second requests.
+    const requests = []
+    for (let i = 0; i < numStreams; i++) {
+      const streamId = await ceramicService.generateBaseStreamID()
+
+      const request = await createRequest(streamId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request)
+      requests.push(request)
+
+      // Make sure each stream gets a unique 'createdAt' Date
+      await Utils.delay(1000)
+    }
+
+    // Second pass, a second request per stream.  Create the 2nd request per stream in the opposite
+    // order from how the first request per stream was.
+    for (let i = numStreams - 1; i >= 0; i--) {
+      const prevRequest = requests[i]
+      const streamId = prevRequest.streamId
+
+      const request = await createRequest(streamId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request)
+      requests.push(request)
+      const stream = createStream(streamId, [toCID(prevRequest.cid), toCID(request.cid)])
+      ceramicService.putStream(streamId, stream)
+
+      // Make sure each stream gets a unique 'createdAt' Date
+      await Utils.delay(1000)
+    }
+
+    // First pass anchors half the pending requests
+    expect((await requestRepository.findNextToProcess(100)).length).toEqual(requests.length)
+    const anchorPendingRequests = async function (requests: Request[]): Promise<void> {
+      const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit, 1)
+      expect(candidates.length).toEqual(anchorLimit)
+
+      await anchorCandidates(candidates, anchorService, ipfsService)
+    }
+    await anchorPendingRequests(requests)
+
+    const remainingRequests = await requestRepository.findNextToProcess(100)
+    expect(remainingRequests.length).toEqual(requests.length / 2)
+
+    for (let i = 0; i < anchorLimit; i++) {
+      // The first 'anchorLimit' requests created should have been anchored, so should not show up
+      // as remaining
+      const remaining = remainingRequests.find((req) => req.id == requests[i].id)
+      expect(remaining).toBeFalsy()
+    }
+
+    for (let i = anchorLimit; i < numStreams; i++) {
+      // The remaining half of the requests from the first batch created are on streams that
+      // weren't included in the batch, and so should still be remaining
+      const remaining = remainingRequests.find((req) => req.id == requests[i].id)
+      expect(remaining).toBeTruthy()
+    }
+
+    for (let i = numStreams; i < numStreams + anchorLimit; i++) {
+      // The earlier created requests from the second request batch correspond to the later
+      // created streams, and thus should still be remaining
+      const remaining = remainingRequests.find((req) => req.id == requests[i].id)
+      expect(remaining).toBeTruthy()
+    }
+
+    for (let i = numStreams + anchorLimit; i < numStreams * 2; i++) {
+      // The later created requests from the second request batch correspond to the earlier
+      // created streams, and thus should be anchored and not remaining
+      const remaining = remainingRequests.find((req) => req.id == requests[i].id)
+      expect(remaining).toBeFalsy()
+    }
   })
 
   test('Unlimited anchor requests', async () => {
@@ -239,7 +353,7 @@ describe('anchor service', () => {
 
     let requests = await requestRepository.findNextToProcess(100)
     expect(requests.length).toEqual(numRequests)
-    const candidates = await anchorService._findCandidates(requests, anchorLimit)
+    const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit, 1)
     expect(candidates.length).toEqual(numRequests)
     await anchorCandidates(candidates, anchorService, ipfsService)
 
@@ -275,7 +389,7 @@ describe('anchor service', () => {
       makeRequest(false),
     ])
 
-    const candidates = await anchorService._findCandidates(requests, 0)
+    const [candidates, _] = await anchorService._findCandidates(requests, 0, 1)
     expect(candidates.length).toEqual(2)
 
     const request0 = await requestRepository.findByCid(toCID(requests[0].cid))
@@ -288,7 +402,77 @@ describe('anchor service', () => {
     expect(request3.status).toEqual(RequestStatus.FAILED)
   })
 
-  test('filters anchors that fail to publish AnchorCommit to Ceramic', async () => {
+  test('sends multiquery for missing commits', async () => {
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    const anchorService = container.resolve<AnchorService>('anchorService')
+
+    const makeRequest = async function (streamId: StreamID, includeInBaseStream: boolean) {
+      const request = await createRequest(streamId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request)
+      const commitId = streamId.atCommit(request.cid)
+
+      const existingStream = await ceramicService.loadStream(streamId).catch(() => null)
+      let streamWithCommit
+      if (existingStream) {
+        const log = cloneDeep(existingStream.state.log).map(({ cid }) => cid)
+        log.push(toCID(request.cid))
+        streamWithCommit = createStream(streamId, log)
+      } else {
+        streamWithCommit = createStream(streamId, [toCID(request.cid)])
+      }
+
+      ceramicService.putStream(commitId, streamWithCommit)
+
+      if (includeInBaseStream) {
+        ceramicService.putStream(streamId, streamWithCommit)
+      }
+
+      return request
+    }
+
+    // One stream where 1 commit is present in the stream in ceramic already and one commit is not
+    const streamIdA = await ceramicService.generateBaseStreamID()
+    const requestA0 = await makeRequest(streamIdA, true)
+    const requestA1 = await makeRequest(streamIdA, false)
+    // A second stream where both commits are included in the ceramic already
+    const streamIdB = await ceramicService.generateBaseStreamID()
+    const requestB0 = await makeRequest(streamIdB, true)
+    const requestB1 = await makeRequest(streamIdB, true)
+
+    // Set up mock multiquery implementation to make sure that it finds requestA1 in streamA,
+    // even though it isn't there in the MockCeramicService
+    const commitIdA1 = streamIdA.atCommit(requestA1.cid)
+    const streamAWithRequest1 = await ceramicService.loadStream(commitIdA1.toString() as any)
+    const multiQuerySpy = jest.spyOn(ceramicService, 'multiQuery')
+    multiQuerySpy.mockImplementationOnce(async (queries) => {
+      const result = {}
+      result[streamIdA.toString()] = streamAWithRequest1
+      result[commitIdA1.toString()] = streamAWithRequest1
+      return result
+    })
+
+    const [candidates, _] = await anchorService._findCandidates(
+      [requestA0, requestA1, requestB0, requestB1],
+      0,
+      1
+    )
+    expect(candidates.length).toEqual(2)
+    expect(candidates[0].streamId.toString()).toEqual(streamIdA.toString())
+    expect(candidates[0].cid.toString()).toEqual(requestA1.cid)
+    expect(candidates[1].streamId.toString()).toEqual(streamIdB.toString())
+    expect(candidates[1].cid.toString()).toEqual(requestB1.cid)
+
+    // Should only get 1 multiquery, for streamA.  StreamB already had all commits included so no
+    // need to issue multiquery
+    expect(multiQuerySpy).toHaveBeenCalledTimes(1)
+    expect(multiQuerySpy.mock.calls[0][0].length).toEqual(2)
+    expect(multiQuerySpy.mock.calls[0][0][0].streamId.toString()).toEqual(commitIdA1.toString())
+    expect(multiQuerySpy.mock.calls[0][0][1].streamId.toString()).toEqual(streamIdA.toString())
+
+    multiQuerySpy.mockRestore()
+  })
+
+  test('filters anchors that fail to publish AnchorCommit', async () => {
     const requestRepository = container.resolve<RequestRepository>('requestRepository')
     const anchorService = container.resolve<AnchorService>('anchorService')
 
@@ -306,26 +490,25 @@ describe('anchor service', () => {
 
     const requests = await requestRepository.findNextToProcess(100)
     expect(requests.length).toEqual(numRequests)
-    const candidates = await anchorService._findCandidates(requests, 0)
+    const [candidates, _] = await anchorService._findCandidates(requests, 0, 1)
     expect(candidates.length).toEqual(numRequests)
 
-    const originalPublishAnchorCommit = ceramicService.publishAnchorCommit
-    try {
-      ceramicService.publishAnchorCommit = function (streamId, anchorCommit) {
-        if (streamId.toString() == requests[1].streamId) {
-          throw new Error('publishAnchorCommit failed!')
-        } else {
-          return originalPublishAnchorCommit.apply(ceramicService, [streamId, anchorCommit])
-        }
+    const originalStoreRecord = ipfsService.storeRecord
+    const storeRecordSpy = jest.spyOn(ipfsService, 'storeRecord')
+    storeRecordSpy.mockImplementation(async (ipfsAnchorCommit) => {
+      if (ipfsAnchorCommit.prev && ipfsAnchorCommit.prev.toString() == requests[1].cid.toString()) {
+        throw new Error('publishing anchor commit failed')
       }
-      const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
-      expect(anchors.length).toEqual(2)
-      expect(anchors.find((anchor) => anchor.request.streamId == requests[0].streamId)).toBeTruthy()
-      expect(anchors.find((anchor) => anchor.request.streamId == requests[1].streamId)).toBeFalsy()
-      expect(anchors.find((anchor) => anchor.request.streamId == requests[2].streamId)).toBeTruthy()
-    } finally {
-      ceramicService.publishAnchorCommit = originalPublishAnchorCommit
-    }
+
+      return originalStoreRecord.apply(ceramicService, [ipfsAnchorCommit])
+    })
+
+    const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
+    expect(anchors.length).toEqual(2)
+    expect(anchors.find((anchor) => anchor.request.streamId == requests[0].streamId)).toBeTruthy()
+    expect(anchors.find((anchor) => anchor.request.streamId == requests[1].streamId)).toBeFalsy()
+    expect(anchors.find((anchor) => anchor.request.streamId == requests[2].streamId)).toBeTruthy()
+    storeRecordSpy.mockRestore()
   })
 
   describe('Picks proper commit to anchor', () => {
@@ -353,7 +536,7 @@ describe('anchor service', () => {
         createStream(streamId, [toCID(request0.cid), toCID(request1.cid)])
       )
 
-      const candidates = await anchorService._findCandidates([request0, request1], 0)
+      const [candidates, _] = await anchorService._findCandidates([request0, request1], 0, 1)
       const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
       expect(candidates.length).toEqual(1)
       const candidate = candidates[0]
@@ -389,7 +572,7 @@ describe('anchor service', () => {
       ceramicService.putStream(commitId, createStream(streamId, [toCID(request.cid)]))
       ceramicService.putStream(streamId, createStream(streamId, [toCID(request.cid), tipCID]))
 
-      const candidates = await anchorService._findCandidates([request], 0)
+      const [candidates, _] = await anchorService._findCandidates([request], 0, 1)
       const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
       expect(candidates.length).toEqual(1)
       const candidate = candidates[0]
@@ -424,7 +607,7 @@ describe('anchor service', () => {
       ceramicService.putStream(commitId, createStream(streamId, [toCID(request.cid)]))
       ceramicService.putStream(streamId, createStream(streamId, [tipCID]))
 
-      const candidates = await anchorService._findCandidates([request], 0)
+      const [candidates, _] = await anchorService._findCandidates([request], 0, 1)
       expect(candidates.length).toEqual(0)
       const updatedRequest = await requestRepository.findByCid(toCID(request.cid))
       expect(updatedRequest.status).toEqual(RequestStatus.FAILED)
@@ -448,7 +631,7 @@ describe('anchor service', () => {
         createStream(streamId, [toCID(request.cid), anchorCommitCID], AnchorStatus.ANCHORED)
       )
 
-      const candidates = await anchorService._findCandidates([request], 0)
+      const [candidates, _] = await anchorService._findCandidates([request], 0, 1)
       expect(candidates.length).toEqual(0)
 
       // request should still be marked as completed even though no anchor was performed
@@ -482,7 +665,7 @@ describe('anchor service', () => {
         ceramicService.putStream(streamId, stream)
       }
 
-      const candidates = await anchorService._findCandidates(requests, 0)
+      const [candidates, _] = await anchorService._findCandidates(requests, 0, 1)
       await anchorCandidates(candidates, anchorService, ipfsService)
       expect(candidates.length).toEqual(numRequests)
 

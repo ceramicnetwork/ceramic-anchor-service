@@ -64,10 +64,7 @@ export default class CeramicAnchorApp {
       ),
     })
     container.registerSingleton('anchorService', AnchorService)
-    if (this._anchorsSupported()) {
-      // Only register the ceramicService if we might ever need to perform an anchor
-      container.registerSingleton('ceramicService', CeramicServiceImpl)
-    }
+    container.registerSingleton('ceramicService', CeramicServiceImpl)
     container.registerSingleton('ipfsService', IpfsServiceImpl)
     container.registerSingleton('schedulerService', SchedulerService)
 

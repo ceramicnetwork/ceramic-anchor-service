@@ -26,6 +26,7 @@ export interface CIDHolder {
 export class Candidate implements CIDHolder {
   public readonly streamId: StreamID
   private readonly _requests: Request[] = []
+  private readonly _earliestRequestDate: Date
 
   private _cid: CID = null
   private _metadata: StreamMetadata
@@ -38,6 +39,14 @@ export class Candidate implements CIDHolder {
   constructor(streamId: StreamID, requests: Request[]) {
     this.streamId = streamId
     this._requests = requests
+
+    let minDate = requests[0].createdAt
+    for (const req of requests.slice(1)) {
+      if (req.createdAt < minDate) {
+        minDate = req.createdAt
+      }
+    }
+    this._earliestRequestDate = minDate
   }
 
   public get cid(): CID {
@@ -46,6 +55,10 @@ export class Candidate implements CIDHolder {
 
   public get metadata(): StreamMetadata {
     return this._metadata
+  }
+
+  public get earliestRequestDate(): Date {
+    return this._earliestRequestDate
   }
 
   /**

@@ -134,7 +134,10 @@ export default class RequestRepository extends Repository<Request> {
       .getRepository(Request)
       .createQueryBuilder('request')
       .orderBy('request.updated_at', 'DESC')
-      .where('request.status = :anchoredStatus', { anchoredStatus: RequestStatus.COMPLETED })
+      .where('(request.status = :anchoredStatus1 OR request.status = :anchoredStatus2)', {
+        anchoredStatus1: RequestStatus.COMPLETED,
+        anchoredStatus2: RequestStatus.FAILED,
+      })
       .andWhere('request.pinned = :pinned', { pinned: true })
       .andWhere('request.updated_at < :deadlineDate', { deadlineDate: deadlineDate.toISOString() })
 
