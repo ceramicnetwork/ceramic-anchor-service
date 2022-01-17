@@ -8,7 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm'
 
-import { Request } from './request'
+import { Request } from './request.js'
 
 @Entity()
 export class Anchor {

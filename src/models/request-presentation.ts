@@ -1,7 +1,7 @@
-import AnchorRepository from '../repositories/anchor-repository'
-import { InvalidRequestStatusError, RequestStatus } from './request-status'
+import { AnchorRepository } from '../repositories/anchor-repository.js'
+import { InvalidRequestStatusError, RequestStatus } from './request-status.js'
 import awsCronParser from 'aws-cron-parser'
-import { Request } from './request'
+import { Request } from './request.js'
 
 /**
  * Render anchoring Request as JSON for a client to consume.
@@ -30,7 +30,8 @@ export class RequestPresentation {
           message: request.message,
           createdAt: request.createdAt.getTime(),
           updatedAt: request.updatedAt.getTime(),
-          anchorRecord: {  // TODO: Remove this backwards compatibility field
+          anchorRecord: {
+            // TODO: Remove this backwards compatibility field
             cid: anchor.cid,
             content: {
               path: anchor.path,

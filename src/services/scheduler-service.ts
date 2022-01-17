@@ -2,15 +2,15 @@ import awsCronParser from 'aws-cron-parser'
 
 import { Config } from 'node-config-ts'
 
-import AnchorService from './anchor-service'
-import { logger } from '../logger'
+import { AnchorService } from './anchor-service.js'
+import { logger } from '../logger/index.js'
 import { inject, singleton } from 'tsyringe'
 
 /**
  * Schedules anchor operations
  */
 @singleton()
-export default class SchedulerService {
+export class SchedulerService {
   private _task
 
   constructor(

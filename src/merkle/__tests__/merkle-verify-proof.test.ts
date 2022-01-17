@@ -1,5 +1,5 @@
-import { MergeFunction, Node } from '../merkle'
-import { MerkleTree } from '../merkle-tree'
+import { MergeFunction, Node } from '../merkle.js'
+import { MerkleTree } from '../merkle-tree.js'
 
 class StringConcat implements MergeFunction<string, string> {
   async merge(n1: Node<string>, n2: Node<string>, m: string | null): Promise<Node<string>> {

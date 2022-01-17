@@ -1,10 +1,16 @@
-import { MockIpfsService, randomCID } from '../../test-utils'
-import { MerkleTree } from '../merkle-tree'
-import { TreeMetadata } from '../merkle'
-import { BloomMetadata, Candidate, CIDHolder, IpfsLeafCompare, IpfsMerge } from '../merkle-objects'
+import { MockIpfsService, randomCID } from '../../test-utils.js'
+import { MerkleTree } from '../merkle-tree.js'
+import { TreeMetadata } from '../merkle.js'
+import {
+  BloomMetadata,
+  Candidate,
+  CIDHolder,
+  IpfsLeafCompare,
+  IpfsMerge,
+} from '../merkle-objects.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { BloomFilter } from 'bloom-filters'
-import { Request } from '../../models/request'
+import { Request } from '../../models/request.js'
 import { AnchorStatus } from '@ceramicnetwork/common'
 
 describe('Bloom filter', () => {

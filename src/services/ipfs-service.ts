@@ -2,7 +2,7 @@ import type { CID } from 'multiformats/cid'
 import LRUCache from 'lru-cache'
 import { create as createIpfsClient } from 'ipfs-http-client'
 import { Config } from 'node-config-ts'
-import { logger } from '../logger'
+import { logger } from '../logger/index.js'
 import * as dagJose from 'dag-jose'
 import type { IPFS } from 'ipfs-core-types'
 import { inject, singleton } from 'tsyringe'
@@ -98,12 +98,15 @@ export class IpfsServiceImpl implements IpfsService {
       clearTimeout(timeout)
     })
 
-    const timeoutPromise = new Promise((_, reject) => {
-      timeout = setTimeout(() => {
-        reject(new Error(`Timed out storing record in IPFS`))
-      }, IPFS_PUT_TIMEOUT)
+    const timeoutPromise = new Promise((resolve) => {
+      timeout = setTimeout(resolve, IPFS_PUT_TIMEOUT)
     })
 
-    return await Promise.race([putPromise, timeoutPromise])
+    return await Promise.race([
+      putPromise,
+      timeoutPromise.then(() => {
+        throw new Error(`Timed out storing record in IPFS`)
+      }),
+    ])
   }
 }

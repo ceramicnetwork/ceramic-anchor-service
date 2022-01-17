@@ -2,8 +2,8 @@ import { CID } from 'multiformats/cid'
 import { create } from 'multiformats/hashes/digest'
 import { sha256 } from 'multiformats/hashes/sha2'
 
-import { CeramicService } from './services/ceramic-service'
-import { IpfsService } from './services/ipfs-service'
+import { CeramicService } from './services/ceramic-service.js'
+import { IpfsService } from './services/ipfs-service.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
 import * as dagCBOR from '@ipld/dag-cbor'
@@ -82,7 +82,7 @@ export class MockCeramicService implements CeramicService {
     return new StreamID('tile', cid)
   }
 
-  unpinStream(streamId: StreamID) {}
+  async unpinStream(streamId: StreamID) {}
 
   reset() {
     this._cidIndex = 0

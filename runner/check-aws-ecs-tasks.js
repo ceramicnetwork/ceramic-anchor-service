@@ -1,7 +1,10 @@
-const { generateDiscordCloudwatchFields, listECSTasks, sendDiscordNotification } = require('./helpers')
+import {
+  generateDiscordCloudwatchFields,
+  listECSTasks,
+  sendDiscordNotification,
+} from './helpers.js'
 
 async function main() {
-
   const taskArns = await listECSTasks()
 
   if (taskArns.length > 1) {
@@ -38,18 +41,18 @@ function sendHangingNotification(taskArns) {
 }
 
 function sendStartNotification(taskArns) {
-    const fields = generateDiscordCloudwatchFields(taskArns)
-    const message = [
-        {
-            title: `CAS anchor task started (${process.env.AWS_ECS_CLUSTER})`,
-            description: '',
-            color: 3447003, // Blue
-            fields,
-        },
-    ]
-    const data = { embeds: message, username: 'cas-runner'}
-    const retryDelayMs = 300000 // 300k ms = 5 mins
-    sendDiscordNotification(process.env.DISCORD_WEBHOOK_URL_INFO_CAS, data, retryDelayMs)
+  const fields = generateDiscordCloudwatchFields(taskArns)
+  const message = [
+    {
+      title: `CAS anchor task started (${process.env.AWS_ECS_CLUSTER})`,
+      description: '',
+      color: 3447003, // Blue
+      fields,
+    },
+  ]
+  const data = { embeds: message, username: 'cas-runner' }
+  const retryDelayMs = 300000 // 300k ms = 5 mins
+  sendDiscordNotification(process.env.DISCORD_WEBHOOK_URL_INFO_CAS, data, retryDelayMs)
 }
 
 main()

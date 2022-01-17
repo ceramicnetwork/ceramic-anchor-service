@@ -1,6 +1,6 @@
 import { EntitySubscriberInterface, EventSubscriber, InsertEvent, UpdateEvent } from 'typeorm'
-import { Request } from '../models/request'
-import { logEvent } from '../logger'
+import { Request } from '../models/request.js'
+import { logEvent } from '../logger/index.js'
 
 @EventSubscriber()
 export class RequestSubscriber implements EntitySubscriberInterface<Request> {

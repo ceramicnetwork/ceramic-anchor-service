@@ -1,30 +1,32 @@
 import 'reflect-metadata'
+import { jest } from '@jest/globals'
 import { container } from 'tsyringe'
 
-import { Request } from '../../models/request'
-import { RequestStatus } from '../../models/request-status'
-import AnchorService from '../anchor-service'
+import { Request } from '../../models/request.js'
+import { RequestStatus } from '../../models/request-status.js'
+import { AnchorService } from '../anchor-service.js'
 
-import DBConnection from './db-connection'
+import { DBConnection } from './db-connection.js'
 
-import EthereumBlockchainService from '../blockchain/ethereum/ethereum-blockchain-service'
-import RequestRepository from '../../repositories/request-repository'
-import { IpfsService } from '../ipfs-service'
-import AnchorRepository from '../../repositories/anchor-repository'
+import { EthereumBlockchainService } from '../blockchain/ethereum/ethereum-blockchain-service.js'
+import { BlockchainService } from '../blockchain/blockchain-service.js'
+import { RequestRepository } from '../../repositories/request-repository.js'
+import { IpfsService } from '../ipfs-service.js'
+import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { config } from 'node-config-ts'
-import { StreamID } from '@ceramicnetwork/streamid'
-import { MockCeramicService, MockIpfsService } from '../../test-utils'
+import { CommitID, StreamID } from '@ceramicnetwork/streamid'
+import { MockCeramicService, MockIpfsService } from '../../test-utils.js'
 import { Connection } from 'typeorm'
 import { CID } from 'multiformats/cid'
-import { Candidate } from '../../merkle/merkle-objects'
-import { Anchor } from '../../models/anchor'
+import { Candidate } from '../../merkle/merkle-objects.js'
+import { Anchor } from '../../models/anchor.js'
 import { AnchorStatus, toCID } from '@ceramicnetwork/common'
 import cloneDeep from 'lodash.clonedeep'
-import Utils from '../../utils'
+import { Utils } from '../../utils.js'
 
 process.env.NODE_ENV = 'test'
 
-jest.mock('../blockchain/ethereum/ethereum-blockchain-service')
+jest.mock('../blockchain/ethereum/ethereum-blockchain-service.js')
 
 async function createRequest(streamId: string, ipfsService: IpfsService): Promise<Request> {
   const cid = await ipfsService.storeRecord({})
@@ -106,7 +108,7 @@ describe('anchor service', () => {
 
     const streamId = await ceramicService.generateBaseStreamID()
     const cid = await ipfsService.storeRecord({})
-    const streamCommitId = streamId.atCommit(cid)
+    const streamCommitId = CommitID.make(streamId, cid)
     const stream = createStream(streamId, [cid])
     ceramicService.putStream(streamCommitId, stream)
     ceramicService.putStream(streamId, stream)
@@ -146,7 +148,7 @@ describe('anchor service', () => {
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
       requests.push(request)
-      const commitId = streamId.atCommit(request.cid)
+      const commitId = CommitID.make(streamId, request.cid)
       const stream = createStream(streamId, [toCID(request.cid)])
       ceramicService.putStream(streamId, stream)
       ceramicService.putStream(commitId, stream)
@@ -193,7 +195,7 @@ describe('anchor service', () => {
       const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
-      const commitId = streamId.atCommit(request.cid)
+      const commitId = CommitID.make(streamId, request.cid)
       const stream = createStream(streamId, [toCID(request.cid)])
       ceramicService.putStream(streamId, stream)
       ceramicService.putStream(commitId, stream)
@@ -223,7 +225,7 @@ describe('anchor service', () => {
       const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
-      const commitId = streamId.atCommit(request.cid)
+      const commitId = CommitID.make(streamId, request.cid)
       const stream = createStream(streamId, [toCID(request.cid)])
       ceramicService.putStream(streamId, stream)
       ceramicService.putStream(commitId, stream)
@@ -345,7 +347,7 @@ describe('anchor service', () => {
       const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
-      const commitId = streamId.atCommit(request.cid)
+      const commitId = CommitID.make(streamId, request.cid)
       const stream = createStream(streamId, [toCID(request.cid)])
       ceramicService.putStream(streamId, stream)
       ceramicService.putStream(commitId, stream)
@@ -372,7 +374,7 @@ describe('anchor service', () => {
       await requestRepository.createOrUpdate(request)
 
       if (valid) {
-        const commitId = streamId.atCommit(request.cid)
+        const commitId = CommitID.make(streamId, request.cid)
         const stream = createStream(streamId, [toCID(request.cid)])
         ceramicService.putStream(streamId, stream)
         ceramicService.putStream(commitId, stream)
@@ -409,7 +411,7 @@ describe('anchor service', () => {
     const makeRequest = async function (streamId: StreamID, includeInBaseStream: boolean) {
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
-      const commitId = streamId.atCommit(request.cid)
+      const commitId = CommitID.make(streamId, request.cid)
 
       const existingStream = await ceramicService.loadStream(streamId).catch(() => null)
       let streamWithCommit
@@ -441,7 +443,7 @@ describe('anchor service', () => {
 
     // Set up mock multiquery implementation to make sure that it finds requestA1 in streamA,
     // even though it isn't there in the MockCeramicService
-    const commitIdA1 = streamIdA.atCommit(requestA1.cid)
+    const commitIdA1 = CommitID.make(streamIdA, requestA1.cid)
     const streamAWithRequest1 = await ceramicService.loadStream(commitIdA1.toString() as any)
     const multiQuerySpy = jest.spyOn(ceramicService, 'multiQuery')
     multiQuerySpy.mockImplementationOnce(async (queries) => {
@@ -482,7 +484,7 @@ describe('anchor service', () => {
       const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
-      const commitId = streamId.atCommit(request.cid)
+      const commitId = CommitID.make(streamId, request.cid)
       const stream = createStream(streamId, [toCID(request.cid)])
       ceramicService.putStream(streamId, stream)
       ceramicService.putStream(commitId, stream)
@@ -522,8 +524,8 @@ describe('anchor service', () => {
       const request1 = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request0)
       await requestRepository.createOrUpdate(request1)
-      const commitId0 = streamId.atCommit(request0.cid)
-      const commitId1 = streamId.atCommit(request1.cid)
+      const commitId0 = CommitID.make(streamId, request0.cid)
+      const commitId1 = CommitID.make(streamId, request1.cid)
 
       // request1 is the most recent tip
       ceramicService.putStream(commitId0, createStream(streamId, [toCID(request0.cid)]))
@@ -564,7 +566,7 @@ describe('anchor service', () => {
       const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
-      const commitId = streamId.atCommit(request.cid)
+      const commitId = CommitID.make(streamId, request.cid)
       const tipCID = await ipfsService.storeRecord({})
 
       // The most recent tip doesn't have a corresponding request, but includes the pending
@@ -599,7 +601,7 @@ describe('anchor service', () => {
       const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
-      const commitId = streamId.atCommit(request.cid)
+      const commitId = CommitID.make(streamId, request.cid)
       const tipCID = await ipfsService.storeRecord({})
 
       // The most recent tip doesn't have a corresponding request, and does *not* include the pending
@@ -620,7 +622,7 @@ describe('anchor service', () => {
       const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
-      const commitId = streamId.atCommit(request.cid)
+      const commitId = CommitID.make(streamId, request.cid)
       const anchorCommitCID = await ipfsService.storeRecord({})
 
       // The most recent tip doesn't have a corresponding request, but includes the pending
@@ -658,7 +660,7 @@ describe('anchor service', () => {
       for (let i = 0; i < numRequests; i++) {
         const request = requests[i]
         const streamId = streamIds[i]
-        const commitId = streamId.atCommit(request.cid)
+        const commitId = CommitID.make(streamId, request.cid)
 
         const stream = createStream(streamId, [toCID(request.cid)])
         ceramicService.putStream(commitId, stream)

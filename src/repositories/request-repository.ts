@@ -8,9 +8,9 @@ import {
   UpdateResult,
 } from 'typeorm'
 
-import { Request, RequestUpdateFields } from '../models/request'
-import { RequestStatus } from '../models/request-status'
-import { logEvent } from '../logger'
+import { Request, RequestUpdateFields } from '../models/request.js'
+import { RequestStatus } from '../models/request-status.js'
+import { logEvent } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
 
@@ -22,7 +22,7 @@ const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
 
 @singleton()
 @EntityRepository(Request)
-export default class RequestRepository extends Repository<Request> {
+export class RequestRepository extends Repository<Request> {
   constructor(
     @inject('config') private config?: Config,
     @inject('dbConnection') private connection?: Connection

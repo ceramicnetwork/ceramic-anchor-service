@@ -1,4 +1,8 @@
-const { generateDiscordCloudwatchFields, sendDiscordNotification, listECSTasks } = require('./helpers')
+import {
+  generateDiscordCloudwatchFields,
+  sendDiscordNotification,
+  listECSTasks,
+} from './helpers.js'
 
 async function main() {
   const taskArns = await listECSTasks()

@@ -27,7 +27,7 @@ jobs:
         if: ${{ steps.set-vars.outputs.full == 'true' }}
         uses: actions/setup-node@v1
         with:
-          node-version: 14
+          node-version: 16
       -
         name: Checkout `main` branch
         if: ${{ steps.set-vars.outputs.full == 'true' }}
@@ -95,7 +95,7 @@ jobs:
         if: ${{ steps.set-vars.outputs.rc == 'true' }}
         uses: actions/setup-node@v1
         with:
-          node-version: 14
+          node-version: 16
       -
         name: Checkout `release-candidate` branch
         if: ${{ steps.set-vars.outputs.rc == 'true' }}

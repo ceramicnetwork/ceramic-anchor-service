@@ -4,12 +4,12 @@ import { CID } from 'multiformats/cid'
 import Ganache from 'ganache-core'
 
 import { config } from 'node-config-ts'
-import { logger } from '../../../logger'
+import { logger } from '../../../logger/index.js'
 
 import { container, instanceCachingFactory } from 'tsyringe'
 
-import BlockchainService from '../blockchain-service'
-import EthereumBlockchainService, { MAX_RETRIES } from '../ethereum/ethereum-blockchain-service'
+import { BlockchainService } from '../blockchain-service.js'
+import { EthereumBlockchainService, MAX_RETRIES } from '../ethereum/ethereum-blockchain-service.js'
 import { BigNumber } from 'ethers'
 import type { FeeData } from '@ethersproject/abstract-provider'
 import { ErrorCode } from '@ethersproject/logger'

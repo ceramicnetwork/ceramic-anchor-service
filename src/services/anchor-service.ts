@@ -1,32 +1,32 @@
 import { CID } from 'multiformats/cid'
 
-import { RequestStatus as RS } from '../models/request-status'
+import { RequestStatus as RS } from '../models/request-status.js'
 
-import { MerkleTree } from '../merkle/merkle-tree'
-import { PathDirection, TreeMetadata } from '../merkle/merkle'
+import { MerkleTree } from '../merkle/merkle-tree.js'
+import { PathDirection, TreeMetadata } from '../merkle/merkle.js'
 
 import { Config } from 'node-config-ts'
 
-import { logger, logEvent } from '../logger'
-import Utils from '../utils'
-import { Anchor } from '../models/anchor'
-import { Request } from '../models/request'
-import Transaction from '../models/transaction'
-import AnchorRepository from '../repositories/anchor-repository'
-import RequestRepository from '../repositories/request-repository'
+import { logger, logEvent } from '../logger/index.js'
+import { Utils } from '../utils.js'
+import { Anchor } from '../models/anchor.js'
+import { Request } from '../models/request.js'
+import { Transaction } from '../models/transaction.js'
+import { AnchorRepository } from '../repositories/anchor-repository.js'
+import { RequestRepository } from '../repositories/request-repository.js'
 
-import { IpfsService } from './ipfs-service'
-import CeramicService from './ceramic-service'
-import BlockchainService from './blockchain/blockchain-service'
+import { IpfsService } from './ipfs-service.js'
+import { CeramicService } from './ceramic-service.js'
+import { BlockchainService } from './blockchain/blockchain-service.js'
 import { inject, singleton } from 'tsyringe'
-import { StreamID } from '@ceramicnetwork/streamid'
+import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import {
   BloomMetadata,
   Candidate,
   CIDHolder,
   IpfsLeafCompare,
   IpfsMerge,
-} from '../merkle/merkle-objects'
+} from '../merkle/merkle-objects.js'
 import { Connection } from 'typeorm'
 
 type RequestGroups = {
@@ -41,7 +41,7 @@ type RequestGroups = {
  * Anchors CIDs to blockchain
  */
 @singleton()
-export default class AnchorService {
+export class AnchorService {
   private readonly ipfsMerge: IpfsMerge
   private readonly ipfsCompare: IpfsLeafCompare
   private readonly bloomMetadata: BloomMetadata
@@ -632,7 +632,7 @@ export default class AnchorService {
     // commits before.  So we build a multiquery including all missing commits and send that to
     // Ceramic, forcing it to at least consider every CID that we have a request for.
     const queries = missingRequests.map((request) => {
-      return { streamId: candidate.streamId.atCommit(request.cid).toString() }
+      return { streamId: CommitID.make(candidate.streamId, request.cid).toString() }
     })
     queries.push({ streamId: candidate.streamId.baseID.toString() })
 
@@ -652,7 +652,7 @@ export default class AnchorService {
 
     // Fail requests for tips that failed to be loaded
     for (const request of missingRequests) {
-      const commitId = candidate.streamId.atCommit(request.cid)
+      const commitId = CommitID.make(candidate.streamId, request.cid)
       if (!response[commitId.toString()]) {
         logger.err(
           `Failed to load stream ${commitId.baseID.toString()} at commit ${commitId.commit.toString()}`

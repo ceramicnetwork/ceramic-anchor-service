@@ -7,19 +7,19 @@ import cors from 'cors'
 import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core'
 
 import { toCID } from '@ceramicnetwork/common'
-import { RequestStatus } from '../models/request-status'
-import AnchorRepository from '../repositories/anchor-repository'
-import RequestRepository from '../repositories/request-repository'
-import { Request } from '../models/request'
+import { RequestStatus } from '../models/request-status.js'
+import { AnchorRepository } from '../repositories/anchor-repository.js'
+import { RequestRepository } from '../repositories/request-repository.js'
+import { Request } from '../models/request.js'
 import { inject, singleton } from 'tsyringe'
-import { logger } from '../logger'
-import { RequestPresentation } from '../models/request-presentation'
-import { CeramicService } from '../services/ceramic-service'
+import { logger } from '../logger/index.js'
+import { RequestPresentation } from '../models/request-presentation.js'
+import { CeramicService } from '../services/ceramic-service.js'
 
 @singleton()
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
-export default class RequestController {
+export class RequestController {
   #requestPresentation: RequestPresentation
 
   constructor(
