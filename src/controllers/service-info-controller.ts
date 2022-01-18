@@ -1,11 +1,8 @@
 import httpStatusCodes from 'http-status-codes'
 import { Request as ExpReq, Response as ExpRes } from 'express'
-
 import cors from 'cors'
 import { ClassMiddleware, Controller, Get } from '@overnightjs/core'
-
 import { logger } from '../logger/index.js'
-
 import { BlockchainService } from '../services/blockchain/blockchain-service.js'
 import { inject, singleton } from 'tsyringe'
 

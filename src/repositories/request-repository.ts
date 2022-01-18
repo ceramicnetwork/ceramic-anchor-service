@@ -7,7 +7,6 @@ import {
   InsertResult,
   UpdateResult,
 } from 'typeorm'
-export { Repository }
 
 import { Request, RequestUpdateFields } from '../models/request.js'
 import { RequestStatus } from '../models/request-status.js'

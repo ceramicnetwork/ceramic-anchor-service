@@ -24,8 +24,6 @@ import { Utils } from '../../utils.js'
 
 process.env.NODE_ENV = 'test'
 
-jest.mock('../blockchain/ethereum/ethereum-blockchain-service.js')
-
 class FakeEthereumBlockchainService {
   constructor() {}
 
