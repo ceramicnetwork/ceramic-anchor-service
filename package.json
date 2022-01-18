@@ -17,7 +17,7 @@
     "format": "./node_modules/.bin/prettier --write 'src/**/*{.ts,.tsx,.js}'",
     "prepublishOnly": "npm run build",
     "prebuild": "npm run clean",
-    "postinstall": "node-config-ts",
+    "postinstall": "./node_modules/.bin/node-config-ts",
     "lint": "./node_modules/.bin/eslint --fix ./src --ext .js,.jsx,.ts,.tsx",
     "typeorm": "./node_modules/.bin/ts-node -r tsconfig-paths/register ./node_modules//typeorm/cli.js",
     "clean": "rm -rf ./build; rm -rf coverage; rm -rf .nyc_output",
@@ -58,7 +58,7 @@
     "reflect-metadata": "^0.1.13",
     "sqlite3": "^5.0.2",
     "tsyringe": "^4.6.0",
-    "typeorm": "^0.2.41",
+    "typeorm": "0.2.38",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
@@ -85,7 +85,7 @@
     "@typescript-eslint/parser": "^5.9.1",
     "babel-jest": "^27.4.6",
     "did-resolver": "^3.1.5",
-    "dids": "3.0.0-alpha.0",
+    "dids": "3.0.0-alpha.4",
     "eslint": "^8.7.0",
     "eslint-config-3box": "^0.4.0",
     "eslint-plugin-jest": "^25.7.0",

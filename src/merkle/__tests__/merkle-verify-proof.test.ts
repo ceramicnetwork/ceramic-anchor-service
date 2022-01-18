@@ -15,10 +15,9 @@ const leaves: string[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
 let tree: MerkleTree<string, string, string>
 
 describe('Merkle tree proof verification', () => {
-  beforeAll(async (done) => {
+  beforeAll(async () => {
     tree = new MerkleTree<string, string, string>(new StringConcat())
     await tree.build(leaves)
-    done()
   })
 
   describe('a given merkle tree', () => {

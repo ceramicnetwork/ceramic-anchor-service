@@ -1,4 +1,4 @@
-export default class Transaction {
+export class Transaction {
   chain: string
   txHash: string
   blockNumber: number

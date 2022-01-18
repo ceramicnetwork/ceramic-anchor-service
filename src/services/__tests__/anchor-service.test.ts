@@ -8,8 +8,6 @@ import { AnchorService } from '../anchor-service.js'
 
 import { DBConnection } from './db-connection.js'
 
-import { EthereumBlockchainService } from '../blockchain/ethereum/ethereum-blockchain-service.js'
-import { BlockchainService } from '../blockchain/blockchain-service.js'
 import { RequestRepository } from '../../repositories/request-repository.js'
 import { IpfsService } from '../ipfs-service.js'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
@@ -27,6 +25,14 @@ import { Utils } from '../../utils.js'
 process.env.NODE_ENV = 'test'
 
 jest.mock('../blockchain/ethereum/ethereum-blockchain-service.js')
+
+class FakeEthereumBlockchainService {
+  constructor() {}
+
+  public sendTransaction() {
+    throw new Error('Failed to send transaction!')
+  }
+}
 
 async function createRequest(streamId: string, ipfsService: IpfsService): Promise<Request> {
   const cid = await ipfsService.storeRecord({})
@@ -79,7 +85,7 @@ describe('anchor service', () => {
     container.registerInstance('dbConnection', connection)
     container.registerSingleton('anchorRepository', AnchorRepository)
     container.registerSingleton('requestRepository', RequestRepository)
-    container.registerSingleton('blockchainService', EthereumBlockchainService)
+    container.registerSingleton('blockchainService', FakeEthereumBlockchainService)
     container.register('ipfsService', {
       useValue: ipfsService,
     })
@@ -100,12 +106,6 @@ describe('anchor service', () => {
   })
 
   test('check state on tx fail', async () => {
-    const sendTransaction = jest.fn()
-    EthereumBlockchainService.prototype.sendTransaction = sendTransaction
-    sendTransaction.mockImplementation(() => {
-      throw new Error('Failed to send transaction!')
-    })
-
     const streamId = await ceramicService.generateBaseStreamID()
     const cid = await ipfsService.storeRecord({})
     const streamCommitId = CommitID.make(streamId, cid)
@@ -254,7 +254,6 @@ describe('anchor service', () => {
   })
 
   test('Anchors in request order', async () => {
-    jest.setTimeout(30000)
     const requestRepository = container.resolve<RequestRepository>('requestRepository')
     const anchorService = container.resolve<AnchorService>('anchorService')
 
@@ -333,7 +332,7 @@ describe('anchor service', () => {
       const remaining = remainingRequests.find((req) => req.id == requests[i].id)
       expect(remaining).toBeFalsy()
     }
-  })
+  }, 30000)
 
   test('Unlimited anchor requests', async () => {
     const requestRepository = container.resolve<RequestRepository>('requestRepository')

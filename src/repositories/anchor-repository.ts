@@ -1,6 +1,9 @@
+import { EntityRepository, Repository, Connection, EntityManager, InsertResult } from 'typeorm'
 import { Anchor } from '../models/anchor.js'
 import { Request } from '../models/request.js'
 import { inject, singleton } from 'tsyringe'
+
+export { Repository }
 
 @singleton()
 @EntityRepository(Anchor)

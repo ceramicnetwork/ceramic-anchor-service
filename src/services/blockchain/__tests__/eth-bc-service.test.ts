@@ -1,4 +1,5 @@
 import 'reflect-metadata'
+import { jest } from '@jest/globals'
 
 import { CID } from 'multiformats/cid'
 import Ganache from 'ganache-core'
@@ -13,6 +14,7 @@ import { EthereumBlockchainService, MAX_RETRIES } from '../ethereum/ethereum-blo
 import { BigNumber } from 'ethers'
 import type { FeeData } from '@ethersproject/abstract-provider'
 import { ErrorCode } from '@ethersproject/logger'
+import { JsxEmit } from 'typescript'
 
 describe('ETH service connected to ganache', () => {
   jest.setTimeout(25000)
@@ -45,10 +47,9 @@ describe('ETH service connected to ganache', () => {
     await ethBc.connect()
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     logger.imp(`Closing local Ethereum blockchain instance...`)
     ganacheServer.close()
-    done()
   })
 
   test('should send CID to local ganache server', async () => {
@@ -253,8 +254,12 @@ describe('ETH service with mock wallet', () => {
 
     const mockTrySendTransaction = jest.fn()
     const mockConfirmTransactionSuccess = jest.fn()
-    ethBc._trySendTransaction = mockTrySendTransaction
-    ethBc._confirmTransactionSuccess = mockConfirmTransactionSuccess
+    ethBc._trySendTransaction = mockTrySendTransaction as jest.Mocked<
+      typeof ethBc._trySendTransaction
+    >
+    ethBc._confirmTransactionSuccess = mockConfirmTransactionSuccess as jest.Mocked<
+      typeof ethBc._confirmTransactionSuccess
+    >
     mockTrySendTransaction.mockReturnValue(txResponse)
     mockConfirmTransactionSuccess.mockReturnValue(finalTransactionResult)
 
@@ -289,7 +294,9 @@ describe('ETH service with mock wallet', () => {
     provider.getFeeData.mockReturnValue(feeData)
 
     const mockTrySendTransaction = jest.fn()
-    ethBc._trySendTransaction = mockTrySendTransaction
+    ethBc._trySendTransaction = mockTrySendTransaction as jest.Mocked<
+      typeof ethBc._trySendTransaction
+    >
     mockTrySendTransaction
       .mockRejectedValueOnce({ code: ErrorCode.TIMEOUT })
       .mockRejectedValueOnce({ code: ErrorCode.INSUFFICIENT_FUNDS })
@@ -333,8 +340,12 @@ describe('ETH service with mock wallet', () => {
 
     const mockTrySendTransaction = jest.fn()
     const mockConfirmTransactionSuccess = jest.fn()
-    ethBc._trySendTransaction = mockTrySendTransaction
-    ethBc._confirmTransactionSuccess = mockConfirmTransactionSuccess
+    ethBc._trySendTransaction = mockTrySendTransaction as jest.Mocked<
+      typeof ethBc._trySendTransaction
+    >
+    ethBc._confirmTransactionSuccess = mockConfirmTransactionSuccess as jest.Mocked<
+      typeof ethBc._confirmTransactionSuccess
+    >
     mockTrySendTransaction.mockReturnValue(txResponse)
     mockConfirmTransactionSuccess.mockRejectedValue({ code: ErrorCode.TIMEOUT })
 
@@ -368,8 +379,12 @@ describe('ETH service with mock wallet', () => {
 
     const mockTrySendTransaction = jest.fn()
     const mockConfirmTransactionSuccess = jest.fn()
-    ethBc._trySendTransaction = mockTrySendTransaction
-    ethBc._confirmTransactionSuccess = mockConfirmTransactionSuccess
+    ethBc._trySendTransaction = mockTrySendTransaction as jest.Mocked<
+      typeof ethBc._trySendTransaction
+    >
+    ethBc._confirmTransactionSuccess = mockConfirmTransactionSuccess as jest.Mocked<
+      typeof ethBc._confirmTransactionSuccess
+    >
     // Successfully submit transaction
     mockTrySendTransaction.mockReturnValueOnce(txResponses[0])
     // Get timeout waiting for it to be mined

@@ -1,12 +1,13 @@
 import { CID } from 'multiformats/cid'
 import {
+  EntityRepository,
+  Repository,
   Connection,
   EntityManager,
-  EntityRepository,
   InsertResult,
-  Repository,
   UpdateResult,
 } from 'typeorm'
+export { Repository }
 
 import { Request, RequestUpdateFields } from '../models/request.js'
 import { RequestStatus } from '../models/request-status.js'

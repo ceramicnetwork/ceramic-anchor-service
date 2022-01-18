@@ -1,4 +1,4 @@
-import * as bodyParser from 'body-parser'
+import bodyParser from 'body-parser'
 import { Server } from '@overnightjs/core'
 
 import { Config } from 'node-config-ts'

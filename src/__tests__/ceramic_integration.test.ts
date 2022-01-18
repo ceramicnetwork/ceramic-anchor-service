@@ -1,5 +1,7 @@
+import 'reflect-metadata'
+import { jest } from '@jest/globals'
 import { CeramicDaemon, DaemonConfig } from '@ceramicnetwork/cli'
-import Ceramic from '@ceramicnetwork/core'
+import { Ceramic } from '@ceramicnetwork/core'
 import { AnchorStatus, IpfsApi, Stream } from '@ceramicnetwork/common'
 
 import { create } from 'ipfs-core'
@@ -22,7 +24,7 @@ import { Ed25519Provider } from 'key-did-provider-ed25519'
 import * as sha256 from '@stablelib/sha256'
 import * as uint8arrays from 'uint8arrays'
 import * as random from '@stablelib/random'
-import KeyDidResolver from 'key-did-resolver'
+import * as KeyDidResolver from 'key-did-resolver'
 import { Utils } from '../utils.js'
 
 process.env.NODE_ENV = 'test'
