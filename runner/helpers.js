@@ -75,8 +75,4 @@ function sendDiscordNotification(webhookUrl, data, retryDelayMs = -1) {
   req.end()
 }
 
-module.exports = {
-  generateDiscordCloudwatchFields,
-  listECSTasks,
-  sendDiscordNotification,
-}
+export { generateDiscordCloudwatchFields, listECSTasks, sendDiscordNotification }
