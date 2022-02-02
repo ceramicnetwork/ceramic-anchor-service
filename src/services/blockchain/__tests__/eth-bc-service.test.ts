@@ -14,7 +14,6 @@ import { EthereumBlockchainService, MAX_RETRIES } from '../ethereum/ethereum-blo
 import { BigNumber } from 'ethers'
 import type { FeeData } from '@ethersproject/abstract-provider'
 import { ErrorCode } from '@ethersproject/logger'
-import { JsxEmit } from 'typescript'
 
 describe('ETH service connected to ganache', () => {
   jest.setTimeout(25000)
