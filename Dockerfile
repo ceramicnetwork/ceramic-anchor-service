@@ -10,9 +10,9 @@ WORKDIR /cas
 
 COPY package.json package-lock.json /cas/
 
-RUN npm ci
-
 COPY . /cas
+
+RUN npm ci
 
 RUN npm run postinstall
 
