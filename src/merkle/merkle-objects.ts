@@ -1,11 +1,11 @@
-import CID from 'cids'
+import { CID } from 'multiformats/cid'
 
 import { AnchorStatus, Stream, StreamMetadata } from '@ceramicnetwork/common'
-import { CompareFunction, MergeFunction, MetadataFunction, Node, TreeMetadata } from './merkle'
-import { Request } from '../models/request'
+import { CompareFunction, MergeFunction, MetadataFunction, Node, TreeMetadata } from './merkle.js'
+import { Request } from '../models/request.js'
 
-import { logger } from '../logger'
-import { IpfsService } from '../services/ipfs-service'
+import { logger } from '../logger/index.js'
+import { IpfsService } from '../services/ipfs-service.js'
 
 import { BloomFilter } from 'bloom-filters'
 import { StreamID } from '@ceramicnetwork/streamid'

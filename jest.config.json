@@ -1,0 +1,16 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "extensionsToTreatAsEsm": [".ts"],
+  "globals": {
+    "ts-jest": {
+      "useESM": true
+    }
+  },
+  "moduleNameMapper": {
+    "^(\\.{1,2}/.*)\\.js$": "$1"
+  },
+  "preset": "ts-jest",
+  "testEnvironment": "node",
+  "resolver": "jest-resolver-enhanced",
+  "testMatch": ["**/__tests__/**/*test.ts?(x)", "**/?(*.)+(test).ts?(x)"]
+}

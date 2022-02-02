@@ -1,19 +1,20 @@
-import { INTERNAL_SERVER_ERROR, OK } from 'http-status-codes'
+import httpStatusCodes from 'http-status-codes'
 import { Request as ExpReq, Response as ExpRes } from 'express'
-import { logger } from '../logger'
+import { logger } from '../logger/index.js'
 
 import cors from 'cors'
 import { Controller, Get, ClassMiddleware, Post } from '@overnightjs/core'
 
-import AnchorService from '../services/anchor-service'
+import { AnchorService } from '../services/anchor-service.js'
 
 import type { Response } from 'express-serve-static-core'
 import { singleton } from 'tsyringe'
 
+const { INTERNAL_SERVER_ERROR, OK } = httpStatusCodes
 @singleton()
 @Controller('api/v0/anchors')
 @ClassMiddleware([cors()])
-export default class AnchorController {
+export class AnchorController {
   constructor(private anchorService: AnchorService) {}
 
   @Post()

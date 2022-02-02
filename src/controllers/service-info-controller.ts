@@ -1,13 +1,12 @@
-import { OK, SERVICE_UNAVAILABLE } from 'http-status-codes'
+import httpStatusCodes from 'http-status-codes'
 import { Request as ExpReq, Response as ExpRes } from 'express'
-
 import cors from 'cors'
 import { ClassMiddleware, Controller, Get } from '@overnightjs/core'
-
-import { logger } from '../logger'
-
-import BlockchainService from '../services/blockchain/blockchain-service'
+import { logger } from '../logger/index.js'
+import { BlockchainService } from '../services/blockchain/blockchain-service.js'
 import { inject, singleton } from 'tsyringe'
+
+const { OK, SERVICE_UNAVAILABLE } = httpStatusCodes
 
 /**
  * The ServiceInfoController class defines an API endpoint for requests for information about the
@@ -16,7 +15,7 @@ import { inject, singleton } from 'tsyringe'
 @singleton()
 @Controller('api/v0/service-info')
 @ClassMiddleware([cors()])
-export default class ServiceInfoController {
+export class ServiceInfoController {
   constructor(@inject('blockchainService') private blockchainService?: BlockchainService) {}
 
   @Get('supported_chains')

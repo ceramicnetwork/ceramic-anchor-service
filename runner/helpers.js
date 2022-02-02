@@ -1,9 +1,9 @@
-const https = require('https')
-const { ECSClient, ListTasksCommand } = require('@aws-sdk/client-ecs')
+import * as https from 'https'
+import { ECSClient, ListTasksCommand } from '@aws-sdk/client-ecs'
 
 /**
  * Returns kv object for Discord fields
- * @param {Array<string>} taskArns 
+ * @param {Array<string>} taskArns
  * @returns {object}
  */
 function generateDiscordCloudwatchFields(taskArns) {
@@ -28,13 +28,13 @@ async function listECSTasks() {
     region: process.env.AWS_REGION,
     credentials: {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-    }
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
   })
 
   const params = {
     cluster: process.env.AWS_ECS_CLUSTER,
-    family: process.env.AWS_ECS_FAMILY
+    family: process.env.AWS_ECS_FAMILY,
   }
 
   const command = new ListTasksCommand(params)
@@ -58,8 +58,8 @@ function sendDiscordNotification(webhookUrl, data, retryDelayMs = -1) {
   const options = {
     method: 'POST',
     headers: {
-      "Content-Type": "application/json"
-    }
+      'Content-Type': 'application/json',
+    },
   }
   const req = https.request(webhookUrl, options, (res) => {
     console.log(`Notification request status code: ${res.statusCode}`)
@@ -78,5 +78,5 @@ function sendDiscordNotification(webhookUrl, data, retryDelayMs = -1) {
 module.exports = {
   generateDiscordCloudwatchFields,
   listECSTasks,
-  sendDiscordNotification
+  sendDiscordNotification,
 }

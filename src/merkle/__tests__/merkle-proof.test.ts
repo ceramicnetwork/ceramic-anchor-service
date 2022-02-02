@@ -1,7 +1,7 @@
 import * as crypto from 'crypto'
 
-import { MergeFunction, Node } from '../merkle'
-import { MerkleTree } from '../merkle-tree'
+import { MergeFunction, Node } from '../merkle.js'
+import { MerkleTree } from '../merkle-tree.js'
 
 class StringConcat implements MergeFunction<string, string> {
   async merge(n1: Node<string>, n2: Node<string>, m: string | null): Promise<Node<string>> {
@@ -64,13 +64,12 @@ let hashTree: MerkleTree<Uint8Array, Uint8Array, Uint8Array>
 const root = '1b0e895690b99d3bb2138f5ea55424f004901039763c420bc126ec8aa3bbca39'
 
 describe('Merkle tree proofs tests', () => {
-  beforeAll(async (done) => {
+  beforeAll(async () => {
     hashTree = new MerkleTree<Uint8Array, Uint8Array, Uint8Array>(new HashConcat())
     await hashTree.build(leaves.map(sha256))
 
     lettersTree = new MerkleTree<string, string, string>(new StringConcat())
     await lettersTree.build(leaves)
-    done()
   })
 
   describe('for each leaf', () => {

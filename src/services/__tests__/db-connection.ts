@@ -1,6 +1,6 @@
-import { Connection, ConnectionOptions, createConnection, getConnection } from 'typeorm'
-import { Anchor } from '../../models/anchor'
-import { Request } from '../../models/request'
+import { createConnection, Connection, ConnectionOptions } from 'typeorm'
+import { Anchor } from '../../models/anchor.js'
+import { Request } from '../../models/request.js'
 
 function getSqliteConfig(name: string): ConnectionOptions {
   return {
@@ -14,7 +14,7 @@ function getSqliteConfig(name: string): ConnectionOptions {
   }
 }
 
-const DBConnection = {
+export const DBConnection = {
   numConnections: 0,
 
   async create(): Promise<Connection> {
@@ -42,4 +42,3 @@ const DBConnection = {
     })
   },
 }
-export default DBConnection

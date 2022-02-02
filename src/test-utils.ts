@@ -1,13 +1,16 @@
-import CID from 'cids'
-import { CeramicService } from './services/ceramic-service'
-import { IpfsService } from './services/ipfs-service'
+import { CID } from 'multiformats/cid'
+import { create } from 'multiformats/hashes/digest'
+import { sha256 } from 'multiformats/hashes/sha2'
+
+import { CeramicService } from './services/ceramic-service.js'
+import { IpfsService } from './services/ipfs-service.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
-import dagCBOR from 'ipld-dag-cbor'
+import * as dagCBOR from '@ipld/dag-cbor'
 import { randomBytes } from '@stablelib/random'
 
 export async function randomCID(): Promise<CID> {
-  return dagCBOR.util.cid(randomBytes(32))
+  return CID.create(1, dagCBOR.code, create(0x12, randomBytes(32)))
 }
 
 export class MockIpfsService implements IpfsService {
@@ -79,7 +82,7 @@ export class MockCeramicService implements CeramicService {
     return new StreamID('tile', cid)
   }
 
-  unpinStream(streamId: StreamID) {}
+  async unpinStream(streamId: StreamID) {}
 
   reset() {
     this._cidIndex = 0

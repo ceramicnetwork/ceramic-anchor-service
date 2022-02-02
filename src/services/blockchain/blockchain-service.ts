@@ -1,7 +1,7 @@
-import CID from 'cids'
-import Transaction from '../../models/transaction'
+import type { CID } from 'multiformats/cid'
+import { Transaction } from '../../models/transaction.js'
 
-export default interface BlockchainService {
+export interface BlockchainService {
   /**
    * Connects to specific blockchain
    */

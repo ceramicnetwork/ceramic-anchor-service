@@ -1,4 +1,4 @@
-import { RequestStatus } from './request-status'
+import { RequestStatus } from './request-status.js'
 import {
   Entity,
   PrimaryGeneratedColumn,

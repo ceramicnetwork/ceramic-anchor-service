@@ -1,18 +1,19 @@
+import 'reflect-metadata'
+import { jest } from '@jest/globals'
 import { CeramicDaemon, DaemonConfig } from '@ceramicnetwork/cli'
-import Ceramic from '@ceramicnetwork/core'
+import { Ceramic } from '@ceramicnetwork/core'
 import { AnchorStatus, IpfsApi, Stream } from '@ceramicnetwork/common'
 
-import IPFS from 'ipfs-core'
-import HttpApi from 'ipfs-http-server'
-import dagJose from 'dag-jose'
-import { convert } from 'blockcodec-to-ipld-format'
+import { create } from 'ipfs-core'
+import { HttpApi } from 'ipfs-http-server'
+import * as dagJose from 'dag-jose'
 
 import Ganache from 'ganache-core'
 import tmp from 'tmp-promise'
 import getPort from 'get-port'
 import { Connection } from 'typeorm'
-import DBConnection from '../services/__tests__/db-connection'
-import CeramicAnchorApp from '../app'
+import { DBConnection } from '../services/__tests__/db-connection.js'
+import { CeramicAnchorApp } from '../app.js'
 import { container } from 'tsyringe'
 import { config } from 'node-config-ts'
 import cloneDeep from 'lodash.clonedeep'
@@ -23,8 +24,8 @@ import { Ed25519Provider } from 'key-did-provider-ed25519'
 import * as sha256 from '@stablelib/sha256'
 import * as uint8arrays from 'uint8arrays'
 import * as random from '@stablelib/random'
-import KeyDidResolver from 'key-did-resolver'
-import Utils from '../utils'
+import * as KeyDidResolver from 'key-did-resolver'
+import { Utils } from '../utils.js'
 
 process.env.NODE_ENV = 'test'
 
@@ -37,10 +38,9 @@ const TOPIC = '/ceramic/local/' + randomNumber
 async function createIPFS(apiPort?: number): Promise<IpfsApi> {
   const tmpFolder = await tmp.dir({ unsafeCleanup: true })
   const swarmPort = await getPort()
-  const format = convert(dagJose)
 
   const config = {
-    ipld: { formats: [format] },
+    ipld: { codecs: [dagJose] },
     repo: `${tmpFolder.path}/ipfs${swarmPort}/`,
     config: {
       Addresses: {
@@ -53,7 +53,7 @@ async function createIPFS(apiPort?: number): Promise<IpfsApi> {
   }
 
   console.log(`starting IPFS node with config: ${JSON.stringify(config, null, 2)}`)
-  return IPFS.create(config)
+  return create(config)
 }
 
 async function swarmConnect(a: IpfsApi, b: IpfsApi) {

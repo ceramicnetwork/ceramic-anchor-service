@@ -1,8 +1,9 @@
-import CID from 'cids'
+import { CID } from 'multiformats/cid'
+import { create as createMultihash } from 'multiformats/hashes/digest'
 
-import { encode } from 'typestub-multihashes'
-
-export default class Utils {
+const KECCAK_256_CODE = 0x1b
+const ETH_TX_CODE = 0x93
+export class Utils {
   /**
    * Flatten array of arrays
    * @param arr - Array of arrays
@@ -21,14 +22,12 @@ export default class Utils {
 
   /**
    * Converts ETH address to CID
-   * @param codec - ETH coded
    * @param hash - ETH hash
    */
-  static convertEthHashToCid(codec: string, hash: string): CID {
+  static convertEthHashToCid(hash: string): CID {
     const bytes = Buffer.from(hash, 'hex')
-
-    const multihash = encode(bytes, 'keccak-256')
+    const multihash = createMultihash(KECCAK_256_CODE, bytes)
     const cidVersion = 1
-    return new CID(cidVersion, codec, multihash)
+    return CID.create(cidVersion, ETH_TX_CODE, multihash)
   }
 }

@@ -1,26 +1,14 @@
-import CID from 'cids'
-
+import type { CID } from 'multiformats/cid'
 import LRUCache from 'lru-cache'
-import ipfsClient from 'ipfs-http-client'
+import { create as createIpfsClient } from 'ipfs-http-client'
 import { Config } from 'node-config-ts'
+import { logger } from '../logger/index.js'
+import * as dagJose from 'dag-jose'
+import type { IPFS } from 'ipfs-core-types'
+import { inject, singleton } from 'tsyringe'
+import { toCID } from '@ceramicnetwork/common'
 
 const DEFAULT_GET_TIMEOUT = 30000 // 30 seconds
-
-import { logger } from '../logger'
-
-// @ts-ignore
-import dagJose from 'dag-jose'
-// @ts-ignore
-import multiformats from 'multiformats/basics'
-// @ts-ignore
-import legacy from 'multiformats/legacy'
-
-// @ts-ignore
-import type { IPFSAPI as IPFSApi } from 'ipfs-core/dist/src/components'
-
-import { inject, singleton } from 'tsyringe'
-import CeramicClient from '@ceramicnetwork/http-client'
-
 const MAX_CACHE_ENTRIES = 100
 const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
 
@@ -45,7 +33,7 @@ export interface IpfsService {
 
 @singleton()
 export class IpfsServiceImpl implements IpfsService {
-  private _ipfs: IPFSApi
+  private _ipfs: IPFS
   private _cache: LRUCache
 
   constructor(@inject('config') private config?: Config) {}
@@ -54,14 +42,11 @@ export class IpfsServiceImpl implements IpfsService {
    * Initialize the service
    */
   public async init(): Promise<void> {
-    multiformats.multicodec.add(dagJose)
-    const format = legacy(multiformats, dagJose.name)
-
-    this._ipfs = ipfsClient({
+    this._ipfs = createIpfsClient({
       url: this.config.ipfsConfig.url,
       timeout: this.config.ipfsConfig.timeout,
       ipld: {
-        formats: [format],
+        codecs: [dagJose],
       },
     })
 
@@ -86,7 +71,7 @@ export class IpfsServiceImpl implements IpfsService {
         if (value != null) {
           return value
         }
-        const record = await this._ipfs.dag.get(cid, {
+        const record = await this._ipfs.dag.get(toCID(cid), {
           timeout: DEFAULT_GET_TIMEOUT,
         })
         logger.debug('Successfully retrieved ' + cid)
@@ -113,12 +98,15 @@ export class IpfsServiceImpl implements IpfsService {
       clearTimeout(timeout)
     })
 
-    const timeoutPromise = new Promise((_, reject) => {
-      timeout = setTimeout(() => {
-        reject(new Error(`Timed out storing record in IPFS`))
-      }, IPFS_PUT_TIMEOUT)
+    const timeoutPromise = new Promise((resolve) => {
+      timeout = setTimeout(resolve, IPFS_PUT_TIMEOUT)
     })
 
-    return await Promise.race([putPromise, timeoutPromise])
+    return await Promise.race([
+      putPromise,
+      timeoutPromise.then(() => {
+        throw new Error(`Timed out storing record in IPFS`)
+      }),
+    ])
   }
 }

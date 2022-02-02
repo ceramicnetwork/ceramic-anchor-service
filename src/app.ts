@@ -1,36 +1,33 @@
 import 'reflect-metadata'
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-require('dotenv').config()
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const packageJson = require('../package.json')
+import 'dotenv/config'
 
 import { Config } from 'node-config-ts'
 import { instanceCachingFactory, DependencyContainer } from 'tsyringe'
 
-import { logger } from './logger'
-import CeramicAnchorServer from './server'
-import { Connection, createConnection } from 'typeorm'
-import { IpfsServiceImpl } from './services/ipfs-service'
-import AnchorService from './services/anchor-service'
-import SchedulerService from './services/scheduler-service'
-import BlockchainService from './services/blockchain/blockchain-service'
+import { logger } from './logger/index.js'
+import { CeramicAnchorServer } from './server.js'
+import { Connection } from 'typeorm'
+import { IpfsServiceImpl } from './services/ipfs-service.js'
+import { AnchorService } from './services/anchor-service.js'
+import { SchedulerService } from './services/scheduler-service.js'
+import { BlockchainService } from './services/blockchain/blockchain-service.js'
 
-import AnchorRepository from './repositories/anchor-repository'
-import RequestRepository from './repositories/request-repository'
-import CeramicServiceImpl from './services/ceramic-service'
-import HealthcheckController from './controllers/healthcheck-controller'
-import AnchorController from './controllers/anchor-controller'
-import RequestController from './controllers/request-controller'
-import ServiceInfoController from './controllers/service-info-controller'
-import EthereumBlockchainService from './services/blockchain/ethereum/ethereum-blockchain-service'
+import { AnchorRepository } from './repositories/anchor-repository.js'
+import { RequestRepository } from './repositories/request-repository.js'
+import { CeramicServiceImpl } from './services/ceramic-service.js'
+import { HealthcheckController } from './controllers/healthcheck-controller.js'
+import { AnchorController } from './controllers/anchor-controller.js'
+import { RequestController } from './controllers/request-controller.js'
+import { ServiceInfoController } from './controllers/service-info-controller.js'
+import { EthereumBlockchainService } from './services/blockchain/ethereum/ethereum-blockchain-service.js'
 
 import cloneDeep from 'lodash.clonedeep'
 
+const version = process.env.npm_package_version
 /**
  * Ceramic Anchor Service application
  */
-export default class CeramicAnchorApp {
+export class CeramicAnchorApp {
   private _schedulerService: SchedulerService
   private _server: CeramicAnchorServer
 
@@ -82,7 +79,7 @@ export default class CeramicAnchorApp {
    * Handles normalizing the arguments passed via the config, for example turning string
    * representations of booleans and numbers into the proper types
    */
-  static _normalizeConfig(config: Config) {
+  static _normalizeConfig(config: Config): void {
     config.mode = config.mode.trim().toLowerCase()
     if (typeof config.merkleDepthLimit == 'string') {
       config.merkleDepthLimit = parseInt(config.merkleDepthLimit)
@@ -138,12 +135,11 @@ export default class CeramicAnchorApp {
       2
     )
     logger.imp(
-      `Starting Ceramic Anchor Service at version ${packageJson.version} with config:\n${configLogString}`
+      `Starting Ceramic Anchor Service at version ${version} with config:\n${configLogString}`
     )
 
-    const blockchainService: BlockchainService = this.container.resolve<BlockchainService>(
-      'blockchainService'
-    )
+    const blockchainService: BlockchainService =
+      this.container.resolve<BlockchainService>('blockchainService')
     await blockchainService.connect()
 
     if (this._anchorsSupported()) {

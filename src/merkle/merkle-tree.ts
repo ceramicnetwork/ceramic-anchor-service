@@ -5,7 +5,7 @@ import {
   Node,
   PathDirection,
   TreeMetadata,
-} from './merkle'
+} from './merkle.js'
 
 /**
  * Merkle tree structure.

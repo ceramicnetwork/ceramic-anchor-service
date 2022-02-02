@@ -1,18 +1,17 @@
-import { OK, SERVICE_UNAVAILABLE } from 'http-status-codes'
-import express, { Request as ExpReq, Response as ExpRes } from 'express'
-
+import httpStatusCodes from 'http-status-codes'
+import { Request as ExpReq, Response as ExpRes } from 'express'
 import cors from 'cors'
 import { ClassMiddleware, Controller, Get } from '@overnightjs/core'
-
 import { cpuFree, freememPercentage } from 'os-utils'
 import { singleton } from 'tsyringe'
+import { logger } from '../logger/index.js'
 
-import { logger } from '../logger'
+const { OK, SERVICE_UNAVAILABLE } = httpStatusCodes
 
 @singleton()
 @Controller('api/v0/healthcheck')
 @ClassMiddleware([cors()])
-export default class HealthcheckController {
+export class HealthcheckController {
   @Get()
   private async get(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     try {

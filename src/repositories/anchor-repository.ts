@@ -1,12 +1,11 @@
-import { Connection, EntityManager, EntityRepository, InsertResult, Repository } from 'typeorm'
-
-import { Anchor } from '../models/anchor'
-import { Request } from '../models/request'
+import { EntityRepository, Repository, Connection, EntityManager, InsertResult } from 'typeorm'
+import { Anchor } from '../models/anchor.js'
+import { Request } from '../models/request.js'
 import { inject, singleton } from 'tsyringe'
 
 @singleton()
 @EntityRepository(Anchor)
-export default class AnchorRepository extends Repository<Anchor> {
+export class AnchorRepository extends Repository<Anchor> {
   constructor(@inject('dbConnection') private connection?: Connection) {
     super()
   }

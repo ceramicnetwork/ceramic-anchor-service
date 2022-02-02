@@ -1,5 +1,5 @@
-import { MergeFunction, Node } from '../merkle'
-import { MerkleTree } from '../merkle-tree'
+import { MergeFunction, Node } from '../merkle.js'
+import { MerkleTree } from '../merkle-tree.js'
 
 class StringConcat implements MergeFunction<string, string> {
   async merge(n1: Node<string>, n2: Node<string>, m: string | null): Promise<Node<string>> {
@@ -15,10 +15,9 @@ const leaves: string[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
 let tree: MerkleTree<string, string, string>
 
 describe('Merkle tree proof verification', () => {
-  beforeAll(async (done) => {
+  beforeAll(async () => {
     tree = new MerkleTree<string, string, string>(new StringConcat())
     await tree.build(leaves)
-    done()
   })
 
   describe('a given merkle tree', () => {

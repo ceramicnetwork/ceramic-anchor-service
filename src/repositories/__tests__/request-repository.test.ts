@@ -1,13 +1,15 @@
+import 'reflect-metadata'
+import { jest } from '@jest/globals'
 import { Connection } from 'typeorm'
-import DBConnection from '../../services/__tests__/db-connection'
+import { DBConnection } from '../../services/__tests__/db-connection.js'
 import { container } from 'tsyringe'
 import { config } from 'node-config-ts'
-import RequestRepository from '../request-repository'
-import AnchorRepository from '../anchor-repository'
-import { Request } from '../../models/request'
-import { randomCID } from '../../test-utils'
+import { RequestRepository } from '../request-repository.js'
+import { AnchorRepository } from '../anchor-repository.js'
+import { Request } from '../../models/request.js'
+import { randomCID } from '../../test-utils.js'
 import { StreamID } from '@ceramicnetwork/streamid'
-import { RequestStatus } from '../../models/request-status'
+import { RequestStatus } from '../../models/request-status.js'
 
 async function generateCompletedRequest(expired: boolean, failed: boolean): Promise<Request> {
   const request = new Request()

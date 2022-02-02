@@ -1,19 +1,20 @@
-import CID from 'cids'
+import type { CID } from 'multiformats/cid'
+import { base16 } from 'multiformats/bases/base16'
 
 import { ErrorCode } from '@ethersproject/logger'
 
 import { BigNumber, BigNumberish, ethers } from 'ethers'
 import { Config } from 'node-config-ts'
 
-import { logger, logEvent, logMetric } from '../../../logger'
-import Transaction from '../../../models/transaction'
-import BlockchainService from '../blockchain-service'
+import { logger, logEvent, logMetric } from '../../../logger/index.js'
+import { Transaction } from '../../../models/transaction.js'
+import { BlockchainService } from '../blockchain-service.js'
 import {
   TransactionRequest,
   TransactionResponse,
   TransactionReceipt,
 } from '@ethersproject/abstract-provider'
-import Utils from '../../../utils'
+import { Utils } from '../../../utils.js'
 
 const BASE_CHAIN_ID = 'eip155'
 const TX_FAILURE = 0
@@ -119,7 +120,7 @@ function handleTimeoutError(transactionTimeoutSecs: number): void {
 /**
  * Ethereum blockchain service
  */
-export default class EthereumBlockchainService implements BlockchainService {
+export class EthereumBlockchainService implements BlockchainService {
   private _chainId: number
   private readonly _network: string
   private readonly _transactionTimeoutSecs: number
@@ -270,7 +271,7 @@ export default class EthereumBlockchainService implements BlockchainService {
   }
 
   async _buildTransactionRequest(rootCid: CID): Promise<TransactionRequest> {
-    const rootStrHex = rootCid.toString('base16')
+    const rootStrHex = rootCid.toString(base16)
     const hexEncoded = '0x' + (rootStrHex.length % 2 == 0 ? rootStrHex : '0' + rootStrHex)
     logger.imp(`Hex encoded root CID ${hexEncoded}`)
 

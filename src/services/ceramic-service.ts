@@ -1,13 +1,15 @@
-import CeramicClient from '@ceramicnetwork/http-client'
+import { CeramicClient } from '@ceramicnetwork/http-client'
 import { AnchorCommit, CeramicApi, MultiQuery, Stream, SyncOptions } from '@ceramicnetwork/common'
 
 import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
-import { IpfsService } from './ipfs-service'
+import { IpfsService } from './ipfs-service.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
-import CID from 'cids'
-import dagCBOR from 'ipld-dag-cbor'
-import { logger } from '../logger'
+import type { CID } from 'multiformats/cid'
+import * as Block from 'multiformats/block'
+import * as codec from '@ipld/dag-cbor'
+import { sha256 as hasher } from 'multiformats/hashes/sha2'
+import { logger } from '../logger/index.js'
 
 // Interface to allow injecting a mock in tests
 export interface CeramicService {
@@ -15,6 +17,7 @@ export interface CeramicService {
   pinStream(streamId: StreamID): Promise<void>
   multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>>
   publishAnchorCommit(streamId: StreamID, anchorCommit: AnchorCommit): Promise<CID>
+  unpinStream(streamId: StreamID): Promise<void>
 }
 
 const LOAD_STREAM_TIMEOUT = 1000 * 60 // 1 minute
@@ -25,7 +28,7 @@ const MULTIQUERY_CLIENT_TIMEOUT = 1000 * 70 // 1 minute and 10 seconds
 const PIN_TIMEOUT = 1000 * 60 * 2 // 2 minutes
 
 @singleton()
-export default class CeramicServiceImpl implements CeramicService {
+export class CeramicServiceImpl implements CeramicService {
   private readonly _client: CeramicApi
 
   /**
@@ -100,7 +103,8 @@ export default class CeramicServiceImpl implements CeramicService {
   }
 
   async publishAnchorCommit(streamId: StreamID, anchorCommit: AnchorCommit): Promise<CID> {
-    const expectedCID = await dagCBOR.util.cid(new Uint8Array(dagCBOR.util.serialize(anchorCommit)))
+    const block = await Block.encode({ value: anchorCommit, codec, hasher })
+    const expectedCID = block.cid
     const stream = await this._client.applyCommit(streamId, anchorCommit, {
       publish: true,
       anchor: false,

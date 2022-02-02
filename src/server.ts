@@ -1,21 +1,21 @@
-import * as bodyParser from 'body-parser'
+import bodyParser from 'body-parser'
 import { Server } from '@overnightjs/core'
 
 import { Config } from 'node-config-ts'
 
-import AnchorController from './controllers/anchor-controller'
-import RequestController from './controllers/request-controller'
-import ServiceInfoController from './controllers/service-info-controller'
-import HealthcheckController from './controllers/healthcheck-controller'
+import { AnchorController } from './controllers/anchor-controller.js'
+import { RequestController } from './controllers/request-controller.js'
+import { ServiceInfoController } from './controllers/service-info-controller.js'
+import { HealthcheckController } from './controllers/healthcheck-controller.js'
 
-import { expressLoggers, logger } from './logger'
+import { expressLoggers, logger } from './logger/index.js'
 
 import DependencyContainer from 'tsyringe/dist/typings/types/dependency-container'
 import * as http from 'http'
 
 const DEFAULT_SERVER_PORT = 8081
 
-export default class CeramicAnchorServer extends Server {
+export class CeramicAnchorServer extends Server {
   private _server: http.Server
 
   constructor(private container: DependencyContainer) {
@@ -34,12 +34,10 @@ export default class CeramicAnchorServer extends Server {
   public async start(port?: number): Promise<void> {
     const config = this.container.resolve<Config>('config')
     const requestController = this.container.resolve<RequestController>('requestController')
-    const serviceInfoController = this.container.resolve<ServiceInfoController>(
-      'serviceInfoController'
-    )
-    const healthcheckController = this.container.resolve<HealthcheckController>(
-      'healthcheckController'
-    )
+    const serviceInfoController =
+      this.container.resolve<ServiceInfoController>('serviceInfoController')
+    const healthcheckController =
+      this.container.resolve<HealthcheckController>('healthcheckController')
 
     const controllers: Array<any> = [
       requestController,

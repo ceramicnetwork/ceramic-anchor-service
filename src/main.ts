@@ -1,5 +1,5 @@
-import CeramicAnchorApp from './app'
-import { logger } from './logger'
+import { CeramicAnchorApp } from './app.js'
+import { logger } from './logger/index.js'
 
 import { config } from 'node-config-ts'
 import { container } from 'tsyringe'
