@@ -43,7 +43,7 @@
     "colors": "1.4.0",
     "cors": "^2.8.5",
     "dag-jose": "^1.0.0",
-    "dotenv": "^14.1.0",
+    "dotenv": "^15.0.0",
     "ethers": "~5.5.3",
     "express": "^4.17.2",
     "http-status-codes": "^2.2.0",
