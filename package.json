@@ -51,7 +51,7 @@
     "lodash.clonedeep": "^4.5.0",
     "lru-cache": "^6.0.0",
     "morgan": "^1.10.0",
-    "multiformats": "^9.5.8",
+    "multiformats": "^9.6.2",
     "os-utils": "^0.0.14",
     "pg": "^8.7.1",
     "reflect-metadata": "^0.1.13",
