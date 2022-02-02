@@ -126,7 +126,7 @@ describe('anchor service', () => {
     )
 
     request = await requestRepository.findByCid(cid)
-    expect(request).toHaveProperty('status', RequestStatus.PROCESSING)
+    expect(request).toHaveProperty('status', RequestStatus.PENDING)
 
     const requests = await requestRepository.findNextToProcess(100)
     expect(requests).toBeDefined()
@@ -395,9 +395,9 @@ describe('anchor service', () => {
     const request1 = await requestRepository.findByCid(toCID(requests[1].cid))
     const request2 = await requestRepository.findByCid(toCID(requests[2].cid))
     const request3 = await requestRepository.findByCid(toCID(requests[3].cid))
-    expect(request0.status).toEqual(RequestStatus.PROCESSING)
+    expect(request0.status).toEqual(RequestStatus.PENDING)
     expect(request1.status).toEqual(RequestStatus.FAILED)
-    expect(request2.status).toEqual(RequestStatus.PROCESSING)
+    expect(request2.status).toEqual(RequestStatus.PENDING)
     expect(request3.status).toEqual(RequestStatus.FAILED)
   })
 

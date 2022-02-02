@@ -488,11 +488,10 @@ export class AnchorService {
       for (const candidate of candidates) {
         groupedRequests.acceptedRequests.push(...candidate.acceptedRequests)
       }
-      logger.debug(
-        `Marking ${groupedRequests.acceptedRequests.length} pending requests as processing`
-      )
+
+      // set candidates that will be anchored as pinned to be garbage collected later
       await this.requestRepository.updateRequests(
-        { status: RS.PROCESSING, message: 'Request is processing.', pinned: true },
+        { pinned: true },
         groupedRequests.acceptedRequests
       )
     }
