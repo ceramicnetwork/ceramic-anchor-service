@@ -1,4 +1,7 @@
-import { createConnection, Connection, ConnectionOptions } from 'typeorm'
+import type { Connection, ConnectionOptions } from 'typeorm'
+import TypeORM from 'typeorm'
+const { createConnection } = TypeORM
+
 import { Anchor } from '../../models/anchor.js'
 import { Request } from '../../models/request.js'
 

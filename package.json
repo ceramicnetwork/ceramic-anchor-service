@@ -57,7 +57,7 @@
     "reflect-metadata": "^0.1.13",
     "sqlite3": "^5.0.2",
     "tsyringe": "^4.6.0",
-    "typeorm": "0.2.38",
+    "typeorm": "^0.2.41",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
