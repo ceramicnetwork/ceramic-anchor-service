@@ -8,6 +8,14 @@
     "eth",
     "3box"
   ],
+  "main": "./build/app.js",
+  "types": "./build/app.d.ts",
+  "directories": {
+    "build": "./build"
+  },
+  "exports": {
+    ".": "./build/app.js"
+  },
   "type": "module",
   "sideEffects": false,
   "scripts": {
@@ -21,7 +29,7 @@
     "lint": "./node_modules/.bin/eslint --fix ./src --ext .js,.jsx,.ts,.tsx",
     "typeorm": "./node_modules/.bin/ts-node -r tsconfig-paths/register ./node_modules//typeorm/cli.js",
     "clean": "rm -rf ./build; rm -rf coverage; rm -rf .nyc_output",
-    "start": "node ./build/main.js",
+    "start": "node --loader ts-node/esm ./build/main.js",
     "startDev": "NODE_ENV=dev APP_MODE=bundled node ./build/main.js ",
     "watch": "./node_modules/.bin/nodemon -e ts --watch src --exec \"npm run build && npm run start\"",
     "release": "./node_modules/.bin/release-it --verbose --disable-metrics"
@@ -57,7 +65,7 @@
     "reflect-metadata": "^0.1.13",
     "sqlite3": "^5.0.2",
     "tsyringe": "^4.6.0",
-    "typeorm": "^0.2.41",
+    "typeorm": "0.2.42-dev.1446e02",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
