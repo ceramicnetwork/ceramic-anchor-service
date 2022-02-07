@@ -6,7 +6,7 @@ import { instanceCachingFactory, DependencyContainer } from 'tsyringe'
 
 import { logger } from './logger/index.js'
 import { CeramicAnchorServer } from './server.js'
-import { Connection } from 'typeorm'
+import type { Connection } from 'typeorm'
 import { IpfsServiceImpl } from './services/ipfs-service.js'
 import { AnchorService } from './services/anchor-service.js'
 import { SchedulerService } from './services/scheduler-service.js'

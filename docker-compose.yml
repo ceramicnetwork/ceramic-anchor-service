@@ -96,7 +96,7 @@ services:
       - internal
 
   ipfs:
-    image: ceramicnetwork/js-ipfs-ceramic
+    image: ceramicnetwork/ipfs-daemon
     hostname: ipfs_host
     volumes:
       - "./export:/export"

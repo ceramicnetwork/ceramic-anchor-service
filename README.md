@@ -256,7 +256,7 @@ In order to run tests with coverage run:
 
 ## Built With
 
-* [Node.js - v13.7.0](https://nodejs.org)
+* [Node.js - v16](https://nodejs.org)
 * [TypeScript - v3.8.3](https://www.typescriptlang.org)
 * [SQLite](https://www.sqlite.org/index.html)
 

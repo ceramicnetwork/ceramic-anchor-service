@@ -27,7 +27,7 @@ import {
   IpfsLeafCompare,
   IpfsMerge,
 } from '../merkle/merkle-objects.js'
-import { Connection } from 'typeorm'
+import type { Connection } from 'typeorm'
 
 type RequestGroups = {
   alreadyAnchoredRequests: Request[]
