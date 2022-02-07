@@ -1,4 +1,6 @@
-import { EntitySubscriberInterface, EventSubscriber, InsertEvent, UpdateEvent } from 'typeorm'
+import type { EntitySubscriberInterface, InsertEvent, UpdateEvent } from 'typeorm'
+import TypeORM from 'typeorm'
+const { EventSubscriber } = TypeORM
 import { Request } from '../models/request.js'
 import { logEvent } from '../logger/index.js'
 

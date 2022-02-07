@@ -1,4 +1,4 @@
-FROM node:12
+FROM node:16
 
 ARG CODE_VERSION="00000"
 
@@ -10,9 +10,9 @@ WORKDIR /cas
 
 COPY package.json package-lock.json /cas/
 
-RUN npm ci
-
 COPY . /cas
+
+RUN npm ci
 
 RUN npm run postinstall
 

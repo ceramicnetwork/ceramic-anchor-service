@@ -1,12 +1,7 @@
 import { RequestStatus } from './request-status.js'
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn,
-  Unique,
-} from 'typeorm'
+import TypeORM from 'typeorm'
+const { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Unique } =
+  TypeORM
 
 @Entity()
 @Unique(['cid'])

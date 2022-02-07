@@ -14,7 +14,7 @@ import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { config } from 'node-config-ts'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import { MockCeramicService, MockIpfsService } from '../../test-utils.js'
-import { Connection } from 'typeorm'
+import type { Connection } from 'typeorm'
 import { CID } from 'multiformats/cid'
 import { Candidate } from '../../merkle/merkle-objects.js'
 import { Anchor } from '../../models/anchor.js'
@@ -380,13 +380,11 @@ describe('anchor service', () => {
       return request
     }
 
-    // Create pending requests. 2 with valid streams on ceramic, 2 without
-    const requests = await Promise.all([
-      makeRequest(true),
-      makeRequest(false),
-      makeRequest(true),
-      makeRequest(false),
-    ])
+    const requests = []
+    for (const isValid of [true, false, true, false]) {
+      const request = await makeRequest(isValid)
+      requests.push(request)
+    }
 
     const [candidates, _] = await anchorService._findCandidates(requests, 0, 1)
     expect(candidates.length).toEqual(2)

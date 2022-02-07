@@ -3,7 +3,8 @@ import { logger } from './logger/index.js'
 
 import { config } from 'node-config-ts'
 import { container } from 'tsyringe'
-import { createConnection } from 'typeorm'
+import TypeORM from 'typeorm'
+const { createConnection } = TypeORM
 
 async function startApp() {
   let connection

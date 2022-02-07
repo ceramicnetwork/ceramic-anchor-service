@@ -1,12 +1,8 @@
 import { CID } from 'multiformats/cid'
-import {
-  EntityRepository,
-  Repository,
-  Connection,
-  EntityManager,
-  InsertResult,
-  UpdateResult,
-} from 'typeorm'
+import type { Connection, EntityManager, InsertResult, UpdateResult } from 'typeorm'
+import TypeORM from 'typeorm'
+const { EntityRepository, Repository } = TypeORM
+export { Repository }
 
 import { Request, RequestUpdateFields } from '../models/request.js'
 import { RequestStatus } from '../models/request-status.js'

@@ -28,7 +28,7 @@ const loggerProvider = new LoggerProvider(
   {
     logDirectory: LOG_PATH,
     logToFiles: LOG_TO_FILES,
-    logLevel: LOG_LEVEL,
+    logLevel: LOG_LEVEL as LogLevel,
   },
   (logPath: string) => {
     return new RotatingFileStream(logPath, true)

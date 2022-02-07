@@ -1,4 +1,5 @@
-import {
+import TypeORM from 'typeorm'
+const {
   Entity,
   PrimaryGeneratedColumn,
   Column,
@@ -6,7 +7,7 @@ import {
   UpdateDateColumn,
   OneToOne,
   JoinColumn,
-} from 'typeorm'
+} = TypeORM
 
 import { Request } from './request.js'
 
