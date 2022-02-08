@@ -39,6 +39,7 @@ async function createRequest(streamId: string, ipfsService: IpfsService): Promis
   request.streamId = streamId
   request.status = RequestStatus.PENDING
   request.message = 'Request is pending.'
+  request.pinned = true
   return request
 }
 

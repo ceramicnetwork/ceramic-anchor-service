@@ -98,10 +98,6 @@ export class RequestRepository extends Repository<Request> {
       .createQueryBuilder('request')
       .orderBy('request.created_at', 'ASC')
       .where('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
-      .orWhere('request.status = :processingStatus AND request.updated_at < :deadlineDate', {
-        processingStatus: RequestStatus.PROCESSING,
-        deadlineDate: deadlineDate.toISOString(),
-      })
       .limit(limit)
       .getMany()
   }
