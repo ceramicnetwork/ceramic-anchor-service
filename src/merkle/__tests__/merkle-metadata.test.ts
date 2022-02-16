@@ -14,6 +14,10 @@ import { BloomFilter } from 'bloom-filters'
 import { Request } from '../../models/request.js'
 import { AnchorStatus } from '@ceramicnetwork/common'
 
+const SEMVER_REGEX =
+  /^((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/
+const isSemverString = (str: string) => Boolean(str.match(SEMVER_REGEX))
+
 describe('Bloom filter', () => {
   jest.setTimeout(10000)
   const ipfsService = new MockIpfsService()
@@ -50,6 +54,7 @@ describe('Bloom filter', () => {
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(1)
     expect(metadata.bloomFilter.type).toEqual('jsnpm_bloom-filters')
+    expect(isSemverString(metadata.bloomFilter.version)).toEqual(true)
 
     // @ts-ignore
     const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
@@ -72,6 +77,7 @@ describe('Bloom filter', () => {
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(1)
     expect(metadata.bloomFilter.type).toEqual('jsnpm_bloom-filters')
+    expect(isSemverString(metadata.bloomFilter.version)).toEqual(true)
 
     // @ts-ignore
     const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
@@ -117,6 +123,7 @@ describe('Bloom filter', () => {
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(3)
     expect(metadata.bloomFilter.type).toEqual('jsnpm_bloom-filters')
+    expect(isSemverString(metadata.bloomFilter.version)).toEqual(true)
 
     // @ts-ignore
     const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
