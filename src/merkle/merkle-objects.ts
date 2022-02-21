@@ -12,12 +12,12 @@ import { BloomFilter } from 'bloom-filters'
 import { StreamID } from '@ceramicnetwork/streamid'
 
 const packageJson = JSON.parse(
-  fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
+  fs.readFileSync(new URL('../../node_modules/bloom-filters/package.json', import.meta.url), 'utf8')
 )
 
 const BLOOM_FILTER_TYPE = 'jsnpm_bloom-filters'
 const BLOOM_FILTER_FALSE_POSITIVE_RATE = 0.0001
-const BLOOM_FILTER_VERSION = packageJson['dependencies']['bloom-filters']
+const bloomFilterVersion = packageJson['version']
 
 export interface CIDHolder {
   cid: CID
@@ -258,7 +258,7 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
       bloomFilter: {
         type: BLOOM_FILTER_TYPE,
         data: serializedBloomFilter,
-        version: BLOOM_FILTER_VERSION,
+        version: bloomFilterVersion,
       },
     }
   }
