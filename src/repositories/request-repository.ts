@@ -90,9 +90,6 @@ export class RequestRepository extends Repository<Request> {
    * Gets all requests by status
    */
   public async findNextToProcess(limit: number): Promise<Request[]> {
-    const now: number = new Date().getTime()
-    const deadlineDate = new Date(now - this.config.expirationPeriod)
-
     return await this.connection
       .getRepository(Request)
       .createQueryBuilder('request')
