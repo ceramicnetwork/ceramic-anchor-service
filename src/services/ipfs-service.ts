@@ -7,6 +7,8 @@ import * as dagJose from 'dag-jose'
 import type { IPFS } from 'ipfs-core-types'
 import { inject, singleton } from 'tsyringe'
 import { toCID } from '@ceramicnetwork/common'
+import * as http from 'http'
+import * as https from 'https'
 
 const DEFAULT_GET_TIMEOUT = 30000 // 30 seconds
 const MAX_CACHE_ENTRIES = 100
@@ -31,6 +33,18 @@ export interface IpfsService {
   storeRecord(record: any): Promise<CID>
 }
 
+const ipfsHttpAgent = (ipfsEndpoint: string) => {
+  const agentOptions = {
+    keepAlive: false,
+    maxSockets: Infinity,
+  }
+  if (ipfsEndpoint.startsWith('https')) {
+    return new https.Agent(agentOptions)
+  } else {
+    return new http.Agent(agentOptions)
+  }
+}
+
 @singleton()
 export class IpfsServiceImpl implements IpfsService {
   private _ipfs: IPFS
@@ -48,6 +62,7 @@ export class IpfsServiceImpl implements IpfsService {
       ipld: {
         codecs: [dagJose],
       },
+      agent: ipfsHttpAgent(this.config.ipfsConfig.url),
     })
 
     // We have to subscribe to pubsub to keep ipfs connections alive.
