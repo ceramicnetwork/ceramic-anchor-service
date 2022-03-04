@@ -90,18 +90,11 @@ export class RequestRepository extends Repository<Request> {
    * Gets all requests by status
    */
   public async findNextToProcess(limit: number): Promise<Request[]> {
-    const now: number = new Date().getTime()
-    const deadlineDate = new Date(now - this.config.expirationPeriod)
-
     return await this.connection
       .getRepository(Request)
       .createQueryBuilder('request')
       .orderBy('request.created_at', 'ASC')
       .where('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
-      .orWhere('request.status = :processingStatus AND request.updated_at < :deadlineDate', {
-        processingStatus: RequestStatus.PROCESSING,
-        deadlineDate: deadlineDate.toISOString(),
-      })
       .limit(limit)
       .getMany()
   }
