@@ -43,7 +43,7 @@
     "@ceramicnetwork/common": "^2.0.0-alpha.1",
     "@ceramicnetwork/http-client": "^2.0.0-alpha.1",
     "@ceramicnetwork/logger": "^2.0.0-alpha.1",
-    "@ceramicnetwork/streamid": "^2.0.0-alpha.1",
+    "@ceramicnetwork/streamid": "^2.0.0-alpha.3",
     "@ipld/dag-cbor": "^7.0.0",
     "@overnightjs/core": "^1.7.6",
     "aws-cron-parser": "1.1.12",
