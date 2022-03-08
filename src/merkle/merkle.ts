@@ -54,7 +54,6 @@ export { Node, MergeFunction, CompareFunction, MetadataFunction, PathDirection }
 interface BloomMetadata {
   type: string
   data: any
-  version: string
 }
 
 /**

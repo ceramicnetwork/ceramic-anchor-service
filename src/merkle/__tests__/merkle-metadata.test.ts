@@ -14,9 +14,9 @@ import { BloomFilter } from 'bloom-filters'
 import { Request } from '../../models/request.js'
 import { AnchorStatus } from '@ceramicnetwork/common'
 
-const SEMVER_REGEX =
-  /^((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/
-const isSemverString = (str: string) => Boolean(str.match(SEMVER_REGEX))
+const TYPE_REGEX =
+  /^jsnpm_bloom-filters-v((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/
+const isTypeString = (str: string) => Boolean(str.match(TYPE_REGEX))
 
 describe('Bloom filter', () => {
   jest.setTimeout(10000)
@@ -53,8 +53,7 @@ describe('Bloom filter', () => {
     await merkleTree.build(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(1)
-    expect(metadata.bloomFilter.type).toEqual('jsnpm_bloom-filters')
-    expect(isSemverString(metadata.bloomFilter.version)).toEqual(true)
+    expect(isTypeString(metadata.bloomFilter.type)).toEqual(true)
 
     // @ts-ignore
     const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
@@ -76,8 +75,7 @@ describe('Bloom filter', () => {
     await merkleTree.build(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(1)
-    expect(metadata.bloomFilter.type).toEqual('jsnpm_bloom-filters')
-    expect(isSemverString(metadata.bloomFilter.version)).toEqual(true)
+    expect(isTypeString(metadata.bloomFilter.type)).toEqual(true)
 
     // @ts-ignore
     const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
@@ -122,8 +120,7 @@ describe('Bloom filter', () => {
     await merkleTree.build(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(3)
-    expect(metadata.bloomFilter.type).toEqual('jsnpm_bloom-filters')
-    expect(isSemverString(metadata.bloomFilter.version)).toEqual(true)
+    expect(isTypeString(metadata.bloomFilter.type)).toEqual(true)
 
     // @ts-ignore
     const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)

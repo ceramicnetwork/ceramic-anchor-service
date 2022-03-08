@@ -256,9 +256,8 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
     return {
       numEntries: leaves.length,
       bloomFilter: {
-        type: BLOOM_FILTER_TYPE,
+        type: `${BLOOM_FILTER_TYPE}-v${bloomFilterVersion}`,
         data: serializedBloomFilter,
-        version: bloomFilterVersion,
       },
     }
   }
