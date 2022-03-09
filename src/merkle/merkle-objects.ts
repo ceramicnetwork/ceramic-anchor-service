@@ -232,8 +232,11 @@ export class IpfsLeafCompare implements CompareFunction<Candidate> {
 export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> {
   generateMetadata(leaves: Array<Node<Candidate>>): TreeMetadata {
     const bloomFilterEntries = new Set<string>()
+    const streamIds = new Set<string>()
+
     for (const node of leaves) {
       const candidate = node.data
+      streamIds.add(candidate.streamId.toString())
       bloomFilterEntries.add(`streamid-${candidate.streamId.toString()}`)
       if (candidate.metadata.schema) {
         bloomFilterEntries.add(`schema-${candidate.metadata.schema}`)
@@ -259,6 +262,7 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
         type: `${BLOOM_FILTER_TYPE}-v${bloomFilterVersion}`,
         data: serializedBloomFilter,
       },
+      streamIdList: Array.from(streamIds),
     }
   }
 }
