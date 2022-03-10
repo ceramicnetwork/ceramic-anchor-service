@@ -376,6 +376,7 @@ export class AnchorService {
         {
           status: RS.COMPLETED,
           message: 'CID successfully anchored.',
+          pinned: true,
         },
         acceptedRequests,
         queryRunner.manager
@@ -443,6 +444,7 @@ export class AnchorService {
         {
           status: RS.COMPLETED,
           message: 'Request was already anchored',
+          pinned: true,
         },
         alreadyAnchoredRequests
       )
@@ -488,13 +490,6 @@ export class AnchorService {
       for (const candidate of candidates) {
         groupedRequests.acceptedRequests.push(...candidate.acceptedRequests)
       }
-      logger.debug(
-        `Marking ${groupedRequests.acceptedRequests.length} pending requests as processing`
-      )
-      await this.requestRepository.updateRequests(
-        { status: RS.PROCESSING, message: 'Request is processing.', pinned: true },
-        groupedRequests.acceptedRequests
-      )
     }
 
     return [candidatesToAnchor, groupedRequests]

@@ -63,7 +63,7 @@ export class RequestPresentation {
           scheduledAt: awsCronParser.next(cron, new Date()),
         }
       }
-      case RequestStatus.PROCESSING:
+      case RequestStatus.DEPRECATED_PROCESSING:
         return {
           id: request.id,
           status: RequestStatus[request.status],
