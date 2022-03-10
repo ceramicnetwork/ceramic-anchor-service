@@ -62,4 +62,5 @@ interface BloomMetadata {
 export interface TreeMetadata {
   numEntries: number
   bloomFilter: BloomMetadata
+  streamIds: string[]
 }
