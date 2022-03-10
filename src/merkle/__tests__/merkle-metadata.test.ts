@@ -53,8 +53,8 @@ describe('Bloom filter', () => {
     await merkleTree.build(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(1)
-    expect(metadata.streamIdList).toHaveLength(1)
-    expect(metadata.streamIdList).toEqual([candidates[0].streamId.toString()])
+    expect(metadata.streamIds).toHaveLength(1)
+    expect(metadata.streamIds).toEqual([candidates[0].streamId.toString()])
     expect(isTypeString(metadata.bloomFilter.type)).toEqual(true)
 
     // @ts-ignore
@@ -77,8 +77,8 @@ describe('Bloom filter', () => {
     await merkleTree.build(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(1)
-    expect(metadata.streamIdList).toHaveLength(1)
-    expect(metadata.streamIdList).toEqual([candidates[0].streamId.toString()])
+    expect(metadata.streamIds).toHaveLength(1)
+    expect(metadata.streamIds).toEqual([candidates[0].streamId.toString()])
     expect(isTypeString(metadata.bloomFilter.type)).toEqual(true)
 
     // @ts-ignore
@@ -124,8 +124,8 @@ describe('Bloom filter', () => {
     await merkleTree.build(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(3)
-    expect(metadata.streamIdList).toHaveLength(3)
-    expect(metadata.streamIdList).toEqual(
+    expect(metadata.streamIds).toHaveLength(3)
+    expect(metadata.streamIds).toEqual(
       expect.arrayContaining(candidates.map((candidate) => candidate.streamId.toString()))
     )
     expect(isTypeString(metadata.bloomFilter.type)).toEqual(true)
