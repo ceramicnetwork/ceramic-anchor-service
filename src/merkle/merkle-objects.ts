@@ -1,4 +1,5 @@
 import { CID } from 'multiformats/cid'
+import * as fs from 'fs'
 
 import { AnchorStatus, Stream, StreamMetadata } from '@ceramicnetwork/common'
 import { CompareFunction, MergeFunction, MetadataFunction, Node, TreeMetadata } from './merkle.js'
@@ -10,8 +11,13 @@ import { IpfsService } from '../services/ipfs-service.js'
 import { BloomFilter } from 'bloom-filters'
 import { StreamID } from '@ceramicnetwork/streamid'
 
+const packageJson = JSON.parse(
+  fs.readFileSync(new URL('../../node_modules/bloom-filters/package.json', import.meta.url), 'utf8')
+)
+
 const BLOOM_FILTER_TYPE = 'jsnpm_bloom-filters'
 const BLOOM_FILTER_FALSE_POSITIVE_RATE = 0.0001
+const bloomFilterVersion = packageJson['version']
 
 export interface CIDHolder {
   cid: CID
@@ -249,7 +255,10 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
     const serializedBloomFilter = bloomFilter.saveAsJSON()
     return {
       numEntries: leaves.length,
-      bloomFilter: { type: BLOOM_FILTER_TYPE, data: serializedBloomFilter },
+      bloomFilter: {
+        type: `${BLOOM_FILTER_TYPE}-v${bloomFilterVersion}`,
+        data: serializedBloomFilter,
+      },
     }
   }
 }
