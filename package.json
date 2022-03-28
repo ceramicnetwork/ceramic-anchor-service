@@ -52,7 +52,7 @@
     "cors": "^2.8.5",
     "dag-jose": "^1.0.0",
     "dotenv": "^14.1.0",
-    "ethers": "~5.5.3",
+    "ethers": "~5.6.2",
     "express": "^4.17.2",
     "http-status-codes": "^2.2.0",
     "ipfs-http-client": "^55.0.0",
