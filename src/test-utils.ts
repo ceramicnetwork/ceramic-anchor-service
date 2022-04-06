@@ -8,9 +8,38 @@ import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
 import * as dagCBOR from '@ipld/dag-cbor'
 import { randomBytes } from '@stablelib/random'
+import { jest } from '@jest/globals'
 
 export async function randomCID(): Promise<CID> {
   return CID.create(1, dagCBOR.code, create(0x12, randomBytes(32)))
+}
+
+export class MockIpfsClient {
+  constructor() {
+    this.reset()
+  }
+
+  private _streams: Record<string, any> = {}
+  pubsub
+  dag
+
+  reset() {
+    this.pubsub = {
+      subscribe: jest.fn(() => Promise.resolve()),
+    }
+    this.dag = {
+      get: jest.fn((cid: CID) => {
+        return Promise.resolve({ value: this._streams[cid.toString()] })
+      }),
+      put: jest.fn(async (record: Record<string, unknown>) => {
+        const cid = await randomCID()
+        this._streams[cid.toString()] = record
+        return Promise.resolve(cid)
+      }),
+    }
+
+    this._streams = {}
+  }
 }
 
 export class MockIpfsService implements IpfsService {

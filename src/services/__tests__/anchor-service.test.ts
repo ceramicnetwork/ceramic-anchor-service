@@ -13,7 +13,7 @@ import { IpfsService } from '../ipfs-service.js'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { config } from 'node-config-ts'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
-import { MockCeramicService, MockIpfsService } from '../../test-utils.js'
+import { MockCeramicService, MockIpfsClient } from '../../test-utils.js'
 import type { Connection } from 'typeorm'
 import { CID } from 'multiformats/cid'
 import { Candidate } from '../../merkle/merkle-objects.js'
@@ -69,25 +69,39 @@ function createStream(id: StreamID, log: CID[], anchorStatus: AnchorStatus = Anc
   }
 }
 
+const mockIpfsClient = new MockIpfsClient()
+jest.mock('ipfs-http-client', () => {
+  const originalModule = jest.requireActual('ipfs-http-client') as any
+
+  return {
+    __esModule: true,
+    ...originalModule,
+    create: () => {
+      return mockIpfsClient
+    },
+  }
+})
+
 describe('anchor service', () => {
   jest.setTimeout(10000)
-  let ipfsService: MockIpfsService
+  let ipfsService: IpfsService
   let ceramicService: MockCeramicService
   let connection: Connection
 
   beforeAll(async () => {
+    const { IpfsServiceImpl } = await import('../ipfs-service.js')
+
     connection = await DBConnection.create()
-    ipfsService = new MockIpfsService()
-    ceramicService = new MockCeramicService(ipfsService)
 
     container.registerInstance('config', config)
     container.registerInstance('dbConnection', connection)
     container.registerSingleton('anchorRepository', AnchorRepository)
     container.registerSingleton('requestRepository', RequestRepository)
     container.registerSingleton('blockchainService', FakeEthereumBlockchainService)
-    container.register('ipfsService', {
-      useValue: ipfsService,
-    })
+    container.registerSingleton('ipfsService', IpfsServiceImpl)
+    ipfsService = container.resolve<IpfsService>('ipfsService')
+    await ipfsService.init()
+    ceramicService = new MockCeramicService(ipfsService)
     container.register('ceramicService', {
       useValue: ceramicService,
     })
@@ -96,7 +110,7 @@ describe('anchor service', () => {
 
   beforeEach(async () => {
     await DBConnection.clear(connection)
-    ipfsService.reset()
+    mockIpfsClient.reset()
     ceramicService.reset()
   })
 
@@ -491,14 +505,13 @@ describe('anchor service', () => {
     const [candidates, _] = await anchorService._findCandidates(requests, 0, 1)
     expect(candidates.length).toEqual(numRequests)
 
-    const originalStoreRecord = ipfsService.storeRecord
-    const storeRecordSpy = jest.spyOn(ipfsService, 'storeRecord')
-    storeRecordSpy.mockImplementation(async (ipfsAnchorCommit) => {
+    const originalMockDagPut = mockIpfsClient.dag.put.getMockImplementation()
+    mockIpfsClient.dag.put.mockImplementation(async (ipfsAnchorCommit) => {
       if (ipfsAnchorCommit.prev && ipfsAnchorCommit.prev.toString() == requests[1].cid.toString()) {
-        throw new Error('publishing anchor commit failed')
+        throw new Error('storing record failed')
       }
 
-      return originalStoreRecord.apply(ceramicService, [ipfsAnchorCommit])
+      return originalMockDagPut(ipfsAnchorCommit)
     })
 
     const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
@@ -506,7 +519,6 @@ describe('anchor service', () => {
     expect(anchors.find((anchor) => anchor.request.streamId == requests[0].streamId)).toBeTruthy()
     expect(anchors.find((anchor) => anchor.request.streamId == requests[1].streamId)).toBeFalsy()
     expect(anchors.find((anchor) => anchor.request.streamId == requests[2].streamId)).toBeTruthy()
-    storeRecordSpy.mockRestore()
   })
 
   describe('Picks proper commit to anchor', () => {
