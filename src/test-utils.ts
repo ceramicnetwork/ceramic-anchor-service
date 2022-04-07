@@ -20,8 +20,8 @@ export class MockIpfsClient {
   }
 
   private _streams: Record<string, any> = {}
-  pubsub
-  dag
+  pubsub: any
+  dag: any
 
   reset() {
     this.pubsub = {
@@ -34,7 +34,7 @@ export class MockIpfsClient {
       put: jest.fn(async (record: Record<string, unknown>) => {
         const cid = await randomCID()
         this._streams[cid.toString()] = record
-        return Promise.resolve(cid)
+        return cid
       }),
     }
 
