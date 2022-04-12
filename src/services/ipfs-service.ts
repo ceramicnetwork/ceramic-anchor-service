@@ -6,13 +6,17 @@ import { logger } from '../logger/index.js'
 import * as dagJose from 'dag-jose'
 import type { IPFS } from 'ipfs-core-types'
 import { inject, singleton } from 'tsyringe'
-import { toCID } from '@ceramicnetwork/common'
+import { AnchorCommit, toCID } from '@ceramicnetwork/common'
+import { serialize, MsgType } from '@ceramicnetwork/core/lib/pubsub/pubsub-message'
+import { StreamID } from '@ceramicnetwork/streamid'
+import { Utils } from '../utils.js'
 import * as http from 'http'
 import * as https from 'https'
 
 const DEFAULT_GET_TIMEOUT = 30000 // 30 seconds
 const MAX_CACHE_ENTRIES = 100
 const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
+const PUBSUB_DELAY = 10 * 1000
 
 export interface IpfsService {
   /**
@@ -31,6 +35,12 @@ export interface IpfsService {
    * @param record - Record value
    */
   storeRecord(record: any): Promise<CID>
+
+  /**
+   * Sets the anchor commit and publishes an update pubsub message
+   * @param anchorCommit - Record value res
+   */
+  publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID>
 }
 
 const ipfsHttpAgent = (ipfsEndpoint: string) => {
@@ -123,5 +133,27 @@ export class IpfsServiceImpl implements IpfsService {
         throw new Error(`Timed out storing record in IPFS`)
       }),
     ])
+  }
+
+  /**
+   * Sets the anchor commit and publishes an update pubsub message
+   * @param anchorCommit - Record value res
+   */
+  public async publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID> {
+    const anchorCid = await this.storeRecord(anchorCommit as any)
+
+    const updateMessage = {
+      typ: MsgType.UPDATE,
+      stream: streamId,
+      tip: anchorCid,
+    }
+    const serializedMessage = serialize(updateMessage as any)
+
+    await this._ipfs.pubsub.publish(this.config.ipfsConfig.pubsubTopic, serializedMessage)
+
+    // wait so that we don't flood the pubsub
+    await Utils.delay(PUBSUB_DELAY)
+
+    return anchorCid
   }
 }

@@ -330,7 +330,10 @@ export class AnchorService {
       //   candidate.streamId,
       //   ipfsAnchorCommit
       // )
-      const anchorCid = await this.ipfsService.storeRecord(ipfsAnchorCommit)
+      const anchorCid = await this.ipfsService.publishAnchorCommit(
+        ipfsAnchorCommit,
+        candidate.streamId
+      )
       anchor.cid = anchorCid.toString()
 
       logger.debug(

@@ -11,7 +11,7 @@ import { DBConnection } from './db-connection.js'
 import { RequestRepository } from '../../repositories/request-repository.js'
 import { IpfsService } from '../ipfs-service.js'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
-import { config } from 'node-config-ts'
+import { config, Config } from 'node-config-ts'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import { MockCeramicService, MockIpfsClient } from '../../test-utils.js'
 import type { Connection } from 'typeorm'
@@ -21,6 +21,7 @@ import { Anchor } from '../../models/anchor.js'
 import { AnchorStatus, toCID } from '@ceramicnetwork/common'
 import cloneDeep from 'lodash.clonedeep'
 import { Utils } from '../../utils.js'
+import { deserialize, UpdateMessage } from '@ceramicnetwork/core/lib/pubsub/pubsub-message'
 
 process.env.NODE_ENV = 'test'
 
@@ -50,7 +51,12 @@ async function anchorCandidates(
 ): Promise<Anchor[]> {
   const merkleTree = await anchorService._buildMerkleTree(candidates)
   const ipfsProofCid = await ipfsService.storeRecord({})
+
+  // don't wait for delay after sending pubsub update
+  skipDelay()
   const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree)
+  restoreDelay()
+
   await anchorService._persistAnchorResult(anchors, candidates)
   return anchors
 }
@@ -81,6 +87,14 @@ jest.mock('ipfs-http-client', () => {
     },
   }
 })
+
+const originalDelay = Utils.delay
+const skipDelay = () => {
+  Utils.delay = () => Promise.resolve()
+}
+const restoreDelay = () => {
+  Utils.delay = originalDelay
+}
 
 describe('anchor service', () => {
   jest.setTimeout(10000)
@@ -116,6 +130,7 @@ describe('anchor service', () => {
 
   afterAll(async () => {
     await DBConnection.close(connection)
+    restoreDelay()
   })
 
   test('check state on tx fail', async () => {
@@ -174,10 +189,16 @@ describe('anchor service', () => {
     const merkleTree = await anchorService._buildMerkleTree(candidates)
     const ipfsProofCid = await ipfsService.storeRecord({})
 
+    // don't wait for delay after sending pubsub update
+    skipDelay()
     const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree)
+    restoreDelay()
 
     expect(candidates.length).toEqual(requests.length)
     expect(anchors.length).toEqual(candidates.length)
+
+    expect(mockIpfsClient.pubsub.publish.mock.calls.length).toEqual(anchors.length)
+    const config = container.resolve<Config>('config')
 
     for (const i in anchors) {
       const anchor = anchors[i]
@@ -188,6 +209,8 @@ describe('anchor service', () => {
       expect(anchorRecord.prev.toString()).toEqual(requests[i].cid)
       expect(anchorRecord.proof).toEqual(ipfsProofCid)
       expect(anchorRecord.path).toEqual(anchor.path)
+      expect(mockIpfsClient.pubsub.publish.mock.calls[i][0]).toEqual(config.ipfsConfig.pubsubTopic)
+      expect(mockIpfsClient.pubsub.publish.mock.calls[i][1]).toBeInstanceOf(Uint8Array)
     }
 
     expect(anchors[0].path).toEqual('0/0')
@@ -489,7 +512,7 @@ describe('anchor service', () => {
     const anchorService = container.resolve<AnchorService>('anchorService')
 
     // Create pending requests
-    const numRequests = 3
+    const numRequests = 4
     for (let i = 0; i < numRequests; i++) {
       const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService)
@@ -514,11 +537,23 @@ describe('anchor service', () => {
       return originalMockDagPut(ipfsAnchorCommit)
     })
 
+    const originalMockPubsubPublish = mockIpfsClient.pubsub.publish.getMockImplementation()
+    mockIpfsClient.pubsub.publish.mockImplementation(async (topic, message) => {
+      const deserializedMessage = deserialize({ data: message }) as UpdateMessage
+
+      if (deserializedMessage.stream.toString() == requests[3].streamId.toString()) {
+        throw new Error('publishing update failed')
+      }
+
+      return originalMockPubsubPublish(topic, message)
+    })
+
     const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
     expect(anchors.length).toEqual(2)
     expect(anchors.find((anchor) => anchor.request.streamId == requests[0].streamId)).toBeTruthy()
     expect(anchors.find((anchor) => anchor.request.streamId == requests[1].streamId)).toBeFalsy()
     expect(anchors.find((anchor) => anchor.request.streamId == requests[2].streamId)).toBeTruthy()
+    expect(anchors.find((anchor) => anchor.request.streamId == requests[3].streamId)).toBeFalsy()
   })
 
   describe('Picks proper commit to anchor', () => {

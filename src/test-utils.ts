@@ -26,6 +26,7 @@ export class MockIpfsClient {
   reset() {
     this.pubsub = {
       subscribe: jest.fn(() => Promise.resolve()),
+      publish: jest.fn(() => Promise.resolve()),
     }
     this.dag = {
       get: jest.fn((cid: CID) => {
@@ -59,6 +60,10 @@ export class MockIpfsService implements IpfsService {
     const cid = await randomCID()
     this._streams[cid.toString()] = record
     return cid
+  }
+
+  async publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID> {
+    return this.storeRecord(anchorCommit as any)
   }
 
   reset() {
