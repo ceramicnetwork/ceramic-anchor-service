@@ -116,9 +116,10 @@ interface MinimalCASConfig {
 }
 
 async function makeCAS(
+  container: DependencyContainer,
   dbConnection: Connection,
   minConfig: MinimalCASConfig
-): Promise<{ cas: CeramicAnchorApp; container: DependencyContainer }> {
+): Promise<CeramicAnchorApp> {
   const configCopy = cloneDeep(config)
   configCopy.mode = minConfig.mode
   configCopy.port = minConfig.port
@@ -130,11 +131,7 @@ async function makeCAS(
   configCopy.ceramic.apiUrl = 'http://localhost:' + minConfig.ceramicPort
   configCopy.blockchain.connectors.ethereum.network = 'ganache'
   configCopy.blockchain.connectors.ethereum.rpc.port = minConfig.ganachePort + ''
-  const childContainer = container.createChildContainer()
-  return {
-    cas: new CeramicAnchorApp(childContainer, configCopy, dbConnection),
-    container: childContainer,
-  }
+  return new CeramicAnchorApp(container, configCopy, dbConnection)
 }
 
 async function anchorUpdate(stream: Stream, anchorService: CeramicAnchorApp): Promise<void> {
@@ -229,27 +226,27 @@ describe('Ceramic Integration Test', () => {
     const daemonPort2 = await getPort()
     dbConnection1 = await DBConnection.create()
     const casPort1 = await getPort()
-    const results1 = await makeCAS(dbConnection1, {
+
+    container1 = container.createChildContainer()
+    cas1 = await makeCAS(container1, dbConnection1, {
       mode: 'server',
       ipfsPort: ipfsApiPort1,
       ceramicPort: daemonPort1,
       ganachePort,
       port: casPort1,
     })
-    cas1 = results1.cas
-    container1 = results1.container
     await cas1.start()
 
     dbConnection2 = await DBConnection.create()
     const casPort2 = await getPort()
-    const result2 = await makeCAS(dbConnection2, {
+    const container2 = container.createChildContainer()
+    cas2 = await makeCAS(container2, dbConnection2, {
       mode: 'server',
       ipfsPort: ipfsApiPort2,
       ceramicPort: daemonPort2,
       ganachePort,
       port: casPort2,
     })
-    cas2 = result2.cas
     await cas2.start()
 
     // Make the Ceramic nodes that will be used by the CAS.
@@ -405,7 +402,7 @@ describe('Ceramic Integration Test', () => {
       jest.setTimeout(60 * 1000 * 2)
       // In ceramic the stream waits for a successful anchor by polling the request endpoint of the CAS.
       // We alter the CAS' returned request anchor status so that it is always pending.
-      // The stream will then have to hear about the successful anchor through pubsub
+      // The ceramic node will then have to hear about the successful anchor through pubsub
       const requestRepo = container1.resolve<RequestRepository>('requestRepository')
       const original = requestRepo.findByCid
       requestRepo.findByCid = async (cid: CID): Promise<Request> => {

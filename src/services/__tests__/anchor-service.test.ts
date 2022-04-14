@@ -52,10 +52,7 @@ async function anchorCandidates(
   const merkleTree = await anchorService._buildMerkleTree(candidates)
   const ipfsProofCid = await ipfsService.storeRecord({})
 
-  // don't wait for delay after sending pubsub update
-  skipDelay()
   const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree)
-  restoreDelay()
 
   await anchorService._persistAnchorResult(anchors, candidates)
   return anchors
@@ -87,14 +84,6 @@ jest.mock('ipfs-http-client', () => {
     },
   }
 })
-
-const originalDelay = Utils.delay
-const skipDelay = () => {
-  Utils.delay = () => Promise.resolve()
-}
-const restoreDelay = () => {
-  Utils.delay = originalDelay
-}
 
 describe('anchor service', () => {
   jest.setTimeout(10000)
@@ -130,7 +119,6 @@ describe('anchor service', () => {
 
   afterAll(async () => {
     await DBConnection.close(connection)
-    restoreDelay()
   })
 
   test('check state on tx fail', async () => {
@@ -189,10 +177,7 @@ describe('anchor service', () => {
     const merkleTree = await anchorService._buildMerkleTree(candidates)
     const ipfsProofCid = await ipfsService.storeRecord({})
 
-    // don't wait for delay after sending pubsub update
-    skipDelay()
     const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree)
-    restoreDelay()
 
     expect(candidates.length).toEqual(requests.length)
     expect(anchors.length).toEqual(candidates.length)

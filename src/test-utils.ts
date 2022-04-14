@@ -101,10 +101,6 @@ export class MockCeramicService implements CeramicService {
     return result
   }
 
-  async publishAnchorCommit(streamId: StreamID, anchorCommit: AnchorCommit): Promise<CID> {
-    return this._ipfsService.storeRecord(anchorCommit)
-  }
-
   // Mock-only method to control what gets returned by loadStream()
   putStream(id: StreamID | CommitID, stream: any) {
     this._streams[id.toString()] = stream

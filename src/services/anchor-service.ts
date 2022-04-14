@@ -325,11 +325,6 @@ export class AnchorService {
     }
 
     try {
-      // TODO(#548): Publish anchor commits via Ceramic
-      // const anchorCid = await this.ceramicService.publishAnchorCommit(
-      //   candidate.streamId,
-      //   ipfsAnchorCommit
-      // )
       const anchorCid = await this.ipfsService.publishAnchorCommit(
         ipfsAnchorCommit,
         candidate.streamId

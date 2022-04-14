@@ -16,7 +16,7 @@ import * as https from 'https'
 const DEFAULT_GET_TIMEOUT = 30000 // 30 seconds
 const MAX_CACHE_ENTRIES = 100
 const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
-const PUBSUB_DELAY = 10 * 1000
+const PUBSUB_DELAY = 100
 
 export interface IpfsService {
   /**
@@ -37,8 +37,8 @@ export interface IpfsService {
   storeRecord(record: any): Promise<CID>
 
   /**
-   * Sets the anchor commit and publishes an update pubsub message
-   * @param anchorCommit - Record value res
+   * Stores the anchor commit to ipfs and publishes an update pubsub message to the Ceramic pubsub topic
+   * @param anchorCommit - anchor commit
    */
   publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID>
 }
@@ -136,8 +136,8 @@ export class IpfsServiceImpl implements IpfsService {
   }
 
   /**
-   * Sets the anchor commit and publishes an update pubsub message
-   * @param anchorCommit - Record value res
+   * Stores the anchor commit to ipfs and publishes an update pubsub message to the Ceramic pubsub topic
+   * @param anchorCommit - anchor commit
    */
   public async publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID> {
     const anchorCid = await this.storeRecord(anchorCommit as any)
