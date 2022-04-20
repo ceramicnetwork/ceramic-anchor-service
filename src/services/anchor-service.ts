@@ -421,7 +421,7 @@ export class AnchorService {
         `About to fail ${conflictingRequests.length} requests rejected by conflict resolution`
       )
       for (const rejected of conflictingRequests) {
-        console.warn(
+        logger.warn(
           `Rejecting request to anchor CID ${rejected.cid.toString()} for stream ${
             rejected.streamId
           } because it was rejected by Ceramic's conflict resolution rules`
@@ -561,7 +561,7 @@ export class AnchorService {
       if (candidate.shouldAnchor()) {
         numSelectedCandidates++
         logger.debug(
-          `Selected candidate stream #${numSelectedCandidates} of ${candidateLimit}: streamid ${candidate.streamId}`
+          `Selected candidate stream #${numSelectedCandidates} of ${candidateLimit}: streamid ${candidate.streamId} at commit cid ${candidate.cid}`
         )
       } else if (candidate.alreadyAnchored) {
         logger.debug(`Stream ${candidate.streamId.toString()} is already anchored`)
@@ -616,7 +616,7 @@ export class AnchorService {
     }
 
     for (const req of missingRequests) {
-      console.debug(
+      logger.debug(
         `Stream ${req.streamId} is missing Commit CID ${req.cid}. Sending multiquery to force ceramic to load it`
       )
     }
