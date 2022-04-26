@@ -2,7 +2,7 @@ import 'reflect-metadata'
 import { jest } from '@jest/globals'
 import { CeramicDaemon, DaemonConfig } from '@ceramicnetwork/cli'
 import { Ceramic } from '@ceramicnetwork/core'
-import { AnchorStatus, IpfsApi, Stream } from '@ceramicnetwork/common'
+import { AnchorStatus, IpfsApi, Stream, SyncOptions } from '@ceramicnetwork/common'
 
 import { create } from 'ipfs-core'
 import { HttpApi } from 'ipfs-http-server'
@@ -26,6 +26,10 @@ import * as uint8arrays from 'uint8arrays'
 import * as random from '@stablelib/random'
 import * as KeyDidResolver from 'key-did-resolver'
 import { Utils } from '../utils.js'
+import { DependencyContainer } from 'tsyringe'
+import { RequestRepository } from '../repositories/request-repository.js'
+import { Request } from '../models/request.js'
+import { CID } from 'multiformats/cid'
 
 process.env.NODE_ENV = 'test'
 
@@ -112,6 +116,7 @@ interface MinimalCASConfig {
 }
 
 async function makeCAS(
+  container: DependencyContainer,
   dbConnection: Connection,
   minConfig: MinimalCASConfig
 ): Promise<CeramicAnchorApp> {
@@ -126,8 +131,7 @@ async function makeCAS(
   configCopy.ceramic.apiUrl = 'http://localhost:' + minConfig.ceramicPort
   configCopy.blockchain.connectors.ethereum.network = 'ganache'
   configCopy.blockchain.connectors.ethereum.rpc.port = minConfig.ganachePort + ''
-  const childContainer = container.createChildContainer()
-  return new CeramicAnchorApp(childContainer, configCopy, dbConnection)
+  return new CeramicAnchorApp(container, configCopy, dbConnection)
 }
 
 async function anchorUpdate(stream: Stream, anchorService: CeramicAnchorApp): Promise<void> {
@@ -176,6 +180,7 @@ describe('Ceramic Integration Test', () => {
   let dbConnection2: Connection
 
   let cas1: CeramicAnchorApp
+  let container1: DependencyContainer
   let cas2: CeramicAnchorApp
 
   const blockchainStartTime = new Date(1586784002000)
@@ -221,7 +226,9 @@ describe('Ceramic Integration Test', () => {
     const daemonPort2 = await getPort()
     dbConnection1 = await DBConnection.create()
     const casPort1 = await getPort()
-    cas1 = await makeCAS(dbConnection1, {
+
+    container1 = container.createChildContainer()
+    cas1 = await makeCAS(container1, dbConnection1, {
       mode: 'server',
       ipfsPort: ipfsApiPort1,
       ceramicPort: daemonPort1,
@@ -232,7 +239,8 @@ describe('Ceramic Integration Test', () => {
 
     dbConnection2 = await DBConnection.create()
     const casPort2 = await getPort()
-    cas2 = await makeCAS(dbConnection2, {
+    const container2 = container.createChildContainer()
+    cas2 = await makeCAS(container2, dbConnection2, {
       mode: 'server',
       ipfsPort: ipfsApiPort2,
       ceramicPort: daemonPort2,
@@ -389,5 +397,47 @@ describe('Ceramic Integration Test', () => {
       },
       60 * 1000 * 2
     )
+
+    test('Anchor discovered through pubsub', async () => {
+      jest.setTimeout(60 * 1000 * 2)
+      // In ceramic the stream waits for a successful anchor by polling the request endpoint of the CAS.
+      // We alter the CAS' returned request anchor status so that it is always pending.
+      // The ceramic node will then have to hear about the successful anchor through pubsub
+      const requestRepo = container1.resolve<RequestRepository>('requestRepository')
+      const original = requestRepo.findByCid
+      requestRepo.findByCid = async (cid: CID): Promise<Request> => {
+        const result: Request = await original.apply(requestRepo, [cid])
+
+        if (result) {
+          return Object.assign(result, { status: AnchorStatus.PENDING })
+        }
+
+        return result
+      }
+
+      try {
+        const initialContent = { foo: 0 }
+        const updatedContent = { foo: 1 }
+
+        const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
+        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+
+        const doc2 = await TileDocument.load(ceramic2, doc1.id)
+        await doc2.update(updatedContent, null, { anchor: false })
+
+        await anchorUpdate(doc1, cas1)
+
+        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+        expect(doc1.content).toEqual(updatedContent)
+
+        await doc2.sync({ sync: SyncOptions.NEVER_SYNC })
+        expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+        expect(doc2.content).toEqual(updatedContent)
+      } finally {
+        requestRepo.findByCid = original
+      }
+
+      console.log('Test complete: Anchor discovered through pubsub')
+    })
   })
 })

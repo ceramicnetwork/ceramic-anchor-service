@@ -26,6 +26,7 @@ export class MockIpfsClient {
   reset() {
     this.pubsub = {
       subscribe: jest.fn(() => Promise.resolve()),
+      publish: jest.fn(() => Promise.resolve()),
     }
     this.dag = {
       get: jest.fn((cid: CID) => {
@@ -61,6 +62,10 @@ export class MockIpfsService implements IpfsService {
     return cid
   }
 
+  async publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID> {
+    return this.storeRecord(anchorCommit as any)
+  }
+
   reset() {
     this._streams = {}
   }
@@ -94,10 +99,6 @@ export class MockCeramicService implements CeramicService {
     }
 
     return result
-  }
-
-  async publishAnchorCommit(streamId: StreamID, anchorCommit: AnchorCommit): Promise<CID> {
-    return this._ipfsService.storeRecord(anchorCommit)
   }
 
   // Mock-only method to control what gets returned by loadStream()

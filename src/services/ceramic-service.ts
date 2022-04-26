@@ -1,14 +1,10 @@
 import { CeramicClient } from '@ceramicnetwork/http-client'
-import { AnchorCommit, CeramicApi, MultiQuery, Stream, SyncOptions } from '@ceramicnetwork/common'
+import { CeramicApi, MultiQuery, Stream, SyncOptions } from '@ceramicnetwork/common'
 
 import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
 import { IpfsService } from './ipfs-service.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
-import type { CID } from 'multiformats/cid'
-import * as Block from 'multiformats/block'
-import * as codec from '@ipld/dag-cbor'
-import { sha256 as hasher } from 'multiformats/hashes/sha2'
 import { logger } from '../logger/index.js'
 
 // Interface to allow injecting a mock in tests
@@ -16,7 +12,6 @@ export interface CeramicService {
   loadStream(streamId: StreamID): Promise<any>
   pinStream(streamId: StreamID): Promise<void>
   multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>>
-  publishAnchorCommit(streamId: StreamID, anchorCommit: AnchorCommit): Promise<CID>
   unpinStream(streamId: StreamID): Promise<void>
 }
 
@@ -100,25 +95,6 @@ export class CeramicServiceImpl implements CeramicService {
     })
 
     return await Promise.race([queryPromise, timeoutPromise])
-  }
-
-  async publishAnchorCommit(streamId: StreamID, anchorCommit: AnchorCommit): Promise<CID> {
-    const block = await Block.encode({ value: anchorCommit, codec, hasher })
-    const expectedCID = block.cid
-    const stream = await this._client.applyCommit(streamId, anchorCommit, {
-      publish: true,
-      anchor: false,
-      pin: true, // Important in case the stream wasn't pinned on the original request
-    })
-
-    const commitFound: boolean =
-      null != stream.state.log.find((logEntry) => logEntry.cid.equals(expectedCID))
-    if (!commitFound) {
-      throw new Error(
-        `Anchor commit not found in stream log after being applied to Ceramic node. This most likely means the commit was rejected by Ceramic's conflict resolution. StreamID: ${streamId.toString()}, found tip: ${stream.tip.toString()}`
-      )
-    }
-    return expectedCID
   }
 
   /**
