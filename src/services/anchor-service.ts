@@ -471,7 +471,7 @@ export class AnchorService {
 
     if (candidates.length < minStreamCount) {
       logger.imp(
-        `Only ${candidates.length} candidate streams found, which is less than half of the ${candidateLimit} desired. Skipping anchor`
+        `Only ${candidates.length} candidate streams found, which is less than the minimum ${minStreamCount} streams required for a batch. Skipping anchor`
       )
       return [[], null]
     }
