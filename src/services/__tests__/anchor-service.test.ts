@@ -21,7 +21,7 @@ import { Anchor } from '../../models/anchor.js'
 import { AnchorStatus, toCID } from '@ceramicnetwork/common'
 import cloneDeep from 'lodash.clonedeep'
 import { Utils } from '../../utils.js'
-import { deserialize, UpdateMessage } from '@ceramicnetwork/core/lib/pubsub/pubsub-message'
+import { PubsubMessage } from '@ceramicnetwork/core'
 
 process.env.NODE_ENV = 'test'
 
@@ -524,7 +524,9 @@ describe('anchor service', () => {
 
     const originalMockPubsubPublish = mockIpfsClient.pubsub.publish.getMockImplementation()
     mockIpfsClient.pubsub.publish.mockImplementation(async (topic, message) => {
-      const deserializedMessage = deserialize({ data: message }) as UpdateMessage
+      const deserializedMessage = PubsubMessage.deserialize({
+        data: message,
+      }) as PubsubMessage.UpdateMessage
 
       if (deserializedMessage.stream.toString() == requests[3].streamId.toString()) {
         throw new Error('publishing update failed')

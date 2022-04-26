@@ -7,11 +7,12 @@ import * as dagJose from 'dag-jose'
 import type { IPFS } from 'ipfs-core-types'
 import { inject, singleton } from 'tsyringe'
 import { AnchorCommit, toCID } from '@ceramicnetwork/common'
-import { serialize, MsgType } from '@ceramicnetwork/core/lib/pubsub/pubsub-message'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { Utils } from '../utils.js'
 import * as http from 'http'
 import * as https from 'https'
+import { PubsubMessage } from '@ceramicnetwork/core'
+const { serialize, MsgType } = PubsubMessage
 
 const DEFAULT_GET_TIMEOUT = 30000 // 30 seconds
 const MAX_CACHE_ENTRIES = 100
