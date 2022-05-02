@@ -72,7 +72,7 @@ jobs:
       run: |
         echo "::set-output name=ECR_IMAGE_ID::$ECR_IMAGE_ID"
         EXTRA_TAGS=""
-        if [[ "${{ env.ENV_TAG }}" == "dev" ]]; then
+        if [[ $IMAGE_TAG == "dev" ]]; then
           ECR_IMAGE_ID_2="${{ steps.login-ecr.outputs.registry }}/ceramic-qa-cas"
           EXTRA_TAGS="-t $ECR_IMAGE_ID_2:qa -t $ECR_IMAGE_ID_2:$SHA_TAG -t $ECR_IMAGE_ID_2:$FULL_SHA_TAG -t $ECR_IMAGE_ID_2:$IMAGE_TAG -t $ECR_IMAGE_ID_2:$IMAGE_TAG_2
         fi
