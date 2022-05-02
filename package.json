@@ -58,7 +58,7 @@
     "http-status-codes": "^2.2.0",
     "ipfs-http-client": "^55.0.0",
     "lodash.clonedeep": "^4.5.0",
-    "lru-cache": "^6.0.0",
+    "lru-cache": "^7.9.0",
     "morgan": "^1.10.0",
     "multiformats": "^9.5.8",
     "os-utils": "^0.0.14",
