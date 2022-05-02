@@ -80,6 +80,9 @@ jobs:
         docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$FULL_SHA_TAG  -t $ECR_IMAGE_ID:$IMAGE_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG_2 $EXTRA_TAGS .
         docker push -a $DOCKERHUB_IMAGE_ID
         docker push -a $ECR_IMAGE_ID
+        if [[ -n $ECR_IMAGE_ID_2 ]]; then
+          docker push --all-tags $ECR_IMAGE_ID_2
+        fi
     -
       name: Publish build event
       env:
