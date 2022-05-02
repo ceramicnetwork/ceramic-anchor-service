@@ -74,7 +74,7 @@ jobs:
         EXTRA_TAGS=""
         if [[ $IMAGE_TAG == "dev" ]]; then
           ECR_IMAGE_ID_2="${{ steps.login-ecr.outputs.registry }}/ceramic-qa-cas"
-          EXTRA_TAGS="-t $ECR_IMAGE_ID_2:qa -t $ECR_IMAGE_ID_2:$SHA_TAG -t $ECR_IMAGE_ID_2:$FULL_SHA_TAG -t $ECR_IMAGE_ID_2:$IMAGE_TAG -t $ECR_IMAGE_ID_2:$IMAGE_TAG_2
+          EXTRA_TAGS="-t $ECR_IMAGE_ID_2:qa -t $ECR_IMAGE_ID_2:$SHA_TAG -t $ECR_IMAGE_ID_2:$FULL_SHA_TAG -t $ECR_IMAGE_ID_2:$IMAGE_TAG -t $ECR_IMAGE_ID_2:$IMAGE_TAG_2"
         fi
         docker build -f Dockerfile -t cas -t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$FULL_SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG_2 .
         docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$FULL_SHA_TAG  -t $ECR_IMAGE_ID:$IMAGE_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG_2 $EXTRA_TAGS .
