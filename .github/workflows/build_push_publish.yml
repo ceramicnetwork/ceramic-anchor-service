@@ -81,7 +81,7 @@ jobs:
         docker push -a $DOCKERHUB_IMAGE_ID
         docker push -a $ECR_IMAGE_ID
         if [[ -n $ECR_IMAGE_ID_2 ]]; then
-          docker push --all-tags $ECR_IMAGE_ID_2
+          docker push -a $ECR_IMAGE_ID_2
         fi
     -
       name: Publish build event
