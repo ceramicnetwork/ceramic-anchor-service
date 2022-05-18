@@ -22,6 +22,7 @@
         "network": "ganache",
         "overrideGasConfig": false,
         "gasLimit": 4712388,
+        "maxFeePerGasLimit": 200,
         "rpc": {
           "host": "http://localhost",
           "port": "8545",
