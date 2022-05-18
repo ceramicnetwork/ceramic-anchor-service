@@ -21,6 +21,7 @@ const TX_FAILURE = 0
 const TX_SUCCESS = 1
 const NUM_BLOCKS_TO_WAIT = 4
 export const MAX_RETRIES = 3
+const EXCESSIVE_MAX_FEE_PER_GAS="EXCESSIVE_MAX_FEE_PER_GAS"
 
 const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
 
@@ -118,6 +119,17 @@ function handleTimeoutError(transactionTimeoutSecs: number): void {
 }
 
 /**
+ * Log error if gas fee is too high.
+ */
+function handleExcessiveMaxFeePerGasError(maxFeePerGas: BigNumberish): void {
+  logEvent.ethereum({
+    type: 'excessiveMaxFeePerGas',
+    fee: maxFeePerGas,
+  })
+  logger.err(`Transaction aborted due to excessive max fee per gas ${maxFeePerGas}`)
+}
+
+/**
  * Ethereum blockchain service
  */
 export class EthereumBlockchainService implements BlockchainService {
@@ -165,6 +177,21 @@ export class EthereumBlockchainService implements BlockchainService {
     const network = await this.wallet.provider.getNetwork()
     this._chainId = network.chainId
   }
+
+
+
+  /**
+   * Checks for excessive max fee per gas
+   * @param txData - transaction request data
+   * @private
+   */
+  async checkGasMaxFeeLimit(txData: TransactionRequest): Promise<void> {
+    const maxFeePerGasLimit = BigNumber.from(this.config.blockchain.connectors.ethereum.maxFeePerGasLimit)
+    if (maxFeePerGasLimit < txData.maxFeePerGas) {
+      throw new Error(EXCESSIVE_MAX_FEE_PER_GAS)
+    }
+  }
+
 
   /**
    * Sets the gas price for the transaction request.
@@ -384,6 +411,7 @@ export class EthereumBlockchainService implements BlockchainService {
       return attempt(MAX_RETRIES, async (attemptNum) => {
         try {
           await this.setGasPrice(txData, attemptNum)
+          await this.checkGasMaxFeeLimit(txData)
           const txResponse = await this._trySendTransaction(txData, attemptNum)
           txResponses.push(txResponse)
           return await this._confirmTransactionSuccess(txResponse)
@@ -407,6 +435,8 @@ export class EthereumBlockchainService implements BlockchainService {
                 throw err
               }
               return this._checkForPreviousTransactionSuccess(txResponses)
+            }  else if (code === EXCESSIVE_MAX_FEE_PER_GAS) {
+              handleExcessiveMaxFeePerGasError(txData.maxFeePerGas)
             }
           }
         }
