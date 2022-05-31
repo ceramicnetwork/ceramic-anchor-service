@@ -1,7 +1,7 @@
 import { CID } from 'multiformats/cid'
 import type { Connection, EntityManager, InsertResult, UpdateResult } from 'typeorm'
 import TypeORM from 'typeorm'
-const { EntityRepository, Repository } = TypeORM
+const { EntityRepository, Repository, LessThan, Brackets } = TypeORM
 export { Repository }
 
 import { Request, RequestUpdateFields } from '../models/request.js'
@@ -15,6 +15,11 @@ import { inject, singleton } from 'tsyringe'
  * AnchorCommit available to the network.
  */
 const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
+const MAX_ANCHORING_DELAY_MS = 1000 * 60 * 60 * 12 //12H
+
+const toComparisonDate = (date: Date) => {
+  return date.toISOString().slice(0, 19).replace('T', ' ')
+}
 
 @singleton()
 @EntityRepository(Request)
@@ -144,5 +149,73 @@ export class RequestRepository extends Repository<Request> {
         return 'request.doc_id NOT IN ' + recentRequestsStreamIds
       })
       .getMany()
+  }
+
+  /**
+   * Marks requests as READY if (in the order of precendence):
+   *  1. there are PROCESSING requests that need to be anchored and retried (the maximum anchoring delay has elapsed and the request hasn't been updated in a long time)
+   *  2. there are PENDING requests that need to be anchored (the maximum anchoring delay has elasped)
+   *  3. there are streamLimit streams needing an anchor (prioritizing PROCESSING requests that need to be retried, then PENDING requests)
+   * Returns the original requests that were marked as READY
+   */
+  public async findAndMarkReady(streamLimit: number): Promise<Request[]> {
+    const anchoringDeadline = new Date(Date.now() - MAX_ANCHORING_DELAY_MS)
+    const retryDeadline = new Date(Date.now() - MAX_ANCHORING_DELAY_MS / 2)
+    const isolationLevel =
+      this.connection.options.type === 'sqlite' ? 'SERIALIZABLE' : 'REPEATABLE READ'
+
+    return this.connection.transaction(isolationLevel, async (transactionalEntityManager) => {
+      // retrieves up to streamLimit unique streams with their earliest request createdAt value.
+      // this will only return streams associated with requests that are PENDING, or PROCESSING and needs to be retried
+      const streamsToAnchor = await transactionalEntityManager
+        .getRepository(Request)
+        .createQueryBuilder('request')
+        .select(['request.streamId', 'request.createdAt'])
+        .where(
+          new Brackets((qb) => {
+            qb.where('request.status = :processingStatus', {
+              processingStatus: RequestStatus.PROCESSING,
+            }).andWhere({ updatedAt: LessThan(toComparisonDate(retryDeadline)) })
+          })
+        )
+        .orWhere('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
+        .orderBy('MIN(request.createdAt)', 'ASC')
+        .groupBy('request.streamId')
+        .limit(streamLimit)
+        .getMany()
+
+      // Do not anchor if there aren't enough streams and the earliest request isn't expired
+      if (
+        streamsToAnchor.length < streamLimit &&
+        streamsToAnchor[0].createdAt > anchoringDeadline
+      ) {
+        return []
+      }
+
+      const streamIds = streamsToAnchor.map(({ streamId }) => streamId)
+
+      // retrieves all requests associated with the streams
+      const requests = await this.connection
+        .getRepository(Request)
+        .createQueryBuilder('request')
+        .orderBy('request.createdAt', 'ASC')
+        .where('request.streamId IN (:...streamIds)', { streamIds })
+        .getMany()
+
+      const results = await this.updateRequests(
+        { status: RequestStatus.READY },
+        requests,
+        transactionalEntityManager
+      )
+
+      // if not all requests are updated
+      if (!results.affected || results.affected != requests.length) {
+        throw Error(
+          `A problem occured when updated requests to READY. Only ${requests.length}/${results.affected} requests were updated`
+        )
+      }
+
+      return requests
+    })
   }
 }
