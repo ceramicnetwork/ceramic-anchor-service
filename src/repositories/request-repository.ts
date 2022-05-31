@@ -184,11 +184,10 @@ export class RequestRepository extends Repository<Request> {
         .limit(streamLimit)
         .getMany()
 
-      // Do not anchor if there aren't enough streams and the earliest request isn't expired
-      if (
-        streamsToAnchor.length < streamLimit &&
-        streamsToAnchor[0].createdAt > anchoringDeadline
-      ) {
+      // Do not anchor if the earliest request isn't expired and there isn't enough streams
+      const earliestIsNotExpired =
+        streamsToAnchor.length > 0 && streamsToAnchor[0].createdAt > anchoringDeadline
+      if (earliestIsNotExpired && streamsToAnchor.length < streamLimit) {
         return []
       }
 
