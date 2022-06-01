@@ -384,4 +384,27 @@ describe('request repository test', () => {
       }
     })
   })
+
+  test.only('stephs random stuff', async () => {
+    const numStreams = 10
+    const requests = await generateRequests({ status: RequestStatus.PENDING }, numStreams)
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    await requestRepository.createRequests(requests)
+
+    const notEmptyCamelCase = await connection
+      .getRepository(Request)
+      .createQueryBuilder('request')
+      .select('request.createdAt')
+      .orderBy('request.created_at', 'ASC')
+      .getMany()
+    expect(notEmptyCamelCase.length).toEqual(numStreams)
+
+    const emptySnakeCase = await connection
+      .getRepository(Request)
+      .createQueryBuilder('request')
+      .select('request.created_at')
+      .orderBy('request.createdAt', 'ASC')
+      .getMany()
+    expect(emptySnakeCase.length).toEqual(0)
+  })
 })
