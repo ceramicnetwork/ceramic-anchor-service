@@ -2,7 +2,7 @@ name: Test and publish Docker images
 
 on:
   push:
-    branches: [ feat/new-ci, develop, release-candidate, main ]
+    branches: [ develop, release-candidate, main ]
   pull_request: # pull requests
   workflow_dispatch: # manually triggered
 
