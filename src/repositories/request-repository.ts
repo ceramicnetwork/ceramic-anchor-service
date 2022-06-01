@@ -1,7 +1,7 @@
 import { CID } from 'multiformats/cid'
 import type { Connection, EntityManager, InsertResult, UpdateResult } from 'typeorm'
 import TypeORM from 'typeorm'
-const { EntityRepository, Repository, LessThan, Brackets } = TypeORM
+const { EntityRepository, Repository } = TypeORM
 export { Repository }
 
 import { Request, RequestUpdateFields } from '../models/request.js'
@@ -171,13 +171,10 @@ export class RequestRepository extends Repository<Request> {
         .getRepository(Request)
         .createQueryBuilder('request')
         .select(['request.streamId', 'request.createdAt'])
-        .where(
-          new Brackets((qb) => {
-            qb.where('request.status = :processingStatus', {
-              processingStatus: RequestStatus.PROCESSING,
-            }).andWhere({ updatedAt: LessThan(toComparisonDate(retryDeadline)) })
-          })
-        )
+        .where('request.status = :processingStatus AND request.updatedAt < :retryDeadline', {
+          processingStatus: RequestStatus.PROCESSING,
+          retryDeadline: retryDeadline.toISOString(),
+        })
         .orWhere('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
         .orderBy('MIN(request.createdAt)', 'ASC')
         .groupBy('request.streamId')

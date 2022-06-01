@@ -14,7 +14,7 @@ import { RequestStatus } from '../../models/request-status.js'
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
 const MS_IN_DAY = MS_IN_HOUR * 24
-const MS_IN_MONTH = MS_IN_DAY * 31
+const MS_IN_MONTH = MS_IN_DAY * 30
 
 const generateRequests = async (override: Partial<Request>, count = 1): Promise<Request[]> => {
   const requests = await Promise.all(
