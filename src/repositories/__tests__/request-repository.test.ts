@@ -456,42 +456,42 @@ describe('request repository test', () => {
     const foundUsingEqualAndDate = await connection
       .getRepository(Request)
       .createQueryBuilder('request')
-      .where({ updatedAt: Equal(testDate) })
+      .where({ createdAt: Equal(testDate) })
       .getMany()
     expect(foundUsingEqualAndDate.length).toEqual(0)
 
     const foundUsingEqualAndIsoString = await connection
       .getRepository(Request)
       .createQueryBuilder('request')
-      .where({ updatedAt: Equal(testDate.toISOString()) })
+      .where({ createdAt: Equal(testDate.toISOString()) })
       .getMany()
     expect(foundUsingEqualAndIsoString.length).toEqual(0)
 
     const foundUsingEqualAndFormat = await connection
       .getRepository(Request)
       .createQueryBuilder('request')
-      .where({ updatedAt: Equal(DateUtils.mixedDateToUtcDatetimeString(testDate)) })
+      .where({ createdAt: Equal(DateUtils.mixedDateToUtcDatetimeString(testDate)) })
       .getMany()
     expect(foundUsingEqualAndFormat.length).toEqual(1)
 
     const foundUsingObjectAndDate = await connection
       .getRepository(Request)
       .createQueryBuilder('request')
-      .where({ updatedAt: testDate })
+      .where({ createdAt: testDate })
       .getMany()
     expect(foundUsingObjectAndDate.length).toEqual(0)
 
     const foundUsingObjectAndIsoString = await connection
       .getRepository(Request)
       .createQueryBuilder('request')
-      .where({ updatedAt: testDate.toISOString() })
+      .where({ createdAt: testDate.toISOString() })
       .getMany()
     expect(foundUsingObjectAndIsoString.length).toEqual(0)
 
     const foundUsingObjectAndFormat = await connection
       .getRepository(Request)
       .createQueryBuilder('request')
-      .where({ updatedAt: DateUtils.mixedDateToUtcDatetimeString(testDate) })
+      .where({ createdAt: DateUtils.mixedDateToUtcDatetimeString(testDate) })
       .getMany()
     expect(foundUsingObjectAndFormat.length).toEqual(1)
   })
