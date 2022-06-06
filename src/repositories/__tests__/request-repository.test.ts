@@ -1,6 +1,9 @@
 import 'reflect-metadata'
 import { jest } from '@jest/globals'
 import type { Connection } from 'typeorm'
+import TypeORM from 'typeorm'
+const { LessThan } = TypeORM
+import { DateUtils } from 'typeorm/util/DateUtils'
 import { DBConnection } from '../../services/__tests__/db-connection.js'
 import { container } from 'tsyringe'
 import { config } from 'node-config-ts'
@@ -10,7 +13,6 @@ import { Request } from '../../models/request.js'
 import { randomCID } from '../../test-utils.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { RequestStatus } from '../../models/request-status.js'
-import { DateUtils } from 'typeorm/util/DateUtils'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -445,5 +447,13 @@ describe('request repository test', () => {
       .getMany()
 
     expect(foundUsingFormat.length).toEqual(1)
+
+    const foundUsingLessThan = await connection
+      .getRepository(Request)
+      .createQueryBuilder('request')
+      .where({ updatedAt: LessThan(testDate) })
+      .getMany()
+
+    expect(foundUsingLessThan.length).toEqual(1)
   })
 })
