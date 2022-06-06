@@ -3,12 +3,12 @@ import type { Connection, EntityManager, InsertResult, UpdateResult } from 'type
 import TypeORM from 'typeorm'
 const { EntityRepository, Repository, Brackets, LessThan } = TypeORM
 export { Repository }
-
 import { Request, RequestUpdateFields } from '../models/request.js'
 import { RequestStatus } from '../models/request-status.js'
 import { logEvent } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
+import { DateUtils } from 'typeorm/util/DateUtils'
 
 /**
  * How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
@@ -168,13 +168,10 @@ export class RequestRepository extends Repository<Request> {
         .getRepository(Request)
         .createQueryBuilder('request')
         .select(['request.streamId', 'request.createdAt'])
-        .where(
-          new Brackets((qb) => {
-            qb.where('request.status = :processingStatus', {
-              processingStatus: RequestStatus.PROCESSING,
-            }).andWhere({ updatedAt: LessThan(retryDeadline.toISOString()) })
-          })
-        )
+        .where('request.status = :processingStatus AND request.updatedAt < :retryDeadline', {
+          processingStatus: RequestStatus.PROCESSING,
+          retryDeadline: DateUtils.mixedDateToUtcDatetimeString(retryDeadline),
+        })
         .orWhere('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
         .orderBy('MIN(request.createdAt)', 'ASC')
         .groupBy('request.streamId')
