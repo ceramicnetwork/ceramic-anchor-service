@@ -10,6 +10,7 @@ import { Request } from '../../models/request.js'
 import { randomCID } from '../../test-utils.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { RequestStatus } from '../../models/request-status.js'
+import { DateUtils } from 'typeorm/util/DateUtils'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -385,7 +386,7 @@ describe('request repository test', () => {
     })
   })
 
-  test.only('stephs random stuff', async () => {
+  test.only('stephs demo that snakecase does not work in select', async () => {
     const numStreams = 10
     const requests = await generateRequests({ status: RequestStatus.PENDING }, numStreams)
     const requestRepository = container.resolve<RequestRepository>('requestRepository')
@@ -406,5 +407,43 @@ describe('request repository test', () => {
       .orderBy('request.createdAt', 'ASC')
       .getMany()
     expect(emptySnakeCase.length).toEqual(0)
+  })
+
+  test.only('stephs demo that date is weird', async () => {
+    const testDate = new Date('2000-01-01T00:00Z')
+    const requests = await generateRequests(
+      {
+        status: RequestStatus.PENDING,
+      },
+      1
+    )
+
+    requests[0].createdAt = testDate
+    requests[0].updatedAt = testDate
+
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    await requestRepository.createRequests(requests)
+
+    const createdRequest = await getAllRequests(connection)
+    expect(createdRequest.length).toEqual(requests.length)
+    expect(new Date(createdRequest[0].createdAt).toISOString()).toEqual(testDate.toISOString())
+
+    const foundUsingIsoString = await connection
+      .getRepository(Request)
+      .createQueryBuilder('request')
+      .andWhere('request.created_at = :date', { date: testDate.toISOString() })
+      .getMany()
+
+    expect(foundUsingIsoString.length).toEqual(0)
+
+    const foundUsingFormat = await connection
+      .getRepository(Request)
+      .createQueryBuilder('request')
+      .where('request.created_at = :date', {
+        date: DateUtils.mixedDateToUtcDatetimeString(testDate),
+      })
+      .getMany()
+
+    expect(foundUsingFormat.length).toEqual(1)
   })
 })
