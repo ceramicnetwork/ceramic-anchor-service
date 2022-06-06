@@ -2,7 +2,7 @@ import 'reflect-metadata'
 import { jest } from '@jest/globals'
 import type { Connection } from 'typeorm'
 import TypeORM from 'typeorm'
-const { LessThan } = TypeORM
+const { Equal } = TypeORM
 import { DateUtils } from 'typeorm/util/DateUtils'
 import { DBConnection } from '../../services/__tests__/db-connection.js'
 import { container } from 'tsyringe'
@@ -430,30 +430,69 @@ describe('request repository test', () => {
     expect(createdRequest.length).toEqual(requests.length)
     expect(new Date(createdRequest[0].createdAt).toISOString()).toEqual(testDate.toISOString())
 
-    const foundUsingIsoString = await connection
+    const foundUsingQueryAndDate = await connection
+      .getRepository(Request)
+      .createQueryBuilder('request')
+      .andWhere('request.created_at = :date', { date: testDate })
+      .getMany()
+    expect(foundUsingQueryAndDate.length).toEqual(0)
+
+    const foundUsingQueryAndIsoString = await connection
       .getRepository(Request)
       .createQueryBuilder('request')
       .andWhere('request.created_at = :date', { date: testDate.toISOString() })
       .getMany()
+    expect(foundUsingQueryAndIsoString.length).toEqual(0)
 
-    expect(foundUsingIsoString.length).toEqual(0)
-
-    const foundUsingFormat = await connection
+    const foundUsingQueryAndFormat = await connection
       .getRepository(Request)
       .createQueryBuilder('request')
       .where('request.created_at = :date', {
         date: DateUtils.mixedDateToUtcDatetimeString(testDate),
       })
       .getMany()
+    expect(foundUsingQueryAndFormat.length).toEqual(1)
 
-    expect(foundUsingFormat.length).toEqual(1)
-
-    const foundUsingLessThan = await connection
+    const foundUsingEqualAndDate = await connection
       .getRepository(Request)
       .createQueryBuilder('request')
-      .where({ updatedAt: LessThan(testDate) })
+      .where({ updatedAt: Equal(testDate) })
       .getMany()
+    expect(foundUsingEqualAndDate.length).toEqual(0)
 
-    expect(foundUsingLessThan.length).toEqual(1)
+    const foundUsingEqualAndIsoString = await connection
+      .getRepository(Request)
+      .createQueryBuilder('request')
+      .where({ updatedAt: Equal(testDate.toISOString()) })
+      .getMany()
+    expect(foundUsingEqualAndIsoString.length).toEqual(0)
+
+    const foundUsingEqualAndFormat = await connection
+      .getRepository(Request)
+      .createQueryBuilder('request')
+      .where({ updatedAt: Equal(DateUtils.mixedDateToUtcDatetimeString(testDate)) })
+      .getMany()
+    expect(foundUsingEqualAndFormat.length).toEqual(1)
+
+    const foundUsingObjectAndDate = await connection
+      .getRepository(Request)
+      .createQueryBuilder('request')
+      .where({ updatedAt: testDate })
+      .getMany()
+    expect(foundUsingObjectAndDate.length).toEqual(0)
+
+    const foundUsingObjectAndIsoString = await connection
+      .getRepository(Request)
+      .createQueryBuilder('request')
+      .where({ updatedAt: testDate.toISOString() })
+      .getMany()
+    expect(foundUsingObjectAndIsoString.length).toEqual(0)
+
+    const foundUsingObjectAndFormat = await connection
+      .getRepository(Request)
+      .createQueryBuilder('request')
+      .where({ updatedAt: DateUtils.mixedDateToUtcDatetimeString(testDate) })
+      .getMany()
+    expect(foundUsingObjectAndFormat.length).toEqual(1)
   })
 })
