@@ -1,7 +1,7 @@
 import { CID } from 'multiformats/cid'
 import type { Connection, EntityManager, InsertResult, UpdateResult } from 'typeorm'
 import TypeORM from 'typeorm'
-const { EntityRepository, Repository } = TypeORM
+const { EntityRepository, Repository, Brackets, LessThan } = TypeORM
 export { Repository }
 
 import { Request, RequestUpdateFields } from '../models/request.js'
@@ -15,11 +15,8 @@ import { inject, singleton } from 'tsyringe'
  * AnchorCommit available to the network.
  */
 const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
-const MAX_ANCHORING_DELAY_MS = 1000 * 60 * 60 * 12 //12H
-
-const toComparisonDate = (date: Date) => {
-  return date.toISOString().slice(0, 19).replace('T', ' ')
-}
+export const MAX_ANCHORING_DELAY_MS = 1000 * 60 * 60 * 12 //12H
+export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 6 //6H
 
 @singleton()
 @EntityRepository(Request)
@@ -160,7 +157,7 @@ export class RequestRepository extends Repository<Request> {
    */
   public async findAndMarkReady(streamLimit: number): Promise<Request[]> {
     const anchoringDeadline = new Date(Date.now() - MAX_ANCHORING_DELAY_MS)
-    const retryDeadline = new Date(Date.now() - MAX_ANCHORING_DELAY_MS / 2)
+    const retryDeadline = new Date(Date.now() - PROCESSING_TIMEOUT)
     const isolationLevel =
       this.connection.options.type === 'sqlite' ? 'SERIALIZABLE' : 'REPEATABLE READ'
 
@@ -171,10 +168,13 @@ export class RequestRepository extends Repository<Request> {
         .getRepository(Request)
         .createQueryBuilder('request')
         .select(['request.streamId', 'request.createdAt'])
-        .where('request.status = :processingStatus AND request.updatedAt < :retryDeadline', {
-          processingStatus: RequestStatus.PROCESSING,
-          retryDeadline: retryDeadline.toISOString(),
-        })
+        .where(
+          new Brackets((qb) => {
+            qb.where('request.status = :processingStatus', {
+              processingStatus: RequestStatus.PROCESSING,
+            }).andWhere({ updatedAt: LessThan(retryDeadline.toISOString()) })
+          })
+        )
         .orWhere('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
         .orderBy('MIN(request.createdAt)', 'ASC')
         .groupBy('request.streamId')
@@ -191,7 +191,7 @@ export class RequestRepository extends Repository<Request> {
       const streamIds = streamsToAnchor.map(({ streamId }) => streamId)
 
       // retrieves all requests associated with the streams
-      const requests = await this.connection
+      const requests = await transactionalEntityManager
         .getRepository(Request)
         .createQueryBuilder('request')
         .orderBy('request.createdAt', 'ASC')
@@ -207,7 +207,7 @@ export class RequestRepository extends Repository<Request> {
       // if not all requests are updated
       if (!results.affected || results.affected != requests.length) {
         throw Error(
-          `A problem occured when updated requests to READY. Only ${requests.length}/${results.affected} requests were updated`
+          `A problem occured when updated requests to READY. Only ${results.affected}/${requests.length} requests were updated`
         )
       }
 

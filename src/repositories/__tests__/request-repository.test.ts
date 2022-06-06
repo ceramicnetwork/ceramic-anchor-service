@@ -4,7 +4,11 @@ import type { Connection } from 'typeorm'
 import { DBConnection } from '../../services/__tests__/db-connection.js'
 import { container } from 'tsyringe'
 import { config } from 'node-config-ts'
-import { RequestRepository } from '../request-repository.js'
+import {
+  RequestRepository,
+  MAX_ANCHORING_DELAY_MS,
+  PROCESSING_TIMEOUT,
+} from '../request-repository.js'
 import { AnchorRepository } from '../anchor-repository.js'
 import { Request } from '../../models/request.js'
 import { randomCID } from '../../test-utils.js'
@@ -172,7 +176,9 @@ describe('request repository test', () => {
     test('Marks pending requests as ready', async () => {
       const streamLimit = 5
       const requests = await Promise.all([
+        // pending requests created now
         generateRequests({ status: RequestStatus.PENDING }, streamLimit),
+        // completed requests (created 2 months ago, completed 1 month ago)
         generateRequests(
           {
             status: RequestStatus.COMPLETED,
@@ -202,7 +208,9 @@ describe('request repository test', () => {
     test('Marks no requests as ready if there are not enough streams', async () => {
       const streamLimit = 5
       const requests = await Promise.all([
+        // pending requests created now
         generateRequests({ status: RequestStatus.PENDING }, streamLimit - 1),
+        // failed requests (created 2 months ago, failed 1 month ago)
         generateRequests(
           {
             status: RequestStatus.FAILED,
@@ -223,15 +231,21 @@ describe('request repository test', () => {
 
     test('Marks expired pending request as ready even if there are not enough streams', async () => {
       const streamLimit = 5
+      // 13 hours ago (delay is 12 hours)
+      const creationDateOfExpiredRequest = new Date(
+        Date.now() - MAX_ANCHORING_DELAY_MS - MS_IN_HOUR
+      )
       const requests = await Promise.all([
+        // expired pending request
         generateRequests(
           {
             status: RequestStatus.PENDING,
-            createdAt: new Date(Date.now() - MS_IN_HOUR * 13),
-            updatedAt: new Date(Date.now() - MS_IN_HOUR * 13),
+            createdAt: creationDateOfExpiredRequest,
+            updatedAt: creationDateOfExpiredRequest,
           },
           1
         ),
+        // pending request created now
         generateRequests({ status: RequestStatus.PENDING }, 1),
       ]).then((arr) => arr.flat())
 
@@ -249,6 +263,8 @@ describe('request repository test', () => {
 
     test('Marks only streamLimit requests as READY even if there are more', async () => {
       const streamLimit = 5
+
+      // pending requests created now
       const requests = await generateRequests({ status: RequestStatus.PENDING }, streamLimit + 2)
 
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
@@ -267,17 +283,21 @@ describe('request repository test', () => {
 
     test('Marks processing requests as ready if they need to be retried', async () => {
       const streamLimit = 5
+      // 7h ago (timeout is 6h)
+      const dateOfTimedOutProcessingRequest = new Date(Date.now() - PROCESSING_TIMEOUT - MS_IN_HOUR)
+
       const expiredProcessing = await generateRequests(
+        // processing request that needs to be retried
         {
           status: RequestStatus.PROCESSING,
           createdAt: new Date(Date.now() - MS_IN_HOUR * 24),
-          updatedAt: new Date(Date.now() - MS_IN_HOUR * 7),
+          updatedAt: dateOfTimedOutProcessingRequest,
         },
         1
       )
       const requests = await Promise.all([
         expiredProcessing,
-        // requests that are current processing
+        // requests that are currently processing
         generateRequests(
           {
             status: RequestStatus.PROCESSING,
@@ -286,7 +306,7 @@ describe('request repository test', () => {
           },
           4
         ),
-        //pending requests
+        // pending requests created now
         generateRequests({ status: RequestStatus.PENDING }, streamLimit),
       ]).then((arr) => arr.flat())
 
@@ -315,15 +335,17 @@ describe('request repository test', () => {
       const streamLimit = 5
       const repeatedStreamId = new StreamID('tile', await randomCID()).toString()
       const requests = await Promise.all([
+        // repeated request created an hour ago
         generateRequests(
           {
-            status: RequestStatus.PROCESSING,
-            createdAt: new Date(Date.now() - MS_IN_HOUR * 24),
-            updatedAt: new Date(Date.now() - MS_IN_HOUR * 7),
+            status: RequestStatus.PENDING,
+            createdAt: new Date(Date.now() - MS_IN_HOUR),
+            updatedAt: new Date(Date.now() - MS_IN_HOUR),
             streamId: repeatedStreamId,
           },
           1
         ),
+        // repeated request created now
         generateRequests(
           {
             status: RequestStatus.PENDING,
@@ -331,6 +353,7 @@ describe('request repository test', () => {
           },
           1
         ),
+        // other requests
         generateRequests(
           {
             status: RequestStatus.PENDING,
@@ -338,8 +361,8 @@ describe('request repository test', () => {
           streamLimit
         ),
       ]).then((arr) => arr.flat())
-      const expiredProcessingRequest = requests[0]
-      const reRequested = requests[1]
+      const repeatedRequest1 = requests[0]
+      const repeatedRequest2 = requests[1]
 
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
@@ -351,8 +374,8 @@ describe('request repository test', () => {
       expect(updatedRequests.length).toEqual(streamLimit + 1)
 
       const updatedRequestCids = updatedRequests.map(({ cid }) => cid)
-      expect(updatedRequestCids).toContain(expiredProcessingRequest.cid)
-      expect(updatedRequestCids).toContain(reRequested.cid)
+      expect(updatedRequestCids).toContain(repeatedRequest1.cid)
+      expect(updatedRequestCids).toContain(repeatedRequest2.cid)
     })
 
     test('Does not mark any transaction as ready if an error occurs', async () => {
@@ -373,7 +396,7 @@ describe('request repository test', () => {
       }
 
       try {
-        await requestRepository.findAndMarkReady(streamLimit).catch(() => {})
+        await expect(requestRepository.findAndMarkReady(streamLimit)).rejects.toThrow(/test error/)
         const requestsAfterUpdate = await getAllRequests(connection)
         expect(requestsAfterUpdate.length).toEqual(requests.length)
         expect(requestsAfterUpdate.every(({ status }) => status === RequestStatus.PENDING)).toEqual(
