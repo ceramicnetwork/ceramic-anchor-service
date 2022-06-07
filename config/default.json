@@ -3,7 +3,6 @@
   "port": 8081,
   "anchorControllerEnabled": false,
   "schedulerIntervalMS": 300000,
-  "cronExpression": "0/5 * * * ? *",
   "expirationPeriod": 5400000,
   "merkleDepthLimit": 0,
   "minStreamCount": 1,
