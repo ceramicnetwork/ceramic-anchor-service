@@ -1,53 +1,44 @@
-import awsCronParser from 'aws-cron-parser'
-
 import { Config } from 'node-config-ts'
-
-import { AnchorService } from './anchor-service.js'
 import { logger } from '../logger/index.js'
 import { inject, singleton } from 'tsyringe'
+import { from, concatWith, timer, exhaustMap, catchError, repeat, retry, Subscription } from 'rxjs'
 
 /**
- * Schedules anchor operations
+ * Repeatedly triggers a task to be run after a configured amount of ms
  */
 @singleton()
 export class SchedulerService {
-  private _task
+  private _subscription: Subscription
 
-  constructor(
-    @inject('anchorService') private anchorService?: AnchorService,
-    @inject('config') private config?: Config
-  ) {}
+  constructor(@inject('config') private config?: Config) {}
 
   /**
-   * Start the scheduler
+   * Starts the scheduler which will run the provided task
    *
-   * Note: setInterval() can be refactored to consecutive setTimeout(s) to avoid anchoring clashing.
    */
-  public start(): void {
-    const cron = awsCronParser.parse(this.config.cronExpression)
-    let nextScheduleTime = awsCronParser.next(cron, new Date()).getTime()
+  public start(task: () => Promise<void>): void {
+    const intervalMS = this.config.schedulerIntervalMS
 
-    this._task = setInterval(async () => {
-      try {
-        const currentTime = new Date().getTime()
-        let performedAnchor = false
-        if (currentTime > nextScheduleTime) {
-          // Always anchor if the scheduled time delay has passed
-          await this.anchorService.anchorRequests()
-          performedAnchor = true
-        }
+    const repeatingTask$ = from(task()).pipe(
+      concatWith(
+        timer(intervalMS).pipe(
+          exhaustMap(() => task()),
+          catchError((err) => {
+            // TODO: Instead or in addition to logging, add alerting
+            logger.err('Failed to anchor CIDs... ')
+            logger.err(err)
+            throw err
+          }),
+          retry(),
+          repeat()
+        )
+      )
+    )
 
-        if (performedAnchor) {
-          nextScheduleTime = awsCronParser.next(cron, new Date()).getTime()
-        }
-      } catch (err) {
-        logger.err('Failed to anchor CIDs... ')
-        logger.err(err)
-      }
-    }, 10000)
+    this._subscription = repeatingTask$.subscribe()
   }
 
   public stop(): void {
-    clearInterval(this._task)
+    this._subscription.unsubscribe()
   }
 }
