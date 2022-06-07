@@ -1,14 +1,14 @@
 import { CID } from 'multiformats/cid'
 import type { Connection, EntityManager, InsertResult, UpdateResult } from 'typeorm'
 import TypeORM from 'typeorm'
-const { EntityRepository, Repository, Brackets, LessThan } = TypeORM
+const { EntityRepository, Repository } = TypeORM
+import { DateUtils } from 'typeorm/util/DateUtils.js'
 export { Repository }
 import { Request, RequestUpdateFields } from '../models/request.js'
 import { RequestStatus } from '../models/request-status.js'
 import { logEvent } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
-import { DateUtils } from 'typeorm/util/DateUtils'
 
 /**
  * How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
