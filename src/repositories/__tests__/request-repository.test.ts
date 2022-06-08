@@ -259,6 +259,34 @@ describe('request repository test', () => {
     expect(next.length).toEqual(0)
   })
 
+  test('Retrieves all requests of a specified status', async () => {
+    const requests = await Promise.all([
+      generateRequests(
+        {
+          status: RequestStatus.READY,
+        },
+        3
+      ),
+      generateRequests(
+        {
+          status: RequestStatus.PENDING,
+        },
+        3
+      ),
+    ]).then((arr) => arr.flat())
+
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    await requestRepository.createRequests(requests)
+
+    const createdRequests = await getAllRequests(connection)
+    expect(requests.length).toEqual(createdRequests.length)
+
+    const expected = createdRequests.filter(({ status }) => status === RequestStatus.READY)
+    const received = await requestRepository.findByStatus(RequestStatus.READY)
+
+    expect(received).toEqual(expected)
+  })
+
   describe('findAndMarkReady', () => {
     test('Marks pending requests as ready', async () => {
       const streamLimit = 5
@@ -465,7 +493,7 @@ describe('request repository test', () => {
       expect(updatedRequestCids).toContain(repeatedRequest2.cid)
     })
 
-    test('Does not mark any transaction as ready if an error occurs', async () => {
+    test('Does not mark any requests as ready if an error occurs', async () => {
       const streamLimit = 5
       const requests = await generateRequests(
         {

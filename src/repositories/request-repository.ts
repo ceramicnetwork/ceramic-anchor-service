@@ -222,4 +222,23 @@ export class RequestRepository extends Repository<Request> {
       return requests
     })
   }
+
+  /**
+   * Finds requests of a given status
+   */
+  public async findByStatus(
+    status: RequestStatus,
+    manager?: EntityManager,
+    limit?: number
+  ): Promise<Request[]> {
+    manager = manager || this.connection.manager
+
+    return manager
+      .getRepository(Request)
+      .createQueryBuilder('request')
+      .where('request.status = :status', { status })
+      .orderBy('request.updatedAt', 'ASC')
+      .limit(limit)
+      .getMany()
+  }
 }
