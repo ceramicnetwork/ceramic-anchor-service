@@ -28,8 +28,8 @@ jobs:
         echo "::set-output name=SHA_TAG::$SHA_TAG"
         if [[ "${{github.base_ref}}" == "main" || "${{github.ref}}" == "refs/heads/main" ]]; then
           echo "::set-output name=ECR_REPOSITORY::ceramic-prod-cas"
-          echo "::set-output name=IMAGE_TAG::latest"
-          echo "::set-output name=IMAGE_TAG_2::prod"
+          echo "::set-output name=IMAGE_TAG::prod"
+          echo "::set-output name=IMAGE_TAG_2::latest"
           echo "::set-output name=WEBHOOK_URL::${{ secrets.WEBHOOK_URL_FIRE }}"
         elif [[ "${{github.base_ref}}" == "release-candidate" || "${{github.ref}}" == "refs/heads/release-candidate" ]]; then
           echo "::set-output name=ECR_REPOSITORY::ceramic-tnet-cas"
@@ -71,10 +71,18 @@ jobs:
         IMAGE_TAG_2: ${{ steps.set-vars.outputs.IMAGE_TAG_2 }}
       run: |
         echo "::set-output name=ECR_IMAGE_ID::$ECR_IMAGE_ID"
+        EXTRA_TAGS=""
+        if [[ $IMAGE_TAG == "dev" ]]; then
+          ECR_IMAGE_ID_2="${{ steps.login-ecr.outputs.registry }}/ceramic-qa-cas"
+          EXTRA_TAGS="-t $ECR_IMAGE_ID_2:qa -t $ECR_IMAGE_ID_2:$SHA_TAG -t $ECR_IMAGE_ID_2:$FULL_SHA_TAG -t $ECR_IMAGE_ID_2:$IMAGE_TAG -t $ECR_IMAGE_ID_2:$IMAGE_TAG_2"
+        fi
         docker build -f Dockerfile -t cas -t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$FULL_SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG_2 .
-        docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$FULL_SHA_TAG  -t $ECR_IMAGE_ID:$IMAGE_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG_2 .
+        docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$FULL_SHA_TAG  -t $ECR_IMAGE_ID:$IMAGE_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG_2 $EXTRA_TAGS .
         docker push -a $DOCKERHUB_IMAGE_ID
         docker push -a $ECR_IMAGE_ID
+        if [[ -n $ECR_IMAGE_ID_2 ]]; then
+          docker push -a $ECR_IMAGE_ID_2
+        fi
     -
       name: Publish build event
       env:
