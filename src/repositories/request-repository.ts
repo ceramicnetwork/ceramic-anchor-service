@@ -4,7 +4,7 @@ import TypeORM from 'typeorm'
 const { EntityRepository, Repository } = TypeORM
 import { DateUtils } from 'typeorm/util/DateUtils.js'
 export { Repository }
-import { Request, RequestUpdateFields } from '../models/request.js'
+import { Request, RequestUpdateFields, REQUEST_MESSAGES } from '../models/request.js'
 import { RequestStatus } from '../models/request-status.js'
 import { logEvent } from '../logger/index.js'
 import { Config } from 'node-config-ts'
@@ -100,10 +100,14 @@ export class RequestRepository extends Repository<Request> {
       .createQueryBuilder('request')
       .orderBy('request.created_at', 'ASC')
       .where('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
-      .orWhere('request.status = :failedStatus AND request.createdAt >= :earliestDateToRetry', {
-        failedStatus: RequestStatus.FAILED,
-        earliestDateToRetry: DateUtils.mixedDateToUtcDatetimeString(earliestDateToRetry),
-      })
+      .orWhere(
+        'request.status = :failedStatus AND request.createdAt >= :earliestDateToRetry AND (request.message IS NULL OR request.message != :message)',
+        {
+          failedStatus: RequestStatus.FAILED,
+          earliestDateToRetry: DateUtils.mixedDateToUtcDatetimeString(earliestDateToRetry),
+          message: REQUEST_MESSAGES.conflictResolutionRejection,
+        }
+      )
       .limit(limit)
       .getMany()
   }
