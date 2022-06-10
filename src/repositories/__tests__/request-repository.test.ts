@@ -8,6 +8,7 @@ import {
   RequestRepository,
   MAX_ANCHORING_DELAY_MS,
   PROCESSING_TIMEOUT,
+  FAILURE_RETRY_WINDOW,
 } from '../request-repository.js'
 import { AnchorRepository } from '../anchor-repository.js'
 import { Request } from '../../models/request.js'
@@ -170,6 +171,59 @@ describe('request repository test', () => {
     )
     expect(loadedRequests[0].cid).toEqual(requests[0].cid)
     expect(loadedRequests[1].cid).toEqual(requests[1].cid)
+  })
+
+  test('Retries failed requests', async () => {
+    const reqLimit = 5
+    const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+    const requests = await Promise.all([
+      generateRequests(
+        {
+          status: RequestStatus.FAILED,
+          createdAt: dateDuringRetryPeriod,
+          updatedAt: new Date(Date.now() - MS_IN_HOUR),
+        },
+        reqLimit - 2
+      ),
+      generateRequests(
+        {
+          status: RequestStatus.PENDING,
+        },
+        reqLimit
+      ),
+    ]).then((arr) => arr.flat())
+
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    await requestRepository.createRequests(requests)
+
+    const createdRequests = await getAllRequests(connection)
+    expect(requests.length).toEqual(createdRequests.length)
+
+    const next = await requestRepository.findNextToProcess(reqLimit)
+    expect(next.map(({ cid }) => cid)).toEqual(createdRequests.slice(0, 5).map(({ cid }) => cid))
+  })
+
+  test('Will not retry expired failed requests', async () => {
+    const reqLimit = 5
+    const dateBeforeRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW - MS_IN_HOUR)
+
+    const requests = await generateRequests(
+      {
+        status: RequestStatus.FAILED,
+        createdAt: dateBeforeRetryPeriod,
+        updatedAt: new Date(Date.now() - MS_IN_HOUR),
+      },
+      reqLimit - 2
+    )
+
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    await requestRepository.createRequests(requests)
+
+    const createdRequests = await getAllRequests(connection)
+    expect(requests.length).toEqual(createdRequests.length)
+
+    const next = await requestRepository.findNextToProcess(reqLimit)
+    expect(next.length).toEqual(0)
   })
 
   describe('findAndMarkReady', () => {
