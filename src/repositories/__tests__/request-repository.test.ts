@@ -11,7 +11,7 @@ import {
   FAILURE_RETRY_WINDOW,
 } from '../request-repository.js'
 import { AnchorRepository } from '../anchor-repository.js'
-import { Request } from '../../models/request.js'
+import { Request, REQUEST_MESSAGES } from '../../models/request.js'
 import { randomCID } from '../../test-utils.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { RequestStatus } from '../../models/request-status.js'
@@ -182,8 +182,17 @@ describe('request repository test', () => {
           status: RequestStatus.FAILED,
           createdAt: dateDuringRetryPeriod,
           updatedAt: new Date(Date.now() - MS_IN_HOUR),
+          message: 'random',
         },
-        reqLimit - 2
+        1
+      ),
+      generateRequests(
+        {
+          status: RequestStatus.FAILED,
+          createdAt: dateDuringRetryPeriod,
+          updatedAt: new Date(Date.now() - MS_IN_HOUR),
+        },
+        2
       ),
       generateRequests(
         {
@@ -200,6 +209,7 @@ describe('request repository test', () => {
     expect(requests.length).toEqual(createdRequests.length)
 
     const next = await requestRepository.findNextToProcess(reqLimit)
+    console.log('🚀 ~ file: request-repository.test.ts ~ line 203 ~ test.only ~ next', next)
     expect(next.map(({ cid }) => cid)).toEqual(createdRequests.slice(0, 5).map(({ cid }) => cid))
   })
 
@@ -213,7 +223,31 @@ describe('request repository test', () => {
         createdAt: dateBeforeRetryPeriod,
         updatedAt: new Date(Date.now() - MS_IN_HOUR),
       },
-      reqLimit - 2
+      reqLimit
+    )
+
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    await requestRepository.createRequests(requests)
+
+    const createdRequests = await getAllRequests(connection)
+    expect(requests.length).toEqual(createdRequests.length)
+
+    const next = await requestRepository.findNextToProcess(reqLimit)
+    expect(next.length).toEqual(0)
+  })
+
+  test('Will not retry failed requests that were rejected because of conflict resolution', async () => {
+    const reqLimit = 5
+    const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+
+    const requests = await generateRequests(
+      {
+        status: RequestStatus.FAILED,
+        createdAt: dateDuringRetryPeriod,
+        updatedAt: new Date(Date.now() - MS_IN_HOUR),
+        message: REQUEST_MESSAGES.conflictResolutionRejection,
+      },
+      reqLimit
     )
 
     const requestRepository = container.resolve<RequestRepository>('requestRepository')
