@@ -209,7 +209,6 @@ describe('request repository test', () => {
     expect(requests.length).toEqual(createdRequests.length)
 
     const next = await requestRepository.findNextToProcess(reqLimit)
-    console.log('🚀 ~ file: request-repository.test.ts ~ line 203 ~ test.only ~ next', next)
     expect(next.map(({ cid }) => cid)).toEqual(createdRequests.slice(0, 5).map(({ cid }) => cid))
   })
 
