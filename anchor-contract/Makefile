@@ -1,7 +1,7 @@
 build:
 	forge build
 t:
-	forge test
+	forge test -vvvvv
 create:
 	forge create CeramicAnchorServiceV2\
 	 --contracts src/CeramicAnchorServiceV2.sol\

@@ -35,8 +35,17 @@ contract CeramicAnchorServiceV2Test is Test {
         assertEq(casv2.isServiceAllowed(testService), false);
     }
 
+    function testIfDisallowedServiceIsAllowedFuzz(address testService) public {
+        assertEq(casv2.isServiceAllowed(testService), false);
+    }
+
     function testIfAllowedServiceIsAllowed() public {
         address testService = address(1);
+        casv2.addCas(testService);
+        assertEq(casv2.isServiceAllowed(testService), true);
+    }
+
+    function testIfAllowedServiceIsAllowedFuzz(address testService) public {
         casv2.addCas(testService);
         assertEq(casv2.isServiceAllowed(testService), true);
     }
@@ -57,7 +66,13 @@ contract CeramicAnchorServiceV2Test is Test {
     }
 
     function testAnchorFuzz(bytes calldata _root) public {
-         address testService = address(this);
+        address testService = address(this);
+        casv2.addCas(testService);
+        casv2.anchor(_root);
+    }
+
+    function testFailAnchorFuzz(bytes calldata _root, address testService) public {
+        vm.assume(testService != address(this)); 
         casv2.addCas(testService);
         casv2.anchor(_root);
     }

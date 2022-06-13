@@ -3,14 +3,11 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-struct Service {
-    bool allowed;
-}
 
 contract CeramicAnchorServiceV2 is Ownable {
 
     //the list of addresses
-    mapping (address => Service) allowList;
+    mapping (address => bool) allowList;
 
     //when a service is added to allow list 
     event DidAddCas(address indexed _service);
@@ -23,7 +20,8 @@ contract CeramicAnchorServiceV2 is Ownable {
 
     // Only an address in the allow list is allowed to anchor
     modifier onlyAllowed() {
-        require(allowList[ msg.sender ].allowed, "Allow List: caller is not allowed");
+        // require(allowList[ msg.sender ].allowed, "Allow List: caller is not allowed");
+        require(allowList[ msg.sender ], "Allow List: caller is not allowed");
         _;
     }
 
@@ -36,7 +34,8 @@ contract CeramicAnchorServiceV2 is Ownable {
         @note Only owner can add to the allowlist
     */
     function addCas(address _service) public onlyOwner {
-        allowList[_service] = Service(true);
+        // allowList[_service] = Service(true);
+        allowList[_service] = true;
         emit DidAddCas(_service);
     }
         
@@ -46,7 +45,8 @@ contract CeramicAnchorServiceV2 is Ownable {
         @desc Removal can be performed by the owner or the service itself
     */
     function removeCas(address _service) public {
-        require((owner() == _msgSender()) || (allowList[_msgSender()].allowed && _msgSender() == _service), "Caller is not allowed or the owner");
+        // require((owner() == _msgSender()) || (allowList[_msgSender()].allowed && _msgSender() == _service), "Caller is not allowed or the owner");
+        require((owner() == _msgSender()) || (allowList[_msgSender()] && _msgSender() == _service), "Caller is not allowed or the owner");
         delete allowList[_service];
         emit DidRemoveCas(_service);
     }
@@ -57,7 +57,8 @@ contract CeramicAnchorServiceV2 is Ownable {
         @desc check if a service/address is allowed
     */
     function isServiceAllowed(address _service) public view returns(bool) {
-        return allowList[_service].allowed;
+        // return allowList[_service].allowed;
+        return allowList[_service];
     }
 
     /* 
