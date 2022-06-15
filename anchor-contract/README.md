@@ -8,7 +8,7 @@ https://github.com/ceramicnetwork/CIP/blob/main/CIPs/CIP-110/CIP-110.md
 - CeramicAnchorServiceV2.t.sol
     - test suite for Core
 
-## 
+## Build
 ```
 make build
 ```
@@ -18,10 +18,21 @@ make build
 make t
 ```
 
-## Deploy to network
+## Deploy to local ganache
+
+### Run Ganache
 ```
-make create
+make g
 ```
+
+### Deploy using forge
+```
+PRIV_KEY=<PK> make create
+```
+
+# Interacting with Contract
+
+Note: ganache doesn't have support
 
 ## Basic call
 Perform a call on an account without publishing a transaction.
