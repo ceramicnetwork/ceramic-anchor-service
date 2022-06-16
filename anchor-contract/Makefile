@@ -6,6 +6,7 @@ CONTRACT_ADDRESS = 0x5fbdb2315678afecb367f032d93f642f64180aa3
 DEPLOYER_ADDRESS = 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
 DEFAULT_BALANCE = 900000000000000
 DEFAULT_ACCOUNT = 0x2deb08aaf965da17757838c910424c8fe70bb5c7e8fe1171c6b68aebb2cc548b
+
 build:
 	forge build
 t:
@@ -15,7 +16,6 @@ g:
 a:
 	anvil --balance ${DEFAULT_BALANCE} --hardfork ${HARDFORK} --ffi -vvv
 create:
-	#  forge create --legacy CeramicAnchorServiceV2  --contracts src/CeramicAnchorServiceV2.sol --private-key ${PRIV_KEY} --rpc-url ${RPC}
 	forge create --legacy CeramicAnchorServiceV2 --contracts src/CeramicAnchorServiceV2.sol --private-key ${PRIV_KEY} --rpc-url ${RPC}
 invoke:
 	cast call ${CONTRACT_ADDRESS} "${FUNC}" --rpc-url ${RPC}

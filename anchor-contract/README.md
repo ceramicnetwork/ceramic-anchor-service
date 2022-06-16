@@ -8,6 +8,26 @@ https://github.com/ceramicnetwork/CIP/blob/main/CIPs/CIP-110/CIP-110.md
 - CeramicAnchorServiceV2.t.sol
     - test suite for Core
 
+# Makefile Variables
+Vriables in Makefile
+- ```RPC```
+    - RPC Endpoint
+- ```HARDFORK```
+    - chosen hardfork
+- ```FUNC```
+    - function to invoke
+- ```PRIV_KEY```
+    - private key for deployer
+- ```CONTRACT_ADDRESS```
+    - CeramicAnchorServiceV2 contract address
+- ```DEPLOYER_ADDRESS```
+    - address of deployer
+- ```DEFAULT_BALANCE```
+    -balance for each local node account
+- ```DEFAULT_ACCOUNT```
+    - default account for local node
+
+
 ## Build
 ```
 make build
@@ -25,19 +45,25 @@ make t
 make g
 ```
 
-### Deploy using forge
+### Run Anvil (Alternative to Ganache)
 ```
-PRIV_KEY=<PK> make create
+make g
+```
+
+### Deploy to local node, or testnet
+```
+make create
 ```
 
 # Interacting with Contract
 
-Note: ganache doesn't have support
+Note: ganache doesn't have support for EIP-1559 yet:
+https://github.com/trufflesuite/ganache/issues/939
 
-## Basic call
-Perform a call on an account without publishing a transaction.
+### Invoke arbitrary function
+Use this to invoke an arbitrary function from the contract
 ```
-make testDeployment
+make invoke
 ```
 
 # Gas Differences between struct and bool
