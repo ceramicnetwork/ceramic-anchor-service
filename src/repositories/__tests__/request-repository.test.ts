@@ -175,13 +175,14 @@ describe('request repository test', () => {
 
   test('Retries failed requests', async () => {
     const reqLimit = 5
-    const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+    const createdDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+    const updateDateNeedingRetry = new Date(Date.now() - PROCESSING_TIMEOUT - MS_IN_HOUR)
     const requests = await Promise.all([
       generateRequests(
         {
           status: RequestStatus.FAILED,
-          createdAt: dateDuringRetryPeriod,
-          updatedAt: new Date(Date.now() - MS_IN_HOUR),
+          createdAt: createdDuringRetryPeriod,
+          updatedAt: updateDateNeedingRetry,
           message: 'random',
         },
         1
@@ -189,8 +190,8 @@ describe('request repository test', () => {
       generateRequests(
         {
           status: RequestStatus.FAILED,
-          createdAt: dateDuringRetryPeriod,
-          updatedAt: new Date(Date.now() - MS_IN_HOUR),
+          createdAt: createdDuringRetryPeriod,
+          updatedAt: updateDateNeedingRetry,
         },
         2
       ),
@@ -214,13 +215,38 @@ describe('request repository test', () => {
 
   test('Will not retry expired failed requests', async () => {
     const reqLimit = 5
-    const dateBeforeRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW - MS_IN_HOUR)
+    const createdBeforeRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW - MS_IN_HOUR)
+    const updateDateNeedingRetry = new Date(Date.now() - PROCESSING_TIMEOUT - MS_IN_HOUR)
 
     const requests = await generateRequests(
       {
         status: RequestStatus.FAILED,
-        createdAt: dateBeforeRetryPeriod,
-        updatedAt: new Date(Date.now() - MS_IN_HOUR),
+        createdAt: createdBeforeRetryPeriod,
+        updatedAt: updateDateNeedingRetry,
+      },
+      reqLimit
+    )
+
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    await requestRepository.createRequests(requests)
+
+    const createdRequests = await getAllRequests(connection)
+    expect(requests.length).toEqual(createdRequests.length)
+
+    const next = await requestRepository.findNextToProcess(reqLimit)
+    expect(next.length).toEqual(0)
+  })
+
+  test('Will not retry expired failed requests that have been retried recently', async () => {
+    const reqLimit = 5
+    const createdDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+    const updateDateNotNeedingRetry = new Date(Date.now() - PROCESSING_TIMEOUT + MS_IN_HOUR)
+
+    const requests = await generateRequests(
+      {
+        status: RequestStatus.FAILED,
+        createdAt: createdDuringRetryPeriod,
+        updatedAt: updateDateNotNeedingRetry,
       },
       reqLimit
     )

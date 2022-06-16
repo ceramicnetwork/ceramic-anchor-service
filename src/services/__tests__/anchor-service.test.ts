@@ -22,8 +22,10 @@ import { AnchorStatus, toCID } from '@ceramicnetwork/common'
 import cloneDeep from 'lodash.clonedeep'
 import { Utils } from '../../utils.js'
 import { PubsubMessage } from '@ceramicnetwork/core'
+import { PROCESSING_TIMEOUT } from '../../repositories/request-repository.js'
 
 process.env.NODE_ENV = 'test'
+const MS_IN_HOUR = 1000 * 60 * 60
 
 class FakeEthereumBlockchainService {
   constructor() {}
@@ -43,6 +45,10 @@ async function createRequest(
   request.cid = cid.toString()
   request.streamId = streamId
   request.status = isFailed ? RequestStatus.FAILED : RequestStatus.PENDING
+  request.updatedAt = isFailed
+    ? new Date(Date.now() - PROCESSING_TIMEOUT - MS_IN_HOUR)
+    : new Date(Date.now())
+  request.createdAt = new Date(request.updatedAt.getTime() - MS_IN_HOUR)
   request.message = 'Request is pending.'
   request.pinned = true
   return request

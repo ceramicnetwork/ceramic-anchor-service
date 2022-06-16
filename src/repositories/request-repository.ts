@@ -90,21 +90,25 @@ export class RequestRepository extends Repository<Request> {
   }
 
   /**
-   * Gets all requests by status
+   * Gets all requests that are:
+   *   - PENDING
+   *   - FAILED due to network reasons and needs to be retried.
    */
   public async findNextToProcess(limit: number): Promise<Request[]> {
-    const earliestDateToRetry = new Date(Date.now() - FAILURE_RETRY_WINDOW)
+    const earliestCreationDate = new Date(Date.now() - FAILURE_RETRY_WINDOW)
+    const retryDeadline = new Date(Date.now() - PROCESSING_TIMEOUT)
 
-    return await this.connection
+    return this.connection
       .getRepository(Request)
       .createQueryBuilder('request')
       .orderBy('request.created_at', 'ASC')
       .where('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
       .orWhere(
-        'request.status = :failedStatus AND request.createdAt >= :earliestDateToRetry AND (request.message IS NULL OR request.message != :message)',
+        'request.status = :failedStatus AND request.createdAt >= :earliestCreationDate AND request.updatedAt < :retryDeadline AND (request.message IS NULL OR request.message != :message)',
         {
           failedStatus: RequestStatus.FAILED,
-          earliestDateToRetry: DateUtils.mixedDateToUtcDatetimeString(earliestDateToRetry),
+          earliestCreationDate: DateUtils.mixedDateToUtcDatetimeString(earliestCreationDate),
+          retryDeadline: DateUtils.mixedDateToUtcDatetimeString(retryDeadline),
           message: REQUEST_MESSAGES.conflictResolutionRejection,
         }
       )
