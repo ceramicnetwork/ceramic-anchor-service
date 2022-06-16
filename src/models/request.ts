@@ -39,3 +39,7 @@ export interface RequestUpdateFields {
   status?: RequestStatus
   pinned?: boolean
 }
+
+export const REQUEST_MESSAGES = {
+  conflictResolutionRejection: 'Request has failed. Updated was rejected by conflict resolution.',
+}

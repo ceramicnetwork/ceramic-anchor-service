@@ -10,7 +10,7 @@ import { Config } from 'node-config-ts'
 import { logger, logEvent } from '../logger/index.js'
 import { Utils } from '../utils.js'
 import { Anchor } from '../models/anchor.js'
-import { Request } from '../models/request.js'
+import { Request, REQUEST_MESSAGES } from '../models/request.js'
 import { Transaction } from '../models/transaction.js'
 import { AnchorRepository } from '../repositories/anchor-repository.js'
 import { RequestRepository } from '../repositories/request-repository.js'
@@ -428,7 +428,7 @@ export class AnchorService {
       await this.requestRepository.updateRequests(
         {
           status: RS.FAILED,
-          message: 'Request has failed. Updated was rejected by conflict resolution.',
+          message: REQUEST_MESSAGES.conflictResolutionRejection,
         },
         conflictingRequests
       )
