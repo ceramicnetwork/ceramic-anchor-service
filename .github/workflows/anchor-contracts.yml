@@ -4,8 +4,14 @@ on:
   push:
     branches: [ feat/casv2-anchor-contract ]
 
+env:
+  FOUNDRY_PROFILE: ci
+
 jobs:
   check:
+    strategy:
+      fail-fast: true
+
     name: Foundry project
     runs-on: ubuntu-latest
     steps:
@@ -18,10 +24,13 @@ jobs:
         with:
           version: nightly
 
-      - name: Run tests
+      - name: Run Forge build
         run: |
-        cd anchor-contract
-        forge test -vvvvv
+          forge --version
+          forge build --sizes
+        id: build
 
-      - name: Run snapshot
-        run: forge snapshot
+      - name: Run Forge tests
+        run: |
+          forge test -vvv
+        id: test
