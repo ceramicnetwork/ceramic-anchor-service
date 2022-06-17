@@ -2,6 +2,7 @@
   "mode": "@@APP_MODE",
   "port": "@@APP_PORT",
   "anchorControllerEnabled": "@@ANCHOR_CONTROLLER_ENABLED",
+  "schedulerIntervalMS": "@@SCHEDULER_INTERVAL_MS",
   "expirationPeriod": "@@ANCHOR_EXPIRATION_PERIOD",
   "merkleDepthLimit": "@@MERKLE_DEPTH_LIMIT",
   "minStreamCount": "@@MIN_STREAM_COUNT",
