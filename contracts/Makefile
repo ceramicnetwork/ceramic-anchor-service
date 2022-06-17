@@ -20,4 +20,4 @@ create:
 invoke:
 	cast call ${CONTRACT_ADDRESS} "${FUNC}" --rpc-url ${RPC}
 installDeps:
-	forge install --no-git openzeppelin/openzeppelin-contracts
+	forge install openzeppelin/openzeppelin-contracts
