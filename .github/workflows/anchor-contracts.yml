@@ -1,8 +1,8 @@
-name: anchor-contract-pipeline-test
+name: anchor-contract-pipeline
 
 on:
   push:
-    branches: [ feat/casv2-anchor-contract ]
+    branches: [ main, feat/casv2-anchor-contract ]
 
 env:
   FOUNDRY_PROFILE: ci
