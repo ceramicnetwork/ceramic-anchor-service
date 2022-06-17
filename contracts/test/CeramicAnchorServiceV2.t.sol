@@ -77,12 +77,4 @@ contract CeramicAnchorServiceV2Test is Test {
         casv2.anchor(_root);
     }
 
-    function testCASJs() public {
-        // string[] memory inputs = new string[3];
-        // inputs[0] = "npm";
-        // inputs[0] = "run";
-        // inputs[0] = "testffi";
-        // bytes memory res = vm.ffi(inputs);
-    }
-
 }
