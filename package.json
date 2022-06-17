@@ -38,6 +38,7 @@
     "runAnvil": "cd contracts; make a",
     "deployContract": "cd contracts; make create",
     "invokeContract": "cd contracts; make invoke",
+    "installContractDeps": "cd contracts; make installDeps",
     "release": "./node_modules/.bin/release-it --verbose --disable-metrics"
   },
   "husky": {

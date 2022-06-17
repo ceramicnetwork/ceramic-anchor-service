@@ -26,8 +26,8 @@ jobs:
 
       - name: Install Contract Dependencies
         run: |
-          forge install --no-git openzeppelin/openzeppelin-contracts
-        id: dependency
+          npm run installContractDeps
+        id: dependencies
 
       - name: Build Anchor Contracts
         run: |
