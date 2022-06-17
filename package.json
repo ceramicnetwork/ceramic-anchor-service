@@ -19,6 +19,12 @@
   "type": "module",
   "sideEffects": false,
   "scripts": {
+    "buildContract": "cd contracts; make build",
+    "testContract": "cd contracts; make t",
+    "runGanache": "cd contracts; make g",
+    "runAnvil": "cd contracts; make a",
+    "deployContract": "cd contracts; make create",
+    "invokeFunction": "cd contracts; make invoke",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --forceExit --detectOpenHandles --coverage --runInBand",
     "coverage": "./node_modules/.bin/nyc npm run test",
     "build": "./node_modules/.bin/tsc --project tsconfig.json",
