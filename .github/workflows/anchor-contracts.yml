@@ -24,6 +24,11 @@ jobs:
         with:
           version: nightly
 
+      - name: Install Contract Dependencies
+        run: |
+          forge install openzeppelin-contracts
+        id: test
+
       - name: Build Anchor Contracts
         run: |
           npm run buildContract
