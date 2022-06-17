@@ -33,12 +33,16 @@ class FakeEthereumBlockchainService {
   }
 }
 
-async function createRequest(streamId: string, ipfsService: IpfsService): Promise<Request> {
+async function createRequest(
+  streamId: string,
+  ipfsService: IpfsService,
+  isFailed = false
+): Promise<Request> {
   const cid = await ipfsService.storeRecord({})
   const request = new Request()
   request.cid = cid.toString()
   request.streamId = streamId
-  request.status = RequestStatus.PENDING
+  request.status = isFailed ? RequestStatus.FAILED : RequestStatus.PENDING
   request.message = 'Request is pending.'
   request.pinned = true
   return request
@@ -286,10 +290,16 @@ describe('anchor service', () => {
     // back-to-back.  So we do one pass to generate the first request for each stream, then another
     // to make the second requests.
     const requests = []
+    let numFailed = Math.floor(anchorLimit / 2)
     for (let i = 0; i < numStreams; i++) {
       const streamId = await ceramicService.generateBaseStreamID()
 
-      const request = await createRequest(streamId.toString(), ipfsService)
+      const request =
+        numFailed > 0
+          ? await createRequest(streamId.toString(), ipfsService, true)
+          : await createRequest(streamId.toString(), ipfsService)
+      numFailed = numFailed - 1
+
       await requestRepository.createOrUpdate(request)
       requests.push(request)
 

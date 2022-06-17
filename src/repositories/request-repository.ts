@@ -4,7 +4,7 @@ import TypeORM from 'typeorm'
 const { EntityRepository, Repository } = TypeORM
 import { DateUtils } from 'typeorm/util/DateUtils.js'
 export { Repository }
-import { Request, RequestUpdateFields } from '../models/request.js'
+import { Request, RequestUpdateFields, REQUEST_MESSAGES } from '../models/request.js'
 import { RequestStatus } from '../models/request-status.js'
 import { logEvent } from '../logger/index.js'
 import { Config } from 'node-config-ts'
@@ -17,6 +17,7 @@ import { inject, singleton } from 'tsyringe'
 const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
 export const MAX_ANCHORING_DELAY_MS = 1000 * 60 * 60 * 12 //12H
 export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 6 //6H
+export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
 
 @singleton()
 @EntityRepository(Request)
@@ -92,11 +93,21 @@ export class RequestRepository extends Repository<Request> {
    * Gets all requests by status
    */
   public async findNextToProcess(limit: number): Promise<Request[]> {
+    const earliestDateToRetry = new Date(Date.now() - FAILURE_RETRY_WINDOW)
+
     return await this.connection
       .getRepository(Request)
       .createQueryBuilder('request')
       .orderBy('request.created_at', 'ASC')
       .where('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
+      .orWhere(
+        'request.status = :failedStatus AND request.createdAt >= :earliestDateToRetry AND (request.message IS NULL OR request.message != :message)',
+        {
+          failedStatus: RequestStatus.FAILED,
+          earliestDateToRetry: DateUtils.mixedDateToUtcDatetimeString(earliestDateToRetry),
+          message: REQUEST_MESSAGES.conflictResolutionRejection,
+        }
+      )
       .limit(limit)
       .getMany()
   }
