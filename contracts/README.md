@@ -2,6 +2,9 @@
 Reference implementation of CIP-110:
 https://github.com/ceramicnetwork/CIP/blob/main/CIPs/CIP-110/CIP-110.md
 
+## References
+- https://github.com/foundry-rs/foundry
+
 # Contracts
 - CeramicAnchorServiceV2.sol
     - Core contract
