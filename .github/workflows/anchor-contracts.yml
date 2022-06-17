@@ -2,7 +2,7 @@ name: anchor-contract-pipeline
 
 on:
   push:
-    branches: [ '*' ]
+    branches: [ '**' ]
 
 env:
   FOUNDRY_PROFILE: ci
