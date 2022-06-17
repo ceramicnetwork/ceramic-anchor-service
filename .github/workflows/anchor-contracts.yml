@@ -24,13 +24,12 @@ jobs:
         with:
           version: nightly
 
-      - name: Run Forge build
+      - name: Build Anchor Contracts
         run: |
-          forge --version
-          forge build --sizes
+          npm run buildContract
         id: build
 
-      - name: Run Forge tests
+      - name: Run Anchor Contract Tests
         run: |
-          forge test -vvv
+          npm run testContract
         id: test
