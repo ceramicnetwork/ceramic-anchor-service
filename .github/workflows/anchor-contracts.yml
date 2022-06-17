@@ -27,7 +27,7 @@ jobs:
       - name: Install Contract Dependencies
         run: |
           forge install openzeppelin-contracts
-        id: test
+        id: dependency
 
       - name: Build Anchor Contracts
         run: |
