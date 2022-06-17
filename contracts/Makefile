@@ -19,5 +19,5 @@ create:
 	forge create --legacy CeramicAnchorServiceV2 --contracts src/CeramicAnchorServiceV2.sol --private-key ${PRIV_KEY} --rpc-url ${RPC}
 invoke:
 	cast call ${CONTRACT_ADDRESS} "${FUNC}" --rpc-url ${RPC}
-install:
+installDeps:
 	forge install --no-git openzeppelin/openzeppelin-contracts
