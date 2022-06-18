@@ -26,7 +26,7 @@ jobs:
 
       - name: Install Contract Dependencies
         run: |
-          npm run installDeps
+          npm run installContractDeps
         id: dependencies
 
       - name: Build Anchor Contracts
