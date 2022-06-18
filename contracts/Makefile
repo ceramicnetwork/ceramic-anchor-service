@@ -20,5 +20,7 @@ create:
 invoke:
 	cast call ${CONTRACT_ADDRESS} "${FUNC}" --rpc-url ${RPC}
 installDeps:
-	forge install foundry-rs/forge-std
+	forge install foundry-rs/forge-std --no-git
 	forge install openzeppelin/openzeppelin-contracts --no-git
+clean:
+	rm -rf cache/ out/ lib/

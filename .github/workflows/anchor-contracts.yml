@@ -24,6 +24,11 @@ jobs:
         with:
           version: nightly
 
+      - name: Install Contract Dependencies
+        run: |
+          npm run installDeps
+        id: dependencies
+
       - name: Build Anchor Contracts
         run: |
           npm run buildContract
