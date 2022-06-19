@@ -37,6 +37,18 @@ type RequestGroups = {
   acceptedRequests: Request[]
 }
 
+type AnchorSummary = {
+  acceptedRequestsCount: number
+  alreadyAnchoredRequestsCount: number
+  anchoredRequestsCount: number
+  conflictingRequestCount: number
+  failedRequestsCount: number
+  failedToPublishAnchorCommitCount: number
+  unprocessedRequestCount: number
+  candidateCount: number
+  anchorCount: number
+}
+
 /**
  * Anchors CIDs to blockchain
  */
@@ -61,39 +73,6 @@ export class AnchorService {
   }
 
   /**
-   * If there are more pending requests than can fit into a single merkle tree (based on
-   * config.merkleDepthLimit), then triggers an anchor, otherwise does nothing.
-   * @returns whether or not an anchor was performed
-   */
-  public async anchorIfTooManyPendingRequests(): Promise<boolean> {
-    if (this.config.merkleDepthLimit == 0 || this.config.merkleDepthLimit == undefined) {
-      // If there's no limit to the size of an anchor, then there's no such thing as "too many"
-      // pending requests, and we can always wait for our next scheduled anchor.
-      return false
-    }
-
-    const nodeLimit = Math.pow(2, this.config.merkleDepthLimit)
-    const requestLimit = 2 * nodeLimit
-    const requests: Request[] = await this.requestRepository.findNextToProcess(requestLimit)
-    if (requests.length > nodeLimit) {
-      logger.imp(
-        'There are at least ' +
-          requests.length +
-          ' pending anchor requests, which is more ' +
-          'than can fit into a single anchor batch given our configured merkleDepthLimit of ' +
-          this.config.merkleDepthLimit +
-          ' (' +
-          nodeLimit +
-          ' requests). Triggering an anchor early to ' +
-          'drain our queue'
-      )
-      await this._anchorRequests(requests)
-      return true
-    }
-    return false
-  }
-
-  /**
    * Creates anchors for client requests
    */
   public async anchorRequests(): Promise<void> {
@@ -115,7 +94,14 @@ export class AnchorService {
     const requestLimit = streamLimit * 100
     logger.debug(`Loading requests from the database`)
     const requests: Request[] = await this.requestRepository.findNextToProcess(requestLimit)
-    await this._anchorRequests(requests)
+    const anchorSummary = await this._anchorRequests(requests)
+    logEvent.anchor({
+      type: 'anchorRequests',
+      ...anchorSummary,
+    })
+
+    // Sleep 5 seconds before exiting the process to give time for the logs to flush.
+    await Utils.delay(5000)
   }
 
   public async garbageCollectPinnedStreams(): Promise<void> {
@@ -123,7 +109,7 @@ export class AnchorService {
     await this._garbageCollect(requests)
   }
 
-  private async _anchorRequests(requests: Request[]): Promise<void> {
+  private async _anchorRequests(requests: Request[]): Promise<AnchorSummary> {
     if (requests.length === 0) {
       logger.debug('No pending CID requests found. Skipping anchor.')
       return
@@ -143,6 +129,7 @@ export class AnchorService {
     )
     if (candidates.length === 0) {
       logger.imp('No candidates found. Skipping anchor.')
+
       if (process.env.NODE_ENV !== 'dev') {
         logger.debug(
           'Sleeping 10 minutes before shutting down to prevent constantly running empty anchor batches'
@@ -150,7 +137,17 @@ export class AnchorService {
         await Utils.delay(1000 * 60 * 10)
         logger.debug(`Sleep complete, shutting down`)
       }
-      return
+      return {
+        acceptedRequestsCount: groupedRequests.acceptedRequests.length,
+        alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
+        anchoredRequestsCount: 0,
+        conflictingRequestCount: groupedRequests.conflictingRequests.length,
+        failedRequestsCount: groupedRequests.failedRequests.length,
+        failedToPublishAnchorCommitCount: 0,
+        unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
+        candidateCount: candidates.length,
+        anchorCount: 0,
+      }
     }
 
     logger.imp(`Creating Merkle tree from ${candidates.length} selected streams`)
@@ -175,8 +172,7 @@ export class AnchorService {
     const numAnchoredRequests = await this._persistAnchorResult(anchors, candidates)
 
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
-    logEvent.anchor({
-      type: 'anchorRequests',
+    return {
       acceptedRequestsCount: groupedRequests.acceptedRequests.length,
       alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
       anchoredRequestsCount: numAnchoredRequests,
@@ -186,10 +182,7 @@ export class AnchorService {
       unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
       candidateCount: candidates.length,
       anchorCount: anchors.length,
-    })
-
-    // Sleep 5 seconds before exiting the process to give time for the logs to flush.
-    await Utils.delay(5000)
+    }
   }
 
   private async _garbageCollect(requests: Request[]): Promise<void> {
