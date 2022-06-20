@@ -1,0 +1,40 @@
+name: anchor-contract-pipeline
+
+on:
+  push:
+    branches: [ '**' ]
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  check:
+    strategy:
+      fail-fast: true
+
+    name: Anchor Contract Pipeline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install Contract Dependencies
+        run: |
+          npm run installContractDeps
+        id: dependencies
+
+      - name: Build Anchor Contracts
+        run: |
+          npm run buildContract
+        id: build
+
+      - name: Run Anchor Contract Tests
+        run: |
+          npm run testContract
+        id: test
