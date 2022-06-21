@@ -4,7 +4,7 @@ import { container } from 'tsyringe'
 
 import { Request } from '../../models/request.js'
 import { RequestStatus } from '../../models/request-status.js'
-import { AnchorService } from '../anchor-service.js'
+import { AnchorService, READY_TIMEOUT } from '../anchor-service.js'
 
 import { DBConnection } from './db-connection.js'
 
@@ -13,7 +13,12 @@ import { IpfsService } from '../ipfs-service.js'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { config, Config } from 'node-config-ts'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
-import { MockCeramicService, MockIpfsClient } from '../../test-utils.js'
+import {
+  MockCeramicService,
+  MockIpfsClient,
+  generateRequests,
+  MockEventProducerService,
+} from '../../test-utils.js'
 import type { Connection } from 'typeorm'
 import { CID } from 'multiformats/cid'
 import { Candidate } from '../../merkle/merkle-objects.js'
@@ -94,13 +99,15 @@ describe('anchor service', () => {
   let ipfsService: IpfsService
   let ceramicService: MockCeramicService
   let connection: Connection
+  const merkleDepthLimit = 3
+  const streamLimit = Math.pow(2, merkleDepthLimit)
 
   beforeAll(async () => {
     const { IpfsServiceImpl } = await import('../ipfs-service.js')
 
     connection = await DBConnection.create()
 
-    container.registerInstance('config', config)
+    container.registerInstance('config', Object.assign({}, config, { merkleDepthLimit }))
     container.registerInstance('dbConnection', connection)
     container.registerSingleton('anchorRepository', AnchorRepository)
     container.registerSingleton('requestRepository', RequestRepository)
@@ -112,6 +119,7 @@ describe('anchor service', () => {
     container.register('ceramicService', {
       useValue: ceramicService,
     })
+    container.registerSingleton('eventProducerService', MockEventProducerService)
     container.registerSingleton('anchorService', AnchorService)
   })
 
@@ -119,6 +127,7 @@ describe('anchor service', () => {
     await DBConnection.clear(connection)
     mockIpfsClient.reset()
     ceramicService.reset()
+    container.resolve<MockEventProducerService>('eventProducerService').reset()
   })
 
   afterAll(async () => {
@@ -775,5 +784,123 @@ describe('anchor service', () => {
       // No additional calls to unpinStream
       expect(unpinStreamSpy).toHaveBeenCalledTimes(2)
     })
+  })
+
+  describe('createAnchorEventIfReady', () => {
+    // does not emit if ready requests exist and not timed out
+
+    test('Does not emit if ready requests exist but they are not timed out', async () => {
+      const updatedTooLongAgo = new Date(Date.now() - READY_TIMEOUT - 1000)
+
+      const originalRequests = await generateRequests(
+        {
+          status: RequestStatus.READY,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        3
+      )
+
+      const requestRepository = container.resolve<RequestRepository>('requestRepository')
+      const requestRepositorySpy = jest.spyOn(requestRepository, 'updateRequests')
+
+      try {
+        await requestRepository.createRequests(originalRequests)
+
+        const anchorService = container.resolve<AnchorService>('anchorService')
+        await anchorService.createAnchorEventIfReady()
+
+        expect(requestRepositorySpy).toHaveBeenCalledTimes(0)
+
+        const eventProducerService =
+          container.resolve<MockEventProducerService>('eventProducerService')
+        expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(0)
+      } finally {
+        requestRepositorySpy.mockRestore()
+      }
+    })
+
+    test('Emits an event if ready requests exist but they have timed out', async () => {
+      const updatedTooLongAgo = new Date(Date.now() - READY_TIMEOUT - 1000)
+
+      const originalRequests = await generateRequests(
+        {
+          status: RequestStatus.READY,
+          createdAt: updatedTooLongAgo,
+          updatedAt: updatedTooLongAgo,
+        },
+        3,
+        false
+      )
+
+      const requestRepository = container.resolve<RequestRepository>('requestRepository')
+      const requestRepositorySpy = jest.spyOn(requestRepository, 'updateRequests')
+
+      try {
+        await requestRepository.createRequests(originalRequests)
+
+        const anchorService = container.resolve<AnchorService>('anchorService')
+        await anchorService.createAnchorEventIfReady()
+
+        expect(requestRepositorySpy).toHaveBeenCalledTimes(1)
+
+        const updatedRequests = await requestRepository.findByStatus(RequestStatus.READY)
+        expect(updatedRequests.every(({ updatedAt }) => updatedAt > updatedTooLongAgo)).toEqual(
+          true
+        )
+
+        const eventProducerService =
+          container.resolve<MockEventProducerService>('eventProducerService')
+        expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(1)
+      } finally {
+        requestRepositorySpy.mockRestore()
+      }
+    })
+
+    test('does not emit if no requests were updated to ready', async () => {
+      // not enough request generated
+      const originalRequests = await generateRequests(
+        {
+          status: RequestStatus.PENDING,
+        },
+        streamLimit - 1
+      )
+
+      const requestRepository = container.resolve<RequestRepository>('requestRepository')
+      await requestRepository.createRequests(originalRequests)
+
+      const anchorService = container.resolve<AnchorService>('anchorService')
+      await anchorService.createAnchorEventIfReady()
+
+      const eventProducerService =
+        container.resolve<MockEventProducerService>('eventProducerService')
+      expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(0)
+    })
+
+    test('emits if requests were updated to ready', async () => {
+      const originalRequests = await generateRequests(
+        {
+          status: RequestStatus.PENDING,
+        },
+        streamLimit
+      )
+
+      const requestRepository = container.resolve<RequestRepository>('requestRepository')
+      await requestRepository.createRequests(originalRequests)
+
+      const anchorService = container.resolve<AnchorService>('anchorService')
+      await anchorService.createAnchorEventIfReady()
+
+      const eventProducerService =
+        container.resolve<MockEventProducerService>('eventProducerService')
+      expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(1)
+
+      const updatedRequests = await requestRepository.findByStatus(RequestStatus.READY)
+      expect(updatedRequests.map(({ cid }) => cid).sort()).toEqual(
+        originalRequests.map(({ cid }) => cid).sort()
+      )
+    })
+
+    // happy path
   })
 })
