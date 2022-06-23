@@ -8,6 +8,7 @@ export interface EventProducerService {
    * Emits an anchor event used to trigger an anchor
    */
   emitAnchorEvent(): Promise<void>
+  destroy(): void
 }
 
 @singleton()
@@ -27,23 +28,16 @@ export class SQSEventProducerService implements EventProducerService {
    * Emits an anchor event by sending a message to the configured SQS
    */
   public async emitAnchorEvent(): Promise<void> {
-    try {
-      const data = await this.sqsClient.send(
-        new SendMessageCommand({
-          MessageAttributes: {
-            Title: {
-              DataType: 'String',
-              StringValue: 'Anchor',
-            },
-          },
-          MessageBody: 'A Steph test',
-          MessageDeduplicationId: 'Steph1',
-          MessageGroupId: 'StephsGroup',
-          QueueUrl: 'https://sqs.us-east-2.amazonaws.com/967314784947/ceramic-ci-tnet.fifo',
-        })
-      )
-    } catch (err) {
-      console.log('Error', err)
-    }
+    await this.sqsClient.send(
+      new SendMessageCommand({
+        MessageBody: new Date().toString(), // change to date (uuid)
+        MessageGroupId: 'anchor',
+        QueueUrl: process.env.AWS_QUEUE_URL,
+      })
+    )
+  }
+
+  public destroy(): void {
+    this.sqsClient.destroy()
   }
 }

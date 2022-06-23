@@ -135,6 +135,8 @@ export class MockEventProducerService implements EventProducerService {
   reset() {
     this.emitAnchorEvent = jest.fn(() => Promise.resolve())
   }
+
+  destroy(): void {}
 }
 
 export async function generateRequests(

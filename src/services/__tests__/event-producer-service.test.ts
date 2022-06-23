@@ -9,8 +9,12 @@ describe('event service', () => {
     container.registerSingleton('eventProducerService', SQSEventProducerService)
   })
 
-  test('stuff', async () => {
+  afterAll(() => {
+    container.resolve<EventProducerService>('eventProducerService').destroy()
+  })
+
+  test('Can submit an anchor event', async () => {
     const eventProducerService = container.resolve<EventProducerService>('eventProducerService')
-    // await eventProducerService.emitAnchorEvent()
+    await eventProducerService.emitAnchorEvent()
   })
 })
