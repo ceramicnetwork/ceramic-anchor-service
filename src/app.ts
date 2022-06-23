@@ -65,7 +65,6 @@ export class CeramicAnchorApp {
     container.registerSingleton('anchorService', AnchorService)
     container.registerSingleton('ceramicService', CeramicServiceImpl)
     container.registerSingleton('ipfsService', IpfsServiceImpl)
-
     container.registerSingleton('schedulerService', SchedulerService)
 
     // register controllers
