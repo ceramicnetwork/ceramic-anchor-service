@@ -2,14 +2,7 @@ import 'reflect-metadata'
 import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs'
-
-export interface EventProducerService {
-  /**
-   * Emits an anchor event used to trigger an anchor
-   */
-  emitAnchorEvent(): Promise<void>
-  destroy(): void
-}
+import { EventProducerService } from '../event-producer-service.js'
 
 @singleton()
 export class SQSEventProducerService implements EventProducerService {
@@ -37,6 +30,9 @@ export class SQSEventProducerService implements EventProducerService {
     )
   }
 
+  /**
+   * Destroy underlying resources
+   */
   public destroy(): void {
     this.sqsClient.destroy()
   }

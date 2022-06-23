@@ -16,7 +16,7 @@ import { AnchorRepository } from '../repositories/anchor-repository.js'
 import { RequestRepository } from '../repositories/request-repository.js'
 
 import { IpfsService } from './ipfs-service.js'
-import { EventProducerService } from './event-producer-service.js'
+import { EventProducerService } from './event-producer/event-producer-service.js'
 import { CeramicService } from './ceramic-service.js'
 import { BlockchainService } from './blockchain/blockchain-service.js'
 import { inject, singleton } from 'tsyringe'

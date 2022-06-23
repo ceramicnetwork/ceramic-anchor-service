@@ -11,7 +11,7 @@ import { IpfsServiceImpl } from './services/ipfs-service.js'
 import { AnchorService } from './services/anchor-service.js'
 import { SchedulerService } from './services/scheduler-service.js'
 import { BlockchainService } from './services/blockchain/blockchain-service.js'
-import { SQSEventProducerService } from './services/event-producer-service.js'
+import { SQSEventProducerService } from './services/event-producer/sqs/sqs-event-producer-service.js'
 
 import { AnchorRepository } from './repositories/anchor-repository.js'
 import { RequestRepository } from './repositories/request-repository.js'
@@ -62,10 +62,11 @@ export class CeramicAnchorApp {
       ),
     })
     container.registerSingleton('eventProducerService', SQSEventProducerService)
-    container.registerSingleton('ipfsService', IpfsServiceImpl)
-    container.registerSingleton('ceramicService', CeramicServiceImpl)
-    container.registerSingleton('schedulerService', SchedulerService)
     container.registerSingleton('anchorService', AnchorService)
+    container.registerSingleton('ceramicService', CeramicServiceImpl)
+    container.registerSingleton('ipfsService', IpfsServiceImpl)
+
+    container.registerSingleton('schedulerService', SchedulerService)
 
     // register controllers
     container.registerSingleton('healthcheckController', HealthcheckController)

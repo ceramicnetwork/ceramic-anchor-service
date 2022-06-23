@@ -2,7 +2,7 @@ import { CID } from 'multiformats/cid'
 import { create } from 'multiformats/hashes/digest'
 
 import { CeramicService } from './services/ceramic-service.js'
-import { EventProducerService } from './services/event-producer-service.js'
+import { EventProducerService } from './services/event-producer/event-producer-service.js'
 import { IpfsService } from './services/ipfs-service.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'

@@ -787,11 +787,8 @@ describe('anchor service', () => {
   })
 
   describe('createAnchorEventIfReady', () => {
-    // does not emit if ready requests exist and not timed out
-
     test('Does not emit if ready requests exist but they are not timed out', async () => {
-      const updatedTooLongAgo = new Date(Date.now() - READY_TIMEOUT - 1000)
-
+      // Ready requests that have not timed out (created now)
       const originalRequests = await generateRequests(
         {
           status: RequestStatus.READY,
@@ -802,7 +799,7 @@ describe('anchor service', () => {
       )
 
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
-      const requestRepositorySpy = jest.spyOn(requestRepository, 'updateRequests')
+      const requestRepositoryUpdateSpy = jest.spyOn(requestRepository, 'updateRequests')
 
       try {
         await requestRepository.createRequests(originalRequests)
@@ -810,19 +807,19 @@ describe('anchor service', () => {
         const anchorService = container.resolve<AnchorService>('anchorService')
         await anchorService.createAnchorEventIfReady()
 
-        expect(requestRepositorySpy).toHaveBeenCalledTimes(0)
+        expect(requestRepositoryUpdateSpy).toHaveBeenCalledTimes(0)
 
         const eventProducerService =
           container.resolve<MockEventProducerService>('eventProducerService')
         expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(0)
       } finally {
-        requestRepositorySpy.mockRestore()
+        requestRepositoryUpdateSpy.mockRestore()
       }
     })
 
     test('Emits an event if ready requests exist but they have timed out', async () => {
       const updatedTooLongAgo = new Date(Date.now() - READY_TIMEOUT - 1000)
-
+      // Ready requests that have timed out (created too long ago)
       const originalRequests = await generateRequests(
         {
           status: RequestStatus.READY,
@@ -834,7 +831,7 @@ describe('anchor service', () => {
       )
 
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
-      const requestRepositorySpy = jest.spyOn(requestRepository, 'updateRequests')
+      const requestRepositoryUpdateSpy = jest.spyOn(requestRepository, 'updateRequests')
 
       try {
         await requestRepository.createRequests(originalRequests)
@@ -842,7 +839,7 @@ describe('anchor service', () => {
         const anchorService = container.resolve<AnchorService>('anchorService')
         await anchorService.createAnchorEventIfReady()
 
-        expect(requestRepositorySpy).toHaveBeenCalledTimes(1)
+        expect(requestRepositoryUpdateSpy).toHaveBeenCalledTimes(1)
 
         const updatedRequests = await requestRepository.findByStatus(RequestStatus.READY)
         expect(updatedRequests.every(({ updatedAt }) => updatedAt > updatedTooLongAgo)).toEqual(
@@ -853,7 +850,7 @@ describe('anchor service', () => {
           container.resolve<MockEventProducerService>('eventProducerService')
         expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(1)
       } finally {
-        requestRepositorySpy.mockRestore()
+        requestRepositoryUpdateSpy.mockRestore()
       }
     })
 
@@ -900,7 +897,5 @@ describe('anchor service', () => {
         originalRequests.map(({ cid }) => cid).sort()
       )
     })
-
-    // happy path
   })
 })
