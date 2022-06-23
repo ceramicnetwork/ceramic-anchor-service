@@ -2,7 +2,7 @@
   "mode": "bundled",
   "port": 8081,
   "anchorControllerEnabled": false,
-  "cronExpression": "0/5 * * * ? *",
+  "schedulerIntervalMS": 300000,
   "expirationPeriod": 5400000,
   "merkleDepthLimit": 0,
   "minStreamCount": 1,

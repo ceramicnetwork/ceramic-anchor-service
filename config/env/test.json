@@ -1,5 +1,5 @@
 {
-  "cronExpression": "*/10 * * * * *",
+  "schedulerIntervalMS": 10000,
   "expirationPeriod": 0,
   "ceramic": {
     "validateRecords": false
