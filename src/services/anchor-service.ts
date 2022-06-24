@@ -591,6 +591,10 @@ export class AnchorService {
       candidate.failAllRequests()
       return
     }
+    console.log(
+      '🚀 ~ file: anchor-service.ts ~ line 589 ~ AnchorService ~ _loadCandidate ~ stream',
+      stream.content
+    )
 
     // Now filter out requests from the Candidate that are already present in the stream log
     const missingRequests = candidate.requests.filter((req) => {
