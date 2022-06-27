@@ -19,7 +19,7 @@ import { config } from 'node-config-ts'
 import cloneDeep from 'lodash.clonedeep'
 import { TileDocument } from '@ceramicnetwork/stream-tile'
 import { filter, take } from 'rxjs/operators'
-import { firstValueFrom } from 'rxjs'
+import { firstValueFrom, timeout, throwError } from 'rxjs'
 import { DID } from 'dids'
 import { Ed25519Provider } from 'key-did-provider-ed25519'
 import * as sha256 from '@stablelib/sha256'
@@ -154,6 +154,24 @@ async function waitForAnchor(stream: Stream): Promise<void> {
       take(1)
     )
     .toPromise()
+}
+
+async function waitForUpdate(stream: Stream, update: CID, timeoutMS = 30 * 1000): Promise<void> {
+  await firstValueFrom(
+    stream.pipe(
+      filter((state) => {
+        return state.log[state.log.length - 1].cid.toString() === update.toString()
+      }),
+      timeout({
+        each: timeoutMS,
+        with: () =>
+          throwError(
+            () =>
+              new Error(`Timeout waiting for ceramic to receive update cid ${update.toString()}`)
+          ),
+      })
+    )
+  )
 }
 
 describe('Ceramic Integration Test', () => {
@@ -390,13 +408,7 @@ describe('Ceramic Integration Test', () => {
 
         // Make sure that the ceramic CAS has received the newest version
         const casDocRef = await casCeramic1.loadStream(doc1.id)
-        await firstValueFrom(
-          casDocRef.pipe(
-            filter((state) => {
-              return state.next?.content.foo === updatedContent.foo
-            })
-          )
-        )
+        await waitForUpdate(casDocRef, doc2.tip)
 
         // Make sure that cas1 updates the newest version that was created on ceramic2, even though
         // the request that ceramic1 made against cas1 was for an older version.
@@ -438,13 +450,7 @@ describe('Ceramic Integration Test', () => {
 
         // Make sure that the ceramic CAS has received the newest version
         const casDocRef = await casCeramic1.loadStream(doc1.id)
-        await firstValueFrom(
-          casDocRef.pipe(
-            filter((state) => {
-              return state.next?.content.foo === updatedContent.foo
-            })
-          )
-        )
+        await waitForUpdate(casDocRef, doc2.tip)
 
         await anchorUpdate(doc1, cas1)
 
