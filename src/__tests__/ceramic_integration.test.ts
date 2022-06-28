@@ -429,7 +429,7 @@ describe('Ceramic Integration Test', () => {
       60 * 1000 * 2
     )
 
-    test.only('Anchor discovered through pubsub', async () => {
+    test('Anchor discovered through pubsub', async () => {
       jest.setTimeout(60 * 1000 * 2)
       // In ceramic the stream waits for a successful anchor by polling the request endpoint of the CAS.
       // We alter the CAS' returned request anchor status so that it is always pending.
