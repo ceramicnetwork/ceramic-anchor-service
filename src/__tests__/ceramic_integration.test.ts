@@ -147,28 +147,36 @@ async function anchorUpdate(stream: Stream, anchorService: CeramicAnchorApp): Pr
   await waitForAnchor(stream)
 }
 
-async function waitForAnchor(stream: Stream): Promise<void> {
-  await stream
-    .pipe(
-      filter((state) => [AnchorStatus.ANCHORED, AnchorStatus.FAILED].includes(state.anchorStatus)),
-      take(1)
-    )
-    .toPromise()
-}
-
-async function waitForUpdate(stream: Stream, update: CID, timeoutMS = 30 * 1000): Promise<void> {
+async function waitForAnchor(stream: Stream, timeoutMS = 30 * 1000): Promise<void> {
   await firstValueFrom(
     stream.pipe(
-      filter((state) => {
-        return state.log[state.log.length - 1].cid.toString() === update.toString()
+      timeout({
+        each: timeoutMS,
+        with: () =>
+          throwError(
+            () => new Error(`Timeout waiting for stream ${stream.id.toString()} to become anchored`)
+          ),
       }),
+      filter((state) => [AnchorStatus.ANCHORED, AnchorStatus.FAILED].includes(state.anchorStatus))
+    )
+  )
+}
+
+async function waitForTip(stream: Stream, tip: CID, timeoutMS = 30 * 1000): Promise<void> {
+  await firstValueFrom(
+    stream.pipe(
       timeout({
         each: timeoutMS,
         with: () =>
           throwError(
             () =>
-              new Error(`Timeout waiting for ceramic to receive update cid ${update.toString()}`)
+              new Error(
+                `Timeout waiting for ceramic to receive cid ${tip.toString()} for stream ${stream.id.toString()}`
+              )
           ),
+      }),
+      filter((state) => {
+        return state.log[state.log.length - 1].cid.toString() === tip.toString()
       })
     )
   )
@@ -408,7 +416,7 @@ describe('Ceramic Integration Test', () => {
 
         // Make sure that the ceramic CAS has received the newest version
         const casDocRef = await casCeramic1.loadStream(doc1.id)
-        await waitForUpdate(casDocRef, doc2.tip)
+        await waitForTip(casDocRef, doc2.tip)
 
         // Make sure that cas1 updates the newest version that was created on ceramic2, even though
         // the request that ceramic1 made against cas1 was for an older version.
@@ -450,7 +458,7 @@ describe('Ceramic Integration Test', () => {
 
         // Make sure that the ceramic CAS has received the newest version
         const casDocRef = await casCeramic1.loadStream(doc1.id)
-        await waitForUpdate(casDocRef, doc2.tip)
+        await waitForTip(casDocRef, doc2.tip)
 
         await anchorUpdate(doc1, cas1)
 
