@@ -1,4 +1,5 @@
 import 'reflect-metadata'
+import 'dotenv/config'
 import { container } from 'tsyringe'
 import { config } from 'node-config-ts'
 import { EventProducerService } from '../event-producer/event-producer-service.js'
