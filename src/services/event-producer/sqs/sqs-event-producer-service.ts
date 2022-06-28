@@ -26,7 +26,7 @@ export class SQSEventProducerService implements EventProducerService {
       new SendMessageCommand({
         MessageBody: uuidv4().toString(),
         MessageGroupId: 'anchor',
-        QueueUrl: process.env.AWS_QUEUE_URL,
+        QueueUrl: process.env.AWS_SQS_URL,
       })
     )
   }
