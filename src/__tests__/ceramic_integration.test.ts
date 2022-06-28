@@ -150,14 +150,14 @@ async function anchorUpdate(stream: Stream, anchorService: CeramicAnchorApp): Pr
 async function waitForAnchor(stream: Stream, timeoutMS = 30 * 1000): Promise<void> {
   await firstValueFrom(
     stream.pipe(
+      filter((state) => [AnchorStatus.ANCHORED, AnchorStatus.FAILED].includes(state.anchorStatus)),
       timeout({
         each: timeoutMS,
         with: () =>
           throwError(
             () => new Error(`Timeout waiting for stream ${stream.id.toString()} to become anchored`)
           ),
-      }),
-      filter((state) => [AnchorStatus.ANCHORED, AnchorStatus.FAILED].includes(state.anchorStatus))
+      })
     )
   )
 }
@@ -165,6 +165,9 @@ async function waitForAnchor(stream: Stream, timeoutMS = 30 * 1000): Promise<voi
 async function waitForTip(stream: Stream, tip: CID, timeoutMS = 30 * 1000): Promise<void> {
   await firstValueFrom(
     stream.pipe(
+      filter((state) => {
+        return state.log[state.log.length - 1].cid.toString() === tip.toString()
+      }),
       timeout({
         each: timeoutMS,
         with: () =>
@@ -174,9 +177,6 @@ async function waitForTip(stream: Stream, tip: CID, timeoutMS = 30 * 1000): Prom
                 `Timeout waiting for ceramic to receive cid ${tip.toString()} for stream ${stream.id.toString()}`
               )
           ),
-      }),
-      filter((state) => {
-        return state.log[state.log.length - 1].cid.toString() === tip.toString()
       })
     )
   )
