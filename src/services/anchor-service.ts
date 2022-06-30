@@ -236,17 +236,14 @@ export class AnchorService {
       await this.requestRepository.updateRequests({ status: RS.READY }, readyRequests)
 
       // TODO: alert we are going to retry
+    } else {
+      const streamLimit = Math.pow(2, this.config.merkleDepthLimit)
 
-      await this.eventProducerService.emitAnchorEvent()
+      const updatedRequests = await this.requestRepository.findAndMarkReady(streamLimit)
 
-      return
-    }
-    const streamLimit = Math.pow(2, this.config.merkleDepthLimit)
-
-    const updatedRequests = await this.requestRepository.findAndMarkReady(streamLimit)
-
-    if (updatedRequests.length === 0) {
-      return
+      if (updatedRequests.length === 0) {
+        return
+      }
     }
 
     await this.eventProducerService.emitAnchorEvent()

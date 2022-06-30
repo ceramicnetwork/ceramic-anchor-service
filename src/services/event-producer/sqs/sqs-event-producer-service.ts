@@ -9,13 +9,7 @@ import { v4 as uuidv4 } from 'uuid'
 export class SQSEventProducerService implements EventProducerService {
   private readonly sqsClient: SQSClient
   constructor(@inject('config') private config?: Config) {
-    this.sqsClient = new SQSClient({
-      region: process.env.AWS_REGION,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-      },
-    })
+    this.sqsClient = new SQSClient({})
   }
 
   /**
