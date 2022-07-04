@@ -168,7 +168,7 @@ export class RequestRepository extends Repository<Request> {
    */
   public async findAndMarkReady(streamLimit: number): Promise<Request[]> {
     const anchoringDeadline = new Date(Date.now() - MAX_ANCHORING_DELAY_MS)
-    const retryDeadline = new Date(Date.now() - PROCESSING_TIMEOUT)
+    const processingDeadline = new Date(Date.now() - PROCESSING_TIMEOUT)
     const isolationLevel =
       this.connection.options.type === 'sqlite' ? 'SERIALIZABLE' : 'REPEATABLE READ'
 
@@ -179,9 +179,9 @@ export class RequestRepository extends Repository<Request> {
         .getRepository(Request)
         .createQueryBuilder('request')
         .select(['request.streamId', 'request.createdAt'])
-        .where('request.status = :processingStatus AND request.updatedAt < :retryDeadline', {
+        .where('request.status = :processingStatus AND request.updatedAt < :processingDeadline', {
           processingStatus: RequestStatus.PROCESSING,
-          retryDeadline: DateUtils.mixedDateToUtcDatetimeString(retryDeadline),
+          processingDeadline: DateUtils.mixedDateToUtcDatetimeString(processingDeadline),
         })
         .orWhere('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
         .orderBy('MIN(request.createdAt)', 'ASC')
@@ -191,7 +191,7 @@ export class RequestRepository extends Repository<Request> {
 
       // Do not anchor if the earliest request isn't expired and there isn't enough streams
       const earliestIsNotExpired =
-        streamsToAnchor.length > 0 && streamsToAnchor[0].createdAt > anchoringDeadline
+        streamsToAnchor.length > 0 && streamsToAnchor[0].createdAt >= anchoringDeadline
       if (earliestIsNotExpired && streamsToAnchor.length < streamLimit) {
         return []
       }
@@ -221,5 +221,26 @@ export class RequestRepository extends Repository<Request> {
 
       return requests
     })
+
+    // TODO: add alert here that we marked expired and processing requests as READY
+  }
+
+  /**
+   * Finds requests of a given status
+   */
+  public async findByStatus(
+    status: RequestStatus,
+    manager?: EntityManager,
+    limit?: number
+  ): Promise<Request[]> {
+    manager = manager || this.connection.manager
+
+    return manager
+      .getRepository(Request)
+      .createQueryBuilder('request')
+      .where('request.status = :status', { status })
+      .orderBy('request.updated_at', 'ASC')
+      .limit(limit)
+      .getMany()
   }
 }

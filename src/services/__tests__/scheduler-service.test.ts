@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { SchedulerService } from '../scheduler-service'
+import { SchedulerService } from '../scheduler-service.js'
 import { config } from 'node-config-ts'
 import { container } from 'tsyringe'
 import { jest } from '@jest/globals'

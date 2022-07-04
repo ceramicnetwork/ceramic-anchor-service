@@ -6,6 +6,7 @@
   "expirationPeriod": "@@ANCHOR_EXPIRATION_PERIOD",
   "merkleDepthLimit": "@@MERKLE_DEPTH_LIMIT",
   "minStreamCount": "@@MIN_STREAM_COUNT",
+  "awsSqsUrl": "@@AWS_SQS_URL",
   "ipfsConfig": {
     "url": "@@IPFS_API_URL",
     "pubsubTopic": "@@IPFS_PUBSUB_TOPIC",

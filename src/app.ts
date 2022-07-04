@@ -11,6 +11,7 @@ import { IpfsServiceImpl } from './services/ipfs-service.js'
 import { AnchorService } from './services/anchor-service.js'
 import { SchedulerService } from './services/scheduler-service.js'
 import { BlockchainService } from './services/blockchain/blockchain-service.js'
+import { SQSEventProducerService } from './services/event-producer/sqs/sqs-event-producer-service.js'
 
 import { AnchorRepository } from './repositories/anchor-repository.js'
 import { RequestRepository } from './repositories/request-repository.js'
@@ -60,6 +61,7 @@ export class CeramicAnchorApp {
         EthereumBlockchainService.make(config)
       ),
     })
+    container.registerSingleton('eventProducerService', SQSEventProducerService)
     container.registerSingleton('anchorService', AnchorService)
     container.registerSingleton('ceramicService', CeramicServiceImpl)
     container.registerSingleton('ipfsService', IpfsServiceImpl)
@@ -105,6 +107,7 @@ export class CeramicAnchorApp {
   static _cleanupConfigForLogging(config): Record<string, any> {
     const configCopy = cloneDeep(config)
     delete configCopy?.blockchain?.connectors?.ethereum?.account?.privateKey
+    delete configCopy?.awsSqsUrl
     return configCopy
   }
 

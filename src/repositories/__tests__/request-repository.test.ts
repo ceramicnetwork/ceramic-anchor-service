@@ -12,7 +12,7 @@ import {
 } from '../request-repository.js'
 import { AnchorRepository } from '../anchor-repository.js'
 import { Request, REQUEST_MESSAGES } from '../../models/request.js'
-import { randomCID } from '../../test-utils.js'
+import { randomCID, generateRequests } from '../../test-utils.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { RequestStatus } from '../../models/request-status.js'
 
@@ -20,29 +20,6 @@ const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
 const MS_IN_DAY = MS_IN_HOUR * 24
 const MS_IN_MONTH = MS_IN_DAY * 30
-
-const generateRequests = async (override: Partial<Request>, count = 1): Promise<Request[]> => {
-  const requests = await Promise.all(
-    Array.from(Array(count)).map(async (_, i) => {
-      const request = new Request()
-      const cid = await randomCID()
-      request.cid = cid.toString()
-      request.streamId = new StreamID('tile', cid).toString()
-      request.status = RequestStatus.PENDING
-      request.createdAt = new Date(Date.now() - Math.random() * MS_IN_HOUR)
-      request.updatedAt = new Date(request.createdAt.getTime())
-
-      Object.assign(request, override)
-
-      const variance = Math.random() * 5
-      request.createdAt = new Date(request.createdAt.getTime() + MS_IN_MINUTE * (i + variance))
-      request.updatedAt = new Date(request.updatedAt.getTime() + MS_IN_MINUTE * (i + variance))
-      return request
-    })
-  )
-
-  return requests
-}
 
 async function generateCompletedRequest(expired: boolean, failed: boolean): Promise<Request> {
   const request = new Request()
@@ -259,6 +236,34 @@ describe('request repository test', () => {
     expect(next.length).toEqual(0)
   })
 
+  test('Retrieves all requests of a specified status', async () => {
+    const requests = await Promise.all([
+      generateRequests(
+        {
+          status: RequestStatus.READY,
+        },
+        3
+      ),
+      generateRequests(
+        {
+          status: RequestStatus.PENDING,
+        },
+        3
+      ),
+    ]).then((arr) => arr.flat())
+
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    await requestRepository.createRequests(requests)
+
+    const createdRequests = await getAllRequests(connection)
+    expect(requests.length).toEqual(createdRequests.length)
+
+    const expected = createdRequests.filter(({ status }) => status === RequestStatus.READY)
+    const received = await requestRepository.findByStatus(RequestStatus.READY)
+
+    expect(received).toEqual(expected)
+  })
+
   describe('findAndMarkReady', () => {
     test('Marks pending requests as ready', async () => {
       const streamLimit = 5
@@ -465,7 +470,7 @@ describe('request repository test', () => {
       expect(updatedRequestCids).toContain(repeatedRequest2.cid)
     })
 
-    test('Does not mark any transaction as ready if an error occurs', async () => {
+    test('Does not mark any requests as ready if an error occurs', async () => {
       const streamLimit = 5
       const requests = await generateRequests(
         {

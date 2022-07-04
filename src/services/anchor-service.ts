@@ -16,6 +16,7 @@ import { AnchorRepository } from '../repositories/anchor-repository.js'
 import { RequestRepository } from '../repositories/request-repository.js'
 
 import { IpfsService } from './ipfs-service.js'
+import { EventProducerService } from './event-producer/event-producer-service.js'
 import { CeramicService } from './ceramic-service.js'
 import { BlockchainService } from './blockchain/blockchain-service.js'
 import { inject, singleton } from 'tsyringe'
@@ -28,6 +29,9 @@ import {
   IpfsMerge,
 } from '../merkle/merkle-objects.js'
 import type { Connection } from 'typeorm'
+import { v4 as uuidv4 } from 'uuid'
+
+export const READY_TIMEOUT = 1000 * 60 * 15
 
 type RequestGroups = {
   alreadyAnchoredRequests: Request[]
@@ -65,7 +69,8 @@ export class AnchorService {
     @inject('requestRepository') private requestRepository?: RequestRepository,
     @inject('ceramicService') private ceramicService?: CeramicService,
     @inject('anchorRepository') private anchorRepository?: AnchorRepository,
-    @inject('dbConnection') private connection?: Connection
+    @inject('dbConnection') private connection?: Connection,
+    @inject('eventProducerService') private eventProducerService?: EventProducerService
   ) {
     this.ipfsMerge = new IpfsMerge(this.ipfsService)
     this.ipfsCompare = new IpfsLeafCompare()
@@ -214,6 +219,37 @@ export class AnchorService {
     await this.requestRepository.updateRequests({ pinned: false }, garbageCollectedRequests)
 
     logger.imp(`Successfully garbage collected ${garbageCollectedRequests.length} Requests`)
+  }
+
+  /**
+   * Emits and anchor event if
+   */
+  public async emitAnchorEventIfReady(): Promise<void> {
+    const readyRequests = await this.requestRepository.findByStatus(RS.READY)
+    const readyDeadline = Date.now() - READY_TIMEOUT
+
+    if (readyRequests.length > 0) {
+      const earliestNotTimedOut = readyDeadline < readyRequests[0].updatedAt.getTime()
+      if (earliestNotTimedOut) {
+        return
+      }
+
+      await this.requestRepository.updateRequests({ status: RS.READY }, readyRequests)
+
+      // TODO: alert we are going to retry
+    } else {
+      const streamLimit = Math.pow(2, this.config.merkleDepthLimit)
+
+      const updatedRequests = await this.requestRepository.findAndMarkReady(streamLimit)
+
+      if (updatedRequests.length === 0) {
+        return
+      }
+    }
+
+    await this.eventProducerService.emitAnchorEvent(uuidv4().toString())
+
+    return
   }
 
   /**
