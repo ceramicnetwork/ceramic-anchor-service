@@ -160,15 +160,19 @@ export class RequestRepository extends Repository<Request> {
   }
 
   /**
-   * Marks requests as READY if (in the order of precendence):
-   *  1. there are PROCESSING requests that need to be anchored and retried (the maximum anchoring delay has elapsed and the request hasn't been updated in a long time)
-   *  2. there are PENDING requests that need to be anchored (the maximum anchoring delay has elasped)
-   *  3. there are streamLimit streams needing an anchor (prioritizing PROCESSING requests that need to be retried, then PENDING requests)
+   * Marks requests as READY. The following requests may be marked as ready in the order of precendence:
+   *  1. There are FAILED requests that were not failed because of conflict resolution
+   *  2. there are PROCESSING requests that need to be anchored and retried (the maximum anchoring delay has elapsed and the request hasn't been updated in a long time)
+   *  3. there are PENDING requests that need to be anchored (the maximum anchoring delay has elasped)
+   * These requests are only marked as ready if there are streamLimit streams needing an anchor OR the earliest chosen request is about to expire
+   *
    * Returns the original requests that were marked as READY
    */
   public async findAndMarkReady(streamLimit: number): Promise<Request[]> {
     const anchoringDeadline = new Date(Date.now() - MAX_ANCHORING_DELAY_MS)
     const processingDeadline = new Date(Date.now() - PROCESSING_TIMEOUT)
+    const earliestDateToRetry = new Date(Date.now() - FAILURE_RETRY_WINDOW)
+
     const isolationLevel =
       this.connection.options.type === 'sqlite' ? 'SERIALIZABLE' : 'REPEATABLE READ'
 
@@ -183,6 +187,14 @@ export class RequestRepository extends Repository<Request> {
           processingStatus: RequestStatus.PROCESSING,
           processingDeadline: DateUtils.mixedDateToUtcDatetimeString(processingDeadline),
         })
+        .orWhere(
+          'request.status = :failedStatus AND request.createdAt >= :earliestDateToRetry AND (request.message IS NULL OR request.message != :message)',
+          {
+            failedStatus: RequestStatus.FAILED,
+            earliestDateToRetry: DateUtils.mixedDateToUtcDatetimeString(earliestDateToRetry),
+            message: REQUEST_MESSAGES.conflictResolutionRejection,
+          }
+        )
         .orWhere('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
         .orderBy('MIN(request.createdAt)', 'ASC')
         .groupBy('request.streamId')

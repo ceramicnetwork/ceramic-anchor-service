@@ -498,5 +498,87 @@ describe('request repository test', () => {
         requestRepository.updateRequests = originaUpdateRequest
       }
     })
+
+    test('Marks failed requests as ready', async () => {
+      const streamLimit = 5
+      const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+      const requests = await Promise.all([
+        generateRequests(
+          {
+            status: RequestStatus.FAILED,
+            createdAt: dateDuringRetryPeriod,
+            updatedAt: new Date(Date.now() - MS_IN_HOUR),
+            message: 'random',
+          },
+          1
+        ),
+        generateRequests(
+          {
+            status: RequestStatus.FAILED,
+            createdAt: dateDuringRetryPeriod,
+            updatedAt: new Date(Date.now() - MS_IN_HOUR),
+          },
+          streamLimit - 1
+        ),
+      ]).then((arr) => arr.flat())
+
+      const requestRepository = container.resolve<RequestRepository>('requestRepository')
+      await requestRepository.createRequests(requests)
+
+      const createdRequests = await getAllRequests(connection)
+      expect(createdRequests.length).toEqual(requests.length)
+
+      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+      expect(updatedRequests.length).toEqual(streamLimit)
+
+      expect(updatedRequests.map(({ cid }) => cid)).toEqual(createdRequests.map(({ cid }) => cid))
+    })
+
+    test('Will not mark expired failed requests as ready', async () => {
+      const streamLimit = 5
+      const dateBeforeRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW - MS_IN_HOUR)
+
+      const requests = await generateRequests(
+        {
+          status: RequestStatus.FAILED,
+          createdAt: dateBeforeRetryPeriod,
+          updatedAt: new Date(Date.now() - MS_IN_HOUR),
+        },
+        streamLimit
+      )
+
+      const requestRepository = container.resolve<RequestRepository>('requestRepository')
+      await requestRepository.createRequests(requests)
+
+      const createdRequests = await getAllRequests(connection)
+      expect(requests.length).toEqual(createdRequests.length)
+
+      const next = await requestRepository.findNextToProcess(streamLimit)
+      expect(next.length).toEqual(0)
+    })
+
+    test('Will not mark failed requests that were rejected because of conflict resolution as ready', async () => {
+      const streamLimit = 5
+      const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+
+      const requests = await generateRequests(
+        {
+          status: RequestStatus.FAILED,
+          createdAt: dateDuringRetryPeriod,
+          updatedAt: new Date(Date.now() - MS_IN_HOUR),
+          message: REQUEST_MESSAGES.conflictResolutionRejection,
+        },
+        streamLimit
+      )
+
+      const requestRepository = container.resolve<RequestRepository>('requestRepository')
+      await requestRepository.createRequests(requests)
+
+      const createdRequests = await getAllRequests(connection)
+      expect(requests.length).toEqual(createdRequests.length)
+
+      const next = await requestRepository.findNextToProcess(streamLimit)
+      expect(next.length).toEqual(0)
+    })
   })
 })
