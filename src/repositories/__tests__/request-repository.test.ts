@@ -43,16 +43,16 @@ async function generateCompletedRequest(expired: boolean, failed: boolean): Prom
   return request
 }
 
-async function generatePendingRequests(count: number): Promise<Request[]> {
+async function generateReadyRequests(count: number): Promise<Request[]> {
   const now = new Date()
-  const requests = []
+  const requests: Request[] = []
 
   for (let i = 0; i < count; i++) {
     const request = new Request()
     const cid = await randomCID()
     request.cid = cid.toString()
     request.streamId = new StreamID('tile', cid).toString()
-    request.status = RequestStatus.PENDING
+    request.status = RequestStatus.READY
     const createdAt = new Date(now)
     createdAt.setHours(now.getHours() + i)
     request.createdAt = createdAt
@@ -138,9 +138,9 @@ describe('request repository test', () => {
   test('Process requests oldest to newest', async () => {
     const requestRepository = container.resolve<RequestRepository>('requestRepository')
 
-    const requests = await generatePendingRequests(2)
+    const requests = await generateReadyRequests(2)
     await requestRepository.createRequests(requests)
-    const loadedRequests = await requestRepository.findNextToProcess(100)
+    const loadedRequests = await requestRepository.findAndMarkAsProcessing()
 
     expect(loadedRequests.length).toEqual(2)
     expect(loadedRequests[0].createdAt.getTime()).toBeLessThan(
@@ -148,92 +148,6 @@ describe('request repository test', () => {
     )
     expect(loadedRequests[0].cid).toEqual(requests[0].cid)
     expect(loadedRequests[1].cid).toEqual(requests[1].cid)
-  })
-
-  test('Retries failed requests', async () => {
-    const reqLimit = 5
-    const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
-    const requests = await Promise.all([
-      generateRequests(
-        {
-          status: RequestStatus.FAILED,
-          createdAt: dateDuringRetryPeriod,
-          updatedAt: new Date(Date.now() - MS_IN_HOUR),
-          message: 'random',
-        },
-        1
-      ),
-      generateRequests(
-        {
-          status: RequestStatus.FAILED,
-          createdAt: dateDuringRetryPeriod,
-          updatedAt: new Date(Date.now() - MS_IN_HOUR),
-        },
-        2
-      ),
-      generateRequests(
-        {
-          status: RequestStatus.PENDING,
-        },
-        reqLimit
-      ),
-    ]).then((arr) => arr.flat())
-
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    await requestRepository.createRequests(requests)
-
-    const createdRequests = await getAllRequests(connection)
-    expect(requests.length).toEqual(createdRequests.length)
-
-    const next = await requestRepository.findNextToProcess(reqLimit)
-    expect(next.map(({ cid }) => cid)).toEqual(createdRequests.slice(0, 5).map(({ cid }) => cid))
-  })
-
-  test('Will not retry expired failed requests', async () => {
-    const reqLimit = 5
-    const dateBeforeRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW - MS_IN_HOUR)
-
-    const requests = await generateRequests(
-      {
-        status: RequestStatus.FAILED,
-        createdAt: dateBeforeRetryPeriod,
-        updatedAt: new Date(Date.now() - MS_IN_HOUR),
-      },
-      reqLimit
-    )
-
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    await requestRepository.createRequests(requests)
-
-    const createdRequests = await getAllRequests(connection)
-    expect(requests.length).toEqual(createdRequests.length)
-
-    const next = await requestRepository.findNextToProcess(reqLimit)
-    expect(next.length).toEqual(0)
-  })
-
-  test('Will not retry failed requests that were rejected because of conflict resolution', async () => {
-    const reqLimit = 5
-    const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
-
-    const requests = await generateRequests(
-      {
-        status: RequestStatus.FAILED,
-        createdAt: dateDuringRetryPeriod,
-        updatedAt: new Date(Date.now() - MS_IN_HOUR),
-        message: REQUEST_MESSAGES.conflictResolutionRejection,
-      },
-      reqLimit
-    )
-
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    await requestRepository.createRequests(requests)
-
-    const createdRequests = await getAllRequests(connection)
-    expect(requests.length).toEqual(createdRequests.length)
-
-    const next = await requestRepository.findNextToProcess(reqLimit)
-    expect(next.length).toEqual(0)
   })
 
   test('Retrieves all requests of a specified status', async () => {
@@ -553,8 +467,8 @@ describe('request repository test', () => {
       const createdRequests = await getAllRequests(connection)
       expect(requests.length).toEqual(createdRequests.length)
 
-      const next = await requestRepository.findNextToProcess(streamLimit)
-      expect(next.length).toEqual(0)
+      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+      expect(updatedRequests.length).toEqual(0)
     })
 
     test('Will not mark failed requests that were rejected because of conflict resolution as ready', async () => {
@@ -577,8 +491,8 @@ describe('request repository test', () => {
       const createdRequests = await getAllRequests(connection)
       expect(requests.length).toEqual(createdRequests.length)
 
-      const next = await requestRepository.findNextToProcess(streamLimit)
-      expect(next.length).toEqual(0)
+      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+      expect(updatedRequests.length).toEqual(0)
     })
   })
 })

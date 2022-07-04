@@ -16,17 +16,21 @@ import { inject, singleton } from 'tsyringe'
  */
 const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
 export const MAX_ANCHORING_DELAY_MS = 1000 * 60 * 60 * 12 //12H
-export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 6 //6H
+export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 3 //3H
 export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
 
 @singleton()
 @EntityRepository(Request)
 export class RequestRepository extends Repository<Request> {
+  private readonly isolationLevel
+
   constructor(
     @inject('config') private config?: Config,
     @inject('dbConnection') private connection?: Connection
   ) {
     super()
+    this.isolationLevel =
+      this.connection.options.type === 'sqlite' ? 'SERIALIZABLE' : 'REPEATABLE READ'
   }
 
   /**
@@ -90,26 +94,30 @@ export class RequestRepository extends Repository<Request> {
   }
 
   /**
-   * Gets all requests by status
+   * Gets all READY requests and marks them as PROCESSING
    */
-  public async findNextToProcess(limit: number): Promise<Request[]> {
-    const earliestDateToRetry = new Date(Date.now() - FAILURE_RETRY_WINDOW)
+  public async findAndMarkAsProcessing(): Promise<Request[]> {
+    return this.connection.transaction(this.isolationLevel, async (transactionalEntityManager) => {
+      const requests = await this.findByStatus(RequestStatus.READY, transactionalEntityManager)
 
-    return await this.connection
-      .getRepository(Request)
-      .createQueryBuilder('request')
-      .orderBy('request.created_at', 'ASC')
-      .where('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
-      .orWhere(
-        'request.status = :failedStatus AND request.createdAt >= :earliestDateToRetry AND (request.message IS NULL OR request.message != :message)',
-        {
-          failedStatus: RequestStatus.FAILED,
-          earliestDateToRetry: DateUtils.mixedDateToUtcDatetimeString(earliestDateToRetry),
-          message: REQUEST_MESSAGES.conflictResolutionRejection,
-        }
+      if (requests.length === 0) {
+        return []
+      }
+
+      const results = await this.updateRequests(
+        { status: RequestStatus.PROCESSING },
+        requests,
+        transactionalEntityManager
       )
-      .limit(limit)
-      .getMany()
+
+      if (!results.affected || results.affected != requests.length) {
+        throw Error(
+          `A problem occured when updated requests to PROCESSING. Only ${results.affected}/${requests.length} requests were updated`
+        )
+      }
+
+      return requests
+    })
   }
 
   /**
@@ -173,10 +181,7 @@ export class RequestRepository extends Repository<Request> {
     const processingDeadline = new Date(Date.now() - PROCESSING_TIMEOUT)
     const earliestDateToRetry = new Date(Date.now() - FAILURE_RETRY_WINDOW)
 
-    const isolationLevel =
-      this.connection.options.type === 'sqlite' ? 'SERIALIZABLE' : 'REPEATABLE READ'
-
-    return this.connection.transaction(isolationLevel, async (transactionalEntityManager) => {
+    return this.connection.transaction(this.isolationLevel, async (transactionalEntityManager) => {
       // retrieves up to streamLimit unique streams with their earliest request createdAt value.
       // this will only return streams associated with requests that are PENDING, or PROCESSING and needs to be retried
       const streamsToAnchor = await transactionalEntityManager
@@ -198,13 +203,17 @@ export class RequestRepository extends Repository<Request> {
         .orWhere('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
         .orderBy('MIN(request.createdAt)', 'ASC')
         .groupBy('request.streamId')
+        // if 0 will return unlimited
         .limit(streamLimit)
         .getMany()
 
       // Do not anchor if the earliest request isn't expired and there isn't enough streams
       const earliestIsNotExpired =
         streamsToAnchor.length > 0 && streamsToAnchor[0].createdAt >= anchoringDeadline
-      if (earliestIsNotExpired && streamsToAnchor.length < streamLimit) {
+      if (
+        streamsToAnchor.length === 0 ||
+        (earliestIsNotExpired && streamsToAnchor.length < streamLimit)
+      ) {
         return []
       }
 
@@ -234,7 +243,7 @@ export class RequestRepository extends Repository<Request> {
       return requests
     })
 
-    // TODO: add alert here that we marked expired and processing requests as READY
+    // TODO: Add alert here that we marked expired and processing requests as READY
   }
 
   /**
