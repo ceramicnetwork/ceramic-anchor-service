@@ -152,18 +152,15 @@ describe('anchor service', () => {
     const requestRepository = container.resolve<RequestRepository>('requestRepository')
     await requestRepository.createOrUpdate(request)
 
+    await requestRepository.findAndMarkReady(1)
+
     const anchorService = container.resolve<AnchorService>('anchorService')
     await expect(anchorService.anchorRequests()).rejects.toEqual(
       new Error('Failed to send transaction!')
     )
 
     request = await requestRepository.findByCid(cid)
-    expect(request).toHaveProperty('status', RequestStatus.PENDING)
-
-    const requests = await requestRepository.findNextToProcess(100)
-    expect(requests).toBeDefined()
-    expect(requests).toBeInstanceOf(Array)
-    expect(requests).toHaveLength(1)
+    expect(request).toHaveProperty('status', RequestStatus.PROCESSING)
   })
 
   test('create anchor records', async () => {
@@ -171,7 +168,7 @@ describe('anchor service', () => {
     const anchorService = container.resolve<AnchorService>('anchorService')
 
     // Create pending requests
-    const requests = []
+    const requests: Request[] = []
     const numRequests = 4
     for (let i = 0; i < numRequests; i++) {
       const streamId = await ceramicService.generateBaseStreamID()
@@ -187,7 +184,9 @@ describe('anchor service', () => {
       return a.streamId.localeCompare(b.streamId)
     })
 
-    const [candidates, _] = await anchorService._findCandidates(requests, 0, 1)
+    await requestRepository.findAndMarkReady(0)
+
+    const [candidates, _] = await anchorService._findCandidates(requests, 0)
     const merkleTree = await anchorService._buildMerkleTree(candidates)
     const ipfsProofCid = await ipfsService.storeRecord({})
 
@@ -218,36 +217,6 @@ describe('anchor service', () => {
     expect(anchors[3].path).toEqual('1/1')
   })
 
-  test('Too few anchor requests', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    const anchorService = container.resolve<AnchorService>('anchorService')
-
-    const anchorLimit = 8
-    const numRequests = anchorLimit / 2 - 1 // Batch is less than half full
-
-    // Create pending requests
-    for (let i = 0; i < numRequests; i++) {
-      const streamId = await ceramicService.generateBaseStreamID()
-      const request = await createRequest(streamId.toString(), ipfsService)
-      await requestRepository.createOrUpdate(request)
-      const commitId = CommitID.make(streamId, request.cid)
-      const stream = createStream(streamId, [toCID(request.cid)])
-      ceramicService.putStream(streamId, stream)
-      ceramicService.putStream(commitId, stream)
-    }
-
-    const requests = await requestRepository.findNextToProcess(100)
-    expect(requests.length).toEqual(numRequests)
-    // If we can't find at least half the desired number of candidates, we actually return 0
-    // candidates so as to skip the batch entirely
-    const [candidates, _] = await anchorService._findCandidates(
-      requests,
-      anchorLimit,
-      anchorLimit / 2
-    )
-    expect(candidates.length).toEqual(0)
-  })
-
   test('Too many anchor requests', async () => {
     const requestRepository = container.resolve<RequestRepository>('requestRepository')
     const anchorService = container.resolve<AnchorService>('anchorService')
@@ -266,26 +235,30 @@ describe('anchor service', () => {
       ceramicService.putStream(commitId, stream)
     }
 
+    await requestRepository.findAndMarkReady(0)
+
     // First pass anchors half the pending requests
-    let requests = await requestRepository.findNextToProcess(100)
+    let requests = await requestRepository.findByStatus(RequestStatus.READY)
     expect(requests.length).toEqual(numRequests)
     const anchorPendingRequests = async function (requests: Request[]): Promise<void> {
-      const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit, 1)
+      const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
       expect(candidates.length).toEqual(anchorLimit)
 
       await anchorCandidates(candidates, anchorService, ipfsService)
     }
     await anchorPendingRequests(requests)
 
-    requests = await requestRepository.findNextToProcess(100)
+    await requestRepository.findAndMarkReady(0)
+
+    requests = await requestRepository.findByStatus(RequestStatus.READY)
     expect(requests.length).toEqual(numRequests / 2)
 
     // Second pass anchors the remaining half of the original requests
     await anchorPendingRequests(requests)
 
     // All requests should have been processed
-    requests = await requestRepository.findNextToProcess(100)
-    expect(requests.length).toEqual(0)
+    const leftOverRequests = await requestRepository.findAndMarkReady(0)
+    expect(leftOverRequests.length).toEqual(0)
   })
 
   test('Anchors in request order', async () => {
@@ -299,7 +272,7 @@ describe('anchor service', () => {
     // We want 2 requests per streamId, but don't want the requests on the same stream to be created
     // back-to-back.  So we do one pass to generate the first request for each stream, then another
     // to make the second requests.
-    const requests = []
+    const requests: Request[] = []
     let numFailed = Math.floor(anchorLimit / 2)
     for (let i = 0; i < numStreams; i++) {
       const streamId = await ceramicService.generateBaseStreamID()
@@ -326,24 +299,33 @@ describe('anchor service', () => {
       const request = await createRequest(streamId.toString(), ipfsService)
       await requestRepository.createOrUpdate(request)
       requests.push(request)
-      const stream = createStream(streamId, [toCID(prevRequest.cid), toCID(request.cid)])
-      ceramicService.putStream(streamId, stream)
+      const stream = createStream(StreamID.fromString(streamId), [
+        toCID(prevRequest.cid),
+        toCID(request.cid),
+      ])
+      ceramicService.putStream(StreamID.fromString(streamId), stream)
 
       // Make sure each stream gets a unique 'createdAt' Date
       await Utils.delay(1000)
     }
 
+    await requestRepository.findAndMarkReady(anchorLimit)
+
     // First pass anchors half the pending requests
-    expect((await requestRepository.findNextToProcess(100)).length).toEqual(requests.length)
+    expect((await requestRepository.findByStatus(RequestStatus.READY)).length).toEqual(
+      anchorLimit * 2
+    )
     const anchorPendingRequests = async function (requests: Request[]): Promise<void> {
-      const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit, 1)
+      const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
       expect(candidates.length).toEqual(anchorLimit)
 
       await anchorCandidates(candidates, anchorService, ipfsService)
     }
     await anchorPendingRequests(requests)
 
-    const remainingRequests = await requestRepository.findNextToProcess(100)
+    await requestRepository.findAndMarkReady(anchorLimit)
+
+    const remainingRequests = await requestRepository.findByStatus(RequestStatus.READY)
     expect(remainingRequests.length).toEqual(requests.length / 2)
 
     for (let i = 0; i < anchorLimit; i++) {
@@ -393,14 +375,16 @@ describe('anchor service', () => {
       ceramicService.putStream(commitId, stream)
     }
 
-    let requests = await requestRepository.findNextToProcess(100)
+    await requestRepository.findAndMarkReady(anchorLimit)
+
+    let requests = await requestRepository.findByStatus(RequestStatus.READY)
     expect(requests.length).toEqual(numRequests)
-    const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit, 1)
+    const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
     expect(candidates.length).toEqual(numRequests)
     await anchorCandidates(candidates, anchorService, ipfsService)
 
     // All requests should have been processed
-    requests = await requestRepository.findNextToProcess(100)
+    requests = await requestRepository.findByStatus(RequestStatus.READY)
     expect(requests.length).toEqual(0)
   })
 
@@ -423,22 +407,26 @@ describe('anchor service', () => {
       return request
     }
 
-    const requests = []
+    const requests: Request[] = []
     for (const isValid of [true, false, true, false]) {
       const request = await makeRequest(isValid)
       requests.push(request)
     }
 
-    const [candidates, _] = await anchorService._findCandidates(requests, 0, 1)
+    // mark requests as ready and move to processing before loading candidates
+    const markedAsReady = await requestRepository.findAndMarkReady(0)
+    await requestRepository.updateRequests({ status: RequestStatus.PROCESSING }, markedAsReady)
+
+    const [candidates, _] = await anchorService._findCandidates(requests, 0)
     expect(candidates.length).toEqual(2)
 
     const request0 = await requestRepository.findByCid(toCID(requests[0].cid))
     const request1 = await requestRepository.findByCid(toCID(requests[1].cid))
     const request2 = await requestRepository.findByCid(toCID(requests[2].cid))
     const request3 = await requestRepository.findByCid(toCID(requests[3].cid))
-    expect(request0.status).toEqual(RequestStatus.PENDING)
+    expect(request0.status).toEqual(RequestStatus.PROCESSING)
     expect(request1.status).toEqual(RequestStatus.FAILED)
-    expect(request2.status).toEqual(RequestStatus.PENDING)
+    expect(request2.status).toEqual(RequestStatus.PROCESSING)
     expect(request3.status).toEqual(RequestStatus.FAILED)
   })
 
@@ -448,6 +436,7 @@ describe('anchor service', () => {
 
     const makeRequest = async function (streamId: StreamID, includeInBaseStream: boolean) {
       const request = await createRequest(streamId.toString(), ipfsService)
+      request.status = RequestStatus.PROCESSING
       await requestRepository.createOrUpdate(request)
       const commitId = CommitID.make(streamId, request.cid)
 
@@ -493,8 +482,7 @@ describe('anchor service', () => {
 
     const [candidates, _] = await anchorService._findCandidates(
       [requestA0, requestA1, requestB0, requestB1],
-      0,
-      1
+      0
     )
     expect(candidates.length).toEqual(2)
     expect(candidates[0].streamId.toString()).toEqual(streamIdA.toString())
@@ -528,9 +516,11 @@ describe('anchor service', () => {
       ceramicService.putStream(commitId, stream)
     }
 
-    const requests = await requestRepository.findNextToProcess(100)
+    await requestRepository.findAndMarkReady(numRequests)
+    const requests = await requestRepository.findByStatus(RequestStatus.READY)
+
     expect(requests.length).toEqual(numRequests)
-    const [candidates, _] = await anchorService._findCandidates(requests, 0, 1)
+    const [candidates, _] = await anchorService._findCandidates(requests, 0)
     expect(candidates.length).toEqual(numRequests)
 
     const originalMockDagPut = mockIpfsClient.dag.put.getMockImplementation()
@@ -588,7 +578,7 @@ describe('anchor service', () => {
         createStream(streamId, [toCID(request0.cid), toCID(request1.cid)])
       )
 
-      const [candidates, _] = await anchorService._findCandidates([request0, request1], 0, 1)
+      const [candidates, _] = await anchorService._findCandidates([request0, request1], 0)
       const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
       expect(candidates.length).toEqual(1)
       const candidate = candidates[0]
@@ -624,7 +614,7 @@ describe('anchor service', () => {
       ceramicService.putStream(commitId, createStream(streamId, [toCID(request.cid)]))
       ceramicService.putStream(streamId, createStream(streamId, [toCID(request.cid), tipCID]))
 
-      const [candidates, _] = await anchorService._findCandidates([request], 0, 1)
+      const [candidates, _] = await anchorService._findCandidates([request], 0)
       const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
       expect(candidates.length).toEqual(1)
       const candidate = candidates[0]
@@ -659,7 +649,7 @@ describe('anchor service', () => {
       ceramicService.putStream(commitId, createStream(streamId, [toCID(request.cid)]))
       ceramicService.putStream(streamId, createStream(streamId, [tipCID]))
 
-      const [candidates, _] = await anchorService._findCandidates([request], 0, 1)
+      const [candidates, _] = await anchorService._findCandidates([request], 0)
       expect(candidates.length).toEqual(0)
       const updatedRequest = await requestRepository.findByCid(toCID(request.cid))
       expect(updatedRequest.status).toEqual(RequestStatus.FAILED)
@@ -683,7 +673,7 @@ describe('anchor service', () => {
         createStream(streamId, [toCID(request.cid), anchorCommitCID], AnchorStatus.ANCHORED)
       )
 
-      const [candidates, _] = await anchorService._findCandidates([request], 0, 1)
+      const [candidates, _] = await anchorService._findCandidates([request], 0)
       expect(candidates.length).toEqual(0)
 
       // request should still be marked as completed even though no anchor was performed
@@ -717,7 +707,7 @@ describe('anchor service', () => {
         ceramicService.putStream(streamId, stream)
       }
 
-      const [candidates, _] = await anchorService._findCandidates(requests, 0, 1)
+      const [candidates, _] = await anchorService._findCandidates(requests, 0)
       await anchorCandidates(candidates, anchorService, ipfsService)
       expect(candidates.length).toEqual(numRequests)
 

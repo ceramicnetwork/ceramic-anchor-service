@@ -24,7 +24,7 @@ export class SchedulerService {
         timer(intervalMS).pipe(
           exhaustMap(() => task()),
           catchError((err) => {
-            // TODO: Instead or in addition to logging, add alerting
+            // TODO: Add alert instead or in addition to logging
             logger.err('Failed to anchor CIDs... ')
             logger.err(err)
             throw err
