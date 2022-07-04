@@ -29,6 +29,7 @@ import {
   IpfsMerge,
 } from '../merkle/merkle-objects.js'
 import type { Connection } from 'typeorm'
+import { v4 as uuidv4 } from 'uuid'
 
 export const READY_TIMEOUT = 1000 * 60 * 15
 
@@ -223,7 +224,7 @@ export class AnchorService {
   /**
    * Emits and anchor event if
    */
-  public async createAnchorEventIfReady(): Promise<void> {
+  public async emitAnchorEventIfReady(): Promise<void> {
     const readyRequests = await this.requestRepository.findByStatus(RS.READY)
     const readyDeadline = Date.now() - READY_TIMEOUT
 
@@ -246,7 +247,7 @@ export class AnchorService {
       }
     }
 
-    await this.eventProducerService.emitAnchorEvent()
+    await this.eventProducerService.emitAnchorEvent(uuidv4().toString())
 
     return
   }

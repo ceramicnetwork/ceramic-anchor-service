@@ -17,6 +17,6 @@ describe('event service', () => {
 
   test('Can submit an anchor event', async () => {
     const eventProducerService = container.resolve<EventProducerService>('eventProducerService')
-    await eventProducerService.emitAnchorEvent()
+    await eventProducerService.emitAnchorEvent('test')
   })
 })

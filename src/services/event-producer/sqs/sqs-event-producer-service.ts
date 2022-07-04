@@ -3,7 +3,6 @@ import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs'
 import { EventProducerService } from '../event-producer-service.js'
-import { v4 as uuidv4 } from 'uuid'
 
 @singleton()
 export class SQSEventProducerService implements EventProducerService {
@@ -15,12 +14,12 @@ export class SQSEventProducerService implements EventProducerService {
   /**
    * Emits an anchor event by sending a message to the configured SQS
    */
-  public async emitAnchorEvent(): Promise<void> {
+  public async emitAnchorEvent(body: string): Promise<void> {
     await this.sqsClient.send(
       new SendMessageCommand({
-        MessageBody: uuidv4().toString(),
+        MessageBody: body,
         MessageGroupId: 'anchor',
-        QueueUrl: process.env.AWS_SQS_URL,
+        QueueUrl: this.config.awsSqsUrl,
       })
     )
   }

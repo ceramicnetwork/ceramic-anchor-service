@@ -107,6 +107,7 @@ export class CeramicAnchorApp {
   static _cleanupConfigForLogging(config): Record<string, any> {
     const configCopy = cloneDeep(config)
     delete configCopy?.blockchain?.connectors?.ethereum?.account?.privateKey
+    delete configCopy?.awsSqsUrl
     return configCopy
   }
 

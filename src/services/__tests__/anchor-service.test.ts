@@ -27,6 +27,7 @@ import { AnchorStatus, toCID } from '@ceramicnetwork/common'
 import cloneDeep from 'lodash.clonedeep'
 import { Utils } from '../../utils.js'
 import { PubsubMessage } from '@ceramicnetwork/core'
+import { validate as validateUUID } from 'uuid'
 
 process.env.NODE_ENV = 'test'
 
@@ -786,7 +787,7 @@ describe('anchor service', () => {
     })
   })
 
-  describe('createAnchorEventIfReady', () => {
+  describe('emitAnchorEventIfReady', () => {
     test('Does not emit if ready requests exist but they are not timed out', async () => {
       // Ready requests that have not timed out (created now)
       const originalRequests = await generateRequests(
@@ -805,7 +806,7 @@ describe('anchor service', () => {
         await requestRepository.createRequests(originalRequests)
 
         const anchorService = container.resolve<AnchorService>('anchorService')
-        await anchorService.createAnchorEventIfReady()
+        await anchorService.emitAnchorEventIfReady()
 
         expect(requestRepositoryUpdateSpy).toHaveBeenCalledTimes(0)
 
@@ -837,7 +838,7 @@ describe('anchor service', () => {
         await requestRepository.createRequests(originalRequests)
 
         const anchorService = container.resolve<AnchorService>('anchorService')
-        await anchorService.createAnchorEventIfReady()
+        await anchorService.emitAnchorEventIfReady()
 
         expect(requestRepositoryUpdateSpy).toHaveBeenCalledTimes(1)
 
@@ -849,6 +850,7 @@ describe('anchor service', () => {
         const eventProducerService =
           container.resolve<MockEventProducerService>('eventProducerService')
         expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(1)
+        expect(validateUUID(eventProducerService.emitAnchorEvent.mock.calls[0][0])).toEqual(true)
       } finally {
         requestRepositoryUpdateSpy.mockRestore()
       }
@@ -867,7 +869,7 @@ describe('anchor service', () => {
       await requestRepository.createRequests(originalRequests)
 
       const anchorService = container.resolve<AnchorService>('anchorService')
-      await anchorService.createAnchorEventIfReady()
+      await anchorService.emitAnchorEventIfReady()
 
       const eventProducerService =
         container.resolve<MockEventProducerService>('eventProducerService')
@@ -886,11 +888,12 @@ describe('anchor service', () => {
       await requestRepository.createRequests(originalRequests)
 
       const anchorService = container.resolve<AnchorService>('anchorService')
-      await anchorService.createAnchorEventIfReady()
+      await anchorService.emitAnchorEventIfReady()
 
       const eventProducerService =
         container.resolve<MockEventProducerService>('eventProducerService')
       expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(1)
+      expect(validateUUID(eventProducerService.emitAnchorEvent.mock.calls[0][0])).toEqual(true)
 
       const updatedRequests = await requestRepository.findByStatus(RequestStatus.READY)
       expect(updatedRequests.map(({ cid }) => cid).sort()).toEqual(
