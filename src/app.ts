@@ -196,7 +196,7 @@ export class CeramicAnchorApp {
   private async _startScheduler(): Promise<void> {
     this._schedulerService = this.container.resolve<SchedulerService>('schedulerService')
     const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService')
-    this._schedulerService.start(anchorService.emitAnchorEventIfReady)
+    this._schedulerService.start(anchorService.emitAnchorEventIfReady.bind(anchorService))
   }
 
   /**
@@ -206,7 +206,7 @@ export class CeramicAnchorApp {
   private async _startBundled(): Promise<void> {
     this._schedulerService = this.container.resolve<SchedulerService>('schedulerService')
     const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService')
-    this._schedulerService.start(anchorService.anchorRequests)
+    this._schedulerService.start(anchorService.anchorRequests.bind(anchorService))
     await this._startServer()
   }
 
