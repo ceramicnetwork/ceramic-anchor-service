@@ -27,5 +27,9 @@
     "level": "debug",
     "logToFiles": false,
     "filePath": ""
+  },
+  "metrics": {
+    "exporterEnabled": "@@METRICS_EXPORTER_ENABLED",
+    "port": "@@METRICS_PORT"
   }
 }

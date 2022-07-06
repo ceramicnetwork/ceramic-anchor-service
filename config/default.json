@@ -39,5 +39,9 @@
     "level": "important",
     "logToFiles": false,
     "filePath": ""
+  },
+  "metrics": {
+    "exporterEnabled": false,
+    "port": 9464
   }
 }

@@ -23,6 +23,7 @@ import { ServiceInfoController } from './controllers/service-info-controller.js'
 import { EthereumBlockchainService } from './services/blockchain/ethereum/ethereum-blockchain-service.js'
 
 import cloneDeep from 'lodash.clonedeep'
+import {Metrics} from "@ceramicnetwork/metrics";
 
 const version = process.env.npm_package_version
 /**
@@ -74,6 +75,16 @@ export class CeramicAnchorApp {
 
     if (config.anchorControllerEnabled) {
       container.registerSingleton('anchorController', AnchorController)
+    }
+
+    if (config.metrics.exporterEnabled) {
+      container.registerInstance('metrics', Metrics)
+      try {
+        Metrics.start( {'port': config.metrics.port, metricsExporterEnabled: true})
+      } catch (e) {
+        logger.err(e)
+        // start anchor service even if metrics threw an error
+      }
     }
   }
 

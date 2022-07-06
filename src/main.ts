@@ -16,14 +16,6 @@ async function startApp() {
     throw new Error(`Database connection failed: ${e}`)
   }
 
-  try {
-    Metrics.start()
-  } catch (e) {
-    logger.err(e)
-    // start anchor service even if metrics threw an error
-  }
-
-
   const app = new CeramicAnchorApp(container, config, connection)
   await app.start()
 }

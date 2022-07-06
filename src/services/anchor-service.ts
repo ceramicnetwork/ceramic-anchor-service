@@ -18,6 +18,7 @@ import { RequestRepository } from '../repositories/request-repository.js'
 import { IpfsService } from './ipfs-service.js'
 import { EventProducerService } from './event-producer/event-producer-service.js'
 import { CeramicService } from './ceramic-service.js'
+import { METRIC_NAMES } from '../settings.js'
 import { BlockchainService } from './blockchain/blockchain-service.js'
 import { inject, singleton } from 'tsyringe'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
@@ -52,12 +53,6 @@ type AnchorSummary = {
   unprocessedRequestCount: number
   candidateCount: number
   anchorCount: number
-}
-
-const METRIC_NAMES = {
-  ANCHOR_SUCCESS: 'anchor_success',
-  ANCHOR_TIMEOUT: 'anchor_timeout',
-  ALERT_SPECIFIC: 'alert_[specific]'  // TODO create specific named alerts
 }
 
 /**
@@ -243,8 +238,7 @@ export class AnchorService {
       }
 
       await this.requestRepository.updateRequests({ status: RS.READY }, readyRequests)
-
-      // TODO: alert we are going to retry
+      Metrics.count(METRIC_NAMES.RETRY_EMIT_ANCHOR_EVENT, readyRequests.length)
     } else {
       const streamLimit = Math.pow(2, this.config.merkleDepthLimit)
 
