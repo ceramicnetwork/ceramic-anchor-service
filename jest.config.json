@@ -12,5 +12,7 @@
   "preset": "ts-jest",
   "testEnvironment": "node",
   "resolver": "jest-resolver-enhanced",
-  "testMatch": ["**/__tests__/**/*test.ts?(x)", "**/?(*.)+(test).ts?(x)"]
+  "testMatch": ["**/__tests__/**/*test.ts?(x)", "**/?(*.)+(test).ts?(x)"],
+  "globalSetup": "<rootDir>/node_modules/@databases/pg-test/jest/globalSetup",
+  "globalTeardown": "<rootDir>/node_modules/@databases/pg-test/jest/globalTeardown"
 }

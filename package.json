@@ -85,6 +85,7 @@
     "@babel/register": "^7.16.9",
     "@ceramicnetwork/cli": "^2.0.3-rc.0",
     "@ceramicnetwork/stream-tile": "^2.0.0",
+    "@databases/pg-test": "^3.1.2",
     "@stablelib/random": "^1.0.1",
     "@stablelib/sha256": "^1.0.1",
     "@types/cors": "^2.8.12",
