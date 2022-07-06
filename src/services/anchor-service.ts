@@ -21,6 +21,7 @@ import { CeramicService } from './ceramic-service.js'
 import { BlockchainService } from './blockchain/blockchain-service.js'
 import { inject, singleton } from 'tsyringe'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
+import { Metrics } from '@ceramicnetwork/metrics'
 import {
   BloomMetadata,
   Candidate,
@@ -51,6 +52,12 @@ type AnchorSummary = {
   unprocessedRequestCount: number
   candidateCount: number
   anchorCount: number
+}
+
+const METRIC_NAMES = {
+  ANCHOR_SUCCESS: 'anchor_success',
+  ANCHOR_TIMEOUT: 'anchor_timeout',
+  ALERT_SPECIFIC: 'alert_[specific]'  // TODO create specific named alerts
 }
 
 /**
@@ -177,6 +184,7 @@ export class AnchorService {
     const numAnchoredRequests = await this._persistAnchorResult(anchors, candidates)
 
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
+    Metrics.count(METRIC_NAMES.ANCHOR_SUCCESS, anchors.length)
     return {
       acceptedRequestsCount: groupedRequests.acceptedRequests.length,
       alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,

@@ -1,6 +1,6 @@
 import { CeramicAnchorApp } from './app.js'
 import { logger } from './logger/index.js'
-
+import { Metrics } from '@ceramicnetwork/metrics'
 import { config } from 'node-config-ts'
 import { container } from 'tsyringe'
 import TypeORM from 'typeorm'
@@ -15,6 +15,14 @@ async function startApp() {
   } catch (e) {
     throw new Error(`Database connection failed: ${e}`)
   }
+
+  try {
+    Metrics.start()
+  } catch (e) {
+    logger.err(e)
+    // start anchor service even if metrics threw an error
+  }
+
 
   const app = new CeramicAnchorApp(container, config, connection)
   await app.start()
