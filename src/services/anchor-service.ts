@@ -1,6 +1,6 @@
 import { CID } from 'multiformats/cid'
 
-import { RequestStatus as RS } from '../models/request-status.js'
+import { RequestStatus, RequestStatus as RS } from '../models/request-status.js'
 
 import { MerkleTree } from '../merkle/merkle-tree.js'
 import { PathDirection, TreeMetadata } from '../merkle/merkle.js'
@@ -145,38 +145,53 @@ export class AnchorService {
       }
     }
 
-    logger.imp(`Creating Merkle tree from ${candidates.length} selected streams`)
-    const merkleTree = await this._buildMerkleTree(candidates)
+    try {
+      logger.imp(`Creating Merkle tree from ${candidates.length} selected streams`)
+      const merkleTree = await this._buildMerkleTree(candidates)
 
-    // create and send ETH transaction
-    logger.debug('Preparing to send transaction to put merkle root on blockchain')
-    const tx: Transaction = await this.blockchainService.sendTransaction(
-      merkleTree.getRoot().data.cid
-    )
+      // create and send ETH transaction
+      logger.debug('Preparing to send transaction to put merkle root on blockchain')
+      const tx: Transaction = await this.blockchainService.sendTransaction(
+        merkleTree.getRoot().data.cid
+      )
 
-    // create proof on IPFS
-    logger.debug('Creating IPFS anchor proof')
-    const ipfsProofCid = await this._createIPFSProof(tx, merkleTree.getRoot().data.cid)
+      // create proof on IPFS
+      logger.debug('Creating IPFS anchor proof')
+      const ipfsProofCid = await this._createIPFSProof(tx, merkleTree.getRoot().data.cid)
 
-    // create anchor records on IPFS
-    logger.debug('Creating anchor commits')
-    const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
+      // create anchor records on IPFS
+      logger.debug('Creating anchor commits')
+      const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
 
-    // Update the database to record the successful anchors
-    logger.debug('Persisting results to local database')
-    const numAnchoredRequests = await this._persistAnchorResult(anchors, candidates)
+      // Update the database to record the successful anchors
+      logger.debug('Persisting results to local database')
+      const numAnchoredRequests = await this._persistAnchorResult(anchors, candidates)
 
-    logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
-    return {
-      acceptedRequestsCount: groupedRequests.acceptedRequests.length,
-      alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
-      anchoredRequestsCount: numAnchoredRequests,
-      conflictingRequestCount: groupedRequests.conflictingRequests.length,
-      failedRequestsCount: groupedRequests.failedRequests.length,
-      failedToPublishAnchorCommitCount: merkleTree.getLeaves().length - anchors.length,
-      unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
-      candidateCount: candidates.length,
-      anchorCount: anchors.length,
+      logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
+      return {
+        acceptedRequestsCount: groupedRequests.acceptedRequests.length,
+        alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
+        anchoredRequestsCount: numAnchoredRequests,
+        conflictingRequestCount: groupedRequests.conflictingRequests.length,
+        failedRequestsCount: groupedRequests.failedRequests.length,
+        failedToPublishAnchorCommitCount: merkleTree.getLeaves().length - anchors.length,
+        unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
+        candidateCount: candidates.length,
+        anchorCount: anchors.length,
+      }
+    } catch (err) {
+      logger.imp(
+        `Updating requests to pending to be retried in the next batch because an error occured while creating the anchors: ${err}`
+      )
+
+      // TODO(NET-1623): Add alert that something went wrong and we are retrying
+
+      await this.requestRepository.updateRequests(
+        { status: RequestStatus.PENDING },
+        groupedRequests.acceptedRequests
+      )
+
+      throw err
     }
   }
 
