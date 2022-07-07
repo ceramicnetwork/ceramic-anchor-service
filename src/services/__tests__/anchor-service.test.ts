@@ -102,13 +102,17 @@ describe('anchor service', () => {
   let connection: Connection
   const merkleDepthLimit = 3
   const streamLimit = Math.pow(2, merkleDepthLimit)
+  const minStreamCount = Math.floor(streamLimit / 2)
 
   beforeAll(async () => {
     const { IpfsServiceImpl } = await import('../ipfs-service.js')
 
     connection = await DBConnection.create()
 
-    container.registerInstance('config', Object.assign({}, config, { merkleDepthLimit }))
+    container.registerInstance(
+      'config',
+      Object.assign({}, config, { merkleDepthLimit, minStreamCount })
+    )
     container.registerInstance('dbConnection', connection)
     container.registerSingleton('anchorRepository', AnchorRepository)
     container.registerSingleton('requestRepository', RequestRepository)
@@ -136,31 +140,61 @@ describe('anchor service', () => {
   })
 
   test('check state on tx fail', async () => {
-    const streamId = await ceramicService.generateBaseStreamID()
-    const cid = await ipfsService.storeRecord({})
-    const streamCommitId = CommitID.make(streamId, cid)
-    const stream = createStream(streamId, [cid])
-    ceramicService.putStream(streamCommitId, stream)
-    ceramicService.putStream(streamId, stream)
+    const requests: Request[] = []
+    for (let i = 0; i < minStreamCount; i++) {
+      const streamId = await ceramicService.generateBaseStreamID()
+      const cid = await ipfsService.storeRecord({})
+      const streamCommitId = CommitID.make(streamId, cid)
+      const stream = createStream(streamId, [cid])
+      ceramicService.putStream(streamCommitId, stream)
+      ceramicService.putStream(streamId, stream)
 
-    let request = new Request()
-    request.cid = cid.toString()
-    request.streamId = streamId.toString()
-    request.status = RequestStatus.PENDING
-    request.message = 'Request is pending.'
+      const request = new Request()
+      request.cid = cid.toString()
+      request.streamId = streamId.toString()
+      request.status = RequestStatus.PENDING
+      request.message = 'Request is pending.'
+
+      requests.push(request)
+    }
 
     const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    await requestRepository.createOrUpdate(request)
-
-    await requestRepository.findAndMarkReady(1)
+    await requestRepository.createRequests(requests)
 
     const anchorService = container.resolve<AnchorService>('anchorService')
     await expect(anchorService.anchorRequests()).rejects.toEqual(
       new Error('Failed to send transaction!')
     )
 
-    request = await requestRepository.findByCid(cid)
-    expect(request).toHaveProperty('status', RequestStatus.PROCESSING)
+    for (const req of requests) {
+      const retrievedRequest = await requestRepository.findByCid(CID.parse(req.cid))
+      expect(retrievedRequest).toHaveProperty('status', RequestStatus.PROCESSING)
+    }
+  })
+
+  test('Too few anchor requests', async () => {
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    const anchorService = container.resolve<AnchorService>('anchorService')
+
+    const numRequests = minStreamCount - 1
+    // Create pending requests
+    for (let i = 0; i < numRequests; i++) {
+      const streamId = await ceramicService.generateBaseStreamID()
+      const request = await createRequest(streamId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request)
+      const commitId = CommitID.make(streamId, request.cid)
+      const stream = createStream(streamId, [toCID(request.cid)])
+      ceramicService.putStream(streamId, stream)
+      ceramicService.putStream(commitId, stream)
+    }
+
+    const beforePending = await requestRepository.findByStatus(RequestStatus.PENDING)
+    expect(beforePending.length).toEqual(numRequests)
+
+    // Should not anchor requests as there aren't at least minStreamCount requests
+    await anchorService.anchorRequests()
+    const afterPending = await requestRepository.findByStatus(RequestStatus.PENDING)
+    expect(afterPending.length).toEqual(numRequests)
   })
 
   test('create anchor records', async () => {

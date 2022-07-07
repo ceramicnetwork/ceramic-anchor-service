@@ -9,6 +9,7 @@ import { RequestStatus } from '../models/request-status.js'
 import { logEvent } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
+import { logger } from '../logger/index.js'
 
 /**
  * How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
@@ -171,12 +172,15 @@ export class RequestRepository extends Repository<Request> {
    * Marks requests as READY. The following requests may be marked as ready in the order of precendence:
    *  1. There are FAILED requests that were not failed because of conflict resolution
    *  2. there are PROCESSING requests that need to be anchored and retried (the maximum anchoring delay has elapsed and the request hasn't been updated in a long time)
-   *  3. there are PENDING requests that need to be anchored (the maximum anchoring delay has elasped)
+   *  3. there are PENDING requests that need to be anchored (the maximum anchoring delay has elapsed)
    * These requests are only marked as ready if there are streamLimit streams needing an anchor OR the earliest chosen request is about to expire
    *
    * Returns the original requests that were marked as READY
    */
-  public async findAndMarkReady(streamLimit: number): Promise<Request[]> {
+  public async findAndMarkReady(
+    maxStreamLimit: number,
+    minStreamLimit = maxStreamLimit
+  ): Promise<Request[]> {
     const anchoringDeadline = new Date(Date.now() - MAX_ANCHORING_DELAY_MS)
     const processingDeadline = new Date(Date.now() - PROCESSING_TIMEOUT)
     const earliestDateToRetry = new Date(Date.now() - FAILURE_RETRY_WINDOW)
@@ -204,46 +208,49 @@ export class RequestRepository extends Repository<Request> {
         .orderBy('MIN(request.createdAt)', 'ASC')
         .groupBy('request.streamId')
         // if 0 will return unlimited
-        .limit(streamLimit)
+        .limit(maxStreamLimit)
         .getMany()
 
-      // Do not anchor if the earliest request isn't expired and there isn't enough streams
-      const earliestIsNotExpired =
-        streamsToAnchor.length > 0 && streamsToAnchor[0].createdAt >= anchoringDeadline
-      if (
-        streamsToAnchor.length === 0 ||
-        (earliestIsNotExpired && streamsToAnchor.length < streamLimit)
-      ) {
+      // Do not anchor if there are no streams to anhor
+      if (streamsToAnchor.length === 0) {
         return []
       }
 
-      const streamIds = streamsToAnchor.map(({ streamId }) => streamId)
+      // Anchor if we have enough streams or the earliest stream request is expired
+      const earliestIsExpired = streamsToAnchor[0].createdAt < anchoringDeadline
+      if (streamsToAnchor.length >= minStreamLimit || earliestIsExpired) {
+        const streamIds = streamsToAnchor.map(({ streamId }) => streamId)
 
-      // retrieves all requests associated with the streams
-      const requests = await transactionalEntityManager
-        .getRepository(Request)
-        .createQueryBuilder('request')
-        .orderBy('request.createdAt', 'ASC')
-        .where('request.streamId IN (:...streamIds)', { streamIds })
-        .getMany()
+        // retrieves all requests associated with the streams
+        const requests = await transactionalEntityManager
+          .getRepository(Request)
+          .createQueryBuilder('request')
+          .orderBy('request.createdAt', 'ASC')
+          .where('request.streamId IN (:...streamIds)', { streamIds })
+          .getMany()
 
-      const results = await this.updateRequests(
-        { status: RequestStatus.READY },
-        requests,
-        transactionalEntityManager
-      )
-
-      // if not all requests are updated
-      if (!results.affected || results.affected != requests.length) {
-        throw Error(
-          `A problem occured when updated requests to READY. Only ${results.affected}/${requests.length} requests were updated`
+        const results = await this.updateRequests(
+          { status: RequestStatus.READY },
+          requests,
+          transactionalEntityManager
         )
+
+        // if not all requests are updated
+        if (!results.affected || results.affected != requests.length) {
+          throw Error(
+            `A problem occured when updated requests to READY. Only ${results.affected}/${requests.length} requests were updated`
+          )
+        }
+
+        // TODO(NET-1623): Add alert here that we marked expired and processing requests as READY
+        return requests
       }
 
-      return requests
+      logger.debug(
+        'Not updating any requests to READY because there are not enough streams for a batch and the earliest request is not expired'
+      )
+      return []
     })
-
-    // TODO: Add alert here that we marked expired and processing requests as READY
   }
 
   /**

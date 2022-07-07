@@ -214,8 +214,10 @@ describe('Ceramic Integration Test', () => {
 
   let cas1: CeramicAnchorApp
   let container1: DependencyContainer
+  let anchorService1: AnchorService
   let cas2: CeramicAnchorApp
   let container2: DependencyContainer
+  let anchorService2: AnchorService
 
   const blockchainStartTime = new Date(1586784002000)
   let ganachePort
@@ -270,6 +272,7 @@ describe('Ceramic Integration Test', () => {
       port: casPort1,
     })
     await cas1.start()
+    anchorService1 = container1.resolve<AnchorService>('anchorService')
 
     dbConnection2 = await DBConnection.create()
     const casPort2 = await getPort()
@@ -282,6 +285,7 @@ describe('Ceramic Integration Test', () => {
       port: casPort2,
     })
     await cas2.start()
+    anchorService2 = container2.resolve<AnchorService>('anchorService')
 
     // Make the Ceramic nodes that will be used by the CAS.
     ;[casCeramic1, casCeramic2] = await Promise.all([
@@ -353,14 +357,12 @@ describe('Ceramic Integration Test', () => {
         expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
 
         // Test that anchoring on CAS1 doesn't anchor requests made against CAS2
-        const anchorService1 = container1.resolve<AnchorService>('anchorService')
         await anchorUpdate(doc1, cas1, anchorService1)
         expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
         expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
 
         // Now test that anchoring on CAS2 doesn't anchor requests made against CAS1
         await doc1.update({ foo: 2 }, null, { anchor: true })
-        const anchorService2 = container2.resolve<AnchorService>('anchorService')
         await anchorUpdate(doc2, cas2, anchorService2)
         expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
         expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
@@ -373,16 +375,14 @@ describe('Ceramic Integration Test', () => {
     test(
       'Multiple anchors for same stream',
       async () => {
-        const anchorService = container1.resolve<AnchorService>('anchorService')
-
         const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
         expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
-        await anchorUpdate(doc1, cas1, anchorService)
+        await anchorUpdate(doc1, cas1, anchorService1)
         expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
 
         // Now that genesis commit has been anchored do an update and make sure anchoring works again
         await doc1.update({ foo: 2 }, null, { anchor: true })
-        await anchorUpdate(doc1, cas1, anchorService)
+        await anchorUpdate(doc1, cas1, anchorService1)
         expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
         expect(doc1.content).toEqual({ foo: 2 })
 
@@ -394,15 +394,13 @@ describe('Ceramic Integration Test', () => {
     test(
       'Multiple anchors in a batch',
       async () => {
-        const anchorService = container1.resolve<AnchorService>('anchorService')
-
         const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
         const doc2 = await TileDocument.create(ceramic1, { foo: 2 }, null, { anchor: true })
 
         expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
         expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
 
-        await anchorUpdate(doc1, cas1, anchorService)
+        await anchorUpdate(doc1, cas1, anchorService1)
         expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
         await waitForAnchor(doc2)
         expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
@@ -433,8 +431,7 @@ describe('Ceramic Integration Test', () => {
 
         // Make sure that cas1 updates the newest version that was created on ceramic2, even though
         // the request that ceramic1 made against cas1 was for an older version.
-        const anchorService = container1.resolve<AnchorService>('anchorService')
-        await anchorUpdate(doc1, cas1, anchorService)
+        await anchorUpdate(doc1, cas1, anchorService1)
         expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
         expect(doc1.content).toEqual(updatedContent)
 
@@ -474,8 +471,7 @@ describe('Ceramic Integration Test', () => {
         const casDocRef = await casCeramic1.loadStream(doc1.id)
         await waitForTip(casDocRef, doc2.tip)
 
-        const anchorService = container1.resolve<AnchorService>('anchorService')
-        await anchorUpdate(doc1, cas1, anchorService)
+        await anchorUpdate(doc1, cas1, anchorService1)
 
         expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
         expect(doc1.content).toEqual(updatedContent)

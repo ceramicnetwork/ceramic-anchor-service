@@ -80,7 +80,7 @@ export class AnchorService {
   /**
    * Creates anchors for client requests
    */
-  public async anchorRequests(): Promise<void> {
+  public async anchorRequests(triggeredByAnchorEvent = false): Promise<void> {
     // TODO: Remove this after restart loop removed as part of switching to go-ipfs
     // Skip sleep for unit tests
     if (process.env.NODE_ENV != 'test') {
@@ -88,8 +88,18 @@ export class AnchorService {
       await Utils.delay(1000 * 60)
     }
 
-    logger.imp('Anchoring pending requests...')
+    logger.imp('Anchoring ready requests...')
     logger.debug(`Loading requests from the database`)
+
+    const readyRequests = await this.requestRepository.findByStatus(RS.READY)
+
+    if (!triggeredByAnchorEvent && readyRequests.length === 0) {
+      const maxStreamLimit =
+        this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0
+      const minStreamLimit = this.config.minStreamCount || Math.floor(maxStreamLimit / 2)
+      await this.requestRepository.findAndMarkReady(maxStreamLimit, minStreamLimit)
+    }
+
     const requests: Request[] = await this.requestRepository.findAndMarkAsProcessing()
     const anchorSummary = await this._anchorRequests(requests)
     logEvent.anchor({
@@ -202,7 +212,12 @@ export class AnchorService {
   }
 
   /**
-   * Emits and anchor event if
+   * Emits an anchor event if
+   * 1. There are existing ready requests that have timed out (have not been picked up and set to
+   * PROCESSING by an anchor worker in a reasonable amount of time)
+   * 2. There are requests that have been successfully marked as READY
+   * An anchor event indicates that a batch of requests are ready to be anchored. An anchor worker will retrieve these READY requests,
+   * mark them as PROCESSING, and perform an anchor.
    */
   public async emitAnchorEventIfReady(): Promise<void> {
     const readyRequests = await this.requestRepository.findByStatus(RS.READY)
@@ -213,10 +228,11 @@ export class AnchorService {
       if (earliestNotTimedOut) {
         return
       }
-
+      // since the expiration of ready requests are determined by their "updated_at" field, update the requests again
+      // to indicate that a new anchor event has been emitted
       await this.requestRepository.updateRequests({ status: RS.READY }, readyRequests)
 
-      // TODO: Add alert we are going to retry
+      // TODO(NET-1623): Add alert we are going to retry
     } else {
       const streamLimit =
         this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0
@@ -463,7 +479,7 @@ export class AnchorService {
         `There were ${unprocessedRequests.length} unprocessed requests that didn't make it into this batch.  Marking them as PENDING.`
       )
 
-      // TODO: Add alert here as something is going wrong
+      // TODO(NET-1623): Add alert here as something is going wrong
       await this.requestRepository.updateRequests(
         {
           status: RS.PENDING,
