@@ -26,7 +26,7 @@ jobs:
       - image: cimg/postgres:14.2
         environment:
           POSTGRES_USER: test-user
-          POSTGRES_DB: test_anchor_db
+          POSTGRES_DB: test_db
 
     steps:
       - checkout
