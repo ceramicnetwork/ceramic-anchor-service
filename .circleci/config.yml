@@ -21,6 +21,13 @@ jobs:
     working_directory: ~/cas
     docker:
       - image: circleci/node:16
+        environment:
+          DATABASE_URL: 'postgres://test-user@localhost:5432/test-db'
+      - image: cimg/postgres:14.2
+        environment:
+          POSTGRES_USER: test-user
+          POSTGRES_DB: test_anchor_db
+
     steps:
       - checkout
 
