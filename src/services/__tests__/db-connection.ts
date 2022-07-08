@@ -28,13 +28,12 @@ function getPgConfig(name: string): ConnectionOptions {
 const createDb = async () => {
   const rootConnection = await createConnection(basePgConfig)
 
-  const dbName = 'test_anchor_db'
   const dbsFound = await rootConnection.query(
-    `SELECT datname FROM pg_catalog.pg_database WHERE lower(datname) = lower('${dbName}');`
+    `SELECT datname FROM pg_catalog.pg_database WHERE lower(datname) = lower('${DB_NAME}');`
   )
 
   if (dbsFound.length === 0) {
-    await rootConnection.query('CREATE DATABASE ' + dbName)
+    await rootConnection.query('CREATE DATABASE ' + DB_NAME)
   }
 }
 
