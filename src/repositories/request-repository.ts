@@ -9,6 +9,7 @@ import { logEvent } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
 import { logger } from '../logger/index.js'
+import { Utils } from '../utils.js'
 
 /**
  * How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
@@ -18,6 +19,7 @@ const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
 export const MAX_ANCHORING_DELAY_MS = 1000 * 60 * 60 * 12 //12H
 export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 3 //3H
 export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
+const TRANSACTION_MUTEX_ID = 4532
 
 @singleton()
 @EntityRepository(Request)
@@ -276,5 +278,48 @@ export class RequestRepository extends Repository<Request> {
       .orderBy('request.updated_at', 'ASC')
       .limit(limit)
       .getMany()
+  }
+
+  /**
+   * Repeatedly attempts to acquire the tranasction mutex. This mutex needs to be acquired before creating and sending
+   * a blockchain transaction. It prevents the use of repeated nonces when multiple anchoring CAS's run in parallel
+   *
+   * @param maxAttempts Maximum amount of attempt to acquire the transaction mutex (defaults to Infinity)
+   * @param delayMS The number of MS to wait between attempt (defaults to 5000 MS)
+   * @param manager TypeORM EntityManager (defaults to the connection's manager)
+   * @returns
+   */
+  public async acquireTransactionMutex(
+    maxAttempts = Infinity,
+    delayMS = 5000,
+    manager = this.connection.manager
+  ): Promise<void> {
+    let attempt = 0
+    while (attempt < maxAttempts) {
+      const [{ pg_try_advisory_lock: success }] = await manager.query(
+        `SELECT pg_try_advisory_lock(${TRANSACTION_MUTEX_ID})`
+      )
+
+      if (success) {
+        return
+      }
+
+      attempt++
+
+      await Utils.delay(delayMS)
+    }
+
+    throw new Error(`Failed to acquire transaction mutex after ${maxAttempts} tries`)
+  }
+
+  /**
+   * Unlocks the transaction mutex so another anchoring CAS can acquire it and create and send their blockchain transaction
+   *
+   * @param manager TypeORM EntityManager (defaults to the connection's manager)
+   * @returns
+   */
+  public async unlockTransactionMutex(manager?: EntityManager): Promise<void> {
+    manager = manager || this.connection.manager
+    return manager.query(`SELECT pg_advisory_unlock(${TRANSACTION_MUTEX_ID})`)
   }
 }
