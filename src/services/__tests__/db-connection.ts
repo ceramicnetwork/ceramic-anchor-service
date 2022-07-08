@@ -1,9 +1,10 @@
 import type { Connection, ConnectionOptions } from 'typeorm'
 import TypeORM from 'typeorm'
 const { createConnection } = TypeORM
-
 import { Anchor } from '../../models/anchor.js'
 import { Request } from '../../models/request.js'
+
+const DB_NAME = 'test_anchor_db'
 
 const basePgConfig: ConnectionOptions = {
   name: 'base',
@@ -13,10 +14,10 @@ const basePgConfig: ConnectionOptions = {
   logging: false,
 }
 
-function getPgConfig(name: string, dbName: string): ConnectionOptions {
+function getPgConfig(name: string): ConnectionOptions {
   return Object.assign({}, basePgConfig, {
     name: name,
-    database: dbName,
+    database: DB_NAME,
     entities: [Request, Anchor],
     synchronize: true,
     logging: false,
@@ -24,26 +25,31 @@ function getPgConfig(name: string, dbName: string): ConnectionOptions {
   })
 }
 
+const createDb = async () => {
+  const rootConnection = await createConnection(basePgConfig)
+
+  const dbName = 'test_anchor_db'
+  const dbsFound = await rootConnection.query(
+    `SELECT datname FROM pg_catalog.pg_database WHERE lower(datname) = lower('${dbName}');`
+  )
+
+  if (dbsFound.length === 0) {
+    await rootConnection.query('CREATE DATABASE ' + dbName)
+  }
+}
+
 export const DBConnection = {
   numConnections: 0,
   rootConnection: null,
+  dbCreated: false,
 
   async create(): Promise<Connection> {
-    this.numConnections = this.numConnections + 1
-
-    if (!this.rootConnection) {
-      this.rootConnection = await createConnection(basePgConfig)
+    if (!this.dbCreated) {
+      await createDb()
+      this.dbCreated = true
     }
 
-    const dbName = `test_anchor_db_` + this.numConnections
-    const dbsFound = await this.rootConnection.query(
-      `SELECT datname FROM pg_catalog.pg_database WHERE lower(datname) = lower('${dbName}');`
-    )
-    if (dbsFound.length === 0) {
-      await this.rootConnection.query('CREATE DATABASE ' + dbName)
-    }
-
-    const pgConf = getPgConfig('testConnection' + this.numConnections, dbName)
+    const pgConf = getPgConfig('testConnection' + this.numConnections++)
     return await createConnection(pgConf)
   },
 
