@@ -509,5 +509,15 @@ describe('request repository test', () => {
       await requestRepository2.acquireTransactionMutex()
       await requestRepository2.unlockTransactionMutex()
     })
+
+    test('Will reject if unlocking when not holdling the transaction mutex', async () => {
+      await requestRepository.acquireTransactionMutex()
+
+      await requestRepository.unlockTransactionMutex()
+
+      await expect(requestRepository.unlockTransactionMutex()).rejects.toThrow(
+        /Failed to unlock transaction mutex/
+      )
+    })
   })
 })

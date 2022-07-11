@@ -282,7 +282,8 @@ export class RequestRepository extends Repository<Request> {
 
   /**
    * Repeatedly attempts to acquire the tranasction mutex. This mutex needs to be acquired before creating and sending
-   * a blockchain transaction. It prevents the use of repeated nonces when multiple anchoring CAS's run in parallel
+   * a blockchain transaction. It prevents the use of repeated nonces when multiple anchoring CAS's run in parallel.
+   * Please ensure you are unlocking the mutex everytime you acquire it.
    *
    * @param maxAttempts Maximum amount of attempt to acquire the transaction mutex (defaults to Infinity)
    * @param delayMS The number of MS to wait between attempt (defaults to 5000 MS)
@@ -320,6 +321,12 @@ export class RequestRepository extends Repository<Request> {
    */
   public async unlockTransactionMutex(manager?: EntityManager): Promise<void> {
     manager = manager || this.connection.manager
-    return manager.query(`SELECT pg_advisory_unlock(${TRANSACTION_MUTEX_ID})`)
+    const [{ pg_advisory_unlock: success }] = await manager.query(
+      `SELECT pg_advisory_unlock(${TRANSACTION_MUTEX_ID})`
+    )
+
+    if (!success) {
+      throw new Error('Failed to unlock transaction mutex because it was not held')
+    }
   }
 }
