@@ -63,7 +63,7 @@ export const DBConnection = {
       for (const entity of entities) {
         const repository = transactionEntityManager.connection.getRepository(entity.name)
 
-        // Defer foreign key enforcement until transaction commits
+        // Disable triggers for testing
         await repository.query('SET session_replication_role = replica')
 
         // Delete all entries in table
