@@ -9,6 +9,7 @@ import { RequestStatus } from '../models/request-status.js'
 import { logEvent } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
+import { logger } from '../logger/index.js'
 
 /**
  * How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
@@ -16,17 +17,21 @@ import { inject, singleton } from 'tsyringe'
  */
 const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
 export const MAX_ANCHORING_DELAY_MS = 1000 * 60 * 60 * 12 //12H
-export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 6 //6H
+export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 3 //3H
 export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
 
 @singleton()
 @EntityRepository(Request)
 export class RequestRepository extends Repository<Request> {
+  private readonly isolationLevel
+
   constructor(
     @inject('config') private config?: Config,
     @inject('dbConnection') private connection?: Connection
   ) {
     super()
+    this.isolationLevel =
+      this.connection.options.type === 'sqlite' ? 'SERIALIZABLE' : 'REPEATABLE READ'
   }
 
   /**
@@ -90,26 +95,30 @@ export class RequestRepository extends Repository<Request> {
   }
 
   /**
-   * Gets all requests by status
+   * Gets all READY requests and marks them as PROCESSING
    */
-  public async findNextToProcess(limit: number): Promise<Request[]> {
-    const earliestDateToRetry = new Date(Date.now() - FAILURE_RETRY_WINDOW)
+  public async findAndMarkAsProcessing(): Promise<Request[]> {
+    return this.connection.transaction(this.isolationLevel, async (transactionalEntityManager) => {
+      const requests = await this.findByStatus(RequestStatus.READY, transactionalEntityManager)
 
-    return await this.connection
-      .getRepository(Request)
-      .createQueryBuilder('request')
-      .orderBy('request.created_at', 'ASC')
-      .where('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
-      .orWhere(
-        'request.status = :failedStatus AND request.createdAt >= :earliestDateToRetry AND (request.message IS NULL OR request.message != :message)',
-        {
-          failedStatus: RequestStatus.FAILED,
-          earliestDateToRetry: DateUtils.mixedDateToUtcDatetimeString(earliestDateToRetry),
-          message: REQUEST_MESSAGES.conflictResolutionRejection,
-        }
+      if (requests.length === 0) {
+        return []
+      }
+
+      const results = await this.updateRequests(
+        { status: RequestStatus.PROCESSING },
+        requests,
+        transactionalEntityManager
       )
-      .limit(limit)
-      .getMany()
+
+      if (!results.affected || results.affected != requests.length) {
+        throw Error(
+          `A problem occured when updated requests to PROCESSING. Only ${results.affected}/${requests.length} requests were updated`
+        )
+      }
+
+      return requests
+    })
   }
 
   /**
@@ -160,19 +169,23 @@ export class RequestRepository extends Repository<Request> {
   }
 
   /**
-   * Marks requests as READY if (in the order of precendence):
-   *  1. there are PROCESSING requests that need to be anchored and retried (the maximum anchoring delay has elapsed and the request hasn't been updated in a long time)
-   *  2. there are PENDING requests that need to be anchored (the maximum anchoring delay has elasped)
-   *  3. there are streamLimit streams needing an anchor (prioritizing PROCESSING requests that need to be retried, then PENDING requests)
+   * Marks requests as READY. The following requests may be marked as ready in the order of precendence:
+   *  1. There are FAILED requests that were not failed because of conflict resolution
+   *  2. there are PROCESSING requests that need to be anchored and retried (the maximum anchoring delay has elapsed and the request hasn't been updated in a long time)
+   *  3. there are PENDING requests that need to be anchored (the maximum anchoring delay has elapsed)
+   * These requests are only marked as ready if there are streamLimit streams needing an anchor OR the earliest chosen request is about to expire
+   *
    * Returns the original requests that were marked as READY
    */
-  public async findAndMarkReady(streamLimit: number): Promise<Request[]> {
+  public async findAndMarkReady(
+    maxStreamLimit: number,
+    minStreamLimit = maxStreamLimit
+  ): Promise<Request[]> {
     const anchoringDeadline = new Date(Date.now() - MAX_ANCHORING_DELAY_MS)
     const processingDeadline = new Date(Date.now() - PROCESSING_TIMEOUT)
-    const isolationLevel =
-      this.connection.options.type === 'sqlite' ? 'SERIALIZABLE' : 'REPEATABLE READ'
+    const earliestDateToRetry = new Date(Date.now() - FAILURE_RETRY_WINDOW)
 
-    return this.connection.transaction(isolationLevel, async (transactionalEntityManager) => {
+    return this.connection.transaction(this.isolationLevel, async (transactionalEntityManager) => {
       // retrieves up to streamLimit unique streams with their earliest request createdAt value.
       // this will only return streams associated with requests that are PENDING, or PROCESSING and needs to be retried
       const streamsToAnchor = await transactionalEntityManager
@@ -183,46 +196,61 @@ export class RequestRepository extends Repository<Request> {
           processingStatus: RequestStatus.PROCESSING,
           processingDeadline: DateUtils.mixedDateToUtcDatetimeString(processingDeadline),
         })
+        .orWhere(
+          'request.status = :failedStatus AND request.createdAt >= :earliestDateToRetry AND (request.message IS NULL OR request.message != :message)',
+          {
+            failedStatus: RequestStatus.FAILED,
+            earliestDateToRetry: DateUtils.mixedDateToUtcDatetimeString(earliestDateToRetry),
+            message: REQUEST_MESSAGES.conflictResolutionRejection,
+          }
+        )
         .orWhere('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
         .orderBy('MIN(request.createdAt)', 'ASC')
         .groupBy('request.streamId')
-        .limit(streamLimit)
+        // if 0 will return unlimited
+        .limit(maxStreamLimit)
         .getMany()
 
-      // Do not anchor if the earliest request isn't expired and there isn't enough streams
-      const earliestIsNotExpired =
-        streamsToAnchor.length > 0 && streamsToAnchor[0].createdAt >= anchoringDeadline
-      if (earliestIsNotExpired && streamsToAnchor.length < streamLimit) {
+      // Do not anchor if there are no streams to anhor
+      if (streamsToAnchor.length === 0) {
         return []
       }
 
-      const streamIds = streamsToAnchor.map(({ streamId }) => streamId)
+      // Anchor if we have enough streams or the earliest stream request is expired
+      const earliestIsExpired = streamsToAnchor[0].createdAt < anchoringDeadline
+      if (streamsToAnchor.length >= minStreamLimit || earliestIsExpired) {
+        const streamIds = streamsToAnchor.map(({ streamId }) => streamId)
 
-      // retrieves all requests associated with the streams
-      const requests = await transactionalEntityManager
-        .getRepository(Request)
-        .createQueryBuilder('request')
-        .orderBy('request.createdAt', 'ASC')
-        .where('request.streamId IN (:...streamIds)', { streamIds })
-        .getMany()
+        // retrieves all requests associated with the streams
+        const requests = await transactionalEntityManager
+          .getRepository(Request)
+          .createQueryBuilder('request')
+          .orderBy('request.createdAt', 'ASC')
+          .where('request.streamId IN (:...streamIds)', { streamIds })
+          .getMany()
 
-      const results = await this.updateRequests(
-        { status: RequestStatus.READY },
-        requests,
-        transactionalEntityManager
-      )
-
-      // if not all requests are updated
-      if (!results.affected || results.affected != requests.length) {
-        throw Error(
-          `A problem occured when updated requests to READY. Only ${results.affected}/${requests.length} requests were updated`
+        const results = await this.updateRequests(
+          { status: RequestStatus.READY },
+          requests,
+          transactionalEntityManager
         )
+
+        // if not all requests are updated
+        if (!results.affected || results.affected != requests.length) {
+          throw Error(
+            `A problem occured when updated requests to READY. Only ${results.affected}/${requests.length} requests were updated`
+          )
+        }
+
+        // TODO(NET-1623): Add alert here that we marked expired and processing requests as READY
+        return requests
       }
 
-      return requests
+      logger.debug(
+        'Not updating any requests to READY because there are not enough streams for a batch and the earliest request is not expired'
+      )
+      return []
     })
-
-    // TODO: add alert here that we marked expired and processing requests as READY
   }
 
   /**

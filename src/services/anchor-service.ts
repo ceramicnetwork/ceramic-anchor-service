@@ -78,9 +78,26 @@ export class AnchorService {
   }
 
   /**
-   * Creates anchors for client requests
+   * Creates anchors for pending client requests
    */
-  public async anchorRequests(): Promise<void> {
+  // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
+  public async anchorRequests(triggeredByAnchorEvent = false): Promise<void> {
+    const readyRequests = await this.requestRepository.findByStatus(RS.READY)
+
+    if (!triggeredByAnchorEvent && readyRequests.length === 0) {
+      const maxStreamLimit =
+        this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0
+      const minStreamLimit = this.config.minStreamCount || Math.floor(maxStreamLimit / 2)
+      await this.requestRepository.findAndMarkReady(maxStreamLimit, minStreamLimit)
+    }
+
+    return this.anchorReadyRequests()
+  }
+
+  /**
+   * Creates anchors for client requests that have been marked as READY
+   */
+  public async anchorReadyRequests(): Promise<void> {
     // TODO: Remove this after restart loop removed as part of switching to go-ipfs
     // Skip sleep for unit tests
     if (process.env.NODE_ENV != 'test') {
@@ -88,17 +105,9 @@ export class AnchorService {
       await Utils.delay(1000 * 60)
     }
 
-    logger.imp('Anchoring pending requests...')
-    // We try to fill our batch with 2^merkleDepthLimit streams at the leaf nodes of the merkle tree.
-    // To make sure we find enough requests on unique streamids to fill the batch, we pull in 100x
-    // the number of requests as the number of unique streams we are looking for. If we *still*
-    // don't find enough unique streams in all those requests, then we wind up with an under-full
-    // batch.  More likely, we pull in more requests than we need, but the remainder will just
-    // be picked up by the next anchor batch.
-    const streamLimit = Math.pow(2, this.config.merkleDepthLimit)
-    const requestLimit = streamLimit * 100
+    logger.imp('Anchoring ready requests...')
     logger.debug(`Loading requests from the database`)
-    const requests: Request[] = await this.requestRepository.findNextToProcess(requestLimit)
+    const requests: Request[] = await this.requestRepository.findAndMarkAsProcessing()
     const anchorSummary = await this._anchorRequests(requests)
     logEvent.anchor({
       type: 'anchorRequests',
@@ -126,22 +135,10 @@ export class AnchorService {
       // max depth of the merkle tree.
       streamCountLimit = Math.pow(2, this.config.merkleDepthLimit)
     }
-    const minStreamCount = this.config.minStreamCount || streamCountLimit / 2
-    const [candidates, groupedRequests] = await this._findCandidates(
-      requests,
-      streamCountLimit,
-      minStreamCount
-    )
+    const [candidates, groupedRequests] = await this._findCandidates(requests, streamCountLimit)
+
     if (candidates.length === 0) {
       logger.imp('No candidates found. Skipping anchor.')
-
-      if (process.env.NODE_ENV !== 'dev') {
-        logger.debug(
-          'Sleeping 10 minutes before shutting down to prevent constantly running empty anchor batches'
-        )
-        await Utils.delay(1000 * 60 * 10)
-        logger.debug(`Sleep complete, shutting down`)
-      }
       return {
         acceptedRequestsCount: groupedRequests.acceptedRequests.length,
         alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
@@ -222,7 +219,12 @@ export class AnchorService {
   }
 
   /**
-   * Emits and anchor event if
+   * Emits an anchor event if
+   * 1. There are existing ready requests that have timed out (have not been picked up and set to
+   * PROCESSING by an anchor worker in a reasonable amount of time)
+   * 2. There are requests that have been successfully marked as READY
+   * An anchor event indicates that a batch of requests are ready to be anchored. An anchor worker will retrieve these READY requests,
+   * mark them as PROCESSING, and perform an anchor.
    */
   public async emitAnchorEventIfReady(): Promise<void> {
     const readyRequests = await this.requestRepository.findByStatus(RS.READY)
@@ -233,12 +235,14 @@ export class AnchorService {
       if (earliestNotTimedOut) {
         return
       }
-
+      // since the expiration of ready requests are determined by their "updated_at" field, update the requests again
+      // to indicate that a new anchor event has been emitted
       await this.requestRepository.updateRequests({ status: RS.READY }, readyRequests)
 
-      // TODO: alert we are going to retry
+      // TODO(NET-1623): Add alert we are going to retry
     } else {
-      const streamLimit = Math.pow(2, this.config.merkleDepthLimit)
+      const streamLimit =
+        this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0
 
       const updatedRequests = await this.requestRepository.findAndMarkReady(streamLimit)
 
@@ -479,7 +483,17 @@ export class AnchorService {
 
     if (unprocessedRequests.length > 0) {
       logger.debug(
-        `There were ${unprocessedRequests.length} unprocessed requests that didn't make it into this batch.  Leaving them in PENDING state as they were.`
+        `There were ${unprocessedRequests.length} unprocessed requests that didn't make it into this batch.  Marking them as PENDING.`
+      )
+
+      // TODO(NET-1623): Add alert here as something is going wrong
+      await this.requestRepository.updateRequests(
+        {
+          status: RS.PENDING,
+          message: '',
+          pinned: true,
+        },
+        unprocessedRequests
       )
     }
   }
@@ -492,18 +506,10 @@ export class AnchorService {
    */
   async _findCandidates(
     requests: Request[],
-    candidateLimit: number,
-    minStreamCount: number
+    candidateLimit: number
   ): Promise<[Candidate[], RequestGroups]> {
     logger.debug(`Grouping requests by stream`)
     const candidates = AnchorService._buildCandidates(requests)
-
-    if (candidates.length < minStreamCount) {
-      logger.imp(
-        `Only ${candidates.length} candidate streams found, which is less than the minimum ${minStreamCount} streams required for a batch. Skipping anchor`
-      )
-      return [[], null]
-    }
 
     logger.debug(`Loading candidate streams`)
     const groupedRequests = await this._loadCandidateStreams(candidates, candidateLimit)
