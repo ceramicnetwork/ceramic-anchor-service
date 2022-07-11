@@ -188,6 +188,7 @@ describe('ETH service with mock wallet', () => {
     expect(txData).toMatchSnapshot()
   })
 
+  // ACTIVE
   test('single transaction attempt', async () => {
     const nonce = 5
     const gasPrice = BigNumber.from(1000)

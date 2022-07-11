@@ -75,6 +75,7 @@ export class AnchorService {
   /**
    * Creates anchors for client requests
    */
+  // ACTIVE
   public async anchorRequests(): Promise<void> {
     // TODO: Remove this after restart loop removed as part of switching to go-ipfs
     // Skip sleep for unit tests
@@ -155,6 +156,7 @@ export class AnchorService {
 
     // create and send ETH transaction
     logger.debug('Preparing to send transaction to put merkle root on blockchain')
+    
     const tx: Transaction = await this.blockchainService.sendTransaction(
       merkleTree.getRoot().data.cid
     )
@@ -245,13 +247,24 @@ export class AnchorService {
    * @param merkleRootCid - CID of the root of the merkle tree that was anchored in 'tx'
    */
   async _createIPFSProof(tx: Transaction, merkleRootCid: CID): Promise<CID> {
+    console.log("inside _createIPFSProof")
     const txHashCid = Utils.convertEthHashToCid(tx.txHash.slice(2))
+    console.log(tx.txHash)
+    console.log(tx.txHash.slice(2))
+    console.log(txHashCid)
+    console.log("^^^^ tx hashes")
     const ipfsAnchorProof = {
       blockNumber: tx.blockNumber,
       blockTimestamp: tx.blockTimestamp,
       root: merkleRootCid,
       chainId: tx.chain,
-      txHash: txHashCid,
+      
+      // @note the eth _getTransactionAndBlockInfo cannot find tx with txHashCid, adding txHash
+      // @note we can support both here, or define option in config
+      // txHash: txHashCid,
+      txHash: tx.txHash,
+
+      version: 1
     }
     logger.debug('Anchor proof: ' + JSON.stringify(ipfsAnchorProof))
     const ipfsProofCid = await this.ipfsService.storeRecord(ipfsAnchorProof)

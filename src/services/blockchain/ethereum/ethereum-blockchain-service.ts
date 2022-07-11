@@ -15,6 +15,9 @@ import {
   TransactionReceipt,
 } from '@ethersproject/abstract-provider'
 import { Utils } from '../../../utils.js'
+import { ProviderEvent } from 'ipfs-core-types/src/dht'
+
+import { Interface } from '@ethersproject/abi';
 
 const BASE_CHAIN_ID = 'eip155'
 const TX_FAILURE = 0
@@ -163,6 +166,9 @@ export class EthereumBlockchainService implements BlockchainService {
    */
   private async _loadChainId(): Promise<void> {
     const network = await this.wallet.provider.getNetwork()
+    console.log("_loadChainId")
+    console.log(network)
+    console.log(network.chainId)
     this._chainId = network.chainId
   }
 
@@ -190,6 +196,15 @@ export class EthereumBlockchainService implements BlockchainService {
    * @private
    */
   async setGasPrice(txData: TransactionRequest, attempt: number): Promise<void> {
+    
+    console.log("txData")
+    console.log(txData)
+    console.log(this.config.blockchain.connectors.ethereum.gasLimit)
+
+    await this.wallet.provider.estimateGas(txData).then( (r)=>{
+      console.log(r.toString())
+    })
+    
     if (this.config.blockchain.connectors.ethereum.overrideGasConfig) {
       txData.gasLimit = BigNumber.from(this.config.blockchain.connectors.ethereum.gasLimit)
       logger.debug('Overriding Gas limit: ' + txData.gasLimit.toString())
@@ -270,19 +285,76 @@ export class EthereumBlockchainService implements BlockchainService {
     return caipChainId(this._chainId)
   }
 
+  // @active  
   async _buildTransactionRequest(rootCid: CID): Promise<TransactionRequest> {
+    console.log("inside _buildTransactionRequest, rootCid:")
+    console.log(rootCid)
     const rootStrHex = rootCid.toString(base16)
+    console.log(rootStrHex)
     const hexEncoded = '0x' + (rootStrHex.length % 2 == 0 ? rootStrHex : '0' + rootStrHex)
     logger.imp(`Hex encoded root CID ${hexEncoded}`)
-
     logger.debug('Preparing ethereum transaction')
     const baseNonce = await this.wallet.provider.getTransactionCount(this.wallet.address)
+    console.log("hexEncoded")
+    console.log(hexEncoded)
+    // let func_sig = await ethers.utils.keccak256("anchor")
+    // await console.log("func_sig")
+    // await console.log(func_sig)
+    const iface = new Interface([
+      "function anchor(bytes)"
+    ])
+    const func_sig = iface.getSighash("anchor");
 
+    console.log("func_sig")
+    console.log(func_sig)
+
+    const abi = [
+      "function anchor(bytes)",
+    ];
+    const anchorContract = new ethers.Contract(this.config.blockchain.connectors.ethereum.contractAddress, abi, this.wallet.provider)
+    const rootStrHex2 = rootCid.toString(base16)
+    const hexEncoded2 = '0x' + (rootStrHex.length % 2 == 0 ? rootStrHex : '0' + rootStrHex)
+    const transactionRequest = await anchorContract.populateTransaction.anchor(hexEncoded)
+    
+    console.log("before properAnchor")
+    console.log("0x0f0185011220df135988fb4aef528d91aa6716361550687b9d6ee1d053c8a650d3a741b077a5".length)
+    // const properAnchorByUnvocation = anchorContract.attach(this.config.blockchain.connectors.ethereum.contractAddress).anchor("0x0f018501122058dd05ea413d81f8a6dbd091a6460866c2fd6044cd7375c971d60b4b623f1234")
+    // console.log("proper anchor")
+    // console.log(properAnchorByUnvocation)
+    // const transactionRequest = await anchorContract.populateTransaction.anchor("test")
+    console.log("rootStrHex2")
+    console.log(rootStrHex2)
+    console.log("hexEncoded2")
+    console.log(hexEncoded2)
+    console.log("transactionRequest")
+    console.log(transactionRequest)
+
+    const transaction_data = transactionRequest.data
+    console.log("transaction_data")
+    console.log(transaction_data)
+    // const sig2 = iface.getFunction("function anchor(bytes)");
+    // console.log("sig2")
+    // console.log(sig2)
+
+    const func_sig3 = iface.encodeFunctionData("anchor", [
+      hexEncoded
+    ])
+    
+    await console.log("func_sig3")
+    await console.log(func_sig3)
+    await console.log("contractAddress")
+    await console.log(this.config.blockchain.connectors.ethereum.contractAddress)
     return {
-      to: this.wallet.address,
-      data: hexEncoded,
+      // ACTIVE  
+      // to: this.wallet.address,
+      // to: "0x0657f2512160ddcF3103Dd462111bf7b940d524C",
+      to: this.config.blockchain.connectors.ethereum.contractAddress,
+      // data: func_sig+hexEncoded.replace("0x",""),
+      // data: "0x",
+      data: transaction_data,
       nonce: baseNonce,
     }
+
   }
 
   /**
@@ -290,6 +362,7 @@ export class EthereumBlockchainService implements BlockchainService {
    * @param txData
    * @param attemptNum
    */
+  // @active
   async _trySendTransaction(
     txData: TransactionRequest,
     attemptNum: number
@@ -301,7 +374,11 @@ export class EthereumBlockchainService implements BlockchainService {
       tx: txData,
     })
     logger.imp(`Sending transaction to Ethereum ${this._network} network...`)
+    console.log(txData)
+
+    // @ACTIVE
     const txResponse: TransactionResponse = await this.wallet.sendTransaction(txData)
+
     logEvent.ethereum({
       type: 'txResponse',
       hash: txResponse.hash,
@@ -313,6 +390,7 @@ export class EthereumBlockchainService implements BlockchainService {
       raw: txResponse.raw,
     })
 
+    
     assertSameChainId(txResponse.chainId, this._chainId)
     return txResponse
   }
@@ -322,6 +400,7 @@ export class EthereumBlockchainService implements BlockchainService {
    * the transaction info if so.
    * @param txResponse - response from when the transaction was submitted to the mempool
    */
+  // ACTIVE 
   async _confirmTransactionSuccess(txResponse: TransactionResponse): Promise<Transaction> {
     logger.imp(`Waiting to confirm transaction with hash ${txResponse.hash}`)
     const txReceipt: TransactionReceipt = await this.wallet.provider.waitForTransaction(
@@ -329,11 +408,18 @@ export class EthereumBlockchainService implements BlockchainService {
       NUM_BLOCKS_TO_WAIT,
       this._transactionTimeoutSecs * 1000
     )
+
+    console.log("txReceipt")
+    console.log(txReceipt)
+
     logEvent.ethereum({
       type: 'txReceipt',
       tx: txReceipt,
     })
     const block = await this.wallet.provider.getBlock(txReceipt.blockHash)
+
+    console.log("block from inside _confirmTransactionSuccess")
+    console.log(block)
 
     const status = txReceipt.byzantium ? txReceipt.status : -1
     let statusMessage = status == TX_SUCCESS ? 'success' : 'failure'
@@ -376,8 +462,10 @@ export class EthereumBlockchainService implements BlockchainService {
   /**
    * Sends transaction with root CID as data
    */
+  // ACTIVE
   public async sendTransaction(rootCid: CID): Promise<Transaction> {
     const txData = await this._buildTransactionRequest(rootCid)
+    console.log(txData)
     const txResponses: Array<TransactionResponse> = []
 
     return this.withWalletBalance((walletBalance) => {

@@ -1,8 +1,10 @@
 {
   "mode": "bundled",
+  "anchorVersion": 1,
   "port": 8081,
   "anchorControllerEnabled": false,
-  "cronExpression": "0/5 * * * ? *",
+  "cronExpressionx": "0/5 * * * ? *",
+  "cronExpression": "0/1 * * * ? *",
   "expirationPeriod": 5400000,
   "merkleDepthLimit": 0,
   "minStreamCount": 1,
@@ -21,7 +23,8 @@
       "ethereum": {
         "network": "ganache",
         "overrideGasConfig": false,
-        "gasLimit": 4712388,
+        "gasLimitx": 4712388,
+        "gasLimit": 6721975,
         "rpc": {
           "host": "http://localhost",
           "port": "8545",
@@ -29,7 +32,12 @@
         },
         "transactionTimeoutSecs": 60,
         "account": {
-          "privateKey": "0x06dd0990d19001c57eeea6d32e8fdeee40d3945962caf18c18c3930baa5a6ec9"
+          "privateKeyx": "0x06dd0990d19001c57eeea6d32e8fdeee40d3945962caf18c18c3930baa5a6ec9",
+          "privateKey": "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        },
+        "contractAddress": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+        "versionThreshBlock": {
+          "1": 1000000000
         }
       }
     }
