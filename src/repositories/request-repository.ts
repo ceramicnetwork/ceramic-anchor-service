@@ -212,6 +212,7 @@ export class RequestRepository extends Repository<Request> {
         .limit(maxStreamLimit)
         .getRawMany()
 
+      // convert raw results to Request entities
       const streamsToAnchor = transactionalEntityManager.getRepository(Request).create(
         rawStreamsToAnchor.map((request) => ({
           streamId: request['sid'],

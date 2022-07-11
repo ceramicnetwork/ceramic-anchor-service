@@ -78,19 +78,10 @@ export class AnchorService {
   }
 
   /**
-   * Creates anchors for client requests
+   * Creates anchors for pending client requests
    */
+  // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
   public async anchorRequests(triggeredByAnchorEvent = false): Promise<void> {
-    // TODO: Remove this after restart loop removed as part of switching to go-ipfs
-    // Skip sleep for unit tests
-    if (process.env.NODE_ENV != 'test') {
-      logger.imp('sleeping one minute for ipfs to stabilize')
-      await Utils.delay(1000 * 60)
-    }
-
-    logger.imp('Anchoring ready requests...')
-    logger.debug(`Loading requests from the database`)
-
     const readyRequests = await this.requestRepository.findByStatus(RS.READY)
 
     if (!triggeredByAnchorEvent && readyRequests.length === 0) {
@@ -100,6 +91,22 @@ export class AnchorService {
       await this.requestRepository.findAndMarkReady(maxStreamLimit, minStreamLimit)
     }
 
+    return this.anchorReadyRequests()
+  }
+
+  /**
+   * Creates anchors for client requests that have been marked as READY
+   */
+  public async anchorReadyRequests(): Promise<void> {
+    // TODO: Remove this after restart loop removed as part of switching to go-ipfs
+    // Skip sleep for unit tests
+    if (process.env.NODE_ENV != 'test') {
+      logger.imp('sleeping one minute for ipfs to stabilize')
+      await Utils.delay(1000 * 60)
+    }
+
+    logger.imp('Anchoring ready requests...')
+    logger.debug(`Loading requests from the database`)
     const requests: Request[] = await this.requestRepository.findAndMarkAsProcessing()
     const anchorSummary = await this._anchorRequests(requests)
     logEvent.anchor({
