@@ -2,7 +2,6 @@ import { CID } from 'multiformats/cid'
 import type { Connection, EntityManager, InsertResult, UpdateResult } from 'typeorm'
 import TypeORM from 'typeorm'
 const { EntityRepository, Repository } = TypeORM
-import { DateUtils } from 'typeorm/util/DateUtils.js'
 export { Repository }
 import { Request, RequestUpdateFields, REQUEST_MESSAGES } from '../models/request.js'
 import { RequestStatus } from '../models/request-status.js'
@@ -188,28 +187,36 @@ export class RequestRepository extends Repository<Request> {
     return this.connection.transaction(this.isolationLevel, async (transactionalEntityManager) => {
       // retrieves up to streamLimit unique streams with their earliest request createdAt value.
       // this will only return streams associated with requests that are PENDING, or PROCESSING and needs to be retried
-      const streamsToAnchor = await transactionalEntityManager
+      const rawStreamsToAnchor = await transactionalEntityManager
         .getRepository(Request)
         .createQueryBuilder('request')
-        .select(['request.streamId', 'request.createdAt'])
-        .where('request.status = :processingStatus AND request.updatedAt < :processingDeadline', {
-          processingStatus: RequestStatus.PROCESSING,
-          processingDeadline: DateUtils.mixedDateToUtcDatetimeString(processingDeadline),
-        })
-        .orWhere(
+        .select(['request.streamId as sid', 'MIN(request.createdAt) as min_created_at'])
+        .where(
           'request.status = :failedStatus AND request.createdAt >= :earliestDateToRetry AND (request.message IS NULL OR request.message != :message)',
           {
             failedStatus: RequestStatus.FAILED,
-            earliestDateToRetry: DateUtils.mixedDateToUtcDatetimeString(earliestDateToRetry),
+            earliestDateToRetry: earliestDateToRetry,
             message: REQUEST_MESSAGES.conflictResolutionRejection,
           }
         )
+        .orWhere('request.status = :processingStatus AND request.updatedAt < :processingDeadline', {
+          processingStatus: RequestStatus.PROCESSING,
+          processingDeadline: processingDeadline,
+        })
         .orWhere('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
-        .orderBy('MIN(request.createdAt)', 'ASC')
-        .groupBy('request.streamId')
+        .groupBy('sid')
+        .orderBy('min_created_at', 'ASC')
         // if 0 will return unlimited
         .limit(maxStreamLimit)
-        .getMany()
+        .getRawMany()
+
+      // convert raw results to Request entities
+      const streamsToAnchor = transactionalEntityManager.getRepository(Request).create(
+        rawStreamsToAnchor.map((request) => ({
+          streamId: request['sid'],
+          createdAt: request['min_created_at'],
+        }))
+      )
 
       // Do not anchor if there are no streams to anhor
       if (streamsToAnchor.length === 0) {

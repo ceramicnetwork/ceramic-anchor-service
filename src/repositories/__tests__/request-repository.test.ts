@@ -289,7 +289,7 @@ describe('request repository test', () => {
 
     test('Marks processing requests as ready if they need to be retried', async () => {
       const streamLimit = 5
-      // 7h ago (timeout is 6h)
+      // 4h ago (timeout is 3h)
       const dateOfTimedOutProcessingRequest = new Date(Date.now() - PROCESSING_TIMEOUT - MS_IN_HOUR)
 
       const expiredProcessing = await generateRequests(
@@ -307,8 +307,8 @@ describe('request repository test', () => {
         generateRequests(
           {
             status: RequestStatus.PROCESSING,
-            createdAt: new Date(Date.now() - MS_IN_HOUR * 3),
-            updatedAt: new Date(Date.now() - MS_IN_HOUR * 2),
+            createdAt: new Date(Date.now() - MS_IN_MINUTE * 45),
+            updatedAt: new Date(Date.now() - MS_IN_MINUTE * 30),
           },
           4
         ),
