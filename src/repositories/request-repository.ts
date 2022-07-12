@@ -20,7 +20,7 @@ export const MAX_ANCHORING_DELAY_MS = 1000 * 60 * 60 * 12 //12H
 export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 3 //3H
 export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
 const TRANSACTION_MUTEX_ID = 4532
-// application is reccomended to automatically retry when seeing this error
+// application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
 
 @singleton()
