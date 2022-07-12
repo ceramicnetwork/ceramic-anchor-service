@@ -15,6 +15,7 @@ import { Request, REQUEST_MESSAGES } from '../../models/request.js'
 import { randomCID, generateRequests } from '../../test-utils.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { RequestStatus } from '../../models/request-status.js'
+import { Utils } from '../../utils.js'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -486,38 +487,35 @@ describe('request repository test', () => {
   })
 
   describe('transaction mutex', () => {
-    test('Can acquire and unlock the transaction mutex', async () => {
-      await requestRepository.acquireTransactionMutex()
-
-      await requestRepository.unlockTransactionMutex()
+    test('Can successfully acquire transaction mutex', async () => {
+      await requestRepository.withTransactionMutex(async () => {
+        await Utils.delay(1000)
+      })
     })
 
-    test('If mutex is already acquired will block until it is unlocked', async () => {
-      await requestRepository.acquireTransactionMutex()
-
+    test('Will block until can acquire transaction mutex', async () => {
       const childContainer = container.createChildContainer()
       childContainer.registerInstance('dbConnection', connection2)
       childContainer.registerSingleton('requestRepository', RequestRepository)
       const requestRepository2 = childContainer.resolve<RequestRepository>('requestRepository')
 
-      await expect(requestRepository2.acquireTransactionMutex(3, 1000)).rejects.toThrow(
-        /Failed to acquire transaction mutex/
-      )
+      await requestRepository.withTransactionMutex(async () => {
+        await expect(
+          requestRepository2.withTransactionMutex(() => Utils.delay(1000), 2, 1000)
+        ).rejects.toThrow(/Failed to acquire transaction mutex/)
+      })
 
-      await requestRepository.unlockTransactionMutex()
-
-      await requestRepository2.acquireTransactionMutex()
-      await requestRepository2.unlockTransactionMutex()
+      await requestRepository2.withTransactionMutex(() => Utils.delay(1000))
     })
 
-    test('Will reject if unlocking when not holdling the transaction mutex', async () => {
-      await requestRepository.acquireTransactionMutex()
+    test('Will unlock the transaction mutex if the operation fails', async () => {
+      await expect(
+        requestRepository.withTransactionMutex(async () => {
+          throw new Error('test error')
+        })
+      ).rejects.toThrow(/test error/)
 
-      await requestRepository.unlockTransactionMutex()
-
-      await expect(requestRepository.unlockTransactionMutex()).rejects.toThrow(
-        /Failed to unlock transaction mutex/
-      )
+      await requestRepository.withTransactionMutex(() => Utils.delay(1000))
     })
   })
 })
