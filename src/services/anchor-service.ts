@@ -1,6 +1,6 @@
 import { CID } from 'multiformats/cid'
 
-import { RequestStatus, RequestStatus as RS } from '../models/request-status.js'
+import { RequestStatus as RS } from '../models/request-status.js'
 
 import { MerkleTree } from '../merkle/merkle-tree.js'
 import { PathDirection, TreeMetadata } from '../merkle/merkle.js'
@@ -51,8 +51,35 @@ type AnchorSummary = {
   unprocessedRequestCount: number
   candidateCount: number
   anchorCount: number
+  retryingRequestsCount: number
 }
 
+const logAnchorSummary = (
+  groupedRequests: RequestGroups,
+  candidates: Candidate[],
+  results: Partial<AnchorSummary> = {}
+) => {
+  const anchorSummary: AnchorSummary = Object.assign(
+    {
+      acceptedRequestsCount: groupedRequests.acceptedRequests.length,
+      alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
+      anchoredRequestsCount: 0,
+      conflictingRequestCount: groupedRequests.conflictingRequests.length,
+      failedRequestsCount: groupedRequests.failedRequests.length,
+      failedToPublishAnchorCommitCount: 0,
+      unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
+      candidateCount: candidates.length,
+      anchorCount: 0,
+      retryingRequestsCount: 0,
+    },
+    results
+  )
+
+  logEvent.anchor({
+    type: 'anchorRequests',
+    ...anchorSummary,
+  })
+}
 /**
  * Anchors CIDs to blockchain
  */
@@ -108,11 +135,7 @@ export class AnchorService {
     logger.imp('Anchoring ready requests...')
     logger.debug(`Loading requests from the database`)
     const requests: Request[] = await this.requestRepository.findAndMarkAsProcessing()
-    const anchorSummary = await this._anchorRequests(requests)
-    logEvent.anchor({
-      type: 'anchorRequests',
-      ...anchorSummary,
-    })
+    await this._anchorRequests(requests)
 
     // Sleep 5 seconds before exiting the process to give time for the logs to flush.
     await Utils.delay(5000)
@@ -123,7 +146,7 @@ export class AnchorService {
     await this._garbageCollect(requests)
   }
 
-  private async _anchorRequests(requests: Request[]): Promise<AnchorSummary> {
+  private async _anchorRequests(requests: Request[]): Promise<void> {
     if (requests.length === 0) {
       logger.debug('No pending CID requests found. Skipping anchor.')
       return
@@ -139,66 +162,79 @@ export class AnchorService {
 
     if (candidates.length === 0) {
       logger.imp('No candidates found. Skipping anchor.')
-      return {
-        acceptedRequestsCount: groupedRequests.acceptedRequests.length,
-        alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
-        anchoredRequestsCount: 0,
-        conflictingRequestCount: groupedRequests.conflictingRequests.length,
-        failedRequestsCount: groupedRequests.failedRequests.length,
-        failedToPublishAnchorCommitCount: 0,
-        unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
-        candidateCount: candidates.length,
-        anchorCount: 0,
-      }
+      logAnchorSummary(groupedRequests, candidates)
+      return
     }
 
+    const allFailedRequestsCount = groupedRequests.failedRequests.length
+    const candidateFailedRequestsBeforeAnchoring = candidates
+      .map((candidate) => candidate.failedRequests)
+      .flat().length
+
     try {
-      logger.imp(`Creating Merkle tree from ${candidates.length} selected streams`)
-      const merkleTree = await this._buildMerkleTree(candidates)
-
-      // create and send ETH transaction
-      logger.debug('Preparing to send transaction to put merkle root on blockchain')
-      const tx: Transaction = await this.blockchainService.sendTransaction(
-        merkleTree.getRoot().data.cid
-      )
-
-      // create proof on IPFS
-      logger.debug('Creating IPFS anchor proof')
-      const ipfsProofCid = await this._createIPFSProof(tx, merkleTree.getRoot().data.cid)
-
-      // create anchor records on IPFS
-      logger.debug('Creating anchor commits')
-      const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
-
-      // Update the database to record the successful anchors
-      logger.debug('Persisting results to local database')
-      const numAnchoredRequests = await this._persistAnchorResult(anchors, candidates)
-
-      logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
-      return {
-        acceptedRequestsCount: groupedRequests.acceptedRequests.length,
-        alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
-        anchoredRequestsCount: numAnchoredRequests,
-        conflictingRequestCount: groupedRequests.conflictingRequests.length,
-        failedRequestsCount: groupedRequests.failedRequests.length,
-        failedToPublishAnchorCommitCount: merkleTree.getLeaves().length - anchors.length,
-        unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
-        candidateCount: candidates.length,
-        anchorCount: anchors.length,
-      }
+      const results = await this._anchorCandidates(candidates)
+      logAnchorSummary(groupedRequests, candidates, results)
+      return
     } catch (err) {
-      logger.imp(
-        `Updating requests to pending to be retried in the next batch because an error occured while creating the anchors: ${err}`
-      )
-
       // TODO(NET-1623): Add alert that something went wrong and we are retrying
-
-      await this.requestRepository.updateRequests(
-        { status: RequestStatus.PENDING },
-        groupedRequests.acceptedRequests
+      logger.imp(
+        `Updating PROCESSING requests to PENDING so they are retried in the next batch because an error occured while creating the anchors: ${err}`
       )
+
+      // some of the requests may have been marked failed during the anchoring candidate process
+      // we do not want to mark those as PENDING
+      const acceptedRequests = candidates.map((candidate) => candidate.acceptedRequests).flat()
+      await this.requestRepository.updateRequests({ status: RS.PENDING }, acceptedRequests)
+
+      // groupedRequests.failedRequests include all requests that were failed when loading the streams.
+      // This includes failed requests associated to candidates. Since requests may have been marked failed
+      // during the anchoring of the candidates, there may be more failed requests associated with candidates than
+      // before. This is why we must do the following calculation as to not double count some failed requests.
+      const candidateFailedRequestsAfterAnchoring = candidates
+        .map((candidate) => candidate.failedRequests)
+        .flat().length
+
+      const results: Partial<AnchorSummary> = {
+        failedRequestsCount:
+          allFailedRequestsCount -
+          candidateFailedRequestsBeforeAnchoring +
+          candidateFailedRequestsAfterAnchoring,
+        retryingRequestsCount: acceptedRequests.length,
+      }
+      logAnchorSummary(groupedRequests, candidates, results)
 
       throw err
+    }
+  }
+
+  private async _anchorCandidates(candidates: Candidate[]): Promise<Partial<AnchorSummary>> {
+    logger.imp(`Creating Merkle tree from ${candidates.length} selected streams`)
+    const merkleTree = await this._buildMerkleTree(candidates)
+
+    // create and send ETH transaction
+    logger.debug('Preparing to send transaction to put merkle root on blockchain')
+    const tx: Transaction = await this.blockchainService.sendTransaction(
+      merkleTree.getRoot().data.cid
+    )
+
+    // create proof on IPFS
+    logger.debug('Creating IPFS anchor proof')
+    const ipfsProofCid = await this._createIPFSProof(tx, merkleTree.getRoot().data.cid)
+
+    // create anchor records on IPFS
+    logger.debug('Creating anchor commits')
+    const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
+
+    // Update the database to record the successful anchors
+    logger.debug('Persisting results to local database')
+    const numAnchoredRequests = await this._persistAnchorResult(anchors, candidates)
+
+    logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
+
+    return {
+      anchoredRequestsCount: numAnchoredRequests,
+      failedToPublishAnchorCommitCount: merkleTree.getLeaves().length - anchors.length,
+      anchorCount: anchors.length,
     }
   }
 
