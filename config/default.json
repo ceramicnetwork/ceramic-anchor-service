@@ -35,7 +35,8 @@
           "privateKeyx": "0x06dd0990d19001c57eeea6d32e8fdeee40d3945962caf18c18c3930baa5a6ec9",
           "privateKey": "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
         },
-        "contractAddress": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+        "contractAddressx": "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+        "contractAddress": "0xD3f84Cf6Be3DD0EB16dC89c972f7a27B441A39f2",
         "versionThreshBlock": {
           "1": 1000000000
         }

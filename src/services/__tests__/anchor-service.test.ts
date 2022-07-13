@@ -775,5 +775,10 @@ describe('anchor service', () => {
       // No additional calls to unpinStream
       expect(unpinStreamSpy).toHaveBeenCalledTimes(2)
     })
+
+    test('Anchor Version 1 Test', async () => {
+
+    }
+
   })
 })

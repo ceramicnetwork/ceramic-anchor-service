@@ -156,6 +156,9 @@ async function waitForAnchor(stream: Stream): Promise<void> {
 }
 
 describe('Ceramic Integration Test', () => {
+
+
+
   jest.setTimeout(60 * 1000 * 10)
 
   let ipfs1: IpfsApi // Used by CAS1 directly
@@ -308,6 +311,11 @@ describe('Ceramic Integration Test', () => {
     console.log(`Finished test: ${expect.getState().currentTestName}`)
   })
 
+
+
+
+
+
   describe('Multiple CAS instances in same process works', () => {
     test(
       'Anchors on different CAS instances are independent',
@@ -373,71 +381,13 @@ describe('Ceramic Integration Test', () => {
     )
   })
 
-  describe('Consensus for anchors', () => {
+  describe('Version 1 test', () => {
     test(
-      'Anchors latest available tip from network',
+      'Anchor 1',
       async () => {
-        const initialContent = { foo: 0 }
-        const updatedContent = { foo: 1 }
-
-        const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
-
-        // Perform update on ceramic2
-        const doc2 = await TileDocument.load(ceramic2, doc1.id)
-        await doc2.update(updatedContent, null, { anchor: false })
-
-        // Make sure that cas1 updates the newest version that was created on ceramic2, even though
-        // the request that ceramic1 made against cas1 was for an older version.
-        await anchorUpdate(doc1, cas1)
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-        expect(doc1.content).toEqual(updatedContent)
-
-        console.log('Test complete: Anchors latest available tip from network')
+        
       },
-      60 * 1000 * 2
+      60 * 1000 * 3
     )
-
-    test('Anchor discovered through pubsub', async () => {
-      jest.setTimeout(60 * 1000 * 2)
-      // In ceramic the stream waits for a successful anchor by polling the request endpoint of the CAS.
-      // We alter the CAS' returned request anchor status so that it is always pending.
-      // The ceramic node will then have to hear about the successful anchor through pubsub
-      const requestRepo = container1.resolve<RequestRepository>('requestRepository')
-      const original = requestRepo.findByCid
-      requestRepo.findByCid = async (cid: CID): Promise<Request> => {
-        const result: Request = await original.apply(requestRepo, [cid])
-
-        if (result) {
-          return Object.assign(result, { status: AnchorStatus.PENDING })
-        }
-
-        return result
-      }
-
-      try {
-        const initialContent = { foo: 0 }
-        const updatedContent = { foo: 1 }
-
-        const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
-
-        const doc2 = await TileDocument.load(ceramic2, doc1.id)
-        await doc2.update(updatedContent, null, { anchor: false })
-
-        await anchorUpdate(doc1, cas1)
-
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-        expect(doc1.content).toEqual(updatedContent)
-
-        await doc2.sync({ sync: SyncOptions.NEVER_SYNC })
-        expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-        expect(doc2.content).toEqual(updatedContent)
-      } finally {
-        requestRepo.findByCid = original
-      }
-
-      console.log('Test complete: Anchor discovered through pubsub')
-    })
   })
 })
