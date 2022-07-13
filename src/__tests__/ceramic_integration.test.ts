@@ -19,8 +19,8 @@ import { container } from 'tsyringe'
 import { config } from 'node-config-ts'
 import cloneDeep from 'lodash.clonedeep'
 import { TileDocument } from '@ceramicnetwork/stream-tile'
-import { filter, take } from 'rxjs/operators'
-import { firstValueFrom, timeout, throwError } from 'rxjs'
+import { filter } from 'rxjs/operators'
+import { firstValueFrom, timeout, throwError, interval, concatMap } from 'rxjs'
 import { DID } from 'dids'
 import { Ed25519Provider } from 'key-did-provider-ed25519'
 import * as sha256 from '@stablelib/sha256'
@@ -33,6 +33,7 @@ import { RequestRepository } from '../repositories/request-repository.js'
 import { Request } from '../models/request.js'
 import { CID } from 'multiformats/cid'
 import { AnchorService } from '../services/anchor-service.js'
+import { RequestStatus } from '../models/request-status.js'
 
 process.env.NODE_ENV = 'test'
 
@@ -182,6 +183,25 @@ async function waitForTip(stream: Stream, tip: CID, timeoutMS = 30 * 1000): Prom
               new Error(
                 `Timeout waiting for ceramic to receive cid ${tip.toString()} for stream ${stream.id.toString()}`
               )
+          ),
+      })
+    )
+  )
+}
+
+async function waitForNoReadyRequests(
+  requestRepo: RequestRepository,
+  timeoutMS = 30 * 1000
+): Promise<void> {
+  await firstValueFrom(
+    interval(1000).pipe(
+      concatMap(() => requestRepo.findByStatus(RequestStatus.READY)),
+      filter((requests) => requests.length == 0),
+      timeout({
+        each: timeoutMS,
+        with: () =>
+          throwError(
+            () => new Error(`Timeout waiting for requests to move from READY to PROCESSING`)
           ),
       })
     )
@@ -406,6 +426,33 @@ describe('Ceramic Integration Test', () => {
         expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
 
         console.log('Test complete: Multiple anchors in a batch')
+      },
+      60 * 1000 * 3
+    )
+
+    test(
+      'Anchors on different CAS instances can run in parallel',
+      async () => {
+        const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
+        const doc2 = await TileDocument.create(ceramic2, { cheese: 1 }, null, { anchor: true })
+
+        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+        expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+
+        // Marks one of the requests as READY. This causes the first anchorUpdate to only anchor that one request.
+        const requestRepo1 = container1.resolve<RequestRepository>('requestRepository')
+        await requestRepo1.findAndMarkReady(1)
+
+        await Promise.all([
+          anchorUpdate(doc1, cas1, anchorService1),
+          // we wait for the first request to be picked up before we anchor the next request
+          waitForNoReadyRequests(requestRepo1).then(() => anchorUpdate(doc2, cas2, anchorService2)),
+        ])
+
+        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+        expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+
+        console.log('Test complete: Anchors on different CAS instances can run in parallel')
       },
       60 * 1000 * 3
     )
