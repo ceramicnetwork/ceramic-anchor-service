@@ -212,10 +212,10 @@ export class AnchorService {
     const merkleTree = await this._buildMerkleTree(candidates)
 
     // create and send ETH transaction
-    logger.debug('Preparing to send transaction to put merkle root on blockchain')
-    const tx: Transaction = await this.blockchainService.sendTransaction(
-      merkleTree.getRoot().data.cid
-    )
+    const tx: Transaction = await this.requestRepository.withTransactionMutex(() => {
+      logger.debug('Preparing to send transaction to put merkle root on blockchain')
+      return this.blockchainService.sendTransaction(merkleTree.getRoot().data.cid)
+    })
 
     // create proof on IPFS
     logger.debug('Creating IPFS anchor proof')

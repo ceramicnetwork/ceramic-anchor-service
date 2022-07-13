@@ -15,6 +15,7 @@ import { Request, REQUEST_MESSAGES } from '../../models/request.js'
 import { randomCID, generateRequests } from '../../test-utils.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { RequestStatus } from '../../models/request-status.js'
+import { Utils } from '../../utils.js'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -74,18 +75,24 @@ async function getAllRequests(connection): Promise<Request[]> {
 describe('request repository test', () => {
   jest.setTimeout(10000)
   let connection: Connection
+  let requestRepository: RequestRepository
+  let connection2: Connection
 
   beforeAll(async () => {
     connection = await DBConnection.create()
+    connection2 = await DBConnection.create()
 
     container.registerInstance('config', config)
     container.registerInstance('dbConnection', connection)
     container.registerSingleton('anchorRepository', AnchorRepository)
     container.registerSingleton('requestRepository', RequestRepository)
+
+    requestRepository = container.resolve<RequestRepository>('requestRepository')
   })
 
   beforeEach(async () => {
     await DBConnection.clear(connection)
+    await DBConnection.clear(connection2)
   })
 
   afterAll(async () => {
@@ -93,8 +100,6 @@ describe('request repository test', () => {
   })
 
   test('Finds requests older than a month', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-
     // Create two requests that are expired and should be garbage collected, and two that should not
     // be.
     const requests = await Promise.all([
@@ -113,8 +118,6 @@ describe('request repository test', () => {
   })
 
   test("Don't cleanup streams who have both old and new requests", async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-
     // Create two requests that are expired and should be garbage collected, and two that should not
     // be.
     const requests = await Promise.all([
@@ -136,8 +139,6 @@ describe('request repository test', () => {
   })
 
   test('Process requests oldest to newest', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-
     const requests = await generateReadyRequests(2)
     await requestRepository.createRequests(requests)
     const loadedRequests = await requestRepository.findAndMarkAsProcessing()
@@ -166,7 +167,6 @@ describe('request repository test', () => {
       ),
     ]).then((arr) => arr.flat())
 
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
     await requestRepository.createRequests(requests)
 
     const createdRequests = await getAllRequests(connection)
@@ -196,7 +196,6 @@ describe('request repository test', () => {
         ),
       ]).then((arr) => arr.flat())
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const createdRequests = await getAllRequests(connection)
@@ -228,7 +227,6 @@ describe('request repository test', () => {
         ),
       ]).then((arr) => arr.flat())
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
@@ -255,7 +253,6 @@ describe('request repository test', () => {
         generateRequests({ status: RequestStatus.PENDING }, 1),
       ]).then((arr) => arr.flat())
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const createdRequests = await getAllRequests(connection)
@@ -273,7 +270,6 @@ describe('request repository test', () => {
       // pending requests created now
       const requests = await generateRequests({ status: RequestStatus.PENDING }, streamLimit + 2)
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const createdRequests = await getAllRequests(connection)
@@ -316,7 +312,6 @@ describe('request repository test', () => {
         generateRequests({ status: RequestStatus.PENDING }, streamLimit),
       ]).then((arr) => arr.flat())
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const createdRequests = await getAllRequests(connection)
@@ -370,7 +365,6 @@ describe('request repository test', () => {
       const repeatedRequest1 = requests[0]
       const repeatedRequest2 = requests[1]
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const createdRequest = await getAllRequests(connection)
@@ -393,7 +387,6 @@ describe('request repository test', () => {
         streamLimit
       )
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const originaUpdateRequest = requestRepository.updateRequests
@@ -436,7 +429,6 @@ describe('request repository test', () => {
         ),
       ]).then((arr) => arr.flat())
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const createdRequests = await getAllRequests(connection)
@@ -461,7 +453,6 @@ describe('request repository test', () => {
         streamLimit
       )
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const createdRequests = await getAllRequests(connection)
@@ -485,7 +476,6 @@ describe('request repository test', () => {
         streamLimit
       )
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const createdRequests = await getAllRequests(connection)
@@ -493,6 +483,39 @@ describe('request repository test', () => {
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
       expect(updatedRequests.length).toEqual(0)
+    })
+  })
+
+  describe('transaction mutex', () => {
+    test('Can successfully acquire transaction mutex', async () => {
+      await requestRepository.withTransactionMutex(async () => {
+        await Utils.delay(1000)
+      })
+    })
+
+    test('Will block until can acquire transaction mutex', async () => {
+      const childContainer = container.createChildContainer()
+      childContainer.registerInstance('dbConnection', connection2)
+      childContainer.registerSingleton('requestRepository', RequestRepository)
+      const requestRepository2 = childContainer.resolve<RequestRepository>('requestRepository')
+
+      await requestRepository.withTransactionMutex(async () => {
+        await expect(
+          requestRepository2.withTransactionMutex(() => Utils.delay(1000), 2, 1000)
+        ).rejects.toThrow(/Failed to acquire transaction mutex/)
+      })
+
+      await requestRepository2.withTransactionMutex(() => Utils.delay(1000))
+    })
+
+    test('Will unlock the transaction mutex if the operation fails', async () => {
+      await expect(
+        requestRepository.withTransactionMutex(async () => {
+          throw new Error('test error')
+        })
+      ).rejects.toThrow(/test error/)
+
+      await requestRepository.withTransactionMutex(() => Utils.delay(1000))
     })
   })
 })
