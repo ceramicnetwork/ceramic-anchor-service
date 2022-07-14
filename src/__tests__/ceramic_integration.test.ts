@@ -8,7 +8,10 @@ import { create } from 'ipfs-core'
 import { HttpApi } from 'ipfs-http-server'
 import * as dagJose from 'dag-jose'
 
-import Ganache from 'ganache-core'
+// deoesn't support 
+// import Ganache from 'ganache-core'
+
+
 import tmp from 'tmp-promise'
 import getPort from 'get-port'
 import type { Connection } from 'typeorm'
@@ -30,6 +33,12 @@ import { DependencyContainer } from 'tsyringe'
 import { RequestRepository } from '../repositories/request-repository.js'
 import { Request } from '../models/request.js'
 import { CID } from 'multiformats/cid'
+
+import { ethers } from 'ethers'
+import * as fs from 'fs';
+import Ganache from 'ganache-core'
+import ganache from "ganache"
+
 
 process.env.NODE_ENV = 'test'
 
@@ -91,19 +100,38 @@ function makeDID(): DID {
   return new DID({ provider, resolver })
 }
 
+// async function makeGanache(startTime: Date, port: number): Promise<Ganache.Server> {
 async function makeGanache(startTime: Date, port: number): Promise<Ganache.Server> {
+  let mnemonic = 'move sense much taxi wave hurry recall stairs thank brother nut woman';
+  let mnemonicWallet = ethers.Wallet.fromMnemonic(mnemonic);
+  const privKey = mnemonicWallet.privateKey
   const ganacheServer = Ganache.server({
     gasLimit: 7000000,
     time: startTime,
-    mnemonic: 'move sense much taxi wave hurry recall stairs thank brother nut woman',
+    // mnemonic: 'move sense much taxi wave hurry recall stairs thank brother nut woman',
+    mnemonic: mnemonic,
     default_balance_ether: 100,
     debug: true,
     blockTime: 2,
     network_id: 1337,
-    networkId: 1337,
   })
 
   await ganacheServer.listen(port)
+
+  const options = {};
+
+  // var privateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+  const privateKey = privKey
+  var wallet = new ethers.Wallet(privateKey);
+  let p = new ethers.providers.JsonRpcProvider(`http://localhost:${port}`);
+  let walletWithProvider = new ethers.Wallet(privateKey, p);
+  console.log("wallet Address: " + wallet.address);
+  const metadata = JSON.parse( fs.readFileSync('./contracts/out/CeramicAnchorServiceV2.sol/CeramicAnchorServiceV2.json' ).toString())
+  const factory = new ethers.ContractFactory(metadata.abi, metadata.bytecode.object, walletWithProvider)
+  const contract = await factory.deploy(options)
+  const deployedContract = await contract.deployed()
+  console.log("AFTER CONTRACT DEPLOYMENT")
+  console.log(deployedContract.address)
   return ganacheServer
 }
 
@@ -131,6 +159,9 @@ async function makeCAS(
   configCopy.ceramic.apiUrl = 'http://localhost:' + minConfig.ceramicPort
   configCopy.blockchain.connectors.ethereum.network = 'ganache'
   configCopy.blockchain.connectors.ethereum.rpc.port = minConfig.ganachePort + ''
+  //todo
+  configCopy.blockchain.connectors.ethereum.contractAddress = "0xD3f84Cf6Be3DD0EB16dC89c972f7a27B441A39f2";
+
   return new CeramicAnchorApp(container, configCopy, dbConnection)
 }
 
@@ -376,16 +407,6 @@ describe('Ceramic Integration Test', () => {
         expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
 
         console.log('Test complete: Multiple anchors in a batch')
-      },
-      60 * 1000 * 3
-    )
-  })
-
-  describe('Version 1 test', () => {
-    test(
-      'Anchor 1',
-      async () => {
-        
       },
       60 * 1000 * 3
     )

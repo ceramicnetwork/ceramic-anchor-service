@@ -1,6 +1,6 @@
 {
   "mode": "bundled",
-  "anchorVersion": 1,
+  "useSmartContractAnchors": false,
   "port": 8081,
   "anchorControllerEnabled": false,
   "cronExpressionx": "0/5 * * * ? *",
