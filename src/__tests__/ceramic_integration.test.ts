@@ -8,10 +8,6 @@ import { create } from 'ipfs-core'
 import { HttpApi } from 'ipfs-http-server'
 import * as dagJose from 'dag-jose'
 
-// deoesn't support 
-// import Ganache from 'ganache-core'
-
-
 import tmp from 'tmp-promise'
 import getPort from 'get-port'
 import type { Connection } from 'typeorm'
