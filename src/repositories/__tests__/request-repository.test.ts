@@ -15,6 +15,7 @@ import { Request, REQUEST_MESSAGES } from '../../models/request.js'
 import { randomCID, generateRequests } from '../../test-utils.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { RequestStatus } from '../../models/request-status.js'
+import { Utils } from '../../utils.js'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -43,16 +44,16 @@ async function generateCompletedRequest(expired: boolean, failed: boolean): Prom
   return request
 }
 
-async function generatePendingRequests(count: number): Promise<Request[]> {
+async function generateReadyRequests(count: number): Promise<Request[]> {
   const now = new Date()
-  const requests = []
+  const requests: Request[] = []
 
   for (let i = 0; i < count; i++) {
     const request = new Request()
     const cid = await randomCID()
     request.cid = cid.toString()
     request.streamId = new StreamID('tile', cid).toString()
-    request.status = RequestStatus.PENDING
+    request.status = RequestStatus.READY
     const createdAt = new Date(now)
     createdAt.setHours(now.getHours() + i)
     request.createdAt = createdAt
@@ -74,18 +75,24 @@ async function getAllRequests(connection): Promise<Request[]> {
 describe('request repository test', () => {
   jest.setTimeout(10000)
   let connection: Connection
+  let requestRepository: RequestRepository
+  let connection2: Connection
 
   beforeAll(async () => {
     connection = await DBConnection.create()
+    connection2 = await DBConnection.create()
 
     container.registerInstance('config', config)
     container.registerInstance('dbConnection', connection)
     container.registerSingleton('anchorRepository', AnchorRepository)
     container.registerSingleton('requestRepository', RequestRepository)
+
+    requestRepository = container.resolve<RequestRepository>('requestRepository')
   })
 
   beforeEach(async () => {
     await DBConnection.clear(connection)
+    await DBConnection.clear(connection2)
   })
 
   afterAll(async () => {
@@ -93,8 +100,6 @@ describe('request repository test', () => {
   })
 
   test('Finds requests older than a month', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-
     // Create two requests that are expired and should be garbage collected, and two that should not
     // be.
     const requests = await Promise.all([
@@ -113,8 +118,6 @@ describe('request repository test', () => {
   })
 
   test("Don't cleanup streams who have both old and new requests", async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-
     // Create two requests that are expired and should be garbage collected, and two that should not
     // be.
     const requests = await Promise.all([
@@ -136,11 +139,9 @@ describe('request repository test', () => {
   })
 
   test('Process requests oldest to newest', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-
-    const requests = await generatePendingRequests(2)
+    const requests = await generateReadyRequests(2)
     await requestRepository.createRequests(requests)
-    const loadedRequests = await requestRepository.findNextToProcess(100)
+    const loadedRequests = await requestRepository.findAndMarkAsProcessing()
 
     expect(loadedRequests.length).toEqual(2)
     expect(loadedRequests[0].createdAt.getTime()).toBeLessThan(
@@ -148,92 +149,6 @@ describe('request repository test', () => {
     )
     expect(loadedRequests[0].cid).toEqual(requests[0].cid)
     expect(loadedRequests[1].cid).toEqual(requests[1].cid)
-  })
-
-  test('Retries failed requests', async () => {
-    const reqLimit = 5
-    const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
-    const requests = await Promise.all([
-      generateRequests(
-        {
-          status: RequestStatus.FAILED,
-          createdAt: dateDuringRetryPeriod,
-          updatedAt: new Date(Date.now() - MS_IN_HOUR),
-          message: 'random',
-        },
-        1
-      ),
-      generateRequests(
-        {
-          status: RequestStatus.FAILED,
-          createdAt: dateDuringRetryPeriod,
-          updatedAt: new Date(Date.now() - MS_IN_HOUR),
-        },
-        2
-      ),
-      generateRequests(
-        {
-          status: RequestStatus.PENDING,
-        },
-        reqLimit
-      ),
-    ]).then((arr) => arr.flat())
-
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    await requestRepository.createRequests(requests)
-
-    const createdRequests = await getAllRequests(connection)
-    expect(requests.length).toEqual(createdRequests.length)
-
-    const next = await requestRepository.findNextToProcess(reqLimit)
-    expect(next.map(({ cid }) => cid)).toEqual(createdRequests.slice(0, 5).map(({ cid }) => cid))
-  })
-
-  test('Will not retry expired failed requests', async () => {
-    const reqLimit = 5
-    const dateBeforeRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW - MS_IN_HOUR)
-
-    const requests = await generateRequests(
-      {
-        status: RequestStatus.FAILED,
-        createdAt: dateBeforeRetryPeriod,
-        updatedAt: new Date(Date.now() - MS_IN_HOUR),
-      },
-      reqLimit
-    )
-
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    await requestRepository.createRequests(requests)
-
-    const createdRequests = await getAllRequests(connection)
-    expect(requests.length).toEqual(createdRequests.length)
-
-    const next = await requestRepository.findNextToProcess(reqLimit)
-    expect(next.length).toEqual(0)
-  })
-
-  test('Will not retry failed requests that were rejected because of conflict resolution', async () => {
-    const reqLimit = 5
-    const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
-
-    const requests = await generateRequests(
-      {
-        status: RequestStatus.FAILED,
-        createdAt: dateDuringRetryPeriod,
-        updatedAt: new Date(Date.now() - MS_IN_HOUR),
-        message: REQUEST_MESSAGES.conflictResolutionRejection,
-      },
-      reqLimit
-    )
-
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    await requestRepository.createRequests(requests)
-
-    const createdRequests = await getAllRequests(connection)
-    expect(requests.length).toEqual(createdRequests.length)
-
-    const next = await requestRepository.findNextToProcess(reqLimit)
-    expect(next.length).toEqual(0)
   })
 
   test('Retrieves all requests of a specified status', async () => {
@@ -252,7 +167,6 @@ describe('request repository test', () => {
       ),
     ]).then((arr) => arr.flat())
 
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
     await requestRepository.createRequests(requests)
 
     const createdRequests = await getAllRequests(connection)
@@ -282,7 +196,6 @@ describe('request repository test', () => {
         ),
       ]).then((arr) => arr.flat())
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const createdRequests = await getAllRequests(connection)
@@ -314,7 +227,6 @@ describe('request repository test', () => {
         ),
       ]).then((arr) => arr.flat())
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
@@ -341,7 +253,6 @@ describe('request repository test', () => {
         generateRequests({ status: RequestStatus.PENDING }, 1),
       ]).then((arr) => arr.flat())
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const createdRequests = await getAllRequests(connection)
@@ -359,7 +270,6 @@ describe('request repository test', () => {
       // pending requests created now
       const requests = await generateRequests({ status: RequestStatus.PENDING }, streamLimit + 2)
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const createdRequests = await getAllRequests(connection)
@@ -375,7 +285,7 @@ describe('request repository test', () => {
 
     test('Marks processing requests as ready if they need to be retried', async () => {
       const streamLimit = 5
-      // 7h ago (timeout is 6h)
+      // 4h ago (timeout is 3h)
       const dateOfTimedOutProcessingRequest = new Date(Date.now() - PROCESSING_TIMEOUT - MS_IN_HOUR)
 
       const expiredProcessing = await generateRequests(
@@ -393,8 +303,8 @@ describe('request repository test', () => {
         generateRequests(
           {
             status: RequestStatus.PROCESSING,
-            createdAt: new Date(Date.now() - MS_IN_HOUR * 3),
-            updatedAt: new Date(Date.now() - MS_IN_HOUR * 2),
+            createdAt: new Date(Date.now() - MS_IN_MINUTE * 45),
+            updatedAt: new Date(Date.now() - MS_IN_MINUTE * 30),
           },
           4
         ),
@@ -402,7 +312,6 @@ describe('request repository test', () => {
         generateRequests({ status: RequestStatus.PENDING }, streamLimit),
       ]).then((arr) => arr.flat())
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const createdRequests = await getAllRequests(connection)
@@ -456,7 +365,6 @@ describe('request repository test', () => {
       const repeatedRequest1 = requests[0]
       const repeatedRequest2 = requests[1]
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const createdRequest = await getAllRequests(connection)
@@ -479,7 +387,6 @@ describe('request repository test', () => {
         streamLimit
       )
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
 
       const originaUpdateRequest = requestRepository.updateRequests
@@ -497,6 +404,118 @@ describe('request repository test', () => {
       } finally {
         requestRepository.updateRequests = originaUpdateRequest
       }
+    })
+
+    test('Marks failed requests as ready', async () => {
+      const streamLimit = 5
+      const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+      const requests = await Promise.all([
+        generateRequests(
+          {
+            status: RequestStatus.FAILED,
+            createdAt: dateDuringRetryPeriod,
+            updatedAt: new Date(Date.now() - MS_IN_HOUR),
+            message: 'random',
+          },
+          1
+        ),
+        generateRequests(
+          {
+            status: RequestStatus.FAILED,
+            createdAt: dateDuringRetryPeriod,
+            updatedAt: new Date(Date.now() - MS_IN_HOUR),
+          },
+          streamLimit - 1
+        ),
+      ]).then((arr) => arr.flat())
+
+      await requestRepository.createRequests(requests)
+
+      const createdRequests = await getAllRequests(connection)
+      expect(createdRequests.length).toEqual(requests.length)
+
+      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+      expect(updatedRequests.length).toEqual(streamLimit)
+
+      expect(updatedRequests.map(({ cid }) => cid)).toEqual(createdRequests.map(({ cid }) => cid))
+    })
+
+    test('Will not mark expired failed requests as ready', async () => {
+      const streamLimit = 5
+      const dateBeforeRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW - MS_IN_HOUR)
+
+      const requests = await generateRequests(
+        {
+          status: RequestStatus.FAILED,
+          createdAt: dateBeforeRetryPeriod,
+          updatedAt: new Date(Date.now() - MS_IN_HOUR),
+        },
+        streamLimit
+      )
+
+      await requestRepository.createRequests(requests)
+
+      const createdRequests = await getAllRequests(connection)
+      expect(requests.length).toEqual(createdRequests.length)
+
+      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+      expect(updatedRequests.length).toEqual(0)
+    })
+
+    test('Will not mark failed requests that were rejected because of conflict resolution as ready', async () => {
+      const streamLimit = 5
+      const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+
+      const requests = await generateRequests(
+        {
+          status: RequestStatus.FAILED,
+          createdAt: dateDuringRetryPeriod,
+          updatedAt: new Date(Date.now() - MS_IN_HOUR),
+          message: REQUEST_MESSAGES.conflictResolutionRejection,
+        },
+        streamLimit
+      )
+
+      await requestRepository.createRequests(requests)
+
+      const createdRequests = await getAllRequests(connection)
+      expect(requests.length).toEqual(createdRequests.length)
+
+      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+      expect(updatedRequests.length).toEqual(0)
+    })
+  })
+
+  describe('transaction mutex', () => {
+    test('Can successfully acquire transaction mutex', async () => {
+      await requestRepository.withTransactionMutex(async () => {
+        await Utils.delay(1000)
+      })
+    })
+
+    test('Will block until can acquire transaction mutex', async () => {
+      const childContainer = container.createChildContainer()
+      childContainer.registerInstance('dbConnection', connection2)
+      childContainer.registerSingleton('requestRepository', RequestRepository)
+      const requestRepository2 = childContainer.resolve<RequestRepository>('requestRepository')
+
+      await requestRepository.withTransactionMutex(async () => {
+        await expect(
+          requestRepository2.withTransactionMutex(() => Utils.delay(1000), 2, 1000)
+        ).rejects.toThrow(/Failed to acquire transaction mutex/)
+      })
+
+      await requestRepository2.withTransactionMutex(() => Utils.delay(1000))
+    })
+
+    test('Will unlock the transaction mutex if the operation fails', async () => {
+      await expect(
+        requestRepository.withTransactionMutex(async () => {
+          throw new Error('test error')
+        })
+      ).rejects.toThrow(/test error/)
+
+      await requestRepository.withTransactionMutex(() => Utils.delay(1000))
     })
   })
 })

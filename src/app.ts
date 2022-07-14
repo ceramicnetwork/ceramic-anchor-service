@@ -134,9 +134,9 @@ export class CeramicAnchorApp {
     )
   }
 
-  public async anchor(): Promise<void> {
+  public async anchor(triggeredByAnchorEvent = false): Promise<void> {
     const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService')
-    return anchorService.anchorRequests()
+    return anchorService.anchorRequests(triggeredByAnchorEvent)
   }
 
   /**
@@ -174,6 +174,11 @@ export class CeramicAnchorApp {
         await this._startBundled()
         break
       }
+      case 'scheduler': {
+        await this._startScheduler()
+        break
+      }
+
       default: {
         logger.err(`Unknown application mode ${this.config.mode}`)
         process.exit(1)
@@ -192,13 +197,29 @@ export class CeramicAnchorApp {
   }
 
   /**
+   * Starts the application in scheduler mode. In this mode the application will periodically create a
+   * batch of requests to process by changing their status to READY. If a batch was created an `anchor`
+   * event will be emitted to signal that an anchor needs to be performed.The application will not create
+   * a new READY batch until the last batch has been marked as PROCESSING. If the batch has not been serviced
+   * in a timely manner a new event will be emitted.
+   * @private
+   */
+  private async _startScheduler(): Promise<void> {
+    this._schedulerService = this.container.resolve<SchedulerService>('schedulerService')
+    const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService')
+    this._schedulerService.start(async () => await anchorService.emitAnchorEventIfReady())
+  }
+
+  /**
    * Starts bundled application (API + periodic anchoring)
    * @private
    */
   private async _startBundled(): Promise<void> {
     this._schedulerService = this.container.resolve<SchedulerService>('schedulerService')
     const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService')
-    this._schedulerService.start(anchorService.anchorRequests)
+    this._schedulerService.start(async () => {
+      await anchorService.anchorRequests()
+    })
     await this._startServer()
   }
 
