@@ -4,6 +4,7 @@ import { jest } from '@jest/globals'
 import { CeramicDaemon, DaemonConfig } from '@ceramicnetwork/cli'
 import { Ceramic } from '@ceramicnetwork/core'
 import { AnchorStatus, IpfsApi, Stream, SyncOptions } from '@ceramicnetwork/common'
+import { Metrics } from '@ceramicnetwork/metrics'
 
 import { create } from 'ipfs-core'
 import { HttpApi } from 'ipfs-http-server'
@@ -533,5 +534,32 @@ describe('Ceramic Integration Test', () => {
 
       console.log('Test complete: Anchor discovered through pubsub')
     })
+
+    test('Metrics produced on anchors', async () => {
+      jest.setTimeout(60 * 100 * 2)
+      // Verify that metrics are called on TODO HERE
+      let count_called = 0
+
+      const original = Metrics.count
+      Metrics.count = ( name: string, value: number, params?: any): void => {
+        count_called += 1
+      }
+
+      try {
+        const initialContent = { foo: 0 }
+
+        const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
+        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+        await anchorUpdate(doc1, cas1, anchorService1)
+
+        expect(count_called > 0)
+
+      } finally {
+        Metrics.count = original
+      }
+
+      console.log('Test complete: Metrics counts anchor attempts')
+    })
+
   })
 })

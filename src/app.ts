@@ -77,10 +77,12 @@ export class CeramicAnchorApp {
       container.registerSingleton('anchorController', AnchorController)
     }
 
+    console.log("enabled: ${config.metrics.exporterEnabled} , port: ${config.metrics.port}")
     if (config.metrics.exporterEnabled) {
-      container.registerInstance('metrics', Metrics)
       try {
         Metrics.start( {'port': config.metrics.port, metricsExporterEnabled: true})
+        Metrics.count("CAS_started", 1)
+        console.log("Counted a Metric!")
       } catch (e) {
         logger.err(e)
         // start anchor service even if metrics threw an error
