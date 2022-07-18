@@ -51,7 +51,6 @@ type AnchorSummary = {
   unprocessedRequestCount: number
   candidateCount: number
   anchorCount: number
-  retryingRequestsCount: number
 }
 
 const logAnchorSummary = (
@@ -70,7 +69,6 @@ const logAnchorSummary = (
       unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
       candidateCount: candidates.length,
       anchorCount: 0,
-      retryingRequestsCount: 0,
     },
     results
   )
@@ -166,42 +164,23 @@ export class AnchorService {
       return
     }
 
-    const allFailedRequestsCount = groupedRequests.failedRequests.length
-    const candidateFailedRequestsBeforeAnchoring = candidates
-      .map((candidate) => candidate.failedRequests)
-      .flat().length
-
     try {
       const results = await this._anchorCandidates(candidates)
       logAnchorSummary(groupedRequests, candidates, results)
       return
     } catch (err) {
       // TODO(NET-1623): Add alert that something went wrong and we are retrying
-      logger.imp(
-        `Updating PROCESSING requests to PENDING so they are retried in the next batch because an error occured while creating the anchors: ${err}`
+      logger.warn(
+        `Updating PROCESSING requests to FAILED so they are retried in the next batch because an error occured while creating the anchors: ${err}`
       )
-
-      // some of the requests may have been marked failed during the anchoring candidate process
-      // we do not want to mark those as PENDING
       const acceptedRequests = candidates.map((candidate) => candidate.acceptedRequests).flat()
-      await this.requestRepository.updateRequests({ status: RS.PENDING }, acceptedRequests)
+      await this.requestRepository.updateRequests({ status: RS.FAILED }, acceptedRequests)
 
-      // groupedRequests.failedRequests include all requests that were failed when loading the streams.
-      // This includes failed requests associated to candidates. Since requests may have been marked failed
-      // during the anchoring of the candidates, there may be more failed requests associated with candidates than
-      // before. This is why we must do the following calculation as to not double count some failed requests.
-      const candidateFailedRequestsAfterAnchoring = candidates
-        .map((candidate) => candidate.failedRequests)
-        .flat().length
-
-      const results: Partial<AnchorSummary> = {
-        failedRequestsCount:
-          allFailedRequestsCount -
-          candidateFailedRequestsBeforeAnchoring +
-          candidateFailedRequestsAfterAnchoring,
-        retryingRequestsCount: acceptedRequests.length,
-      }
-      logAnchorSummary(groupedRequests, candidates, results)
+      // groupRequests.failedRequests does not include all the newly failed requests so we recalculate here
+      const failedRequests = candidates.map((candidate) => candidate.failedRequests).flat()
+      logAnchorSummary(groupedRequests, candidates, {
+        failedRequestsCount: failedRequests.length,
+      })
 
       throw err
     }
