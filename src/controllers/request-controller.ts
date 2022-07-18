@@ -28,7 +28,10 @@ export class RequestController {
     @inject('requestRepository') private requestRepository?: RequestRepository,
     @inject('ceramicService') private ceramicService?: CeramicService
   ) {
-    this.#requestPresentation = new RequestPresentation(config.cronExpression, anchorRepository)
+    this.#requestPresentation = new RequestPresentation(
+      config.schedulerIntervalMS,
+      anchorRepository
+    )
   }
 
   @Get(':cid')

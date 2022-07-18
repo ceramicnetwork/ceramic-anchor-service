@@ -62,7 +62,6 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
          "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
          "createdAt": 1586438625,
          "updatedAt": 1586438625,
-         "scheduledAt": 1586438625
      }
      ```
 
@@ -102,7 +101,6 @@ RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
         "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
         "createdAt": 1586438625,
         "updatedAt": 1586438625,
-        "scheduledAt": 1586438625
     }
     ```
 

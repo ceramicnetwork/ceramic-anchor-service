@@ -2,10 +2,11 @@
   "mode": "@@APP_MODE",
   "port": "@@APP_PORT",
   "anchorControllerEnabled": "@@ANCHOR_CONTROLLER_ENABLED",
-  "cronExpression": "@@ANCHOR_SCHEDULE_EXPRESSION",
+  "schedulerIntervalMS": "@@SCHEDULER_INTERVAL_MS",
   "expirationPeriod": "@@ANCHOR_EXPIRATION_PERIOD",
   "merkleDepthLimit": "@@MERKLE_DEPTH_LIMIT",
   "minStreamCount": "@@MIN_STREAM_COUNT",
+  "awsSqsUrl": "@@AWS_SQS_URL",
   "ipfsConfig": {
     "url": "@@IPFS_API_URL",
     "pubsubTopic": "@@IPFS_PUBSUB_TOPIC",

@@ -1,6 +1,5 @@
 import { AnchorRepository } from '../repositories/anchor-repository.js'
 import { InvalidRequestStatusError, RequestStatus } from './request-status.js'
-import awsCronParser from 'aws-cron-parser'
 import { Request } from './request.js'
 
 /**
@@ -8,7 +7,7 @@ import { Request } from './request.js'
  */
 export class RequestPresentation {
   constructor(
-    private readonly cronExpression: string,
+    private readonly schedulerIntervalMS: number,
     private readonly anchorRepository: AnchorRepository
   ) {}
 
@@ -50,7 +49,6 @@ export class RequestPresentation {
         }
       }
       case RequestStatus.PENDING: {
-        const cron = awsCronParser.parse(this.cronExpression)
         return {
           id: request.id,
           status: RequestStatus[request.status],
@@ -60,7 +58,6 @@ export class RequestPresentation {
           message: request.message,
           createdAt: request.createdAt.getTime(),
           updatedAt: request.updatedAt.getTime(),
-          scheduledAt: awsCronParser.next(cron, new Date()),
         }
       }
       case RequestStatus.PROCESSING:

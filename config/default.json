@@ -3,11 +3,11 @@
   "useSmartContractAnchors": false,
   "port": 8081,
   "anchorControllerEnabled": false,
-  "cronExpressionx": "0/5 * * * ? *",
-  "cronExpression": "0/1 * * * ? *",
+  "schedulerIntervalMS": 300000,
   "expirationPeriod": 5400000,
   "merkleDepthLimit": 0,
   "minStreamCount": 1,
+  "awsSqsUrl": "",
   "ipfsConfig": {
     "url": "http://localhost:5001",
     "pubsubTopic": "/ceramic/testnet-clay",

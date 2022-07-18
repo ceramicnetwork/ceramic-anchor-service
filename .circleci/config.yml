@@ -1,10 +1,33 @@
 version: 2.1
 
+commands:
+  send-dispatch-event:
+    steps:
+      - run:
+          name: Dispatch test success event
+          command: |
+            res=$(curl -X POST \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token $DISPATCH_TOKEN" \
+              https://api.github.com/repos/ceramicnetwork/ceramic-anchor-service/dispatches \
+              -d "{\"event_type\": \"test-success\", \"client_payload\": { \"branch\": \"$CIRCLE_BRANCH\", \"sha\": \"$CIRCLE_SHA1\"} }") || exit 1
+            echo $res
+            if [[ $res != "" ]]; then
+              exit 1
+            fi
+
 jobs:
   test:
     working_directory: ~/cas
     docker:
       - image: circleci/node:16
+        environment:
+          DATABASE_URL: 'postgres://test-user@localhost:5432/test-db'
+      - image: cimg/postgres:14.2
+        environment:
+          POSTGRES_USER: test-user
+          POSTGRES_DB: test-db
+
     steps:
       - checkout
 
@@ -39,8 +62,16 @@ jobs:
           key: dependency-cache-{{ checksum "package.json" }}
           paths:
             - ./node_modules
+  dispatch-event:
+    machine:
+      image: ubuntu-2004:202107-02
+    steps:
+      - send-dispatch-event
 
 workflows:
   test:
     jobs:
       - test
+      - dispatch-event:
+          requires:
+            - test

@@ -1,5 +1,6 @@
 {
-  "cronExpression": "*/10 * * * * *",
+  "awsSqsUrl": "@@AWS_SQS_URL",
+  "schedulerIntervalMS": 10000,
   "expirationPeriod": 0,
   "ceramic": {
     "validateRecords": false
