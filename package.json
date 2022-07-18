@@ -71,7 +71,7 @@
     "os-utils": "^0.0.14",
     "pg": "^8.7.3",
     "reflect-metadata": "^0.1.13",
-    "sqlite3": "^5.0.6",
+    "sqlite3": "^5.0.9",
     "tsyringe": "^4.7.0",
     "typeorm": "0.2.42-dev.1446e02",
     "uuid": "^8.3.2"
