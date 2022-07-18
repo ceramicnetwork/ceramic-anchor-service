@@ -58,7 +58,6 @@ export class RequestPresentation {
           message: request.message,
           createdAt: request.createdAt.getTime(),
           updatedAt: request.updatedAt.getTime(),
-          scheduledAt: new Date(Date.now() + this.schedulerIntervalMS),
         }
       }
       case RequestStatus.PROCESSING:
