@@ -177,6 +177,7 @@ export class AnchorService {
 
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
     Metrics.count(METRIC_NAMES.ANCHOR_SUCCESS, anchors.length)
+
     return {
       acceptedRequestsCount: groupedRequests.acceptedRequests.length,
       alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
@@ -242,9 +243,7 @@ export class AnchorService {
       // to indicate that a new anchor event has been emitted
       await this.requestRepository.updateRequests({ status: RS.READY }, readyRequests)
 
-      // TODO (NET-1623): Add alert on this metric that we are going to retry
       Metrics.count(METRIC_NAMES.RETRY_EMIT_ANCHOR_EVENT, readyRequests.length)
-
     } else {
       const streamLimit =
         this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0

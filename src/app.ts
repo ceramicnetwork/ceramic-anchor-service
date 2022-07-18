@@ -23,7 +23,7 @@ import { ServiceInfoController } from './controllers/service-info-controller.js'
 import { EthereumBlockchainService } from './services/blockchain/ethereum/ethereum-blockchain-service.js'
 
 import cloneDeep from 'lodash.clonedeep'
-import {Metrics} from "@ceramicnetwork/metrics";
+import { Metrics } from '@ceramicnetwork/metrics'
 
 const version = process.env.npm_package_version
 /**
@@ -77,12 +77,9 @@ export class CeramicAnchorApp {
       container.registerSingleton('anchorController', AnchorController)
     }
 
-    console.log("enabled: ${config.metrics.exporterEnabled} , port: ${config.metrics.port}")
     if (config.metrics.exporterEnabled) {
       try {
-        Metrics.start( {'port': config.metrics.port, metricsExporterEnabled: true})
-        Metrics.count("CAS_started", 1)
-        console.log("Counted a Metric!")
+        Metrics.start({ port: config.metrics.port, metricsExporterEnabled: true })
       } catch (e) {
         logger.err(e)
         // start anchor service even if metrics threw an error
