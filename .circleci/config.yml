@@ -41,6 +41,14 @@ jobs:
           command: |
             sudo npm i -g  codecov node-gyp
             npm i
+            curl -L https://foundry.paradigm.xyz | bash
+            ~/.foundry/bin/foundryup
+
+      - run:
+          name: build contracts
+          command: |
+            sudo npm run installContractDeps
+            sudo npm run buildContract
 
       - run:
           name: build cas
