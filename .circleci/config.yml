@@ -46,6 +46,7 @@ jobs:
             echo 'export PATH="$PATH:/home/circleci/.foundry/bin"' >> $BASH_ENV
             source $BASH_ENV
             foundryup
+            forge --version
 
       - run:
           name: build contracts
