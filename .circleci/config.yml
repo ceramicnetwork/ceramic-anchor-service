@@ -39,7 +39,7 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            sudo npm i -g  codecov node-gyp
+            sudo npm i -g codecov node-gyp
             npm i
             curl -L https://foundry.paradigm.xyz | bash
             ~/.foundry/bin/foundryup
