@@ -41,7 +41,10 @@ jobs:
           command: |
             sudo npm i -g codecov node-gyp
             npm i
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o rustup.sh
+            chmod +x rustup.sh
+            ./rustup.sh -y
+            source "$HOME"/.cargo/env
             curl -L https://foundry.paradigm.xyz | bash
             ~/.foundry/bin/foundryup -b master
 
