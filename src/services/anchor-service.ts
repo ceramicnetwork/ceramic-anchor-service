@@ -285,25 +285,14 @@ export class AnchorService {
    * @param merkleRootCid - CID of the root of the merkle tree that was anchored in 'tx'
    */
   async _createIPFSProof(tx: Transaction, merkleRootCid: CID): Promise<CID> {
-    console.log('inside _createIPFSProof')
     const txHashCid = Utils.convertEthHashToCid(tx.txHash.slice(2))
 
-    console.log(tx.txHash)
-    console.log(tx.txHash.slice(2))
-    console.log(txHashCid)
-    console.log('^^^^ tx hashes')
     const ipfsAnchorProof = {
       blockNumber: tx.blockNumber,
       blockTimestamp: tx.blockTimestamp,
       root: merkleRootCid,
       chainId: tx.chain,
-
-      // @note the eth _getTransactionAndBlockInfo cannot find tx with txHashCid, adding txHash
-      // @note we can support both here, or define option in config
-      // @note we either change CID to a string, or convert somewhere else
       txHash: txHashCid,
-      // txHash: tx.txHash,
-
       version: 1,
     }
     logger.debug('Anchor proof: ' + JSON.stringify(ipfsAnchorProof))
@@ -368,7 +357,6 @@ export class AnchorService {
       prev: candidate.cid,
       proof: ipfsProofCid,
       path: anchor.path,
-      // version?
     }
 
     try {
