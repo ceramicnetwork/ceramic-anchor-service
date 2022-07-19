@@ -42,7 +42,7 @@ jobs:
             sudo npm i -g codecov node-gyp
             npm i
             curl -L https://foundry.paradigm.xyz | bash
-            ~/.foundry/bin/foundryup
+            ~/.foundry/bin/foundryup -b master
 
       - run:
           name: build contracts
