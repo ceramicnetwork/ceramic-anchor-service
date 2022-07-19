@@ -42,9 +42,9 @@ jobs:
             sudo npm i -g codecov node-gyp
             npm i
             curl -L https://foundry.paradigm.xyz | bash
-            source $HOME/circleci/.bashrc
-            cat $HOME/circleci/.bashrc 
-            echo 'source $HOME/circleci/.bashrc' >> $BASH_ENV
+            source /home/circleci/.bashrc
+            cat /home/circleci/.bashrc
+            echo 'source /home/circleci/.bashrc' >> $BASH_ENV
             foundryup
 
       - run:
