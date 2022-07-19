@@ -45,7 +45,7 @@ jobs:
             source /home/circleci/.bashrc
             echo 'export PATH="$PATH:/home/circleci/.foundry/bin"' >> $BASH_ENV
             source $BASH_ENV
-            foundryup
+            foundryup -b master
             forge --version
 
       - run:
