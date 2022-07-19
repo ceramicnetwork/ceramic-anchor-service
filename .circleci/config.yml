@@ -41,6 +41,7 @@ jobs:
           command: |
             sudo npm i -g codecov node-gyp
             npm i
+            echo "$SHELL"
             curl -L https://foundry.paradigm.xyz | bash
             source /home/circleci/.bashrc
             echo 'export PATH="$PATH:/home/circleci/.foundry/bin"' >> $BASH_ENV
