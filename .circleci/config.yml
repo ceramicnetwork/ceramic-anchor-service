@@ -18,6 +18,7 @@ commands:
 
 jobs:
   test:
+    shell: /bin/bash
     working_directory: ~/cas
     docker:
       - image: cimg/rust:1.62.0-node
