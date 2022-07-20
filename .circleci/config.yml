@@ -36,18 +36,17 @@ jobs:
       - restore_cache:
           keys:
             - dependencies-cache-{{ checksum "package.json" }}
-
       - run:
           name: install dependencies
           command: |
             sudo npm i -g codecov node-gyp
             npm i
-            echo "$SHELL"
             curl -L https://foundry.paradigm.xyz | bash
+            echo 'export PATH="$PATH:/home/circleci/.foundry/bin"' >> /home/circleci/.bashrc
             source /home/circleci/.bashrc
             echo 'export PATH="$PATH:/home/circleci/.foundry/bin"' >> $BASH_ENV
             source $BASH_ENV
-            foundryup -b master
+            foundryup
             forge --version
 
       - run:
