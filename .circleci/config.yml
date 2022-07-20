@@ -54,6 +54,7 @@ jobs:
           command: |
             cat /home/circleci/.bashrc
             source /home/circleci/.bashrc
+            forge --version
             sudo npm run installContractDeps
             sudo npm run buildContract
 
