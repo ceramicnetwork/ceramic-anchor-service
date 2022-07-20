@@ -42,9 +42,9 @@ jobs:
             sudo npm i -g codecov node-gyp
             npm i
             curl -L https://foundry.paradigm.xyz | bash
-            echo 'export PATH=$PATH:/home/circleci/.foundry/bin' >> /home/circleci/.bashrc
+            echo 'export PATH="$HOME/.foundry/bin:$PATH"' >> /home/circleci/.bashrc
             source /home/circleci/.bashrc
-            echo 'export PATH=$PATH:/home/circleci/.foundry/bin' >> $BASH_ENV
+            echo 'export PATH="$HOME/.foundry/bin:$PATH"' >> $BASH_ENV
             source $BASH_ENV
             foundryup
             forge --version
