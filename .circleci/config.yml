@@ -18,7 +18,6 @@ commands:
 
 jobs:
   test:
-    shell: /bin/bash
     working_directory: ~/cas
     docker:
       - image: cimg/rust:1.62.0-node
@@ -42,8 +41,8 @@ jobs:
             sudo npm i -g codecov node-gyp
             npm i
             curl -L https://foundry.paradigm.xyz | bash
-            echo 'export PATH="$PATH:/home/circleci/.foundry/bin"' >> /home/circleci/.bashrc
-            source /home/circleci/.bashrc
+            echo 'export PATH="$PATH:/home/circleci/.foundry/bin"' >> /home/circleci/.profile
+            source /home/circleci/.profile
             echo 'export PATH="$PATH:/home/circleci/.foundry/bin"' >> $BASH_ENV
             source $BASH_ENV
             foundryup
@@ -52,8 +51,8 @@ jobs:
       - run:
           name: build contracts
           command: |
-            cat /home/circleci/.bashrc
-            source /home/circleci/.bashrc
+            cat /home/circleci/.profile
+            source /home/circleci/.profile
             forge --version
             sudo npm run installContractDeps
             sudo npm run buildContract
