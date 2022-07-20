@@ -42,9 +42,9 @@ jobs:
             sudo npm i -g codecov node-gyp
             npm i
             curl -L https://foundry.paradigm.xyz | bash
-            echo 'export PATH="$PATH:/home/circleci/.foundry/bin"' >> /home/circleci/.bashrc
+            echo 'export PATH=$PATH:/home/circleci/.foundry/bin' >> /home/circleci/.bashrc
             source /home/circleci/.bashrc
-            echo 'export PATH="$PATH:/home/circleci/.foundry/bin"' >> $BASH_ENV
+            echo 'export PATH=$PATH:/home/circleci/.foundry/bin' >> $BASH_ENV
             source $BASH_ENV
             foundryup
             forge --version
@@ -52,9 +52,7 @@ jobs:
       - run:
           name: build contracts
           command: |
-            cat /home/circleci/.bashrc
-            source /home/circleci/.bashrc
-            forge --version
+            echo $PATH
             sudo npm run installContractDeps
             sudo npm run buildContract
 
