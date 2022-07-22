@@ -54,8 +54,8 @@ jobs:
           command: |
             echo $PATH
             ls -lah $HOME/.foundry/bin 
-            sudo npm run installContractDeps
-            sudo npm run buildContract
+            npm run installContractDeps
+            npm run buildContract
 
       - run:
           name: build cas
