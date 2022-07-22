@@ -57,7 +57,10 @@ jobs:
 
       - run:
           name: build cas
-          command: sudo npm run build
+          command: |
+            node -v
+            ls -lah ./
+            sudo npm run build
 
       - run:
           name: test
