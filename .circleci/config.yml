@@ -53,6 +53,7 @@ jobs:
           name: build contracts
           command: |
             echo $PATH
+            ls -lah $HOME/.foundry/bin 
             sudo npm run installContractDeps
             sudo npm run buildContract
 
