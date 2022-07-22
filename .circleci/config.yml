@@ -57,10 +57,7 @@ jobs:
 
       - run:
           name: build cas
-          command: |
-            node -v
-            ls -lah ./
-            sudo npm run build
+          command: sudo npm run build --ignore-scripts
 
       - run:
           name: test
