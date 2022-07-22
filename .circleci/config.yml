@@ -52,8 +52,6 @@ jobs:
       - run:
           name: build contracts
           command: |
-            echo $PATH
-            ls -lah $HOME/.foundry/bin 
             npm run installContractDeps
             npm run buildContract
 

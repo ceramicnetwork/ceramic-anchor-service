@@ -9,8 +9,6 @@ DEFAULT_ACCOUNT = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2
 GAS_LIMIT = 90000000000000000
 SHELL = /bin/bash
 build:
-	whoami
-	ls -lah $HOME/.foundry/bin 
 	forge build
 t:
 	forge test -vvvvv
