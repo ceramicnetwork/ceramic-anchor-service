@@ -79,7 +79,8 @@ export class CeramicAnchorApp {
 
     if (config.metrics.exporterEnabled) {
       try {
-        Metrics.start({ port: config.metrics.port, metricsExporterEnabled: true })
+        Metrics.start({ metricsPort: config.metrics.port, metricsExporterEnabled: true })
+        logger.imp("Metrics exporter started")
       } catch (e) {
         logger.err(e)
         // start anchor service even if metrics threw an error
