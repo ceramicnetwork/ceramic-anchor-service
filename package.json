@@ -49,7 +49,7 @@
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.112.0",
     "@ceramicnetwork/common": "^2.0.0",
-    "@ceramicnetwork/core": "^2.1.2-rc.0",
+    "@ceramicnetwork/core": "^2.6.0",
     "@ceramicnetwork/http-client": "^2.0.0",
     "@ceramicnetwork/logger": "^2.0.5",
     "@ceramicnetwork/metrics": "^0.0.2",
