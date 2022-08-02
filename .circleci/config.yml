@@ -52,13 +52,12 @@ jobs:
       - run:
           name: build contracts
           command: |
-            echo $PATH
-            sudo npm run installContractDeps
-            sudo npm run buildContract
+            npm run installContractDeps
+            npm run buildContract
 
       - run:
           name: build cas
-          command: sudo npm run build
+          command: sudo npm run build --ignore-scripts
 
       - run:
           name: test

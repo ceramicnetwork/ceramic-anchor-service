@@ -10,6 +10,7 @@ GAS_LIMIT = 90000000000000000
 SHELL = /bin/bash
 build:
 	forge build
+	ls -lah out/
 t:
 	forge test -vvvvv
 g:
