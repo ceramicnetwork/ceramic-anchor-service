@@ -90,9 +90,20 @@ describe('ETH service connected to ganache', () => {
     ganacheServer.close()
   })
 
+  afterEach(async () => {
+    const currentBlock = await providerForGanache.getBlock(
+      await providerForGanache.getBlockNumber()
+    )
+    console.log(
+      '🚀 ~ file: eth-bc-service.test.ts ~ line 97 ~ afterEach ~ currentBlock',
+      currentBlock
+    )
+  })
+
   describe('v0', () => {
     test('should send CID to local ganache server', async () => {
       const block = await providerForGanache.getBlock(await providerForGanache.getBlockNumber())
+      console.log('🚀 ~ file: eth-bc-service.test.ts ~ line 106 ~ test ~ block', block)
       const startTimestamp = block.timestamp
 
       const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
@@ -159,6 +170,7 @@ describe('ETH service connected to ganache', () => {
 
     test('should anchor to contract', async () => {
       const block = await providerForGanache.getBlock(await providerForGanache.getBlockNumber())
+      console.log('🚀 ~ file: eth-bc-service.test.ts ~ line 168 ~ test.only ~ block', block)
       const startTimestamp = block.timestamp
 
       const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
