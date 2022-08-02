@@ -4,6 +4,7 @@ import { jest } from '@jest/globals'
 import { CeramicDaemon, DaemonConfig } from '@ceramicnetwork/cli'
 import { Ceramic } from '@ceramicnetwork/core'
 import { AnchorStatus, IpfsApi, Stream, SyncOptions } from '@ceramicnetwork/common'
+import { Metrics } from '@ceramicnetwork/metrics'
 
 import { create } from 'ipfs-core'
 import { HttpApi } from 'ipfs-http-server'
@@ -34,6 +35,7 @@ import { Request } from '../models/request.js'
 import { CID } from 'multiformats/cid'
 import { AnchorService } from '../services/anchor-service.js'
 import { RequestStatus } from '../models/request-status.js'
+import { METRIC_NAMES } from '../settings.js'
 
 process.env.NODE_ENV = 'test'
 
@@ -364,6 +366,7 @@ describe('Ceramic Integration Test', () => {
 
   afterEach(async () => {
     console.log(`Finished test: ${expect.getState().currentTestName}`)
+    jest.restoreAllMocks()
   })
 
   describe('Multiple CAS instances in same process works', () => {
@@ -533,5 +536,21 @@ describe('Ceramic Integration Test', () => {
 
       console.log('Test complete: Anchor discovered through pubsub')
     })
+  })
+
+  test('Metrics produced on anchors', async () => {
+    jest.setTimeout(60 * 100 * 2)
+
+    const metricsCountSpy = jest.spyOn(Metrics, 'count')
+
+    const initialContent = { foo: 0 }
+    const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
+    expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+
+    await anchorUpdate(doc1, cas1, anchorService1)
+
+    expect(metricsCountSpy).toHaveBeenCalledWith(METRIC_NAMES.ANCHOR_SUCCESS, 1)
+
+    console.log('Test complete: Metrics counts anchor attempts')
   })
 })
