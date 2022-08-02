@@ -90,20 +90,9 @@ describe('ETH service connected to ganache', () => {
     ganacheServer.close()
   })
 
-  afterEach(async () => {
-    const currentBlock = await providerForGanache.getBlock(
-      await providerForGanache.getBlockNumber()
-    )
-    console.log(
-      '🚀 ~ file: eth-bc-service.test.ts ~ line 97 ~ afterEach ~ currentBlock',
-      currentBlock
-    )
-  })
-
   describe('v0', () => {
     test('should send CID to local ganache server', async () => {
       const block = await providerForGanache.getBlock(await providerForGanache.getBlockNumber())
-      console.log('🚀 ~ file: eth-bc-service.test.ts ~ line 106 ~ test ~ block', block)
       const startTimestamp = block.timestamp
 
       const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
@@ -170,7 +159,6 @@ describe('ETH service connected to ganache', () => {
 
     test('should anchor to contract', async () => {
       const block = await providerForGanache.getBlock(await providerForGanache.getBlockNumber())
-      console.log('🚀 ~ file: eth-bc-service.test.ts ~ line 168 ~ test.only ~ block', block)
       const startTimestamp = block.timestamp
 
       const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
@@ -182,14 +170,13 @@ describe('ETH service connected to ganache', () => {
       expect(contractEvents.length).toEqual(1)
       expect(contractEvents[0].name).toEqual('DidAnchor')
 
-      // checking the timestamp against the snapshot is too brittle since if the test runs slowly it
-      // can be off slightly.  So we test it manually here instead.
-      const blockTimestamp = tx.blockTimestamp
-      delete tx.blockTimestamp
-      expect(blockTimestamp).toBeGreaterThan(startTimestamp)
-      expect(blockTimestamp).toBeLessThan(startTimestamp + 5)
-
-      expect(tx).toMatchSnapshot()
+      // checking the values against the snapshot is too brittle since ganache is time based so we test manually
+      expect(tx.blockTimestamp).toBeGreaterThan(startTimestamp)
+      expect(tx.blockTimestamp).toBeLessThan(startTimestamp + 5)
+      expect(tx.blockNumber).toBe(block.number + 1)
+      expect(tx.txHash).toEqual(
+        '0xe6526786001e9eb2247e833ca78c1a2761b0d0de3fa58b9a6b95e40dbb7f3a0a'
+      )
     })
   })
 })
