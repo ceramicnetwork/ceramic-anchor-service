@@ -173,12 +173,12 @@ export class AnchorService {
     } catch (err) {
       // TODO(NET-1623): Add alert that something went wrong and we are retrying
       logger.warn(
-        `Updating PROCESSING requests to FAILED so they are retried in the next batch because an error occured while creating the anchors: ${err}`
+        `Updating PROCESSING requests to PENDING so they are retried in the next batch because an error occured while creating the anchors: ${err}`
       )
       const acceptedRequests = candidates.map((candidate) => candidate.acceptedRequests).flat()
-      await this.requestRepository.updateRequests({ status: RS.FAILED }, acceptedRequests)
+      await this.requestRepository.updateRequests({ status: RS.PENDING }, acceptedRequests)
 
-      // groupRequests.failedRequests does not include all the newly failed requests so we recalculate here
+      // groupRequests.failedRequests does not include all the newly failed requests so we recount here
       const failedRequests = candidates.map((candidate) => candidate.failedRequests).flat()
       logAnchorSummary(groupedRequests, candidates, {
         failedRequestsCount: failedRequests.length,
