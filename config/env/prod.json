@@ -39,5 +39,9 @@
     "level": "@@LOG_LEVEL",
     "logToFiles": "@@LOG_TO_FILES",
     "filePath": "@@LOG_PATH"
+  },
+  "metrics": {
+    "exporterEnabled": "@@METRICS_EXPORTER_ENABLED",
+    "port": "@@METRICS_PORT"
   }
 }

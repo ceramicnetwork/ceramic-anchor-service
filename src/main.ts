@@ -1,6 +1,5 @@
 import { CeramicAnchorApp } from './app.js'
 import { logger } from './logger/index.js'
-
 import { config } from 'node-config-ts'
 import { container } from 'tsyringe'
 import TypeORM from 'typeorm'
