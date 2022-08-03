@@ -53,6 +53,7 @@ type AnchorSummary = {
   unprocessedRequestCount: number
   candidateCount: number
   anchorCount: number
+  canRetryCount: number
 }
 
 const logAnchorSummary = (
@@ -71,6 +72,8 @@ const logAnchorSummary = (
       unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
       candidateCount: candidates.length,
       anchorCount: 0,
+      canRetryCount:
+        groupedRequests.failedRequests.length - groupedRequests.conflictingRequests.length,
     },
     results
   )
@@ -182,6 +185,13 @@ export class AnchorService {
       const failedRequests = candidates.map((candidate) => candidate.failedRequests).flat()
       logAnchorSummary(groupedRequests, candidates, {
         failedRequestsCount: failedRequests.length,
+        // NOTE: We will retry all of the above requests that were updated back to PENDING.
+        // We also may retry all failed requests other than requests rejected from conflict resolution.
+        // A failed request will not be retried if it has expired when the next anchor runs.
+        canRetryCount:
+          failedRequests.length -
+          groupedRequests.conflictingRequests.length +
+          acceptedRequests.length,
       })
 
       throw err
