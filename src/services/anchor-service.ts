@@ -80,26 +80,9 @@ export class AnchorService {
   }
 
   /**
-   * Creates anchors for pending client requests
-   */
-  // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
-  public async anchorRequests(triggeredByAnchorEvent = false): Promise<void> {
-    const readyRequests = await this.requestRepository.findByStatus(RS.READY)
-
-    if (!triggeredByAnchorEvent && readyRequests.length === 0) {
-      const maxStreamLimit =
-        this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0
-      const minStreamLimit = this.config.minStreamCount || Math.floor(maxStreamLimit / 2)
-      await this.requestRepository.findAndMarkReady(maxStreamLimit, minStreamLimit)
-    }
-
-    return this.anchorReadyRequests()
-  }
-
-  /**
    * Creates anchors for client requests that have been marked as READY
    */
-  public async anchorReadyRequests(): Promise<void> {
+  public async anchorRequests(): Promise<void> {
     // TODO: Remove this after restart loop removed as part of switching to go-ipfs
     // Skip sleep for unit tests
     if (process.env.NODE_ENV != 'test') {

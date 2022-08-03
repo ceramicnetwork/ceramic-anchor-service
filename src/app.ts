@@ -80,7 +80,7 @@ export class CeramicAnchorApp {
     if (config.metrics.exporterEnabled) {
       try {
         Metrics.start({ metricsPort: config.metrics.port, metricsExporterEnabled: true })
-        logger.imp("Metrics exporter started")
+        logger.imp('Metrics exporter started')
       } catch (e) {
         logger.err(e)
         // start anchor service even if metrics threw an error
@@ -134,9 +134,9 @@ export class CeramicAnchorApp {
     )
   }
 
-  public async anchor(triggeredByAnchorEvent = false): Promise<void> {
+  public async anchor(): Promise<void> {
     const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService')
-    return anchorService.anchorRequests(triggeredByAnchorEvent)
+    return anchorService.anchorRequests()
   }
 
   /**

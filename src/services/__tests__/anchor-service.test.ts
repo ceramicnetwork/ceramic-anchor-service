@@ -152,8 +152,8 @@ describe('anchor service', () => {
       const request = new Request()
       request.cid = cid.toString()
       request.streamId = streamId.toString()
-      request.status = RequestStatus.PENDING
-      request.message = 'Request is pending.'
+      request.status = RequestStatus.READY
+      request.message = 'Request is ready.'
 
       requests.push(request)
     }
