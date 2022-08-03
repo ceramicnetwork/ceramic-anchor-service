@@ -27,7 +27,6 @@ t:
 g:
 	ganache --wallet.accounts "${ETH_WALLET_PK},${DEFAULT_BALANCE}" --chain.chainId ${CHAIN_ID}
 a:
-	# anvil --balance ${DEFAULT_BALANCE} --hardfork ${HARDFORK} --ffi -vvv --block-gas-limit ${ETH_GAS_LIMIT} --gas-limit ${ETH_GAS_LIMIT}
 	anvil --balance ${DEFAULT_BALANCE} --hardfork ${HARDFORK} --ffi -vvv
 create:
 	forge create --legacy CeramicAnchorServiceV2 --contracts src/CeramicAnchorServiceV2.sol --private-key ${ETH_WALLET_PK} --rpc-url ${ETH_RPC_HOST}:${ETH_RPC_PORT}

@@ -26,8 +26,7 @@ contract CeramicAnchorServiceV2 is Ownable {
         _;
     }
 
-    constructor(){
-    }
+    constructor(){}
 
     /*
         @name addCas
