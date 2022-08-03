@@ -290,7 +290,6 @@ export class AnchorService {
    */
   async _createIPFSProof(tx: Transaction, merkleRootCid: CID): Promise<CID> {
     const txHashCid = Utils.convertEthHashToCid(tx.txHash.slice(2))
-
     const ipfsAnchorProof = {
       blockNumber: tx.blockNumber,
       blockTimestamp: tx.blockTimestamp,

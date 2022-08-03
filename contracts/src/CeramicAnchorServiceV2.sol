@@ -17,15 +17,9 @@ contract CeramicAnchorServiceV2 is Ownable {
 
     //upon successful anchor
     event DidAnchor(address indexed _service, bytes _root);
-    // event DidAnchor(address indexed _service, bytes32 _root);
 
-    // Only an address in the allow list is allowed to anchor
-    // TODO: upon contract creation, allowList is blank, so nobody is allowed
+    // Only addresses in the allow list is allowed to anchor
     modifier onlyAllowed() {
-        //NOTE: this assumes msg.sender has already been added to allow list on creation if this is the first anchor attempt
-        //NOTE: adding msg.sender to condition ensures owner can add first entry to allow list
-        //NOTE: can also add msg.sender as first enty upon contract creation (constructor)
-        // require(allowList[ msg.sender ].allowed, "Allow List: caller is not allowed");
         require(
             ( allowList[ msg.sender ] || msg.sender == owner() ), 
             "Allow List: caller is not allowed");
@@ -33,7 +27,6 @@ contract CeramicAnchorServiceV2 is Ownable {
     }
 
     constructor(){
-        // TODO: should we add owner address to allowList upon contract creation
     }
 
     /*
@@ -43,7 +36,6 @@ contract CeramicAnchorServiceV2 is Ownable {
         @note Only owner can add to the allowlist
     */
     function addCas(address _service) public onlyOwner {
-        // allowList[_service] = Service(true);
         allowList[_service] = true;
         emit DidAddCas(_service);
     }
@@ -75,7 +67,6 @@ contract CeramicAnchorServiceV2 is Ownable {
         @desc Here _root is a byte representation of Merkle root CID.
     */
     function anchor(bytes calldata _root) public onlyAllowed {
-    // function anchor(bytes32 calldata _root1, bytes32 calldata _root2, bytes8 calldata _root3) public onlyAllowed {
         emit DidAnchor(msg.sender, _root);
     }
     

@@ -1,15 +1,11 @@
 import 'reflect-metadata'
 import { jest } from '@jest/globals'
-
 import { CID } from 'multiformats/cid'
 import Ganache from 'ganache-core'
-
 import { config, Config } from 'node-config-ts'
 import { logger } from '../../../logger/index.js'
 import { ethers } from 'ethers'
-
-import { container, instanceCachingFactory, Provider } from 'tsyringe'
-
+import { container, instanceCachingFactory } from 'tsyringe'
 import { BlockchainService } from '../blockchain-service.js'
 import { EthereumBlockchainService, MAX_RETRIES } from '../ethereum/ethereum-blockchain-service.js'
 import { BigNumber } from 'ethers'
@@ -48,8 +44,8 @@ const deployContract = async (
 describe('ETH service connected to ganache', () => {
   jest.setTimeout(25000)
   const blockchainStartTime = new Date(1586784002000)
-  let ethBc: BlockchainService
   let ganacheServer: Ganache.Server
+  let ethBc: BlockchainService
   let testConfig: Config
   let providerForGanache: ethers.providers.JsonRpcProvider
   let contract: ethers.Contract

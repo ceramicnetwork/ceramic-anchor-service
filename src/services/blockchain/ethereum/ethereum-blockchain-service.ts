@@ -313,9 +313,7 @@ export class EthereumBlockchainService implements BlockchainService {
       tx: txData,
     })
     logger.imp(`Sending transaction to Ethereum ${this._network} network...`)
-
     const txResponse: TransactionResponse = await this.wallet.sendTransaction(txData)
-
     logEvent.ethereum({
       type: 'txResponse',
       hash: txResponse.hash,
@@ -343,7 +341,6 @@ export class EthereumBlockchainService implements BlockchainService {
       NUM_BLOCKS_TO_WAIT,
       this._transactionTimeoutSecs * 1000
     )
-
     logEvent.ethereum({
       type: 'txReceipt',
       tx: txReceipt,
