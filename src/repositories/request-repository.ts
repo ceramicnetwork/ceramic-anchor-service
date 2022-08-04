@@ -10,6 +10,8 @@ import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
 import { logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
+import { Metrics } from '@ceramicnetwork/metrics'
+import { METRIC_NAMES } from '../settings.js'
 
 /**
  * How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
@@ -125,7 +127,7 @@ export class RequestRepository extends Repository<Request> {
       })
       .catch(async (err) => {
         if (err?.code === REPEATED_READ_SERIALIZATION_ERROR) {
-          // TODO (NET-1623): Add alert here that we have to retry the find and mark processing (very odd case)
+          Metrics.count(METRIC_NAMES.DB_SERIALIZATION_ERROR, 1)
           await Utils.delay(100)
           return this.findAndMarkAsProcessing()
         }
@@ -267,7 +269,17 @@ export class RequestRepository extends Repository<Request> {
             )
           }
 
-          // TODO(NET-1623): Add alert here that we marked expired and processing requests as READY
+          const expired = requests.filter((request) => request.createdAt < anchoringDeadline)
+          if (expired.length > 0) Metrics.count(METRIC_NAMES.RETRY_EXPIRING, expired.length)
+
+          const processing = requests.filter(
+            (request) => request.status === RequestStatus.PROCESSING
+          )
+          if (processing.length > 0) Metrics.count(METRIC_NAMES.RETRY_PROCESSING, processing.length)
+
+          const failed = requests.filter((request) => request.status === RequestStatus.FAILED)
+          if (failed.length > 0) Metrics.count(METRIC_NAMES.RETRY_FAILED, failed.length)
+
           return requests
         }
 
@@ -278,7 +290,7 @@ export class RequestRepository extends Repository<Request> {
       })
       .catch(async (err) => {
         if (err?.code === REPEATED_READ_SERIALIZATION_ERROR) {
-          // TODO (NET-1623): Add alert here that we have to retry the find and mark ready again (very odd case)
+          Metrics.count(METRIC_NAMES.DB_SERIALIZATION_ERROR, 1)
           await Utils.delay(100)
           return this.findAndMarkReady(maxStreamLimit, minStreamLimit)
         }
@@ -323,7 +335,7 @@ export class RequestRepository extends Repository<Request> {
       let attempt = 1
       while (attempt <= maxAttempts) {
         logger.debug(`Attempt ${attempt} at acquiring the transaction mutex before operation`)
-        // TODO (NET-1623): Add alert here if attempt >= 5
+        if (attempt > 5) Metrics.count(METRIC_NAMES.MANY_ATTEMPTS_TO_ACQUIRE_MUTEX, 1)
 
         const [{ pg_try_advisory_xact_lock: success }] = await transactionalEntityManager.query(
           `SELECT pg_try_advisory_xact_lock(${TRANSACTION_MUTEX_ID})`

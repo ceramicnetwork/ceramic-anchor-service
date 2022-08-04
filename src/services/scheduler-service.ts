@@ -2,6 +2,8 @@ import { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
 import { inject, singleton } from 'tsyringe'
 import { from, concatWith, timer, exhaustMap, catchError, repeat, retry, Subscription } from 'rxjs'
+import { Metrics } from '@ceramicnetwork/metrics'
+import { METRIC_NAMES } from '../settings.js'
 
 /**
  * Repeatedly triggers a task to be run after a configured amount of ms
@@ -24,7 +26,7 @@ export class SchedulerService {
         timer(intervalMS).pipe(
           exhaustMap(() => task()),
           catchError((err) => {
-            // TODO(NET-1623): Add alert instead or in addition to logging
+            Metrics.count(METRIC_NAMES.SCHEDULER_TASK_UNCAUGHT_ERROR, 1)
             logger.err('Failed to anchor CIDs... ')
             logger.err(err)
             throw err
