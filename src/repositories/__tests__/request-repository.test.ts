@@ -378,6 +378,96 @@ describe('request repository test', () => {
       expect(updatedRequestCids).toContain(repeatedRequest2.cid)
     })
 
+    test('Does not mark irrelevant requests as READY if a new request comes in for a stream', async () => {
+      const repeatedStreamId = new StreamID('tile', await randomCID()).toString()
+
+      const shouldBeIncluded = await Promise.all([
+        // PENDING created now
+        generateRequests(
+          {
+            status: RequestStatus.PENDING,
+            streamId: repeatedStreamId,
+          },
+          1
+        ),
+        // failed request updated 30 minutes ago
+        generateRequests(
+          {
+            status: RequestStatus.FAILED,
+            streamId: repeatedStreamId,
+            createdAt: new Date(Date.now() - MS_IN_HOUR),
+            updatedAt: new Date(Date.now() - MS_IN_MINUTE * 30),
+          },
+          1
+        ),
+        // PROCESSING request updated 4 hours ago
+        generateRequests(
+          {
+            status: RequestStatus.FAILED,
+            streamId: repeatedStreamId,
+            createdAt: new Date(Date.now() - MS_IN_HOUR * 5),
+            updatedAt: new Date(Date.now() - MS_IN_HOUR * 4),
+          },
+          1
+        ),
+      ]).then((arr) => arr.flat())
+
+      const shouldNotBeIncluded = await Promise.all([
+        // completed request created two hours ago
+        generateRequests(
+          {
+            status: RequestStatus.COMPLETED,
+            streamId: repeatedStreamId,
+            createdAt: new Date(Date.now() - MS_IN_HOUR * 2),
+            updatedAt: new Date(Date.now() - MS_IN_HOUR),
+          },
+          1
+        ),
+        // failed request that expired (created 3 days ago)
+        generateRequests(
+          {
+            status: RequestStatus.COMPLETED,
+            streamId: repeatedStreamId,
+            createdAt: new Date(Date.now() - MS_IN_HOUR * 72),
+            updatedAt: new Date(Date.now() - MS_IN_HOUR),
+          },
+          1
+        ),
+        // request that is processing
+        generateRequests(
+          {
+            status: RequestStatus.PROCESSING,
+            streamId: repeatedStreamId,
+            createdAt: new Date(Date.now() - MS_IN_HOUR * 2),
+            updatedAt: new Date(Date.now() - MS_IN_HOUR),
+          },
+          1
+        ),
+        // request that is READY
+        generateRequests(
+          {
+            status: RequestStatus.READY,
+            streamId: repeatedStreamId,
+            createdAt: new Date(Date.now() - MS_IN_HOUR),
+            updatedAt: new Date(Date.now() - MS_IN_MINUTE * 5),
+          },
+          1
+        ),
+      ]).then((arr) => arr.flat())
+
+      const requests = shouldBeIncluded.concat(shouldNotBeIncluded)
+      await requestRepository.createRequests(requests)
+
+      const createdRequest = await getAllRequests(connection)
+      expect(createdRequest.length).toEqual(requests.length)
+
+      const updatedRequests = await requestRepository.findAndMarkReady(1)
+      expect(updatedRequests.length).toEqual(shouldBeIncluded.length)
+
+      const updatedRequestCids = updatedRequests.map(({ cid }) => cid).sort()
+      expect(updatedRequestCids).toEqual(shouldBeIncluded.map(({ cid }) => cid).sort())
+    })
+
     test('Does not mark any requests as ready if an error occurs', async () => {
       const streamLimit = 5
       const requests = await generateRequests(
