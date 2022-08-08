@@ -403,7 +403,7 @@ describe('request repository test', () => {
         // PROCESSING request updated 4 hours ago
         generateRequests(
           {
-            status: RequestStatus.FAILED,
+            status: RequestStatus.PROCESSING,
             streamId: repeatedStreamId,
             createdAt: new Date(Date.now() - MS_IN_HOUR * 5),
             updatedAt: new Date(Date.now() - MS_IN_HOUR * 4),
@@ -426,7 +426,7 @@ describe('request repository test', () => {
         // failed request that expired (created 3 days ago)
         generateRequests(
           {
-            status: RequestStatus.COMPLETED,
+            status: RequestStatus.FAILED,
             streamId: repeatedStreamId,
             createdAt: new Date(Date.now() - MS_IN_HOUR * 72),
             updatedAt: new Date(Date.now() - MS_IN_HOUR),
