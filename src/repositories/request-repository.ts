@@ -91,7 +91,7 @@ export class RequestRepository extends Repository<Request> {
             ...request,
             ...fields,
             createdAt: request.createdAt.getTime(),
-            updatedAt: request.createdAt.getTime(),
+            updatedAt: new Date(Date.now()),
           })
         })
         return result
@@ -202,12 +202,13 @@ export class RequestRepository extends Repository<Request> {
 
     return this.connection
       .transaction(this.isolationLevel, async (transactionalEntityManager) => {
-        // retrieves up to streamLimit unique streams with their earliest request createdAt value.
-        // this will only return streams associated with requests that are PENDING, or PROCESSING and needs to be retried
-        const rawStreamsToAnchor = await transactionalEntityManager
+        // Query that when executed returns all requests that meet one of the following conditions:
+        //    - is PENDING,
+        //    - is PROCESSING and needs to be retried
+        //    - is FAILED, has not expired, and has not been rejected due to confliction resolution
+        const allRequestsToAnchorQuery = await transactionalEntityManager
           .getRepository(Request)
           .createQueryBuilder('request')
-          .select(['request.streamId as sid', 'MIN(request.createdAt) as min_created_at'])
           .where(
             'request.status = :failedStatus AND request.createdAt >= :earliestDateToRetry AND (request.message IS NULL OR request.message != :message)',
             {
@@ -224,6 +225,11 @@ export class RequestRepository extends Repository<Request> {
             }
           )
           .orWhere('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
+
+        // using conditions in allRequestsToAnchorQuery, retrieves up to streamLimit unique streams with their earliest request createdAt value
+        const rawStreamsToAnchor = await allRequestsToAnchorQuery
+          .clone()
+          .select(['request.streamId as sid', 'MIN(request.createdAt) as min_created_at'])
           .groupBy('sid')
           .orderBy('min_created_at', 'ASC')
           // if 0 will return unlimited
@@ -248,12 +254,10 @@ export class RequestRepository extends Repository<Request> {
         if (streamsToAnchor.length >= minStreamLimit || earliestIsExpired) {
           const streamIds = streamsToAnchor.map(({ streamId }) => streamId)
 
-          // retrieves all requests associated with the streams
-          const requests = await transactionalEntityManager
-            .getRepository(Request)
-            .createQueryBuilder('request')
+          // using conditions in allRequestsToAnchorQuery, retrieves all requests associated with the retrieved streams
+          const requests = await allRequestsToAnchorQuery
             .orderBy('request.createdAt', 'ASC')
-            .where('request.streamId IN (:...streamIds)', { streamIds })
+            .andWhere('request.streamId IN (:...streamIds)', { streamIds })
             .getMany()
 
           const results = await this.updateRequests(
