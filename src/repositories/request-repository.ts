@@ -25,6 +25,17 @@ const TRANSACTION_MUTEX_ID = 4532
 // application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
 
+const countRetryMetrics = (requests: Request[], anchoringDeadline: Date): void => {
+  const expired = requests.filter((request) => request.createdAt < anchoringDeadline)
+  if (expired.length > 0) Metrics.count(METRIC_NAMES.RETRY_EXPIRING, expired.length)
+
+  const processing = requests.filter((request) => request.status === RequestStatus.PROCESSING)
+  if (processing.length > 0) Metrics.count(METRIC_NAMES.RETRY_PROCESSING, processing.length)
+
+  const failed = requests.filter((request) => request.status === RequestStatus.FAILED)
+  if (failed.length > 0) Metrics.count(METRIC_NAMES.RETRY_FAILED, failed.length)
+}
+
 @singleton()
 @EntityRepository(Request)
 export class RequestRepository extends Repository<Request> {
@@ -273,16 +284,7 @@ export class RequestRepository extends Repository<Request> {
             )
           }
 
-          const expired = requests.filter((request) => request.createdAt < anchoringDeadline)
-          if (expired.length > 0) Metrics.count(METRIC_NAMES.RETRY_EXPIRING, expired.length)
-
-          const processing = requests.filter(
-            (request) => request.status === RequestStatus.PROCESSING
-          )
-          if (processing.length > 0) Metrics.count(METRIC_NAMES.RETRY_PROCESSING, processing.length)
-
-          const failed = requests.filter((request) => request.status === RequestStatus.FAILED)
-          if (failed.length > 0) Metrics.count(METRIC_NAMES.RETRY_FAILED, failed.length)
+          countRetryMetrics(requests, anchoringDeadline)
 
           return requests
         }
