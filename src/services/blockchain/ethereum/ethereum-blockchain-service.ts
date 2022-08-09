@@ -1,9 +1,7 @@
 import type { CID } from 'multiformats/cid'
 import { base16 } from 'multiformats/bases/base16'
-
 import { ErrorCode } from '@ethersproject/logger'
-
-import { BigNumber, BigNumberish, ethers } from 'ethers'
+import { BigNumber, BigNumberish, Contract, ethers } from 'ethers'
 import { Config } from 'node-config-ts'
 
 import { logger, logEvent, logMetric } from '../../../logger/index.js'
@@ -23,6 +21,7 @@ const NUM_BLOCKS_TO_WAIT = 4
 export const MAX_RETRIES = 3
 
 const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
+const ABI = ['function anchor(bytes)']
 
 class WrongChainIdError extends Error {
   constructor(expected: number, actual: number) {
@@ -124,10 +123,15 @@ export class EthereumBlockchainService implements BlockchainService {
   private _chainId: number
   private readonly _network: string
   private readonly _transactionTimeoutSecs: number
+  private readonly _contract: Contract
 
   constructor(private readonly config: Config, private readonly wallet: ethers.Wallet) {
     this._network = this.config.blockchain.connectors.ethereum.network
     this._transactionTimeoutSecs = this.config.blockchain.connectors.ethereum.transactionTimeoutSecs
+    this._contract = new ethers.Contract(
+      this.config.blockchain.connectors.ethereum.contractAddress,
+      ABI
+    )
   }
 
   public static make(config: Config): EthereumBlockchainService {
@@ -281,9 +285,17 @@ export class EthereumBlockchainService implements BlockchainService {
     logger.debug('Preparing ethereum transaction')
     const baseNonce = await this.wallet.provider.getTransactionCount(this.wallet.address)
 
+    if (!this.config.useSmartContractAnchors) {
+      return {
+        to: this.wallet.address,
+        data: hexEncoded,
+        nonce: baseNonce,
+      }
+    }
+    const transactionRequest = await this._contract.populateTransaction.anchor(hexEncoded)
     return {
-      to: this.wallet.address,
-      data: hexEncoded,
+      to: this.config.blockchain.connectors.ethereum.contractAddress,
+      data: transactionRequest.data,
       nonce: baseNonce,
     }
   }

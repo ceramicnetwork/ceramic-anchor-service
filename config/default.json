@@ -1,5 +1,6 @@
 {
   "mode": "bundled",
+  "useSmartContractAnchors": false,
   "port": 8081,
   "anchorControllerEnabled": false,
   "schedulerIntervalMS": 300000,
@@ -22,7 +23,7 @@
       "ethereum": {
         "network": "ganache",
         "overrideGasConfig": false,
-        "gasLimit": 4712388,
+        "gasLimit": 6721975,
         "rpc": {
           "host": "http://localhost",
           "port": "8545",
@@ -31,7 +32,8 @@
         "transactionTimeoutSecs": 60,
         "account": {
           "privateKey": "0x06dd0990d19001c57eeea6d32e8fdeee40d3945962caf18c18c3930baa5a6ec9"
-        }
+        },
+        "contractAddress": "0xD3f84Cf6Be3DD0EB16dC89c972f7a27B441A39f2"
       }
     }
   },

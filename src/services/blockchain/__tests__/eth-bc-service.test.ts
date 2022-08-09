@@ -1,34 +1,57 @@
 import 'reflect-metadata'
 import { jest } from '@jest/globals'
-
 import { CID } from 'multiformats/cid'
 import Ganache from 'ganache-core'
-
-import { config } from 'node-config-ts'
+import { config, Config } from 'node-config-ts'
 import { logger } from '../../../logger/index.js'
-
+import { ethers } from 'ethers'
 import { container, instanceCachingFactory } from 'tsyringe'
-
 import { BlockchainService } from '../blockchain-service.js'
 import { EthereumBlockchainService, MAX_RETRIES } from '../ethereum/ethereum-blockchain-service.js'
 import { BigNumber } from 'ethers'
 import type { FeeData } from '@ethersproject/abstract-provider'
 import { ErrorCode } from '@ethersproject/logger'
+import fs from 'fs'
+import getPort from 'get-port'
+import cloneDeep from 'lodash.clonedeep'
+
+const deployContract = async (
+  provider: ethers.providers.JsonRpcProvider
+): Promise<ethers.Contract> => {
+  const wallet = new ethers.Wallet(
+    config.blockchain.connectors.ethereum.account.privateKey,
+    provider
+  )
+
+  const contractData = JSON.parse(
+    fs
+      .readFileSync(
+        new URL(
+          '../../../../contracts/out/CeramicAnchorServiceV2.sol/CeramicAnchorServiceV2.json',
+          import.meta.url
+        )
+      )
+      .toString()
+  )
+
+  const factory = new ethers.ContractFactory(contractData.abi, contractData.bytecode.object, wallet)
+  const contract = await factory.deploy()
+  await contract.deployed()
+
+  return contract
+}
 
 describe('ETH service connected to ganache', () => {
   jest.setTimeout(25000)
   const blockchainStartTime = new Date(1586784002000)
-  let ganacheServer: any = null
-  let ethBc: BlockchainService = null
+  let ganacheServer: Ganache.Server
+  let ethBc: BlockchainService
+  let testConfig: Config
+  let providerForGanache: ethers.providers.JsonRpcProvider
+  let contract: ethers.Contract
 
   beforeAll(async () => {
-    container.register('blockchainService', {
-      useFactory: instanceCachingFactory<EthereumBlockchainService>((c) =>
-        EthereumBlockchainService.make(config)
-      ),
-    })
-
-    ethBc = container.resolve<BlockchainService>('blockchainService')
+    const port = await getPort()
 
     ganacheServer = Ganache.server({
       gasLimit: 7000000,
@@ -38,11 +61,23 @@ describe('ETH service connected to ganache', () => {
       debug: true,
       blockTime: 2,
       network_id: 1337,
-      networkId: 1337,
+      port,
     })
+    await ganacheServer.listen(port)
+    providerForGanache = new ethers.providers.JsonRpcProvider(`http://localhost:${port}`)
+    contract = await deployContract(providerForGanache)
 
-    const localPort = Number(config.blockchain.connectors.ethereum.rpc.port)
-    await ganacheServer.listen(localPort)
+    testConfig = cloneDeep(config)
+    testConfig.blockchain.connectors.ethereum.rpc.port = port.toString()
+    testConfig.blockchain.connectors.ethereum.contractAddress = contract.address
+    testConfig.useSmartContractAnchors = false
+
+    container.register('blockchainService', {
+      useFactory: instanceCachingFactory<EthereumBlockchainService>((c) =>
+        EthereumBlockchainService.make(testConfig)
+      ),
+    })
+    ethBc = container.resolve<BlockchainService>('blockchainService')
     await ethBc.connect()
   })
 
@@ -51,58 +86,94 @@ describe('ETH service connected to ganache', () => {
     ganacheServer.close()
   })
 
-  test('should send CID to local ganache server', async () => {
-    const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
-    const tx = await ethBc.sendTransaction(cid)
-    expect(tx).toBeDefined()
+  describe('v0', () => {
+    test('should send CID to local ganache server', async () => {
+      const block = await providerForGanache.getBlock(await providerForGanache.getBlockNumber())
+      const startTimestamp = block.timestamp
 
-    // checking the timestamp against the snapshot is too brittle since if the test runs slowly it
-    // can be off slightly.  So we test it manually here instead.
-    const blockTimestamp = tx.blockTimestamp
-    delete tx.blockTimestamp
-    const startTimeSeconds = Math.floor(blockchainStartTime.getTime() / 1000)
-    expect(blockTimestamp).toBeGreaterThan(startTimeSeconds)
-    expect(blockTimestamp).toBeLessThan(startTimeSeconds + 5)
+      const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
+      const tx = await ethBc.sendTransaction(cid)
+      expect(tx).toBeDefined()
 
-    expect(tx).toMatchSnapshot()
+      // checking the timestamp against the snapshot is too brittle since if the test runs slowly it
+      // can be off slightly.  So we test it manually here instead.
+      const blockTimestamp = tx.blockTimestamp
+      delete tx.blockTimestamp
+      expect(blockTimestamp).toBeGreaterThan(startTimestamp)
+      expect(blockTimestamp).toBeLessThan(startTimestamp + 5)
+
+      expect(tx).toMatchSnapshot()
+    })
+
+    test('can fetch chainId properly', async () => {
+      const chainId = ethBc.chainId
+      expect(chainId).toEqual('eip155:1337')
+    })
+
+    test('gas price increase math', () => {
+      const gasEstimate: FeeData = {
+        maxFeePerGas: BigNumber.from(2000),
+        maxPriorityFeePerGas: BigNumber.from(1000),
+        gasPrice: BigNumber.from(0),
+      }
+      const firstRetry = BigNumber.from(1100)
+      // Note that this is not 1200. It needs to be 10% over the previous attempt's gas,
+      // not 20% over the gas estimate
+      const secondRetry = BigNumber.from(1210)
+      expect(
+        EthereumBlockchainService.increaseGasPricePerAttempt(
+          gasEstimate.maxPriorityFeePerGas,
+          0,
+          undefined
+        ).toNumber()
+      ).toEqual(gasEstimate.maxPriorityFeePerGas.toNumber())
+      expect(
+        EthereumBlockchainService.increaseGasPricePerAttempt(
+          gasEstimate.maxPriorityFeePerGas,
+          1,
+          gasEstimate.maxPriorityFeePerGas
+        ).toNumber()
+      ).toEqual(firstRetry.toNumber())
+      expect(
+        EthereumBlockchainService.increaseGasPricePerAttempt(
+          gasEstimate.maxPriorityFeePerGas,
+          2,
+          firstRetry
+        ).toNumber()
+      ).toEqual(secondRetry.toNumber())
+    })
   })
 
-  test('can fetch chainId properly', async () => {
-    const chainId = ethBc.chainId
-    expect(chainId).toEqual('eip155:1337')
-  })
+  describe('v1', () => {
+    beforeAll(() => {
+      testConfig.useSmartContractAnchors = true
+    })
 
-  test('gas price increase math', () => {
-    const gasEstimate: FeeData = {
-      maxFeePerGas: BigNumber.from(2000),
-      maxPriorityFeePerGas: BigNumber.from(1000),
-      gasPrice: BigNumber.from(0),
-    }
-    const firstRetry = BigNumber.from(1100)
-    // Note that this is not 1200. It needs to be 10% over the previous attempt's gas,
-    // not 20% over the gas estimate
-    const secondRetry = BigNumber.from(1210)
-    expect(
-      EthereumBlockchainService.increaseGasPricePerAttempt(
-        gasEstimate.maxPriorityFeePerGas,
-        0,
-        undefined
-      ).toNumber()
-    ).toEqual(gasEstimate.maxPriorityFeePerGas.toNumber())
-    expect(
-      EthereumBlockchainService.increaseGasPricePerAttempt(
-        gasEstimate.maxPriorityFeePerGas,
-        1,
-        gasEstimate.maxPriorityFeePerGas
-      ).toNumber()
-    ).toEqual(firstRetry.toNumber())
-    expect(
-      EthereumBlockchainService.increaseGasPricePerAttempt(
-        gasEstimate.maxPriorityFeePerGas,
-        2,
-        firstRetry
-      ).toNumber()
-    ).toEqual(secondRetry.toNumber())
+    afterAll(() => {
+      testConfig.useSmartContractAnchors = false
+    })
+
+    test('should anchor to contract', async () => {
+      const block = await providerForGanache.getBlock(await providerForGanache.getBlockNumber())
+      const startTimestamp = block.timestamp
+
+      const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
+      const tx = await ethBc.sendTransaction(cid)
+      expect(tx).toBeDefined()
+      const txReceipt = await providerForGanache.getTransactionReceipt(tx.txHash)
+      const contractEvents = txReceipt.logs.map((log) => contract.interface.parseLog(log))
+
+      expect(contractEvents.length).toEqual(1)
+      expect(contractEvents[0].name).toEqual('DidAnchor')
+
+      // checking the values against the snapshot is too brittle since ganache is time based so we test manually
+      expect(tx.blockTimestamp).toBeGreaterThan(startTimestamp)
+      expect(tx.blockTimestamp).toBeLessThan(startTimestamp + 5)
+      expect(tx.blockNumber).toBe(block.number + 1)
+      expect(tx.txHash).toEqual(
+        '0xe6526786001e9eb2247e833ca78c1a2761b0d0de3fa58b9a6b95e40dbb7f3a0a'
+      )
+    })
   })
 })
 
@@ -155,7 +226,7 @@ describe('setGasPrice', () => {
 })
 
 describe('ETH service with mock wallet', () => {
-  let ethBc: EthereumBlockchainService = null
+  let ethBc: EthereumBlockchainService
   const provider = {
     estimateGas: jest.fn(),
     getBalance: jest.fn(),
@@ -261,13 +332,11 @@ describe('ETH service with mock wallet', () => {
     >
     mockTrySendTransaction.mockReturnValue(txResponse)
     mockConfirmTransactionSuccess.mockReturnValue(finalTransactionResult)
-
     const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
     await expect(ethBc.sendTransaction(cid)).resolves.toEqual(finalTransactionResult)
 
     expect(mockTrySendTransaction).toHaveBeenCalledTimes(1)
-    const [txData, attemptNum] = mockTrySendTransaction.mock.calls[0]
-    expect(attemptNum).toEqual(0)
+    const [txData] = mockTrySendTransaction.mock.calls[0]
     expect(txData).toMatchSnapshot()
 
     expect(mockConfirmTransactionSuccess).toHaveBeenCalledTimes(1)
@@ -310,8 +379,7 @@ describe('ETH service with mock wallet', () => {
     // causing the attempt to be aborted.
     expect(mockTrySendTransaction).toHaveBeenCalledTimes(2)
 
-    const [txData0, attemptNum0] = mockTrySendTransaction.mock.calls[0]
-    expect(attemptNum0).toEqual(0)
+    const [txData0] = mockTrySendTransaction.mock.calls[0]
     expect(txData0).toMatchSnapshot()
 
     const [txData1, attemptNum1] = mockTrySendTransaction.mock.calls[1]

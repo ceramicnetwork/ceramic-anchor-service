@@ -18,9 +18,10 @@ commands:
 
 jobs:
   test:
+    shell: /bin/bash
     working_directory: ~/cas
     docker:
-      - image: circleci/node:16
+      - image: cimg/rust:1.62.0-node
         environment:
           DATABASE_URL: 'postgres://test-user@localhost:5432/test-db'
       - image: cimg/postgres:14.2
@@ -35,16 +36,28 @@ jobs:
       - restore_cache:
           keys:
             - dependencies-cache-{{ checksum "package.json" }}
-
       - run:
           name: install dependencies
           command: |
-            sudo npm i -g  codecov node-gyp
+            sudo npm i -g codecov node-gyp
             npm i
+            curl -L https://foundry.paradigm.xyz | bash
+            echo 'export PATH="$HOME/.foundry/bin:$PATH"' >> /home/circleci/.bashrc
+            source /home/circleci/.bashrc
+            echo 'export PATH="$HOME/.foundry/bin:$PATH"' >> $BASH_ENV
+            source $BASH_ENV
+            foundryup
+            forge --version
+
+      - run:
+          name: build contracts
+          command: |
+            npm run installContractDeps
+            npm run buildContract
 
       - run:
           name: build cas
-          command: sudo npm run build
+          command: sudo npm run build --ignore-scripts
 
       - run:
           name: test

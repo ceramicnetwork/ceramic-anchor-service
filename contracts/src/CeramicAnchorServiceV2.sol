@@ -18,10 +18,11 @@ contract CeramicAnchorServiceV2 is Ownable {
     //upon successful anchor
     event DidAnchor(address indexed _service, bytes _root);
 
-    // Only an address in the allow list is allowed to anchor
+    // Only addresses in the allow list is allowed to anchor
     modifier onlyAllowed() {
-        // require(allowList[ msg.sender ].allowed, "Allow List: caller is not allowed");
-        require(allowList[ msg.sender ], "Allow List: caller is not allowed");
+        require(
+            ( allowList[ msg.sender ] || msg.sender == owner() ), 
+            "Allow List: caller is not allowed");
         _;
     }
 
@@ -34,7 +35,6 @@ contract CeramicAnchorServiceV2 is Ownable {
         @note Only owner can add to the allowlist
     */
     function addCas(address _service) public onlyOwner {
-        // allowList[_service] = Service(true);
         allowList[_service] = true;
         emit DidAddCas(_service);
     }
@@ -57,7 +57,6 @@ contract CeramicAnchorServiceV2 is Ownable {
         @desc check if a service/address is allowed
     */
     function isServiceAllowed(address _service) public view returns(bool) {
-        // return allowList[_service].allowed;
         return allowList[_service];
     }
 

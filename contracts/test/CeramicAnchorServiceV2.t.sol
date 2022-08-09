@@ -72,9 +72,9 @@ contract CeramicAnchorServiceV2Test is Test {
     }
 
     function testFailAnchorFuzz(bytes calldata _root, address testService) public {
+        vm.expectRevert(stdError.assertionError);
         vm.assume(testService != address(this)); 
         casv2.addCas(testService);
         casv2.anchor(_root);
     }
-
 }
