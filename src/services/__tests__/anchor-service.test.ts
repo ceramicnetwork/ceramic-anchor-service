@@ -168,7 +168,7 @@ describe('anchor service', () => {
 
     for (const req of requests) {
       const retrievedRequest = await requestRepository.findByCid(CID.parse(req.cid))
-      expect(retrievedRequest).toHaveProperty('status', RequestStatus.PROCESSING)
+      expect(retrievedRequest).toHaveProperty('status', RequestStatus.PENDING)
     }
   })
 

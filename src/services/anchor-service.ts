@@ -53,8 +53,36 @@ type AnchorSummary = {
   unprocessedRequestCount: number
   candidateCount: number
   anchorCount: number
+  canRetryCount: number
 }
 
+const logAnchorSummary = (
+  groupedRequests: RequestGroups,
+  candidates: Candidate[],
+  results: Partial<AnchorSummary> = {}
+) => {
+  const anchorSummary: AnchorSummary = Object.assign(
+    {
+      acceptedRequestsCount: groupedRequests.acceptedRequests.length,
+      alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
+      anchoredRequestsCount: 0,
+      conflictingRequestCount: groupedRequests.conflictingRequests.length,
+      failedRequestsCount: groupedRequests.failedRequests.length,
+      failedToPublishAnchorCommitCount: 0,
+      unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
+      candidateCount: candidates.length,
+      anchorCount: 0,
+      canRetryCount:
+        groupedRequests.failedRequests.length - groupedRequests.conflictingRequests.length,
+    },
+    results
+  )
+
+  logEvent.anchor({
+    type: 'anchorRequests',
+    ...anchorSummary,
+  })
+}
 /**
  * Anchors CIDs to blockchain
  */
@@ -110,11 +138,7 @@ export class AnchorService {
     logger.imp('Anchoring ready requests...')
     logger.debug(`Loading requests from the database`)
     const requests: Request[] = await this.requestRepository.findAndMarkAsProcessing()
-    const anchorSummary = await this._anchorRequests(requests)
-    logEvent.anchor({
-      type: 'anchorRequests',
-      ...anchorSummary,
-    })
+    await this._anchorRequests(requests)
 
     // Sleep 5 seconds before exiting the process to give time for the logs to flush.
     await Utils.delay(5000)
@@ -125,7 +149,7 @@ export class AnchorService {
     await this._garbageCollect(requests)
   }
 
-  private async _anchorRequests(requests: Request[]): Promise<AnchorSummary> {
+  private async _anchorRequests(requests: Request[]): Promise<void> {
     if (requests.length === 0) {
       logger.debug('No pending CID requests found. Skipping anchor.')
       return
@@ -141,19 +165,40 @@ export class AnchorService {
 
     if (candidates.length === 0) {
       logger.imp('No candidates found. Skipping anchor.')
-      return {
-        acceptedRequestsCount: groupedRequests.acceptedRequests.length,
-        alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
-        anchoredRequestsCount: 0,
-        conflictingRequestCount: groupedRequests.conflictingRequests.length,
-        failedRequestsCount: groupedRequests.failedRequests.length,
-        failedToPublishAnchorCommitCount: 0,
-        unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
-        candidateCount: candidates.length,
-        anchorCount: 0,
-      }
+      logAnchorSummary(groupedRequests, candidates)
+      return
     }
 
+    try {
+      const results = await this._anchorCandidates(candidates)
+      logAnchorSummary(groupedRequests, candidates, results)
+      return
+    } catch (err) {
+      // TODO(NET-1623): Add alert that something went wrong and we are retrying
+      logger.warn(
+        `Updating PROCESSING requests to PENDING so they are retried in the next batch because an error occured while creating the anchors: ${err}`
+      )
+      const acceptedRequests = candidates.map((candidate) => candidate.acceptedRequests).flat()
+      await this.requestRepository.updateRequests({ status: RS.PENDING }, acceptedRequests)
+
+      // groupRequests.failedRequests does not include all the newly failed requests so we recount here
+      const failedRequests = candidates.map((candidate) => candidate.failedRequests).flat()
+      logAnchorSummary(groupedRequests, candidates, {
+        failedRequestsCount: failedRequests.length,
+        // NOTE: We will retry all of the above requests that were updated back to PENDING.
+        // We also may retry all failed requests other than requests rejected from conflict resolution.
+        // A failed request will not be retried if it has expired when the next anchor runs.
+        canRetryCount:
+          failedRequests.length -
+          groupedRequests.conflictingRequests.length +
+          acceptedRequests.length,
+      })
+
+      throw err
+    }
+  }
+
+  private async _anchorCandidates(candidates: Candidate[]): Promise<Partial<AnchorSummary>> {
     logger.imp(`Creating Merkle tree from ${candidates.length} selected streams`)
     const merkleTree = await this._buildMerkleTree(candidates)
 
@@ -179,14 +224,8 @@ export class AnchorService {
     Metrics.count(METRIC_NAMES.ANCHOR_SUCCESS, anchors.length)
 
     return {
-      acceptedRequestsCount: groupedRequests.acceptedRequests.length,
-      alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
       anchoredRequestsCount: numAnchoredRequests,
-      conflictingRequestCount: groupedRequests.conflictingRequests.length,
-      failedRequestsCount: groupedRequests.failedRequests.length,
       failedToPublishAnchorCommitCount: merkleTree.getLeaves().length - anchors.length,
-      unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
-      candidateCount: candidates.length,
       anchorCount: anchors.length,
     }
   }
