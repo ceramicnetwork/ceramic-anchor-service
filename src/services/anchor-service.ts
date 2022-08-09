@@ -336,7 +336,7 @@ export class AnchorService {
       root: merkleRootCid,
       chainId: tx.chain,
       txHash: txHashCid,
-      version: 1,
+      version: this.config.useSmartContractAnchors ? 1 : 0,
     }
     logger.debug('Anchor proof: ' + JSON.stringify(ipfsAnchorProof))
     const ipfsProofCid = await this.ipfsService.storeRecord(ipfsAnchorProof)
