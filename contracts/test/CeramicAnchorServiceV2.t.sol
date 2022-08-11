@@ -62,19 +62,19 @@ contract CeramicAnchorServiceV2Test is Test {
     function testAnchor() public {
         address testService = address(this);
         casv2.addCas(testService);
-        casv2.anchor("0x0");
+        casv2.anchorDagCbor("0x0");
     }
 
-    function testAnchorFuzz(bytes calldata _root) public {
+    function testAnchorFuzz(bytes32 _root) public {
         address testService = address(this);
         casv2.addCas(testService);
-        casv2.anchor(_root);
+        casv2.anchorDagCbor(_root);
     }
 
-    function testFailAnchorFuzz(bytes calldata _root, address testService) public {
+    function testFailAnchorFuzz(bytes32 _root, address testService) public {
         vm.expectRevert(stdError.assertionError);
         vm.assume(testService != address(this)); 
         casv2.addCas(testService);
-        casv2.anchor(_root);
+        casv2.anchorDagCbor(_root);
     }
 }

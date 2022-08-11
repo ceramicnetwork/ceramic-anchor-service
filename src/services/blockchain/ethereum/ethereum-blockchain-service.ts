@@ -21,7 +21,7 @@ const NUM_BLOCKS_TO_WAIT = 4
 export const MAX_RETRIES = 3
 
 const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
-const ABI = ['function anchor(bytes)']
+const ABI = ['function anchorDagCbor(bytes32)']
 
 class WrongChainIdError extends Error {
   constructor(expected: number, actual: number) {
@@ -278,21 +278,24 @@ export class EthereumBlockchainService implements BlockchainService {
   }
 
   async _buildTransactionRequest(rootCid: CID): Promise<TransactionRequest> {
-    const rootStrHex = rootCid.toString(base16)
-    const hexEncoded = '0x' + (rootStrHex.length % 2 == 0 ? rootStrHex : '0' + rootStrHex)
-    logger.imp(`Hex encoded root CID ${hexEncoded}`)
-
     logger.debug('Preparing ethereum transaction')
     const baseNonce = await this.wallet.provider.getTransactionCount(this.wallet.address)
 
     if (!this.config.useSmartContractAnchors) {
+      const rootStrHex = rootCid.toString(base16)
+      const hexEncoded = '0x' + (rootStrHex.length % 2 == 0 ? rootStrHex : '0' + rootStrHex)
+      logger.imp(`Hex encoded root CID ${hexEncoded}`)
+
       return {
         to: this.wallet.address,
         data: hexEncoded,
         nonce: baseNonce,
       }
     }
-    const transactionRequest = await this._contract.populateTransaction.anchor(hexEncoded)
+
+    const transactionRequest = await this._contract.populateTransaction.anchorDagCbor(
+      rootCid.bytes.slice(4)
+    )
     return {
       to: this.config.blockchain.connectors.ethereum.contractAddress,
       data: transactionRequest.data,

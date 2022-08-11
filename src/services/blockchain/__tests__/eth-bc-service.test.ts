@@ -171,7 +171,7 @@ describe('ETH service connected to ganache', () => {
       expect(tx.blockTimestamp).toBeLessThan(startTimestamp + 5)
       expect(tx.blockNumber).toBe(block.number + 1)
       expect(tx.txHash).toEqual(
-        '0xe6526786001e9eb2247e833ca78c1a2761b0d0de3fa58b9a6b95e40dbb7f3a0a'
+        '0x09d184cd4f62672de91fd5eaa7e7b1bf62ca1c2936281dc37201534b013c8f48'
       )
     })
   })
