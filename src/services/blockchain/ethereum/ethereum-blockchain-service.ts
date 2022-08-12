@@ -3,6 +3,7 @@ import { base16 } from 'multiformats/bases/base16'
 import { ErrorCode } from '@ethersproject/logger'
 import { BigNumber, BigNumberish, Contract, ethers } from 'ethers'
 import { Config } from 'node-config-ts'
+import * as uint8arrays from 'uint8arrays'
 
 import { logger, logEvent, logMetric } from '../../../logger/index.js'
 import { Transaction } from '../../../models/transaction.js'
@@ -293,9 +294,8 @@ export class EthereumBlockchainService implements BlockchainService {
       }
     }
 
-    const transactionRequest = await this._contract.populateTransaction.anchorDagCbor(
-      rootCid.bytes.slice(4)
-    )
+    const hexEncoded = '0x' + uint8arrays.toString(rootCid.bytes.slice(4), 'base16')
+    const transactionRequest = await this._contract.populateTransaction.anchorDagCbor(hexEncoded)
     return {
       to: this.config.blockchain.connectors.ethereum.contractAddress,
       data: transactionRequest.data,
