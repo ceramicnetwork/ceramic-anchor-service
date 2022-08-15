@@ -16,7 +16,7 @@ contract CeramicAnchorServiceV2 is Ownable {
     event DidRemoveCas(address indexed _service);
 
     //upon successful anchor
-    event DidAnchor(address indexed _service, bytes _root);
+    event DidAnchor(address indexed _service, bytes32 _root);
 
     // Only addresses in the allow list is allowed to anchor
     modifier onlyAllowed() {
@@ -65,7 +65,7 @@ contract CeramicAnchorServiceV2 is Ownable {
         @param calldata _root
         @desc Here _root is a byte representation of Merkle root CID.
     */
-    function anchor(bytes calldata _root) public onlyAllowed {
+    function anchorDagCbor(bytes32 _root) public onlyAllowed {
         emit DidAnchor(msg.sender, _root);
     }
     

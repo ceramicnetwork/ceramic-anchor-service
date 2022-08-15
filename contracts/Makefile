@@ -33,7 +33,7 @@ create:
 invoke:
 	cast call ${CONTRACT_ADDRESS} "${FUNC}" --rpc-url ${ETH_RPC_HOST}:${ETH_RPC_PORT}
 anchor:
-	cast send --private-key ${ETH_WALLET_PK} ${CONTRACT_ADDRESS} "anchor(bytes32)" "0x3078300000000000000000000000000000000000000000000000000000000000" --legacy
+	cast send --private-key ${ETH_WALLET_PK} ${CONTRACT_ADDRESS} "anchorDagCbor(bytes32)" "0x3078300000000000000000000000000000000000000000000000000000000000" --legacy
 installDeps:
 	forge install foundry-rs/forge-std --no-git
 	forge install openzeppelin/openzeppelin-contracts --no-git
