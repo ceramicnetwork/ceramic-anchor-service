@@ -13,7 +13,7 @@ export enum METRIC_NAMES {
   RETRY_EXPIRING = 'retry_expiring',
 
   ACCEPTED_REQUESTS = 'accepted_requests',
-  ALREADY_PROCESSED_REQUESTS = 'already_processed_requests',
+  ALREADY_ANCHORED_REQUESTS = 'already_anchored_requests',
   CONFLICTING_REQUESTS = 'conflicting_requests',
   FAILED_REQUESTS = 'failed_requests',
   UNPROCESSED_REQUESTS = 'unprocessed_requests',
