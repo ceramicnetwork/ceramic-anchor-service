@@ -79,7 +79,7 @@ export class CeramicAnchorApp {
 
     if (config.metrics.exporterEnabled) {
       try {
-        Metrics.start({ metricsPort: config.metrics.port, metricsExporterEnabled: true }, 'cas')
+        Metrics.start({ metricsPort: config.metrics.port, metricsExporterEnabled: true }, 'cas-' + config.mode)
         Metrics.count('HELLO', 1) 
         logger.imp("Metrics exporter started")
       } catch (e) {
