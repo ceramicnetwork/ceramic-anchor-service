@@ -468,6 +468,7 @@ export class AnchorService {
       await queryRunner.release()
     }
 
+    Metrics.count(METRIC_NAMES.ACCEPTED_REQUESTS, acceptedRequests.length)
     return acceptedRequests.length
   }
 
@@ -485,6 +486,7 @@ export class AnchorService {
       logger.debug(
         `About to fail ${failedRequests.length} requests for CIDs that could not be loaded`
       )
+      Metrics.count(METRIC_NAMES.FAILED_REQUESTS, failedRequests.length)
       await this.requestRepository.updateRequests(
         {
           status: RS.FAILED,
@@ -505,6 +507,7 @@ export class AnchorService {
           } because it was rejected by Ceramic's conflict resolution rules`
         )
       }
+      Metrics.count(METRIC_NAMES.CONFLICTING_REQUESTS, conflictingRequests.length)
       await this.requestRepository.updateRequests(
         {
           status: RS.FAILED,
@@ -518,6 +521,7 @@ export class AnchorService {
       logger.debug(
         `Marking ${alreadyAnchoredRequests.length} requests for CIDs that have already been anchored as COMPLETED`
       )
+      Metrics.count(METRIC_NAMES.ALREADY_ANCHORED_REQUESTS, alreadyAnchoredRequests.length)
       await this.requestRepository.updateRequests(
         {
           status: RS.COMPLETED,
