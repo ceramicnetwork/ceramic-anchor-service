@@ -221,6 +221,9 @@ export class AnchorService {
     logger.debug('Persisting results to local database')
     const numAnchoredRequests = await this._persistAnchorResult(anchors, candidates)
 
+    // maybe here or somewhere in a loop get the time deltas for the successful anchors TODO
+    // there might be a handler we can add
+
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
     Metrics.count(METRIC_NAMES.ANCHOR_SUCCESS, anchors.length)
 
