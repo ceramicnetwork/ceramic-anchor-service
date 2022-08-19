@@ -5,7 +5,7 @@ import {
 async function main() {
   const messageWithoutFields = [
     {
-      title: `CAS anchor task finished (${process.env.AWS_ECS_CLUSTER})`,
+      title: `CAS anchor task started (${process.env.AWS_ECS_CLUSTER})`,
       color: 3447003, // Blue
     },
   ]
