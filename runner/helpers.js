@@ -49,7 +49,7 @@ function generateDiscordCloudwatchFields(taskArns) {
     if (id) {
       value = `${process.env.CLOUDWATCH_LOG_BASE_URL}${id[0]}`
     }
-    return { name: `Task ${index}`, value }
+    return { name: `Task id`, value }
   })
   return fields
 }
