@@ -55,7 +55,9 @@ export class RequestRepository extends Repository<Request> {
    * @param request - Request
    */
   public async createOrUpdate(request: Request): Promise<Request> {
-    return this.connection.getRepository(Request).save(request)
+    const insertResults = await this.connection.getRepository(Request).upsert(request, ['cid'])
+
+    return this.connection.getRepository(Request).findOne(insertResults.identifiers[0].id)
   }
 
   /**
