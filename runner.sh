@@ -1,10 +1,10 @@
 #!/bin/bash
 
-export TASK="$(node ./runner/report-start.js)"
-echo $TASK
+export LOGS="$(node ./runner/report-start.js)"
+echo $LOGS
 
-STATUS=($TASK)
-if [[ ${STATUS[0]} == "OK" ]]; then
+LOGS=($LOGS)
+if [[ ${LOGS[0]} == "OK" ]]; then
   cd $CAS_PATH && npm run start
   exit_code=$?
   if [[ $exit_code != 0 ]]; then
