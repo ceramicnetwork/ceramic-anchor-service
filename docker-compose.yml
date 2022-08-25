@@ -21,7 +21,7 @@ services:
       - ETH_OVERRIDE_GAS_CONFIG=false
       - ETH_WALLET_PK=0x16dd0990d19001c50eeea6d32e8fdeef40d3945962caf18c18c3930baa5a6ec9
 
-      - IPFS_API_URL=ipfs:5001
+      - IPFS_API_URL=http://ipfs:5011
       - IPFS_API_TIMEOUT=10000
 
       - LOG_LEVEL=debug
@@ -46,6 +46,7 @@ services:
       - "/usr/local/var/log:/usr/local/var/log"
     depends_on:
       - ipfs
+      - database
     ports:
       - "8081:8081"
     networks:
@@ -58,9 +59,11 @@ services:
       - NODE_ENV=dev
       - APP_MODE=anchor
       - APP_PORT=8081
+
       - ANCHOR_CONTROLLER_ENABLED=false
       - ANCHOR_EXPIRATION_PERIOD=0
       - ANCHOR_SCHEDULE_EXPRESSION=0/1 * * * ? *
+
       - BLOCKCHAIN_CONNECTOR=ethereum
       - CERAMIC_API_URL=http://host.docker.internal:7007
       - ETH_GAS_LIMIT=4712388
@@ -68,8 +71,10 @@ services:
       - ETH_NETWORK=ropsten
       - ETH_OVERRIDE_GAS_CONFIG=false
       - ETH_WALLET_PK=0x16dd0990d19001c50eeea6d32e8fdeef40d3945962caf18c18c3930baa5a6ec9
-      - IPFS_API_URL=ipfs:5001
+
+      - IPFS_API_URL=http://ipfs:5011
       - IPFS_API_TIMEOUT=10000
+
       - LOG_LEVEL=debug
       - LOG_TO_FILES=true
       - LOG_PATH=/usr/local/var/log
@@ -92,17 +97,17 @@ services:
       - "/usr/local/var/log:/usr/local/var/log"
     depends_on:
       - ipfs
+      - database
     networks:
       - internal
 
   ipfs:
     image: ceramicnetwork/ipfs-daemon
-    hostname: ipfs_host
     volumes:
       - "./export:/export"
       - "./data/ipfs:/data/ipfs"
     ports:
-      - "5001:5001"
+      - "5011:5011"
       - "4001:4001"
       - "8080:8080"
     networks:
@@ -161,4 +166,3 @@ services:
 networks:
   internal:
     driver: bridge
-
