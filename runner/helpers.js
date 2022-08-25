@@ -2,18 +2,30 @@ import child_process from 'child_process'
 import * as https from 'https'
 import { ECSClient, ListTasksCommand } from '@aws-sdk/client-ecs'
 
+const REPORTING_LEVEL = {
+  info: 'info',
+  error: 'error'
+}
+
 /**
  * Sends Discord message about ECS task
  * @param {any} messageWithoutFields
  */
-function reportTask(messageWithoutFields) {
+function reportTask(messageWithoutFields, reportingLevel = REPORTING_LEVEL.info) {
   console.log('Reporting ECS task...')
   const taskArn = getThisTaskArn()
   const fields = generateDiscordCloudwatchFields([taskArn])
-  const message = [{...messageWithoutFields[0], fields}]
+  let message = messageWithoutFields
+  if (fields.length > 1) {
+    message = [{...messageWithoutFields[0], fields}]
+  }
   const data = { embeds: message, username: 'cas-runner' }
   const retryDelayMs = 300000 // 300k ms = 5 mins
-  sendDiscordNotification(process.env.DISCORD_WEBHOOK_URL_ALERTS, data, retryDelayMs)
+  let webhookUrl = process.env.DISCORD_WEBHOOK_URL_INFO_CAS
+  if (reportingLevel == REPORTING_LEVEL.error) {
+    webhookUrl = process.env.DISCORD_WEBHOOK_URL_ALERTS
+  }
+  sendDiscordNotification(webhookUrl, data, retryDelayMs)
 }
 
 /**
@@ -40,7 +52,7 @@ function generateDiscordCloudwatchFields(taskArns) {
     if (id) {
       value = `${process.env.CLOUDWATCH_LOG_BASE_URL}${id[0]}`
     }
-    return { name: `Task ${index}`, value }
+    return { name: `Task id`, value }
   })
   return fields
 }
@@ -101,4 +113,4 @@ function sendDiscordNotification(webhookUrl, data, retryDelayMs = -1) {
   req.end()
 }
 
-export { generateDiscordCloudwatchFields, getThisTaskArn, listECSTasks, reportTask, sendDiscordNotification }
+export { REPORTING_LEVEL, generateDiscordCloudwatchFields, getThisTaskArn, listECSTasks, reportTask, sendDiscordNotification }

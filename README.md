@@ -22,6 +22,15 @@ It sends updates on the start and exit status of the container to Discord webhoo
 docker build . -f Dockerfile.runner -t cas-runner
 ```
 
+```sh
+docker run cas-runner
+```
+
+Test the runner with Discord by using test webhooks instead of the actual alert channels.
+```
+docker run -e DISCORD_WEBHOOK_URL_INFO_CAS="<test_webhook_url>" -e DISCORD_WEBHOOK_URL_ALERTS="<test_webhook_url>" cas-runner
+```
+
 ### Prerequisites
 
 In order to run the simulation you need to install [Node.js](https://nodejs.org).

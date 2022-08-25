@@ -1,4 +1,5 @@
 import {
+  REPORTING_LEVEL,
   reportTask,
 } from './helpers.js'
 
@@ -10,7 +11,7 @@ async function main() {
       color: 3447003, // Blue
     },
   ]
-  reportTask(messageWithoutFields)
+  reportTask(messageWithoutFields, REPORTING_LEVEL.info)
 }
 
 main()
