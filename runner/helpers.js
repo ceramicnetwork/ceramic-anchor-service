@@ -1,5 +1,43 @@
+import child_process from 'child_process'
 import * as https from 'https'
 import { ECSClient, ListTasksCommand } from '@aws-sdk/client-ecs'
+
+const REPORTING_LEVEL = {
+  info: 'info',
+  error: 'error'
+}
+
+/**
+ * Sends Discord message about ECS task
+ * @param {any} messageWithoutFields
+ */
+function reportTask(messageWithoutFields, reportingLevel = REPORTING_LEVEL.info) {
+  console.log('Reporting ECS task...')
+  const taskArn = getThisTaskArn()
+  const fields = generateDiscordCloudwatchFields([taskArn])
+  let message = messageWithoutFields
+  if (fields.length > 1) {
+    message = [{...messageWithoutFields[0], fields}]
+  }
+  const data = { embeds: message, username: 'cas-runner' }
+  const retryDelayMs = 300000 // 300k ms = 5 mins
+  let webhookUrl = process.env.DISCORD_WEBHOOK_URL_INFO_CAS
+  if (reportingLevel == REPORTING_LEVEL.error) {
+    webhookUrl = process.env.DISCORD_WEBHOOK_URL_ALERTS
+  }
+  sendDiscordNotification(webhookUrl, data, retryDelayMs)
+}
+
+/**
+ * Returns the ARN for the running task
+ * @returns {string}
+ */
+function getThisTaskArn() {
+  const taskArn = child_process.execSync(
+    'curl -s "$ECS_CONTAINER_METADATA_URI_V4/task" | /runner/node_modules/node-jq/bin/jq -r ".TaskARN" | awk -F/ \'{print $NF}\''
+  ).toString()
+  return taskArn
+}
 
 /**
  * Returns kv object for Discord fields
@@ -14,7 +52,7 @@ function generateDiscordCloudwatchFields(taskArns) {
     if (id) {
       value = `${process.env.CLOUDWATCH_LOG_BASE_URL}${id[0]}`
     }
-    return { name: `Task ${index}`, value }
+    return { name: `Task id`, value }
   })
   return fields
 }
@@ -75,4 +113,4 @@ function sendDiscordNotification(webhookUrl, data, retryDelayMs = -1) {
   req.end()
 }
 
-export { generateDiscordCloudwatchFields, listECSTasks, sendDiscordNotification }
+export { REPORTING_LEVEL, generateDiscordCloudwatchFields, getThisTaskArn, listECSTasks, reportTask, sendDiscordNotification }
