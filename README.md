@@ -6,7 +6,9 @@ Ceramic anchor service is a PoC implementation of an anchor service according to
 
 This implementation currently uses the Ethereum blockchain but is built in order to be blockchain agnostic. It is fairly easy to add more modules to support other blockchains as well.  
 
-## Usage
+## Usage (Docker)
+
+### Docker
 
 **Build the CAS image:**
 ```sh
@@ -14,22 +16,31 @@ docker build . -f Dockerfile -t cas
 ```
 
 **Build the runner image (optional):**
+
 The runner is only useful if running CAS with ECS.
 It sends updates on the start and exit status of the container to Discord webhooks.
 ```sh
 # First make sure your CAS image was tagged "cas"
 # then build the runner (a wrapper around CAS)
 docker build . -f Dockerfile.runner -t cas-runner
-```
 
-```sh
 docker run cas-runner
-```
 
-Test the runner with Discord by using test webhooks instead of the actual alert channels.
-```
+# Test the runner with Discord by using test
+# webhooks instead of the actual alert channels.
 docker run -e DISCORD_WEBHOOK_URL_INFO_CAS="<test_webhook_url>" -e DISCORD_WEBHOOK_URL_ALERTS="<test_webhook_url>" cas-runner
 ```
+
+### Docker Compose
+
+Docker compose will run two instances of CAS--the api in "server" mode and the anchor worker in "anchor" mode.
+
+```sh
+docker compose up
+docker compose down
+```
+
+## Usage (Node.js)
 
 ### Prerequisites
 
