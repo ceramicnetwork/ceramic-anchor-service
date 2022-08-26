@@ -16,6 +16,7 @@ import { randomCID, generateRequests } from '../../test-utils.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { RequestStatus } from '../../models/request-status.js'
 import { Utils } from '../../utils.js'
+import { CID } from 'multiformats/cid'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -97,6 +98,21 @@ describe('request repository test', () => {
 
   afterAll(async () => {
     await DBConnection.close(connection)
+  })
+
+  test('Can createOrUpdate simultaneously', async () => {
+    const request = await generateRequests(
+      {
+        status: RequestStatus.READY,
+      },
+      1
+    )
+
+    const [result1, result2] = await Promise.all([
+      requestRepository.createOrUpdate(request[0]),
+      requestRepository.createOrUpdate(request[0]),
+    ])
+    expect(result1).toEqual(result2)
   })
 
   test('Finds requests older than a month', async () => {
