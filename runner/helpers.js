@@ -13,8 +13,8 @@ const REPORTING_LEVEL = {
  */
 function reportTask(messageWithoutFields, reportingLevel = REPORTING_LEVEL.info) {
   console.log('Reporting ECS task...')
-  const taskArn = getThisTaskArn()
-  const fields = generateDiscordCloudwatchFields([taskArn])
+  const taskId = getThisTaskId()
+  const fields = generateDiscordCloudwatchFields([taskId])
   let message = messageWithoutFields
   if (fields.length > 0) {
     message = [{...messageWithoutFields[0], fields}]
@@ -29,30 +29,26 @@ function reportTask(messageWithoutFields, reportingLevel = REPORTING_LEVEL.info)
 }
 
 /**
- * Returns the ARN for the running task
+ * Returns the ECS id for the running task
  * @returns {string}
  */
-function getThisTaskArn() {
-  const taskArn = child_process.execSync(
-    'curl -s "$ECS_CONTAINER_METADATA_URI_V4/task" | /runner/node_modules/node-jq/bin/jq -r ".TaskARN" | awk -F/ \'{print $NF}\''
+function getThisTaskId() {
+  const taskId = child_process.execSync(
+    `curl -s "$ECS_CONTAINER_METADATA_URI_V4/task" | /runner/node_modules/node-jq/bin/jq -r ".TaskARN" | awk -F / '{print $NF}'`
   ).toString()
-  return taskArn
+  console.log('TASK ID:', taskId)
+  return taskId
 }
 
 /**
  * Returns kv object for Discord fields
- * @param {Array<string>} taskArns
+ * @param {Array<string>} taskIds
  * @returns {object}
  */
-function generateDiscordCloudwatchFields(taskArns) {
-  const arnRegex = /\w+$/
-  const fields = taskArns.map((arn, index) => {
-    let value = arn
-    const id = arn.match(arnRegex)
-    if (id) {
-      value = `${process.env.CLOUDWATCH_LOG_BASE_URL}${id[0]}`
-    }
-    return { name: `Task id`, value }
+function generateDiscordCloudwatchFields(taskIds) {
+  const fields = taskIds.map((id, index) => {
+    const value = `[${id}](${process.env.CLOUDWATCH_LOG_BASE_URL}${id})`
+    return { name: `Task logs`, value }
   })
   return fields
 }
@@ -113,4 +109,4 @@ function sendDiscordNotification(webhookUrl, data, retryDelayMs = -1) {
   req.end()
 }
 
-export { REPORTING_LEVEL, generateDiscordCloudwatchFields, getThisTaskArn, listECSTasks, reportTask, sendDiscordNotification }
+export { REPORTING_LEVEL, generateDiscordCloudwatchFields, getThisTaskId, listECSTasks, reportTask, sendDiscordNotification }
