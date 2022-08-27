@@ -16,7 +16,7 @@ function reportTask(messageWithoutFields, reportingLevel = REPORTING_LEVEL.info)
   const taskArn = getThisTaskArn()
   const fields = generateDiscordCloudwatchFields([taskArn])
   let message = messageWithoutFields
-  if (fields.length > 1) {
+  if (fields.length > 0) {
     message = [{...messageWithoutFields[0], fields}]
   }
   const data = { embeds: message, username: 'cas-runner' }
