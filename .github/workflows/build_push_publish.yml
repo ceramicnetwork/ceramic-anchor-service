@@ -71,17 +71,33 @@ jobs:
         IMAGE_TAG_2: ${{ steps.set-vars.outputs.IMAGE_TAG_2 }}
       run: |
         echo "::set-output name=ECR_IMAGE_ID::$ECR_IMAGE_ID"
-        EXTRA_TAGS=""
+
+        DEFAULT_TAGS="-t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$FULL_SHA_TAG  -t $ECR_IMAGE_ID:$IMAGE_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG_2"
+
+        DOCKERHUB_TAGS="-t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$FULL_SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG_2"
+
+        RUNNER_ECR_IMAGE_ID="$ECR_IMAGE_ID-runner"
+        RUNNER_TAGS="-t $RUNNER_ECR_IMAGE_ID:$SHA_TAG -t $RUNNER_ECR_IMAGE_ID:$FULL_SHA_TAG -t $RUNNER_ECR_IMAGE_ID:$IMAGE_TAG -t $RUNNER_ECR_IMAGE_ID:$IMAGE_TAG_2"
+
+        QA_TAGS=""
+        QA_RUNNER_TAGS=""
         if [[ $IMAGE_TAG == "dev" ]]; then
-          ECR_IMAGE_ID_2="${{ steps.login-ecr.outputs.registry }}/ceramic-qa-cas"
-          EXTRA_TAGS="-t $ECR_IMAGE_ID_2:qa -t $ECR_IMAGE_ID_2:$SHA_TAG -t $ECR_IMAGE_ID_2:$FULL_SHA_TAG -t $ECR_IMAGE_ID_2:$IMAGE_TAG -t $ECR_IMAGE_ID_2:$IMAGE_TAG_2"
+          QA_ECR_IMAGE_ID="${{ steps.login-ecr.outputs.registry }}/ceramic-qa-cas"
+          QA_TAGS="-t $QA_ECR_IMAGE_ID:qa -t $QA_ECR_IMAGE_ID:$SHA_TAG -t $QA_ECR_IMAGE_ID:$FULL_SHA_TAG -t $QA_ECR_IMAGE_ID:$IMAGE_TAG -t $QA_ECR_IMAGE_ID:$IMAGE_TAG_2"
+          QA_RUNNER_ECR_IMAGE_ID="$QA_ECR_IMAGE_ID-runner"
+          QA_RUNNER_TAGS="-t $QA_RUNNER_ECR_IMAGE_ID:$SHA_TAG -t $QA_RUNNER_ECR_IMAGE_ID:$FULL_SHA_TAG -t $QA_RUNNER_ECR_IMAGE_ID:$IMAGE_TAG -t $QA_RUNNER_ECR_IMAGE_ID:$IMAGE_TAG_2"
         fi
-        docker build -f Dockerfile -t cas -t $DOCKERHUB_IMAGE_ID:$SHA_TAG -t $DOCKERHUB_IMAGE_ID:$FULL_SHA_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG -t $DOCKERHUB_IMAGE_ID:$IMAGE_TAG_2 .
-        docker build -f Dockerfile.runner -t $ECR_IMAGE_ID:$SHA_TAG -t $ECR_IMAGE_ID:$FULL_SHA_TAG  -t $ECR_IMAGE_ID:$IMAGE_TAG -t $ECR_IMAGE_ID:$IMAGE_TAG_2 $EXTRA_TAGS .
+
+        docker build -f Dockerfile -t cas $DEFAULT_TAGS $DOCKERHUB_TAGS $QA_TAGS .
+        docker build -f Dockerfile.runner $RUNNER_TAGS $QA_RUNNER_TAGS .
         docker push -a $DOCKERHUB_IMAGE_ID
         docker push -a $ECR_IMAGE_ID
-        if [[ -n $ECR_IMAGE_ID_2 ]]; then
-          docker push -a $ECR_IMAGE_ID_2
+        docker push -a $RUNNER_ECR_IMAGE_ID
+        if [[ -n $QA_ECR_IMAGE_ID ]]; then
+          docker push -a $QA_ECR_IMAGE_ID
+        fi
+        if [[ -n $QA_RUNNER_ECR_IMAGE_ID ]]; then
+          docker push -a $QA_RUNNER_ECR_IMAGE_ID
         fi
     -
       name: Publish build event
