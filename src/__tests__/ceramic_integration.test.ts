@@ -10,6 +10,7 @@ import { create } from 'ipfs-core'
 import { HttpApi } from 'ipfs-http-server'
 import * as dagJose from 'dag-jose'
 
+import express from 'express'
 import Ganache from 'ganache-core'
 import tmp from 'tmp-promise'
 import getPort from 'get-port'
@@ -36,6 +37,7 @@ import { CID } from 'multiformats/cid'
 import { AnchorService } from '../services/anchor-service.js'
 import { RequestStatus } from '../models/request-status.js'
 import { METRIC_NAMES } from '../settings.js'
+import { Server } from 'http'
 
 process.env.NODE_ENV = 'test'
 
@@ -111,6 +113,29 @@ async function makeGanache(startTime: Date, port: number): Promise<Ganache.Serve
 
   await ganacheServer.listen(port)
   return ganacheServer
+}
+
+class FauxAnchorLauncher {
+  port: number
+  server: Server
+  start(port: number) {
+    const app = express()
+    app.all('/', (req, res) => {
+      res.send({ status: 'success' })
+    })
+    this.server = app.listen(port, () => {
+      console.log(`Listening on port ${port}`)
+    })
+  }
+  stop() {
+    return new Promise((resolve) => this.server.close(resolve))
+  }
+}
+
+function makeAnchorLauncher(port: number): FauxAnchorLauncher {
+  const launcher = new FauxAnchorLauncher()
+  launcher.start(port)
+  return launcher
 }
 
 interface MinimalCASConfig {
@@ -245,6 +270,8 @@ describe('Ceramic Integration Test', () => {
   let ganachePort
   let ganacheServer: Ganache.Server = null
 
+  let anchorLauncher: FauxAnchorLauncher
+
   beforeAll(async () => {
     const ipfsApiPort1 = await getPort()
     const ipfsApiPort2 = await getPort()
@@ -278,6 +305,9 @@ describe('Ceramic Integration Test', () => {
     ganachePort = await getPort()
     const ganacheURL = 'http://localhost:' + ganachePort
     ganacheServer = await makeGanache(blockchainStartTime, ganachePort)
+
+    // Start faux anchor launcher
+    anchorLauncher = makeAnchorLauncher(8001)
 
     // Start anchor services
     const daemonPort1 = await getPort()
@@ -358,6 +388,7 @@ describe('Ceramic Integration Test', () => {
       ipfs6.stop(),
     ])
     await ganacheServer.close()
+    await anchorLauncher.stop()
   })
 
   beforeEach(async () => {
