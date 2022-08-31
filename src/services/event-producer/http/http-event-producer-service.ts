@@ -9,7 +9,7 @@ export class HTTPEventProducerService implements EventProducerService {
   constructor(@inject('config') private config?: Config) {}
 
   /**
-   * Emits an anchor event by sending a message to the configured HTTP
+   * Emits an anchor event by sending a message to the configured HTTP anchorLauncherUrl
    */
   public async emitAnchorEvent(body: string): Promise<void> {
     const payload = {
