@@ -22,7 +22,8 @@ import { METRIC_NAMES } from '../settings.js'
 import { BlockchainService } from './blockchain/blockchain-service.js'
 import { inject, singleton } from 'tsyringe'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
-import { Metrics } from '@ceramicnetwork/metrics'
+
+
 import {
   BloomMetadata,
   Candidate,
