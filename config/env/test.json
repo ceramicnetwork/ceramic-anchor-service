@@ -1,5 +1,5 @@
 {
-  "awsSqsUrl": "@@AWS_SQS_URL",
+  "anchorLauncherUrl": "http://localhost:8001",
   "schedulerIntervalMS": 10000,
   "expirationPeriod": 0,
   "ceramic": {

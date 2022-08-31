@@ -7,7 +7,7 @@
   "expirationPeriod": 5400000,
   "merkleDepthLimit": 0,
   "minStreamCount": 1,
-  "awsSqsUrl": "",
+  "anchorLauncherUrl": "http://localhost:8001",
   "ipfsConfig": {
     "url": "http://localhost:5001",
     "pubsubTopic": "/ceramic/testnet-clay",
