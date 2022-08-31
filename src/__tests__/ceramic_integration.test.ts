@@ -128,7 +128,7 @@ class FauxAnchorLauncher {
     })
   }
   stop() {
-    this.server.close()
+    return new Promise((resolve) => this.server.close(resolve))
   }
 }
 
@@ -388,7 +388,7 @@ describe('Ceramic Integration Test', () => {
       ipfs6.stop(),
     ])
     await ganacheServer.close()
-    anchorLauncher.stop()
+    await anchorLauncher.stop()
   })
 
   beforeEach(async () => {
