@@ -270,7 +270,6 @@ describe('Ceramic Integration Test', () => {
   let ganachePort
   let ganacheServer: Ganache.Server = null
 
-  let anchorLauncherPort
   let anchorLauncher: FauxAnchorLauncher
 
   beforeAll(async () => {
