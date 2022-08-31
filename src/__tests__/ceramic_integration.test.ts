@@ -121,7 +121,7 @@ class FauxAnchorLauncher {
   start(port: number) {
     const app = express()
     app.all('/', (req, res) => {
-      res.send({status: 'success'})
+      res.send({ status: 'success' })
     })
     this.server = app.listen(port, () => {
       console.log(`Listening on port ${port}`)

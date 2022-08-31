@@ -19,13 +19,18 @@ describe('http event service', () => {
   test('Can submit an anchor event', async () => {
     const eventProducerService = container.resolve<EventProducerService>('eventProducerService')
 
-    type MockedEmitAnchorEvent = (body: string) => Promise<void>;
-    (eventProducerService.emitAnchorEvent as MockedEmitAnchorEvent) = jest.fn(async (body: string) => {
-      function fetchTypeCheck(input: RequestInfo | URL, init?: RequestInit | undefined): Promise<Response> {
-        return new Promise(r => setTimeout(r, 500))
+    type MockedEmitAnchorEvent = (body: string) => Promise<void>
+    ;(eventProducerService.emitAnchorEvent as MockedEmitAnchorEvent) = jest.fn(
+      async (body: string) => {
+        function fetchTypeCheck(
+          input: RequestInfo | URL,
+          init?: RequestInit | undefined
+        ): Promise<Response> {
+          return new Promise((r) => setTimeout(r, 500))
+        }
+        await fetchTypeCheck(config.anchorLauncherUrl)
       }
-      await fetchTypeCheck(config.anchorLauncherUrl)
-    })
+    )
 
     await eventProducerService.emitAnchorEvent('test')
   })

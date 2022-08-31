@@ -1,4 +1,4 @@
-import {fetchJson} from '@ceramicnetwork/common'
+import { fetchJson } from '@ceramicnetwork/common'
 import 'reflect-metadata'
 import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
@@ -14,11 +14,11 @@ export class HTTPEventProducerService implements EventProducerService {
   public async emitAnchorEvent(body: string): Promise<void> {
     const payload = {
       type: 'anchor',
-      data: body
+      data: body,
     }
     await fetchJson(this.config.anchorLauncherUrl, {
       method: 'post',
-      body: payload
+      body: payload,
     })
   }
 
