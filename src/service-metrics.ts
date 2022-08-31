@@ -5,10 +5,6 @@ import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http'
 import { Utils } from './utils.js'
 
-// Metric names apply to both services and api endpoint
-// the parameters will be used to distinguish the endpoint, type of call etc
-import { METRIC_NAMES } from './settings.js'
-
 export const UNKNOWN_CALLER = 'Unknown'
 
 export const CONCURRENCY_LIMIT = 1
@@ -33,12 +29,12 @@ class _ServiceMetrics {
   /* Set up the exporter at run time, after we have read the configuration */
   start(collectorHost: string = '', caller: string = UNKNOWN_CALLER) {
 
-
     this.caller = caller
     this.meterProvider = new MeterProvider({})
 
     if (collectorHost) {
       this.collectorURL = `http://${collectorHost}:4318/v1/metrics`
+
       this.metricExporter = new OTLPMetricExporter({
            url: this.collectorURL,
            concurrencyLimit: CONCURRENCY_LIMIT
