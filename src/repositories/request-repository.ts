@@ -10,7 +10,7 @@ import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
 import { logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
-import { Metrics } from '@ceramicnetwork/metrics'
+import { ServiceMetrics as Metrics } from '../service-metrics.js'
 import { METRIC_NAMES } from '../settings.js'
 
 /**
