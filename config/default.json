@@ -43,6 +43,6 @@
     "filePath": ""
   },
   "metrics": {
-    "collectorURL": "",
+    "collectorHost": "",
   }
 }
