@@ -3,6 +3,7 @@
 
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http'
+import { Utils } from './utils.js'
 
 // Metric names apply to both services and api endpoint
 // the parameters will be used to distinguish the endpoint, type of call etc
@@ -81,6 +82,14 @@ class _ServiceMetrics {
     }
     // Record the observed value
     this.histograms[name].record(value, params)
+  }
+
+  recordAverage(name: string, arr: Array) {
+    // if array is empty, just return
+    if (arr.length <= 0) {
+       return
+    }
+    this.record(name, Utils.averageArray(arr))
   }
 }
 

@@ -12,6 +12,9 @@ export enum METRIC_NAMES {
   RETRY_FAILED = 'retry_failed',
   RETRY_EXPIRING = 'retry_expiring',
 
+  TIME_ANCHOR_COMMITS_MS = 'time_anchor_commits_ms',
+  TIME_TREE_COMMIT_MS = 'time_tree_commit_ms',
+
   ACCEPTED_REQUESTS = 'accepted_requests',
   ALREADY_ANCHORED_REQUESTS = 'already_anchored_requests',
   CONFLICTING_REQUESTS = 'conflicting_requests',

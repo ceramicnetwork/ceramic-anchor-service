@@ -366,6 +366,9 @@ export class AnchorService {
     const candidates = merkleTree.getLeaves()
     const anchors = []
 
+    // Simple performance timing 
+    const timings = []
+   
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i]
       logger.debug(
@@ -373,12 +376,15 @@ export class AnchorService {
           candidates.length
         }: stream id ${candidate.streamId.toString()} at commit CID ${candidate.cid}`
       )
+      let before = Date.now()
       const anchor = await this._createAnchorCommit(candidate, i, ipfsProofCid, merkleTree)
       if (anchor) {
         anchors.push(anchor)
+        timings.push(Date.now() - before)
       }
     }
 
+    Metrics.recordAverage(METRIC_NAMES.TIME_ANCHOR_COMMITS_MS, timings)
     return anchors
   }
 
