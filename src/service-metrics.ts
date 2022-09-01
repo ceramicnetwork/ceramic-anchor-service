@@ -30,14 +30,14 @@ class _ServiceMetrics {
   }
 
   /* Set up the exporter at run time, after we have read the configuration */
-  start(collectorURL: string = '', caller: string = UNKNOWN_CALLER) {
+  start(collectorHost: string = '', caller: string = UNKNOWN_CALLER) {
 
 
-    this.collectorURL = collectorURL
     this.caller = caller
     this.meterProvider = new MeterProvider({})
 
-    if (collectorURL) {
+    if (collectorHost) {
+      this.collectorURL = `http://${collectorHost}:4318/v1/metrics`
       this.metricExporter = new OTLPMetricExporter({
            url: this.collectorURL,
            concurrencyLimit: CONCURRENCY_LIMIT
