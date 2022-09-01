@@ -80,7 +80,11 @@ class _ServiceMetrics {
     this.histograms[name].record(value, params)
   }
 
+<<<<<<< HEAD
   recordAverage(name: string, arr: number[]) {
+=======
+  recordAverage(name: string, arr: Array) {
+>>>>>>> 9aab204 (typos and type errors)
     // if array is empty, just return
     if (arr.length <= 0) {
        return
