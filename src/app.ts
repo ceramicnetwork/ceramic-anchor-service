@@ -78,7 +78,7 @@ export class CeramicAnchorApp {
     }
 
     try {
-        Metrics.start(config.metrics.collectorURL, 'cas-' + config.mode)
+        Metrics.start(config.metrics.collectorHost, 'cas-' + config.mode)
         Metrics.count('HELLO', 1) 
         logger.imp("Metrics exporter started")
     } catch (e) {
