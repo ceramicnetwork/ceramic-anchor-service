@@ -4,13 +4,6 @@
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http'
 import { Utils } from './utils.js'
-<<<<<<< HEAD
-=======
-
-// Metric names apply to both services and api endpoint
-// the parameters will be used to distinguish the endpoint, type of call etc
-import { METRIC_NAMES } from './settings.js'
->>>>>>> 9e29c79 (typos and type errors)
 
 export const UNKNOWN_CALLER = 'Unknown'
 
@@ -86,11 +79,7 @@ class _ServiceMetrics {
     this.histograms[name].record(value, params)
   }
 
-<<<<<<< HEAD
   recordAverage(name: string, arr: number[]) {
-=======
-  recordAverage(name: string, arr: Array) {
->>>>>>> 9e29c79 (typos and type errors)
     // if array is empty, just return
     if (arr.length <= 0) {
        return
