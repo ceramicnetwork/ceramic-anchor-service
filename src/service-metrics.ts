@@ -84,7 +84,7 @@ class _ServiceMetrics {
     this.histograms[name].record(value, params)
   }
 
-  recordAverage(name: string, arr: Array) {
+  recordAverage(name: string, arr: number[]) {
     // if array is empty, just return
     if (arr.length <= 0) {
        return
