@@ -34,7 +34,6 @@ class _ServiceMetrics {
 
     if (collectorHost) {
       this.collectorURL = `http://${collectorHost}:4318/v1/metrics`
-
       this.metricExporter = new OTLPMetricExporter({
            url: this.collectorURL,
            concurrencyLimit: CONCURRENCY_LIMIT
