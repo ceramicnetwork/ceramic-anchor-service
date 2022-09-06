@@ -29,6 +29,6 @@
     "filePath": ""
   },
   "metrics": {
-    "collectorHost": "@@COLLECTOR_HOSTNAME",
+    "collectorHost": "@@COLLECTOR_HOSTNAME"
   }
 }
