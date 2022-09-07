@@ -30,5 +30,17 @@
   },
   "metrics": {
     "collectorHost": "@@COLLECTOR_HOSTNAME"
+  },
+  "db": {
+    "client": "postgresql",
+    "connection": {
+      "host": "localhost",
+      "user": "test-user",
+      "port": 5432
+    },
+    "debug": false,
+    "migrations": {
+      "tableName": "knex_migrations"
+    }
   }
 }

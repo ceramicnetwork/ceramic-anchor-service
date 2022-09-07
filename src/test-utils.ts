@@ -1,6 +1,5 @@
 import { CID } from 'multiformats/cid'
 import { create } from 'multiformats/hashes/digest'
-
 import { CeramicService } from './services/ceramic-service.js'
 import { EventProducerService } from './services/event-producer/event-producer-service.js'
 import { IpfsService } from './services/ipfs-service.js'
@@ -11,9 +10,82 @@ import { randomBytes } from '@stablelib/random'
 import { jest } from '@jest/globals'
 import { Request } from './models/request.js'
 import { RequestStatus } from './models/request-status.js'
+import knex, { Knex } from 'knex'
+import snakeCase from 'lodash.snakecase'
+import camelCase from 'lodash.camelcase'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
+const KNEX_TABLES = ['knex_migrations', 'knex_migrations_lock']
+
+const toCamelCase = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(toCamelCase)
+  }
+
+  if (typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, value]) => [camelCase(key), value]))
+  }
+
+  if (typeof value === 'string') {
+    return camelCase(value)
+  }
+
+  return value
+}
+
+const TEST_PG_CONFIG: Knex.Config = {
+  client: 'postgresql',
+  connection: {
+    database: 'test-db',
+    connectionString: process.env.DATABASE_URL,
+    user: 'test-user',
+  },
+  debug: false,
+  migrations: {
+    tableName: 'knex_migrations',
+  },
+  wrapIdentifier: (value, origWrap): string => origWrap(snakeCase(value)),
+  postProcessResponse: (result) => toCamelCase(result),
+}
+
+export const DBConnection = {
+  ranMigrations: false,
+
+  async create(): Promise<Knex> {
+    const connection = knex(TEST_PG_CONFIG)
+
+    if (!this.ranMigrations) {
+      await connection.migrate.latest()
+      this.ranMigrations = true
+    }
+
+    return connection
+  },
+
+  async close(connection: Knex): Promise<void> {
+    return connection.destroy()
+  },
+
+  async clear(connection: Knex): Promise<void> {
+    const { rows } = await connection.raw(
+      'SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_catalog = ?',
+      [connection.client.database()]
+    )
+
+    await connection.transaction(async (trx) => {
+      // Disable triggers for testing
+      await trx.raw('SET session_replication_role = replica')
+
+      // Delete all entries in table
+      for (const { table_name: tableName } of rows) {
+        if (!KNEX_TABLES.includes(tableName)) {
+          await trx(tableName).del()
+        }
+      }
+    })
+  },
+}
 
 export async function randomCID(): Promise<CID> {
   return CID.create(1, dagCBOR.code, create(0x12, randomBytes(32)))
