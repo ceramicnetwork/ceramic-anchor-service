@@ -85,4 +85,4 @@ jobs:
       -
         name: Set commit status "failure"
         if: ${{ failure() }}
-        run: dagger do failed -p ${{ env.STATUS_PLAN }}
+        run: dagger do failure -p ${{ env.STATUS_PLAN }}
