@@ -361,7 +361,7 @@ export class AnchorService {
   ): Promise<Anchor[]> {
     const candidates = merkleTree.getLeaves()
     const anchors = []
-   
+
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i]
       logger.debug(
