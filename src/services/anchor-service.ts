@@ -24,7 +24,6 @@ import { BlockchainService } from './blockchain/blockchain-service.js'
 import { inject, singleton } from 'tsyringe'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 
-
 import {
   BloomMetadata,
   Candidate,
@@ -223,9 +222,6 @@ export class AnchorService {
     logger.debug('Persisting results to local database')
     const numAnchoredRequests = await this._persistAnchorResult(anchors, candidates)
 
-    // maybe here or somewhere in a loop get the time deltas for the successful anchors TODO
-    // there might be a handler we can add
-
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
     Metrics.count(METRIC_NAMES.ANCHOR_SUCCESS, anchors.length)
 
@@ -365,9 +361,6 @@ export class AnchorService {
   ): Promise<Anchor[]> {
     const candidates = merkleTree.getLeaves()
     const anchors = []
-
-    // Simple performance timing 
-    const timings = []
    
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i]
@@ -376,15 +369,12 @@ export class AnchorService {
           candidates.length
         }: stream id ${candidate.streamId.toString()} at commit CID ${candidate.cid}`
       )
-      let before = Date.now()
       const anchor = await this._createAnchorCommit(candidate, i, ipfsProofCid, merkleTree)
       if (anchor) {
         anchors.push(anchor)
-        timings.push(Date.now() - before)
       }
     }
 
-    Metrics.recordAverage(METRIC_NAMES.TIME_ANCHOR_COMMITS_MS, timings)
     return anchors
   }
 
