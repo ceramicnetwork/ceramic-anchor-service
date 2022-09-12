@@ -99,9 +99,9 @@ jobs:
           docker push -a $QA_RUNNER_ECR_IMAGE_ID
         fi
     -
-      # TODO: Remove old build event once Clay and Prod start using the CD manager.
+      # TODO: Remove old build event once Prod starts using the CD manager.
       name: Publish build event
-      if: ${{ github.base_ref == 'main' || github.ref == 'refs/heads/main' || github.base_ref == 'release-candidate' || github.ref == 'refs/heads/release-candidate' }}
+      if: ${{ github.base_ref == 'main' || github.ref == 'refs/heads/main' }}
       env:
         IMAGE_TAG: ${{ steps.set-vars.outputs.IMAGE_TAG }}
         EVENT_WEBHOOK_URL: "${{ steps.set-vars.outputs.WEBHOOK_URL }}/github/event"
