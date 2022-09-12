@@ -162,6 +162,7 @@ async function makeCAS(
   configCopy.ceramic.apiUrl = 'http://localhost:' + minConfig.ceramicPort
   configCopy.blockchain.connectors.ethereum.network = 'ganache'
   configCopy.blockchain.connectors.ethereum.rpc.port = minConfig.ganachePort + ''
+  configCopy.useSmartContractAnchors = true
   return new CeramicAnchorApp(container, configCopy, dbConnection)
 }
 

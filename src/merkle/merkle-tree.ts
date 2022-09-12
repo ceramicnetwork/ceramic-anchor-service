@@ -83,6 +83,13 @@ export class MerkleTree<N, L extends N, M> {
       )
     }
 
+    // if there is only one leaf for the whole tree
+    if (elements.length === 1 && treeDepth === 0) {
+      const merged = await this.mergeFn.merge(elements[0], elements[0], treeMetadata)
+      elements[0].parent = merged
+      return merged
+    }
+
     if (elements.length === 1) {
       return elements[0]
     }
