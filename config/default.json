@@ -43,7 +43,6 @@
     "filePath": ""
   },
   "metrics": {
-    "exporterEnabled": false,
-    "port": 9464
+    "collectorHost": ""
   }
 }
