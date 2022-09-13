@@ -2,6 +2,7 @@
   "anchorLauncherUrl": "http://localhost:8001",
   "schedulerIntervalMS": 10000,
   "expirationPeriod": 0,
+  "maxAnchoringDelayMS": 43200000,
   "ceramic": {
     "validateRecords": false
   },

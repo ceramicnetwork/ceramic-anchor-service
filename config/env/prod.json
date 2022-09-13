@@ -7,6 +7,7 @@
   "merkleDepthLimit": "@@MERKLE_DEPTH_LIMIT",
   "minStreamCount": "@@MIN_STREAM_COUNT",
   "anchorLauncherUrl": "@@ANCHOR_LAUNCHER_URL",
+  "maxAnchoringDelayMS": "@@MAX_ANCHORING_DELAY_MS",
   "ipfsConfig": {
     "url": "@@IPFS_API_URL",
     "pubsubTopic": "@@IPFS_PUBSUB_TOPIC",

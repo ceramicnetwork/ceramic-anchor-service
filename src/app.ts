@@ -38,6 +38,7 @@ export class CeramicAnchorApp {
     private readonly config: Config,
     dbConnection: Connection
   ) {
+    console.log('HFOIEWHJF')
     CeramicAnchorApp._normalizeConfig(config)
 
     // TODO: Selectively register only the global singletons needed based on the config
@@ -78,13 +79,14 @@ export class CeramicAnchorApp {
     }
 
     try {
-        Metrics.start(config.metrics.collectorHost, 'cas-' + config.mode)
-        Metrics.count('HELLO', 1) 
-        logger.imp("Metrics exporter started")
+      Metrics.start(config.metrics.collectorHost, 'cas-' + config.mode)
+      Metrics.count('HELLO', 1)
+      logger.imp('Metrics exporter started')
     } catch (e) {
-        logger.err(e)
-        // start anchor service even if metrics threw an error
+      logger.err(e)
+      // start anchor service even if metrics threw an error
     }
+    console.log('HERE', config.maxAnchoringDelayMS)
   }
 
   /**

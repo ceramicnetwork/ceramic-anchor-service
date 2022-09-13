@@ -6,7 +6,6 @@ import { container } from 'tsyringe'
 import { config } from 'node-config-ts'
 import {
   RequestRepository,
-  MAX_ANCHORING_DELAY_MS,
   PROCESSING_TIMEOUT,
   FAILURE_RETRY_WINDOW,
 } from '../request-repository.js'
@@ -253,7 +252,7 @@ describe('request repository test', () => {
       const streamLimit = 5
       // 13 hours ago (delay is 12 hours)
       const creationDateOfExpiredRequest = new Date(
-        Date.now() - MAX_ANCHORING_DELAY_MS - MS_IN_HOUR
+        Date.now() - config.maxAnchoringDelayMS - MS_IN_HOUR
       )
       const requests = await Promise.all([
         // expired pending request

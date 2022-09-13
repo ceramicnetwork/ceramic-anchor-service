@@ -18,7 +18,6 @@ import { METRIC_NAMES } from '../settings.js'
  * AnchorCommit available to the network.
  */
 const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
-export const MAX_ANCHORING_DELAY_MS = 1000 * 60 * 60 * 12 //12H
 export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 3 //3H
 export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
 const TRANSACTION_MUTEX_ID = 4532
@@ -209,7 +208,7 @@ export class RequestRepository extends Repository<Request> {
     maxStreamLimit: number,
     minStreamLimit = maxStreamLimit
   ): Promise<Request[]> {
-    const anchoringDeadline = new Date(Date.now() - MAX_ANCHORING_DELAY_MS)
+    const anchoringDeadline = new Date(Date.now() - this.config.maxAnchoringDelayMS)
     const processingDeadline = new Date(Date.now() - PROCESSING_TIMEOUT)
     const earliestDateToRetry = new Date(Date.now() - FAILURE_RETRY_WINDOW)
 
