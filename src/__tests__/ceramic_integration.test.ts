@@ -144,6 +144,7 @@ interface MinimalCASConfig {
   ganachePort: number
   mode: string
   port: number
+  useSmartContractAnchors: boolean
 }
 
 async function makeCAS(
@@ -162,7 +163,7 @@ async function makeCAS(
   configCopy.ceramic.apiUrl = 'http://localhost:' + minConfig.ceramicPort
   configCopy.blockchain.connectors.ethereum.network = 'ganache'
   configCopy.blockchain.connectors.ethereum.rpc.port = minConfig.ganachePort + ''
-  configCopy.useSmartContractAnchors = true
+  configCopy.useSmartContractAnchors = minConfig.useSmartContractAnchors
   return new CeramicAnchorApp(container, configCopy, dbConnection)
 }
 
@@ -269,320 +270,328 @@ describe('Ceramic Integration Test', () => {
 
   const blockchainStartTime = new Date(1586784002000)
   let ganachePort
-  let ganacheServer: Ganache.Server = null
+  let ganacheServer: Ganache.Server
 
   let anchorLauncher: FauxAnchorLauncher
 
-  beforeAll(async () => {
-    const ipfsApiPort1 = await getPort()
-    const ipfsApiPort2 = await getPort()
+  describe.each([0, 1])('Using anchor version %i', (version) => {
+    beforeAll(async () => {
+      const useSmartContractAnchors = version === 1
 
-    ;[ipfs1, ipfs2, ipfs3, ipfs4, ipfs5, ipfs6] = await Promise.all([
-      createIPFS(ipfsApiPort1),
-      createIPFS(ipfsApiPort2),
-      createIPFS(),
-      createIPFS(),
-      createIPFS(),
-      createIPFS(),
-    ])
+      const ipfsApiPort1 = await getPort()
+      const ipfsApiPort2 = await getPort()
 
-    ipfsServer1 = new HttpApi(ipfs1)
-    await ipfsServer1.start()
-    ipfsServer2 = new HttpApi(ipfs2)
-    await ipfsServer2.start()
+      ;[ipfs1, ipfs2, ipfs3, ipfs4, ipfs5, ipfs6] = await Promise.all([
+        createIPFS(ipfsApiPort1),
+        createIPFS(ipfsApiPort2),
+        createIPFS(),
+        createIPFS(),
+        createIPFS(),
+        createIPFS(),
+      ])
 
-    // Now make sure all ipfs nodes are connected to all other ipfs nodes
-    const ipfsNodes = [ipfs1, ipfs2, ipfs3, ipfs4, ipfs5, ipfs6]
-    for (const [i, _] of ipfsNodes.entries()) {
-      for (const [j, _] of ipfsNodes.entries()) {
-        if (i == j) {
-          continue
+      ipfsServer1 = new HttpApi(ipfs1)
+      await ipfsServer1.start()
+      ipfsServer2 = new HttpApi(ipfs2)
+      await ipfsServer2.start()
+
+      // Now make sure all ipfs nodes are connected to all other ipfs nodes
+      const ipfsNodes = [ipfs1, ipfs2, ipfs3, ipfs4, ipfs5, ipfs6]
+      for (const [i, _] of ipfsNodes.entries()) {
+        for (const [j, _] of ipfsNodes.entries()) {
+          if (i == j) {
+            continue
+          }
+          await swarmConnect(ipfsNodes[i], ipfsNodes[j])
         }
-        await swarmConnect(ipfsNodes[i], ipfsNodes[j])
       }
-    }
 
-    // Start up Ganache
-    ganachePort = await getPort()
-    const ganacheURL = 'http://localhost:' + ganachePort
-    ganacheServer = await makeGanache(blockchainStartTime, ganachePort)
+      // Start up Ganache
+      ganachePort = await getPort()
+      const ganacheURL = 'http://localhost:' + ganachePort
+      ganacheServer = await makeGanache(blockchainStartTime, ganachePort)
 
-    // Start faux anchor launcher
-    anchorLauncher = makeAnchorLauncher(8001)
+      // Start faux anchor launcher
+      anchorLauncher = makeAnchorLauncher(8001)
 
-    // Start anchor services
-    const daemonPort1 = await getPort()
-    const daemonPort2 = await getPort()
-    dbConnection1 = await DBConnection.create()
-    const casPort1 = await getPort()
+      // Start anchor services
+      const daemonPort1 = await getPort()
+      const daemonPort2 = await getPort()
+      dbConnection1 = await DBConnection.create()
+      const casPort1 = await getPort()
 
-    container1 = container.createChildContainer()
-    cas1 = await makeCAS(container1, dbConnection1, {
-      mode: 'server',
-      ipfsPort: ipfsApiPort1,
-      ceramicPort: daemonPort1,
-      ganachePort,
-      port: casPort1,
+      container1 = container.createChildContainer()
+      cas1 = await makeCAS(container1, dbConnection1, {
+        mode: 'server',
+        ipfsPort: ipfsApiPort1,
+        ceramicPort: daemonPort1,
+        ganachePort,
+        port: casPort1,
+        useSmartContractAnchors,
+      })
+      await cas1.start()
+      anchorService1 = container1.resolve<AnchorService>('anchorService')
+
+      dbConnection2 = await DBConnection.create()
+      const casPort2 = await getPort()
+      container2 = container.createChildContainer()
+      cas2 = await makeCAS(container2, dbConnection2, {
+        mode: 'server',
+        ipfsPort: ipfsApiPort2,
+        ceramicPort: daemonPort2,
+        ganachePort,
+        port: casPort2,
+        useSmartContractAnchors,
+      })
+      await cas2.start()
+      anchorService2 = container2.resolve<AnchorService>('anchorService')
+
+      // Make the Ceramic nodes that will be used by the CAS.
+      ;[casCeramic1, casCeramic2] = await Promise.all([
+        makeCeramicCore(ipfs3, 'http://localhost:' + casPort1, ganacheURL),
+        makeCeramicCore(ipfs4, 'http://localhost:' + casPort2, ganacheURL),
+      ])
+      daemon1 = new CeramicDaemon(
+        casCeramic1,
+        DaemonConfig.fromObject({ 'http-api': { port: daemonPort1 } })
+      )
+      daemon2 = new CeramicDaemon(
+        casCeramic1,
+        DaemonConfig.fromObject({ 'http-api': { port: daemonPort2 } })
+      )
+      await daemon1.listen()
+      await daemon2.listen()
+
+      // Finally make the Ceramic nodes that will be used in the tests.
+      ceramic1 = await makeCeramicCore(ipfs5, 'http://localhost:' + casPort1, ganacheURL)
+      ceramic2 = await makeCeramicCore(ipfs6, 'http://localhost:' + casPort2, ganacheURL)
+
+      // The two user-facing ceramic nodes need to have the same DID Provider so that they can modify
+      // each others streams.
+      const did = makeDID()
+      await did.authenticate()
+      ceramic1.did = did
+      ceramic2.did = did
     })
-    await cas1.start()
-    anchorService1 = container1.resolve<AnchorService>('anchorService')
 
-    dbConnection2 = await DBConnection.create()
-    const casPort2 = await getPort()
-    container2 = container.createChildContainer()
-    cas2 = await makeCAS(container2, dbConnection2, {
-      mode: 'server',
-      ipfsPort: ipfsApiPort2,
-      ceramicPort: daemonPort2,
-      ganachePort,
-      port: casPort2,
+    afterAll(async () => {
+      cas1.stop()
+      cas2.stop()
+      await Promise.all([dbConnection1.close(), dbConnection2.close()])
+      await Promise.all([daemon1.close(), daemon2.close()])
+      await Promise.all([
+        casCeramic1.close(),
+        casCeramic2.close(),
+        ceramic1.close(),
+        ceramic2.close(),
+      ])
+      await Promise.all([ipfsServer1.stop(), ipfsServer2.stop()])
+      await Promise.all([
+        ipfs1.stop(),
+        ipfs2.stop(),
+        ipfs3.stop(),
+        ipfs4.stop(),
+        ipfs5.stop(),
+        ipfs6.stop(),
+      ])
+      await ganacheServer.close()
+      await anchorLauncher.stop()
     })
-    await cas2.start()
-    anchorService2 = container2.resolve<AnchorService>('anchorService')
 
-    // Make the Ceramic nodes that will be used by the CAS.
-    ;[casCeramic1, casCeramic2] = await Promise.all([
-      makeCeramicCore(ipfs3, 'http://localhost:' + casPort1, ganacheURL),
-      makeCeramicCore(ipfs4, 'http://localhost:' + casPort2, ganacheURL),
-    ])
-    daemon1 = new CeramicDaemon(
-      casCeramic1,
-      DaemonConfig.fromObject({ 'http-api': { port: daemonPort1 } })
-    )
-    daemon2 = new CeramicDaemon(
-      casCeramic1,
-      DaemonConfig.fromObject({ 'http-api': { port: daemonPort2 } })
-    )
-    await daemon1.listen()
-    await daemon2.listen()
+    beforeEach(async () => {
+      console.log(`Starting test: ${expect.getState().currentTestName}`)
+    })
 
-    // Finally make the Ceramic nodes that will be used in the tests.
-    ceramic1 = await makeCeramicCore(ipfs5, 'http://localhost:' + casPort1, ganacheURL)
-    ceramic2 = await makeCeramicCore(ipfs6, 'http://localhost:' + casPort2, ganacheURL)
+    afterEach(async () => {
+      console.log(`Finished test: ${expect.getState().currentTestName}`)
+      jest.restoreAllMocks()
+    })
 
-    // The two user-facing ceramic nodes need to have the same DID Provider so that they can modify
-    // each others streams.
-    const did = makeDID()
-    await did.authenticate()
-    ceramic1.did = did
-    ceramic2.did = did
-  })
+    describe('Multiple CAS instances in same process works', () => {
+      test(
+        'Anchors on different CAS instances are independent',
+        async () => {
+          const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
+          const doc2 = await TileDocument.create(ceramic2, { foo: 1 }, null, { anchor: true })
 
-  afterAll(async () => {
-    cas1.stop()
-    cas2.stop()
-    await Promise.all([dbConnection1.close(), dbConnection2.close()])
-    await Promise.all([daemon1.close(), daemon2.close()])
-    await Promise.all([
-      casCeramic1.close(),
-      casCeramic2.close(),
-      ceramic1.close(),
-      ceramic2.close(),
-    ])
-    await Promise.all([ipfsServer1.stop(), ipfsServer2.stop()])
-    await Promise.all([
-      ipfs1.stop(),
-      ipfs2.stop(),
-      ipfs3.stop(),
-      ipfs4.stop(),
-      ipfs5.stop(),
-      ipfs6.stop(),
-    ])
-    await ganacheServer.close()
-    await anchorLauncher.stop()
-  })
+          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+          expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
 
-  beforeEach(async () => {
-    console.log(`Starting test: ${expect.getState().currentTestName}`)
-  })
+          // Test that anchoring on CAS1 doesn't anchor requests made against CAS2
+          await anchorUpdate(doc1, cas1, anchorService1)
+          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+          expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
 
-  afterEach(async () => {
-    console.log(`Finished test: ${expect.getState().currentTestName}`)
-    jest.restoreAllMocks()
-  })
+          // Now test that anchoring on CAS2 doesn't anchor requests made against CAS1
+          await doc1.update({ foo: 2 }, null, { anchor: true })
+          await anchorUpdate(doc2, cas2, anchorService2)
+          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+          expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
 
-  describe('Multiple CAS instances in same process works', () => {
-    test(
-      'Anchors on different CAS instances are independent',
-      async () => {
-        const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
-        const doc2 = await TileDocument.create(ceramic2, { foo: 1 }, null, { anchor: true })
+          console.log('Test complete: Anchors on different CAS instances are independent')
+        },
+        60 * 1000 * 3
+      )
 
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
-        expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+      test(
+        'Multiple anchors for same stream',
+        async () => {
+          const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
+          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+          await anchorUpdate(doc1, cas1, anchorService1)
+          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
 
-        // Test that anchoring on CAS1 doesn't anchor requests made against CAS2
-        await anchorUpdate(doc1, cas1, anchorService1)
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-        expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+          // Now that genesis commit has been anchored do an update and make sure anchoring works again
+          await doc1.update({ foo: 2 }, null, { anchor: true })
+          await anchorUpdate(doc1, cas1, anchorService1)
+          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+          expect(doc1.content).toEqual({ foo: 2 })
 
-        // Now test that anchoring on CAS2 doesn't anchor requests made against CAS1
-        await doc1.update({ foo: 2 }, null, { anchor: true })
-        await anchorUpdate(doc2, cas2, anchorService2)
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
-        expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+          console.log('Test complete: Multiple anchors for same stream')
+        },
+        60 * 1000 * 3
+      )
 
-        console.log('Test complete: Anchors on different CAS instances are independent')
-      },
-      60 * 1000 * 3
-    )
+      test(
+        'Multiple anchors in a batch',
+        async () => {
+          const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
+          const doc2 = await TileDocument.create(ceramic1, { foo: 2 }, null, { anchor: true })
 
-    test(
-      'Multiple anchors for same stream',
-      async () => {
-        const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
-        await anchorUpdate(doc1, cas1, anchorService1)
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+          expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
 
-        // Now that genesis commit has been anchored do an update and make sure anchoring works again
-        await doc1.update({ foo: 2 }, null, { anchor: true })
-        await anchorUpdate(doc1, cas1, anchorService1)
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-        expect(doc1.content).toEqual({ foo: 2 })
+          await anchorUpdate(doc1, cas1, anchorService1)
+          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+          await waitForAnchor(doc2)
+          expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
 
-        console.log('Test complete: Multiple anchors for same stream')
-      },
-      60 * 1000 * 3
-    )
+          console.log('Test complete: Multiple anchors in a batch')
+        },
+        60 * 1000 * 3
+      )
 
-    test(
-      'Multiple anchors in a batch',
-      async () => {
-        const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
-        const doc2 = await TileDocument.create(ceramic1, { foo: 2 }, null, { anchor: true })
+      test(
+        'Anchors on different CAS instances can run in parallel',
+        async () => {
+          const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
+          const doc2 = await TileDocument.create(ceramic2, { cheese: 1 }, null, { anchor: true })
 
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
-        expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+          expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
 
-        await anchorUpdate(doc1, cas1, anchorService1)
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-        await waitForAnchor(doc2)
-        expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+          // Marks one of the requests as READY. This causes the first anchorUpdate to only anchor that one request.
+          const requestRepo1 = container1.resolve<RequestRepository>('requestRepository')
+          await requestRepo1.findAndMarkReady(1)
 
-        console.log('Test complete: Multiple anchors in a batch')
-      },
-      60 * 1000 * 3
-    )
+          await Promise.all([
+            anchorUpdate(doc1, cas1, anchorService1),
+            // we wait for the first request to be picked up before we anchor the next request
+            waitForNoReadyRequests(requestRepo1).then(() =>
+              anchorUpdate(doc2, cas2, anchorService2)
+            ),
+          ])
 
-    test(
-      'Anchors on different CAS instances can run in parallel',
-      async () => {
-        const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
-        const doc2 = await TileDocument.create(ceramic2, { cheese: 1 }, null, { anchor: true })
+          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+          expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
 
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
-        expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+          console.log('Test complete: Anchors on different CAS instances can run in parallel')
+        },
+        60 * 1000 * 3
+      )
+    })
 
-        // Marks one of the requests as READY. This causes the first anchorUpdate to only anchor that one request.
-        const requestRepo1 = container1.resolve<RequestRepository>('requestRepository')
-        await requestRepo1.findAndMarkReady(1)
+    describe('Consensus for anchors', () => {
+      test(
+        'Anchors latest available tip from network',
+        async () => {
+          const initialContent = { foo: 0 }
+          const updatedContent = { foo: 1 }
 
-        await Promise.all([
-          anchorUpdate(doc1, cas1, anchorService1),
-          // we wait for the first request to be picked up before we anchor the next request
-          waitForNoReadyRequests(requestRepo1).then(() => anchorUpdate(doc2, cas2, anchorService2)),
-        ])
+          const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
+          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
 
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-        expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+          // Perform update on ceramic2
+          const doc2 = await TileDocument.load(ceramic2, doc1.id)
+          await doc2.update(updatedContent, null, { anchor: false })
 
-        console.log('Test complete: Anchors on different CAS instances can run in parallel')
-      },
-      60 * 1000 * 3
-    )
-  })
+          // Make sure that the ceramic CAS has received the newest version
+          const casDocRef = await casCeramic1.loadStream(doc1.id)
+          await waitForTip(casDocRef, doc2.tip)
 
-  describe('Consensus for anchors', () => {
-    test(
-      'Anchors latest available tip from network',
-      async () => {
-        const initialContent = { foo: 0 }
-        const updatedContent = { foo: 1 }
+          // Make sure that cas1 updates the newest version that was created on ceramic2, even though
+          // the request that ceramic1 made against cas1 was for an older version.
+          await anchorUpdate(doc1, cas1, anchorService1)
+          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+          expect(doc1.content).toEqual(updatedContent)
 
-        const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+          console.log('Test complete: Anchors latest available tip from network')
+        },
+        60 * 1000 * 2
+      )
 
-        // Perform update on ceramic2
-        const doc2 = await TileDocument.load(ceramic2, doc1.id)
-        await doc2.update(updatedContent, null, { anchor: false })
+      test('Anchor discovered through pubsub', async () => {
+        jest.setTimeout(60 * 1000 * 2)
+        // In ceramic the stream waits for a successful anchor by polling the request endpoint of the CAS.
+        // We alter the CAS' returned request anchor status so that it is always pending.
+        // The ceramic node will then have to hear about the successful anchor through pubsub
+        const requestRepo = container1.resolve<RequestRepository>('requestRepository')
+        const original = requestRepo.findByCid
+        requestRepo.findByCid = async (cid: CID): Promise<Request> => {
+          const result: Request = await original.apply(requestRepo, [cid])
 
-        // Make sure that the ceramic CAS has received the newest version
-        const casDocRef = await casCeramic1.loadStream(doc1.id)
-        await waitForTip(casDocRef, doc2.tip)
+          if (result) {
+            return Object.assign(result, { status: AnchorStatus.PENDING })
+          }
 
-        // Make sure that cas1 updates the newest version that was created on ceramic2, even though
-        // the request that ceramic1 made against cas1 was for an older version.
-        await anchorUpdate(doc1, cas1, anchorService1)
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-        expect(doc1.content).toEqual(updatedContent)
-
-        console.log('Test complete: Anchors latest available tip from network')
-      },
-      60 * 1000 * 2
-    )
-
-    test('Anchor discovered through pubsub', async () => {
-      jest.setTimeout(60 * 1000 * 2)
-      // In ceramic the stream waits for a successful anchor by polling the request endpoint of the CAS.
-      // We alter the CAS' returned request anchor status so that it is always pending.
-      // The ceramic node will then have to hear about the successful anchor through pubsub
-      const requestRepo = container1.resolve<RequestRepository>('requestRepository')
-      const original = requestRepo.findByCid
-      requestRepo.findByCid = async (cid: CID): Promise<Request> => {
-        const result: Request = await original.apply(requestRepo, [cid])
-
-        if (result) {
-          return Object.assign(result, { status: AnchorStatus.PENDING })
+          return result
         }
 
-        return result
-      }
+        try {
+          const initialContent = { foo: 0 }
+          const updatedContent = { foo: 1 }
 
-      try {
-        const initialContent = { foo: 0 }
-        const updatedContent = { foo: 1 }
+          const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
+          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
 
-        const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+          const doc2 = await TileDocument.load(ceramic2, doc1.id)
+          await doc2.update(updatedContent, null, { anchor: false })
 
-        const doc2 = await TileDocument.load(ceramic2, doc1.id)
-        await doc2.update(updatedContent, null, { anchor: false })
+          // Make sure that the ceramic CAS has received the newest version
+          const casDocRef = await casCeramic1.loadStream(doc1.id)
+          await waitForTip(casDocRef, doc2.tip)
 
-        // Make sure that the ceramic CAS has received the newest version
-        const casDocRef = await casCeramic1.loadStream(doc1.id)
-        await waitForTip(casDocRef, doc2.tip)
+          await anchorUpdate(doc1, cas1, anchorService1)
 
-        await anchorUpdate(doc1, cas1, anchorService1)
+          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+          expect(doc1.content).toEqual(updatedContent)
 
-        expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-        expect(doc1.content).toEqual(updatedContent)
+          await waitForAnchor(doc2)
+          await doc2.sync({ sync: SyncOptions.NEVER_SYNC })
+          expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+          expect(doc2.content).toEqual(updatedContent)
+        } finally {
+          requestRepo.findByCid = original
+        }
 
-        await waitForAnchor(doc2)
-        await doc2.sync({ sync: SyncOptions.NEVER_SYNC })
-        expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-        expect(doc2.content).toEqual(updatedContent)
-      } finally {
-        requestRepo.findByCid = original
-      }
-
-      console.log('Test complete: Anchor discovered through pubsub')
+        console.log('Test complete: Anchor discovered through pubsub')
+      })
     })
-  })
 
-  test('Metrics produced on anchors', async () => {
-    jest.setTimeout(60 * 100 * 2)
+    test('Metrics produced on anchors', async () => {
+      jest.setTimeout(60 * 100 * 2)
 
-    const metricsCountSpy = jest.spyOn(Metrics, 'count')
+      const metricsCountSpy = jest.spyOn(Metrics, 'count')
 
-    const initialContent = { foo: 0 }
-    const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
-    expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+      const initialContent = { foo: 0 }
+      const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
 
-    await anchorUpdate(doc1, cas1, anchorService1)
+      await anchorUpdate(doc1, cas1, anchorService1)
 
-    expect(metricsCountSpy).toHaveBeenCalledWith(METRIC_NAMES.ANCHOR_SUCCESS, 1)
+      expect(metricsCountSpy).toHaveBeenCalledWith(METRIC_NAMES.ANCHOR_SUCCESS, 1)
 
-    console.log('Test complete: Metrics counts anchor attempts')
+      console.log('Test complete: Metrics counts anchor attempts')
+    })
   })
 })
