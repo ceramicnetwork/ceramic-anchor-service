@@ -62,6 +62,7 @@ jobs:
       - run:
           name: test
           command: npm run test && codecov
+          no_output_timeout: 30m
 
       - run:
           name: lint

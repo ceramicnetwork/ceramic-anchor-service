@@ -274,7 +274,7 @@ describe('Ceramic Integration Test', () => {
 
   let anchorLauncher: FauxAnchorLauncher
 
-  describe.each([0])('Using anchor version %i', (version) => {
+  describe.each([0, 1])('Using anchor version %i', (version) => {
     beforeAll(async () => {
       const useSmartContractAnchors = version === 1
 
