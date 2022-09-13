@@ -4,7 +4,7 @@ import { jest } from '@jest/globals'
 import { CeramicDaemon, DaemonConfig } from '@ceramicnetwork/cli'
 import { Ceramic } from '@ceramicnetwork/core'
 import { AnchorStatus, IpfsApi, Stream, SyncOptions } from '@ceramicnetwork/common'
-import { Metrics } from '@ceramicnetwork/metrics'
+import { ServiceMetrics as Metrics } from '../service-metrics.js'
 
 import { create } from 'ipfs-core'
 import { HttpApi } from 'ipfs-http-server'

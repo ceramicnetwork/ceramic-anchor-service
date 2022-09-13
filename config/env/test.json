@@ -29,7 +29,6 @@
     "filePath": ""
   },
   "metrics": {
-    "exporterEnabled": "@@METRICS_EXPORTER_ENABLED",
-    "port": "@@METRICS_PORT"
+    "collectorHost": "@@COLLECTOR_HOSTNAME"
   }
 }
