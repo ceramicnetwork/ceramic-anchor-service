@@ -202,10 +202,11 @@ export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
 
   async merge(
     left: Node<CIDHolder>,
-    right: Node<CIDHolder>,
+    right: Node<CIDHolder> | null,
     metadata: TreeMetadata | null
   ): Promise<Node<CIDHolder>> {
-    const merged = [left.data.cid, right.data.cid]
+    const merged = [left.data.cid, right?.data?.cid || null]
+
     if (metadata) {
       const metadataCid = await this.ipfsService.storeRecord(metadata)
       merged.push(metadataCid)

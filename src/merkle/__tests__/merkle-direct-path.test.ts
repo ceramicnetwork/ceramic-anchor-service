@@ -18,7 +18,7 @@ describe('Merkle tree direct path tests', () => {
     await merkleTree.build(leaves)
 
     const directPath = await merkleTree.getDirectPathFromRoot(0)
-    expect(directPath).toStrictEqual([])
+    expect(directPath).toStrictEqual([PathDirection.L])
   })
 
   test('should handle the case: [A]', async () => {

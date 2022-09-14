@@ -74,7 +74,7 @@ describe('Merkle tree structure tests', () => {
     const merkleTree = new MerkleTree<string, string, string>(new StringConcat())
     await merkleTree.build(leaves)
 
-    expect(merkleTree.getRoot().data).toBe('A')
+    expect(merkleTree.getRoot().data).toBe('Hash(A + null)')
   })
 
   test('should create a root from two leaves: [A,B]', async () => {
