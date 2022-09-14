@@ -157,7 +157,7 @@ export class Candidate implements CIDHolder {
       this._alreadyAnchored = true
     } else {
       this._cid = stream.tip
-      this._metadata = stream.metadata
+      this._metadata = stream.metadata as StreamMetadata
     }
 
     // Check the log of the Stream that was loaded from Ceramic to see which of the pending requests
@@ -202,10 +202,11 @@ export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
 
   async merge(
     left: Node<CIDHolder>,
-    right: Node<CIDHolder>,
+    right: Node<CIDHolder> | null,
     metadata: TreeMetadata | null
   ): Promise<Node<CIDHolder>> {
-    const merged = [left.data.cid, right.data.cid]
+    const merged = [left.data.cid, right?.data?.cid || null]
+
     if (metadata) {
       const metadataCid = await this.ipfsService.storeRecord(metadata)
       merged.push(metadataCid)
