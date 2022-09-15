@@ -3,10 +3,10 @@ import 'dotenv/config'
 
 import { Config } from 'node-config-ts'
 import { instanceCachingFactory, DependencyContainer } from 'tsyringe'
+import type { Knex } from 'knex'
 
 import { logger } from './logger/index.js'
 import { CeramicAnchorServer } from './server.js'
-import type { Connection } from 'typeorm'
 import { IpfsServiceImpl } from './services/ipfs-service.js'
 import { AnchorService } from './services/anchor-service.js'
 import { SchedulerService } from './services/scheduler-service.js'
@@ -36,7 +36,7 @@ export class CeramicAnchorApp {
   constructor(
     private readonly container: DependencyContainer,
     private readonly config: Config,
-    dbConnection: Connection
+    dbConnection: Knex
   ) {
     CeramicAnchorApp._normalizeConfig(config)
 
@@ -49,12 +49,12 @@ export class CeramicAnchorApp {
 
     // register database connection
     container.register('dbConnection', {
-      useFactory: instanceCachingFactory<Connection>((c) => dbConnection),
+      useFactory: instanceCachingFactory<Knex>((c) => dbConnection),
     })
 
     // register repositories
-    container.registerSingleton('anchorRepository', AnchorRepository)
     container.registerSingleton('requestRepository', RequestRepository)
+    container.registerSingleton('anchorRepository', AnchorRepository)
 
     // register services
     container.register('blockchainService', {
@@ -78,12 +78,12 @@ export class CeramicAnchorApp {
     }
 
     try {
-        Metrics.start(config.metrics.collectorHost, 'cas-' + config.mode)
-        Metrics.count('HELLO', 1) 
-        logger.imp("Metrics exporter started")
+      Metrics.start(config.metrics.collectorHost, 'cas-' + config.mode)
+      Metrics.count('HELLO', 1)
+      logger.imp('Metrics exporter started')
     } catch (e) {
-        logger.err(e)
-        // start anchor service even if metrics threw an error
+      logger.err(e)
+      // start anchor service even if metrics threw an error
     }
   }
 

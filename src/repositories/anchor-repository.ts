@@ -1,50 +1,41 @@
-import { Anchor } from '../models/anchor.js'
-import { Request } from '../models/request.js'
 import { inject, singleton } from 'tsyringe'
-import type { Connection, EntityManager, InsertResult } from 'typeorm'
-import TypeORM from 'typeorm'
-const { EntityRepository, Repository } = TypeORM
-export { Repository }
+import type { Knex } from 'knex'
+import { Request } from '../models/request.js'
+import { Anchor, TABLE_NAME } from '../models/anchor.js'
+
+/**
+ *
+ */
+interface Options {
+  connection?: Knex
+  limit?: number
+}
 
 @singleton()
-@EntityRepository(Anchor)
-export class AnchorRepository extends Repository<Anchor> {
-  constructor(@inject('dbConnection') private connection?: Connection) {
-    super()
-  }
+export class AnchorRepository {
+  constructor(@inject('dbConnection') private connection?: Knex) {}
 
   /**
    * Creates anchors
    * @param anchors - Anchors
-   * @param manager - An optional EntityManager which if provided *must* be used for all database
-   *   access. This is needed when creating anchors as part of a larger database transaction.
+   * @param options
    */
-  public async createAnchors(
-    anchors: Array<Anchor>,
-    manager?: EntityManager
-  ): Promise<InsertResult> {
-    if (!manager) {
-      manager = this.connection.manager
-    }
-    return manager
-      .getRepository(Anchor)
-      .createQueryBuilder()
-      .insert()
-      .into(Anchor)
-      .values(anchors)
-      .execute()
+  public async createAnchors(anchors: Array<Anchor>, options: Options = {}): Promise<void> {
+    const { connection = this.connection } = options
+    await connection(TABLE_NAME).insert(anchors)
   }
 
   /**
    * Gets anchor metadata
-   * @param request - Request id
+   * @param request - Request
    */
-  public async findByRequest(request: Request): Promise<Anchor> {
-    return this.connection
-      .getRepository(Anchor)
-      .createQueryBuilder('anchor')
-      .leftJoinAndSelect('anchor.request', 'request')
-      .where('request.id = :requestId', { requestId: request.id })
-      .getOne()
+  public async findByRequest(request: Request, options: Options = {}): Promise<Anchor> {
+    const { connection = this.connection } = options
+
+    const { requestId, ...anchorWithoutRequestId } = await connection(TABLE_NAME)
+      .where({ requestId: request.id })
+      .first()
+
+    return { ...anchorWithoutRequestId, request }
   }
 }

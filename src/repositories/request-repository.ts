@@ -1,29 +1,77 @@
-import { CID } from 'multiformats/cid'
-import type { Connection, EntityManager, InsertResult, UpdateResult } from 'typeorm'
-import TypeORM from 'typeorm'
-const { EntityRepository, Repository } = TypeORM
-export { Repository }
-import { Request, RequestUpdateFields, REQUEST_MESSAGES } from '../models/request.js'
-import { RequestStatus } from '../models/request-status.js'
-import { logEvent } from '../logger/index.js'
-import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
-import { logger } from '../logger/index.js'
-import { Utils } from '../utils.js'
 import { ServiceMetrics as Metrics } from '../service-metrics.js'
+import type { Knex } from 'knex'
+import { CID } from 'multiformats/cid'
+import { logEvent, logger } from '../logger/index.js'
 import { METRIC_NAMES } from '../settings.js'
-
-/**
- * How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
- * AnchorCommit available to the network.
- */
+import { Utils } from '../utils.js'
+import {
+  TABLE_NAME,
+  RequestStatus,
+  Request,
+  RequestUpdateFields,
+  REQUEST_MESSAGES,
+} from '../models/request.js'
+interface Options {
+  connection?: Knex
+  limit?: number
+}
+// TODO STEPH: Move constants and add comments
 const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
+const TRANSACTION_ISOLATION_LEVEL = 'repeatable read'
+// application is recommended to automatically retry when seeing this error
+const REPEATED_READ_SERIALIZATION_ERROR = '40001'
+const TRANSACTION_MUTEX_ID = 4532
 export const MAX_ANCHORING_DELAY_MS = 1000 * 60 * 60 * 12 //12H
 export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 3 //3H
 export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
-const TRANSACTION_MUTEX_ID = 4532
-// application is recommended to automatically retry when seeing this error
-const REPEATED_READ_SERIALIZATION_ERROR = '40001'
+
+const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder => {
+  const earliestDateToRetryFailed = new Date(now.getTime() - FAILURE_RETRY_WINDOW)
+  const processingDeadline = new Date(now.getTime() - PROCESSING_TIMEOUT)
+
+  return connection(TABLE_NAME)
+    .where((builder) =>
+      builder
+        .where({ status: RequestStatus.FAILED })
+        .andWhere('createdAt', '>=', earliestDateToRetryFailed)
+        .andWhere((subBuilder) =>
+          subBuilder
+            .whereNull('message')
+            .orWhereNot({ message: REQUEST_MESSAGES.conflictResolutionRejection })
+        )
+    )
+    .orWhere((builder) =>
+      builder
+        .where({ status: RequestStatus.PROCESSING })
+        .andWhere('updatedAt', '<', processingDeadline)
+    )
+    .orWhere({ status: RequestStatus.PENDING })
+}
+
+const findStreamsToAnchor = (
+  connection: Knex,
+  maxStreamLimit: number,
+  now: Date
+): Knex.QueryBuilder => {
+  const query = findRequestsToAnchor(connection, now)
+    .select(['streamId', connection.raw('MIN(request.created_at) as min_created_at')])
+    .orderBy('min_created_at', 'asc')
+    .groupBy('streamId')
+
+  if (maxStreamLimit !== 0) query.limit(maxStreamLimit)
+
+  return query
+}
+
+const findRequestsToAnchorForStreams = (
+  connection: Knex,
+  streamIds: string[],
+  now: Date
+): Knex.QueryBuilder =>
+  findRequestsToAnchor(connection, now)
+    .andWhere('streamId', 'in', streamIds)
+    .orderBy('createdAt', 'asc')
 
 const countRetryMetrics = (requests: Request[], anchoringDeadline: Date): void => {
   const expired = requests.filter((request) => request.createdAt < anchoringDeadline)
@@ -37,41 +85,62 @@ const countRetryMetrics = (requests: Request[], anchoringDeadline: Date): void =
 }
 
 @singleton()
-@EntityRepository(Request)
-export class RequestRepository extends Repository<Request> {
-  private readonly isolationLevel
-
-  constructor(
-    @inject('config') private config?: Config,
-    @inject('dbConnection') private connection?: Connection
-  ) {
-    super()
-    this.isolationLevel =
-      this.connection.options.type === 'sqlite' ? 'SERIALIZABLE' : 'REPEATABLE READ'
-  }
+export class RequestRepository {
+  constructor(@inject('dbConnection') private connection?: Knex) {}
 
   /**
    * Create/updates client request
    * @param request - Request
    */
-  public async createOrUpdate(request: Request): Promise<Request> {
-    const insertResults = await this.connection.getRepository(Request).upsert(request, ['cid'])
+  public async createOrUpdate(request: Request, options: Options = {}): Promise<Request> {
+    const { connection = this.connection } = options
 
-    return this.connection.getRepository(Request).findOne(insertResults.identifiers[0].id)
+    const [{ id }] = await connection
+      .table(TABLE_NAME)
+      .insert(request, ['id'])
+      .onConflict('cid')
+      .merge()
+
+    return connection.table(TABLE_NAME).first().where({ id })
   }
 
   /**
-   * Creates client requests
-   * @param requests - Requests
+   * Gets all requests that were anchored over a month ago, and that are on streams that have had
+   * no other requests in the last month.
    */
-  public async createRequests(requests: Array<Request>): Promise<InsertResult> {
-    return this.connection
-      .getRepository(Request)
-      .createQueryBuilder()
-      .insert()
-      .into(Request)
-      .values(requests)
-      .execute()
+  public async findRequestsToGarbageCollect(options: Options = {}): Promise<Request[]> {
+    const { connection = this.connection } = options
+
+    const now: number = new Date().getTime()
+    const deadlineDate = new Date(now - ANCHOR_DATA_RETENTION_WINDOW)
+
+    const recentlyUpdatedRequests = connection(TABLE_NAME)
+      .orderBy('updatedAt', 'desc')
+      .select('streamId')
+      .where('updatedAt', '>=', deadlineDate)
+
+    // expired requests with streams that have not been recently updated
+    return await connection(TABLE_NAME)
+      .orderBy('updatedAt', 'desc')
+      .whereIn('status', [RequestStatus.COMPLETED, RequestStatus.FAILED])
+      .andWhere('pinned', true)
+      .andWhere('updatedAt', '<', deadlineDate)
+      .whereNotIn('streamId', recentlyUpdatedRequests)
+  }
+
+  /**
+   * Finds requests of a given status
+   */
+  public async findByStatus(status: RequestStatus, options: Options = {}): Promise<Request[]> {
+    const { connection = this.connection, limit } = options
+
+    const query = connection(TABLE_NAME).orderBy('updatedAt').where({ status })
+
+    if (limit && limit !== 0) {
+      query.limit(limit)
+    }
+
+    return query
   }
 
   /**
@@ -84,116 +153,70 @@ export class RequestRepository extends Repository<Request> {
   public async updateRequests(
     fields: RequestUpdateFields,
     requests: Request[],
-    manager?: EntityManager
-  ): Promise<UpdateResult> {
-    if (!manager) {
-      manager = this.connection.manager
-    }
+    options: Options = {}
+  ): Promise<number> {
+    const { connection = this.connection } = options
+    const updatedAt = new Date(Date.now())
+
     const ids = requests.map((r) => r.id)
-    const result = await manager
-      .getRepository(Request)
-      .createQueryBuilder()
-      .update(Request)
-      .set(fields)
-      .whereInIds(ids)
-      .execute()
-      .then((result) => {
-        requests.map((request) => {
-          logEvent.db({
-            type: 'request',
-            ...request,
-            ...fields,
-            createdAt: request.createdAt.getTime(),
-            updatedAt: new Date(Date.now()),
-          })
-        })
-        return result
+
+    const result = await connection(TABLE_NAME)
+      .update({ ...fields, updatedAt: updatedAt })
+      .whereIn('id', ids)
+
+    requests.map((request) => {
+      logEvent.db({
+        type: 'request',
+        ...request,
+        ...fields,
+        createdAt: request.createdAt.getTime(),
+        updatedAt: updatedAt,
       })
+    })
+
     return result
   }
 
-  /**
-   * Gets all READY requests and marks them as PROCESSING
-   */
-  public async findAndMarkAsProcessing(): Promise<Request[]> {
-    return this.connection
-      .transaction(this.isolationLevel, async (transactionalEntityManager) => {
-        const requests = await this.findByStatus(RequestStatus.READY, transactionalEntityManager)
+  public async findAndMarkAsProcessing(options: Options = {}): Promise<Request[]> {
+    const { connection = this.connection } = options
 
-        if (requests.length === 0) {
-          return []
-        }
+    return await connection
+      .transaction(
+        async (trx) => {
+          const requests = await this.findByStatus(RequestStatus.READY, { connection: trx })
+          if (requests.length === 0) {
+            return []
+          }
 
-        const results = await this.updateRequests(
-          { status: RequestStatus.PROCESSING },
-          requests,
-          transactionalEntityManager
-        )
-
-        if (!results.affected || results.affected != requests.length) {
-          throw Error(
-            `A problem occured when updated requests to PROCESSING. Only ${results.affected}/${requests.length} requests were updated`
+          const updatedCount = await this.updateRequests(
+            { status: RequestStatus.PROCESSING },
+            requests,
+            {
+              connection: trx,
+            }
           )
-        }
 
-        return requests
-      })
+          if (updatedCount != requests.length) {
+            throw Error(
+              `A problem occured when updated requests to PROCESSING. Only ${updatedCount}/${requests.length} requests were updated`
+            )
+          }
+
+          return requests
+        },
+        {
+          isolationLevel: TRANSACTION_ISOLATION_LEVEL,
+        }
+      )
       .catch(async (err) => {
         if (err?.code === REPEATED_READ_SERIALIZATION_ERROR) {
           Metrics.count(METRIC_NAMES.DB_SERIALIZATION_ERROR, 1)
           await Utils.delay(100)
-          return this.findAndMarkAsProcessing()
+          return this.findAndMarkAsProcessing(options)
         }
 
         throw err
       })
-  }
-
-  /**
-   * Creates new client request
-   * @param cid: Client request CID
-   */
-  public async findByCid(cid: CID): Promise<Request> {
-    return await this.connection
-      .getRepository(Request)
-      .createQueryBuilder('request')
-      .where('request.cid = :cid', { cid: cid.toString() })
-      .getOne()
-  }
-
-  /**
-   * Gets all requests that were anchored over a month ago, and that are on streams that have had
-   * no other requests in the last month.
-   */
-  public async findRequestsToGarbageCollect(): Promise<Request[]> {
-    const now: number = new Date().getTime()
-    const deadlineDate = new Date(now - ANCHOR_DATA_RETENTION_WINDOW)
-
-    const expiredRequests = await this.connection
-      .getRepository(Request)
-      .createQueryBuilder('request')
-      .orderBy('request.updated_at', 'DESC')
-      .where('(request.status = :anchoredStatus1 OR request.status = :anchoredStatus2)', {
-        anchoredStatus1: RequestStatus.COMPLETED,
-        anchoredStatus2: RequestStatus.FAILED,
-      })
-      .andWhere('request.pinned = :pinned', { pinned: true })
-      .andWhere('request.updated_at < :deadlineDate', { deadlineDate: deadlineDate.toISOString() })
-
-    return expiredRequests
-      .andWhere((qb) => {
-        const recentRequestsStreamIds = qb
-          .subQuery()
-          .select('doc_id')
-          .from(Request, 'recent_request')
-          .orderBy('recent_request.updated_at', 'DESC')
-          .where('recent_request.updated_at >= :deadlineDate', {
-            deadlineDate: deadlineDate.toISOString(),
-          })
-          .getQuery()
-        return 'request.doc_id NOT IN ' + recentRequestsStreamIds
-      })
-      .getMany()
   }
 
   /**
@@ -207,82 +230,43 @@ export class RequestRepository extends Repository<Request> {
    */
   public async findAndMarkReady(
     maxStreamLimit: number,
-    minStreamLimit = maxStreamLimit
+    minStreamLimit = maxStreamLimit,
+    options: Options = {}
   ): Promise<Request[]> {
-    const anchoringDeadline = new Date(Date.now() - MAX_ANCHORING_DELAY_MS)
-    const processingDeadline = new Date(Date.now() - PROCESSING_TIMEOUT)
-    const earliestDateToRetry = new Date(Date.now() - FAILURE_RETRY_WINDOW)
+    const { connection = this.connection } = options
+    const now = new Date()
+    const anchoringDeadline = new Date(now.getTime() - MAX_ANCHORING_DELAY_MS)
 
-    return this.connection
-      .transaction(this.isolationLevel, async (transactionalEntityManager) => {
-        // Query that when executed returns all requests that meet one of the following conditions:
-        //    - is PENDING,
-        //    - is PROCESSING and needs to be retried
-        //    - is FAILED, has not expired, and has not been rejected due to confliction resolution
-        const allRequestsToAnchorQuery = await transactionalEntityManager
-          .getRepository(Request)
-          .createQueryBuilder('request')
-          .where(
-            'request.status = :failedStatus AND request.createdAt >= :earliestDateToRetry AND (request.message IS NULL OR request.message != :message)',
-            {
-              failedStatus: RequestStatus.FAILED,
-              earliestDateToRetry: earliestDateToRetry,
-              message: REQUEST_MESSAGES.conflictResolutionRejection,
-            }
-          )
-          .orWhere(
-            'request.status = :processingStatus AND request.updatedAt < :processingDeadline',
-            {
-              processingStatus: RequestStatus.PROCESSING,
-              processingDeadline: processingDeadline,
-            }
-          )
-          .orWhere('request.status = :pendingStatus', { pendingStatus: RequestStatus.PENDING })
+    return connection.transaction(
+      async (trx) => {
+        const streamsToAnchor = await findStreamsToAnchor(trx, maxStreamLimit, now)
 
-        // using conditions in allRequestsToAnchorQuery, retrieves up to streamLimit unique streams with their earliest request createdAt value
-        const rawStreamsToAnchor = await allRequestsToAnchorQuery
-          .clone()
-          .select(['request.streamId as sid', 'MIN(request.createdAt) as min_created_at'])
-          .groupBy('sid')
-          .orderBy('min_created_at', 'ASC')
-          // if 0 will return unlimited
-          .limit(maxStreamLimit)
-          .getRawMany()
-
-        // convert raw results to Request entities
-        const streamsToAnchor = transactionalEntityManager.getRepository(Request).create(
-          rawStreamsToAnchor.map((request) => ({
-            streamId: request['sid'],
-            createdAt: request['min_created_at'],
-          }))
-        )
-
-        // Do not anchor if there are no streams to anhor
+        // Do not anchor if there are no streams to anchor
         if (streamsToAnchor.length === 0) {
           return []
         }
 
         // Anchor if we have enough streams or the earliest stream request is expired
-        const earliestIsExpired = streamsToAnchor[0].createdAt < anchoringDeadline
-        if (streamsToAnchor.length >= minStreamLimit || earliestIsExpired) {
+        const enoughStreams = streamsToAnchor.length >= minStreamLimit
+        const earliestIsExpired = streamsToAnchor[0].minCreatedAt < anchoringDeadline
+
+        if (enoughStreams || earliestIsExpired) {
           const streamIds = streamsToAnchor.map(({ streamId }) => streamId)
 
-          // using conditions in allRequestsToAnchorQuery, retrieves all requests associated with the retrieved streams
-          const requests = await allRequestsToAnchorQuery
-            .orderBy('request.createdAt', 'ASC')
-            .andWhere('request.streamId IN (:...streamIds)', { streamIds })
-            .getMany()
+          const requests = await findRequestsToAnchorForStreams(trx, streamIds, now)
 
-          const results = await this.updateRequests(
+          const updatedCount = await this.updateRequests(
             { status: RequestStatus.READY },
             requests,
-            transactionalEntityManager
+            {
+              connection: trx,
+            }
           )
 
           // if not all requests are updated
-          if (!results.affected || results.affected != requests.length) {
+          if (updatedCount != requests.length) {
             throw Error(
-              `A problem occured when updated requests to READY. Only ${results.affected}/${requests.length} requests were updated`
+              `A problem occured when updated requests to READY. Only ${updatedCount}/${requests.length} requests were updated`
             )
           }
 
@@ -291,39 +275,22 @@ export class RequestRepository extends Repository<Request> {
           return requests
         }
 
-        logger.debug(
-          'Not updating any requests to READY because there are not enough streams for a batch and the earliest request is not expired'
-        )
         return []
-      })
-      .catch(async (err) => {
-        if (err?.code === REPEATED_READ_SERIALIZATION_ERROR) {
-          Metrics.count(METRIC_NAMES.DB_SERIALIZATION_ERROR, 1)
-          await Utils.delay(100)
-          return this.findAndMarkReady(maxStreamLimit, minStreamLimit)
-        }
-
-        throw err
-      })
+      },
+      {
+        isolationLevel: TRANSACTION_ISOLATION_LEVEL,
+      }
+    )
   }
 
   /**
-   * Finds requests of a given status
+   * Creates new client request
+   * @param cid: Client request CID
    */
-  public async findByStatus(
-    status: RequestStatus,
-    manager?: EntityManager,
-    limit?: number
-  ): Promise<Request[]> {
-    manager = manager || this.connection.manager
+  public async findByCid(cid: CID, options: Options = {}): Promise<Request> {
+    const { connection = this.connection } = options
 
-    return manager
-      .getRepository(Request)
-      .createQueryBuilder('request')
-      .where('request.status = :status', { status })
-      .orderBy('request.updated_at', 'ASC')
-      .limit(limit)
-      .getMany()
+    return connection(TABLE_NAME).where({ cid: cid.toString() }).first()
   }
 
   /**
@@ -337,27 +304,45 @@ export class RequestRepository extends Repository<Request> {
   public async withTransactionMutex<T>(
     operation: () => Promise<T>,
     maxAttempts = Infinity,
-    delayMS = 5000
+    delayMS = 5000,
+    options: Options = {}
   ): Promise<T> {
-    return this.connection.transaction(async (transactionalEntityManager) => {
-      let attempt = 1
-      while (attempt <= maxAttempts) {
-        logger.debug(`Attempt ${attempt} at acquiring the transaction mutex before operation`)
-        if (attempt > 5) Metrics.count(METRIC_NAMES.MANY_ATTEMPTS_TO_ACQUIRE_MUTEX, 1)
+    const { connection = this.connection } = options
 
-        const [{ pg_try_advisory_xact_lock: success }] = await transactionalEntityManager.query(
-          `SELECT pg_try_advisory_xact_lock(${TRANSACTION_MUTEX_ID})`
-        )
+    return connection.transaction(
+      async (trx) => {
+        let attempt = 1
+        while (attempt <= maxAttempts) {
+          logger.debug(`Attempt ${attempt} at acquiring the transaction mutex before operation`)
+          if (attempt > 5) Metrics.count(METRIC_NAMES.MANY_ATTEMPTS_TO_ACQUIRE_MUTEX, 1)
 
-        if (success) {
-          return operation()
+          const {
+            rows: [{ pg_try_advisory_xact_lock: success }],
+          } = await trx.raw(`SELECT pg_try_advisory_xact_lock(${TRANSACTION_MUTEX_ID})`)
+
+          if (success) {
+            return operation()
+          }
+
+          attempt++
+
+          await Utils.delay(delayMS)
         }
 
-        attempt++
-
-        await Utils.delay(delayMS)
+        throw new Error(`Failed to acquire transaction mutex after ${maxAttempts} tries`)
+      },
+      {
+        isolationLevel: TRANSACTION_ISOLATION_LEVEL,
       }
-      throw new Error(`Failed to acquire transaction mutex after ${maxAttempts} tries`)
-    })
+    )
+  }
+
+  /**
+   * For test use only
+   */
+  public async createRequests(requests: Array<Request>, options: Options = {}): Promise<void> {
+    const { connection = this.connection } = options
+
+    return connection.table(TABLE_NAME).insert(requests)
   }
 }

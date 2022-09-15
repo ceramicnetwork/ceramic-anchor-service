@@ -1,106 +1,117 @@
 import 'reflect-metadata'
 import { jest } from '@jest/globals'
-import type { Connection } from 'typeorm'
-import { DBConnection } from '../../services/__tests__/db-connection.js'
 import { container } from 'tsyringe'
-import { config } from 'node-config-ts'
+import { StreamID } from '@ceramicnetwork/streamid'
+import type { Knex } from 'knex'
+
 import {
   RequestRepository,
   MAX_ANCHORING_DELAY_MS,
   PROCESSING_TIMEOUT,
   FAILURE_RETRY_WINDOW,
 } from '../request-repository.js'
-import { AnchorRepository } from '../anchor-repository.js'
-import { Request, REQUEST_MESSAGES } from '../../models/request.js'
-import { randomCID, generateRequests } from '../../test-utils.js'
-import { StreamID } from '@ceramicnetwork/streamid'
-import { RequestStatus } from '../../models/request-status.js'
+import { Request, REQUEST_MESSAGES, TABLE_NAME, RequestStatus } from '../../models/request.js'
+import { randomCID } from '../../test-utils.js'
 import { Utils } from '../../utils.js'
-import { CID } from 'multiformats/cid'
+import { createDbConnection, clearTables } from '../../db-connection.js'
+import { AnchorRepository } from '../anchor-repository.js'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
 const MS_IN_DAY = MS_IN_HOUR * 24
 const MS_IN_MONTH = MS_IN_DAY * 30
 
-async function generateCompletedRequest(expired: boolean, failed: boolean): Promise<Request> {
-  const request = new Request()
-  const cid = await randomCID()
-  request.cid = cid.toString()
-  request.streamId = new StreamID('tile', cid).toString()
-  request.status = failed ? RequestStatus.FAILED : RequestStatus.COMPLETED
-  request.message = 'cid anchored successfully'
-  request.pinned = true
-
-  const now = new Date()
-  request.createdAt = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
-  if (expired) {
-    // Request was last updated over a month ago
-    request.updatedAt = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate())
-  } else {
-    // Request was last updated less than a week ago
-    request.updatedAt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 5)
-  }
-
-  return request
+async function getAllRequests(connection: Knex): Promise<Request[]> {
+  return await connection.table(TABLE_NAME).orderBy('createdAt', 'asc')
 }
 
-async function generateReadyRequests(count: number): Promise<Request[]> {
-  const now = new Date()
-  const requests: Request[] = []
+async function generateRequests(
+  override: Partial<Request>,
+  count = 1,
+  addVariance = true
+): Promise<Request[]> {
+  const requests = await Promise.all(
+    Array.from(Array(count)).map(async (_, i) => {
+      const request = new Request()
+      const cid = await randomCID()
+      request.cid = cid.toString()
+      request.streamId = new StreamID('tile', cid).toString()
+      request.status = RequestStatus.PENDING
+      request.createdAt = new Date(Date.now() - Math.random() * MS_IN_HOUR)
 
-  for (let i = 0; i < count; i++) {
-    const request = new Request()
-    const cid = await randomCID()
-    request.cid = cid.toString()
-    request.streamId = new StreamID('tile', cid).toString()
-    request.status = RequestStatus.READY
-    const createdAt = new Date(now)
-    createdAt.setHours(now.getHours() + i)
-    request.createdAt = createdAt
+      Object.assign(request, override)
 
-    requests.push(request)
-  }
+      request.updatedAt = request.updatedAt || new Date(request.createdAt.getTime())
+
+      if (addVariance) {
+        const variance = Math.random() * 5
+        request.createdAt = new Date(request.createdAt.getTime() + MS_IN_MINUTE * (i + variance))
+        request.updatedAt = new Date(request.updatedAt.getTime() + MS_IN_MINUTE * (i + variance))
+      }
+      return request
+    })
+  )
 
   return requests
 }
 
-async function getAllRequests(connection): Promise<Request[]> {
-  return await connection
-    .getRepository(Request)
-    .createQueryBuilder('request')
-    .orderBy('request.createdAt', 'ASC')
-    .getMany()
-}
-
 describe('request repository test', () => {
   jest.setTimeout(10000)
-  let connection: Connection
+  let connection: Knex
+  let connection2: Knex
   let requestRepository: RequestRepository
-  let connection2: Connection
 
   beforeAll(async () => {
-    connection = await DBConnection.create()
-    connection2 = await DBConnection.create()
+    connection = await createDbConnection()
+    connection2 = await createDbConnection()
 
-    container.registerInstance('config', config)
     container.registerInstance('dbConnection', connection)
-    container.registerSingleton('anchorRepository', AnchorRepository)
     container.registerSingleton('requestRepository', RequestRepository)
+    container.registerSingleton('anchorRepository', AnchorRepository)
 
     requestRepository = container.resolve<RequestRepository>('requestRepository')
   })
 
   beforeEach(async () => {
-    await DBConnection.clear(connection)
-    await DBConnection.clear(connection2)
+    await clearTables(connection)
+    await clearTables(connection2)
   })
 
   afterAll(async () => {
-    await DBConnection.close(connection)
+    await connection.destroy()
+    await connection2.destroy()
   })
 
-  test('Can createOrUpdate simultaneously', async () => {
+  // TODO STEPH: REMOVE
+  test('cheese', async () => {
+    const requests = await generateRequests(
+      {
+        status: RequestStatus.READY,
+      },
+      2
+    )
+
+    await requestRepository.createRequests(requests)
+    const created = await getAllRequests(connection)
+
+    const anchorRepository = container.resolve<AnchorRepository>('anchorRepository')
+
+    await anchorRepository.createAnchors(
+      created.map((request) => ({
+        requestId: request.id,
+        path: 'path',
+        cid: 'cid',
+        proofCid: 'cid',
+      }))
+    )
+
+    console.log(await connection.table('anchor'))
+
+    console.log(await anchorRepository.findByRequest(created[0]))
+    console.log(await anchorRepository.findByRequest(created[1]))
+  })
+
+  test('createOrUpdate: can createOrUpdate simultaneously', async () => {
     const request = await generateRequests(
       {
         status: RequestStatus.READY,
@@ -115,59 +126,7 @@ describe('request repository test', () => {
     expect(result1).toEqual(result2)
   })
 
-  test('Finds requests older than a month', async () => {
-    // Create two requests that are expired and should be garbage collected, and two that should not
-    // be.
-    const requests = await Promise.all([
-      generateCompletedRequest(false, false),
-      generateCompletedRequest(true, false),
-      generateCompletedRequest(false, true),
-      generateCompletedRequest(true, true),
-    ])
-
-    await requestRepository.createRequests(requests)
-
-    const expiredRequests = await requestRepository.findRequestsToGarbageCollect()
-    expect(expiredRequests.length).toEqual(2)
-    expect(expiredRequests[0].cid).toEqual(requests[1].cid)
-    expect(expiredRequests[1].cid).toEqual(requests[3].cid)
-  })
-
-  test("Don't cleanup streams who have both old and new requests", async () => {
-    // Create two requests that are expired and should be garbage collected, and two that should not
-    // be.
-    const requests = await Promise.all([
-      generateCompletedRequest(false, false),
-      generateCompletedRequest(true, false),
-      generateCompletedRequest(false, true),
-      generateCompletedRequest(true, true),
-    ])
-
-    // Set an expired and non-expired request to be on the same streamId. The expired request should
-    // not show up to be garbage collected.
-    requests[3].streamId = requests[2].streamId
-
-    await requestRepository.createRequests(requests)
-
-    const expiredRequests = await requestRepository.findRequestsToGarbageCollect()
-    expect(expiredRequests.length).toEqual(1)
-    expect(expiredRequests[0].cid).toEqual(requests[1].cid)
-  })
-
-  test('Process requests oldest to newest', async () => {
-    const requests = await generateReadyRequests(2)
-    await requestRepository.createRequests(requests)
-    const loadedRequests = await requestRepository.findAndMarkAsProcessing()
-
-    expect(loadedRequests.length).toEqual(2)
-    expect(loadedRequests[0].createdAt.getTime()).toBeLessThan(
-      loadedRequests[1].createdAt.getTime()
-    )
-    expect(loadedRequests[0].cid).toEqual(requests[0].cid)
-    expect(loadedRequests[1].cid).toEqual(requests[1].cid)
-  })
-
-  test('Retrieves all requests of a specified status', async () => {
+  test('findByStatus: retrieves all requests of a specified status', async () => {
     const requests = await Promise.all([
       generateRequests(
         {
@@ -192,6 +151,131 @@ describe('request repository test', () => {
     const received = await requestRepository.findByStatus(RequestStatus.READY)
 
     expect(received).toEqual(expected)
+  })
+
+  test('findAndMarkAsProcessing: process requests oldest to newest', async () => {
+    const requests = await Promise.all(
+      [...Array(2).keys()].map((_, i) =>
+        generateRequests(
+          {
+            status: RequestStatus.READY,
+            createdAt: new Date(Date.now() + MS_IN_HOUR * i),
+          },
+          1,
+          false
+        )
+      )
+    ).then((arr) => arr.flat())
+
+    await requestRepository.createRequests(requests)
+    const loadedRequests = await requestRepository.findAndMarkAsProcessing()
+
+    expect(loadedRequests.length).toEqual(2)
+    expect(loadedRequests[0].createdAt.getTime()).toBeLessThan(
+      loadedRequests[1].createdAt.getTime()
+    )
+    expect(loadedRequests[0].cid).toEqual(requests[0].cid)
+    expect(loadedRequests[1].cid).toEqual(requests[1].cid)
+  })
+
+  describe('findRequestsToGarbageCollect', () => {
+    test('Finds requests older than a month', async () => {
+      const threeMonthsAgo = new Date(Date.now() - MS_IN_MONTH * 3)
+      const fiveDaysAgo = new Date(Date.now() - MS_IN_DAY * 5)
+      const twoMonthsAgo = new Date(Date.now() - MS_IN_MONTH * 2)
+      const moreThanMonthAgo = new Date(Date.now() - MS_IN_DAY * 31)
+
+      // only expired requests should be garbage collected
+      const requests = await Promise.all([
+        // not expired
+        generateRequests({
+          status: RequestStatus.COMPLETED,
+          createdAt: threeMonthsAgo,
+          updatedAt: fiveDaysAgo,
+          pinned: true,
+        }),
+        // expired
+        generateRequests(
+          {
+            status: RequestStatus.COMPLETED,
+            createdAt: threeMonthsAgo,
+            updatedAt: moreThanMonthAgo,
+            pinned: true,
+          },
+          1,
+          false
+        ),
+        // not expired
+        generateRequests({
+          status: RequestStatus.FAILED,
+          createdAt: threeMonthsAgo,
+          updatedAt: fiveDaysAgo,
+          pinned: true,
+        }),
+        // expired
+        generateRequests({
+          status: RequestStatus.FAILED,
+          createdAt: threeMonthsAgo,
+          updatedAt: twoMonthsAgo,
+          pinned: true,
+        }),
+      ]).then((arr) => arr.flat())
+
+      await requestRepository.createRequests(requests)
+
+      const expiredRequests = await requestRepository.findRequestsToGarbageCollect()
+      expect(expiredRequests.length).toEqual(2)
+      expect(expiredRequests[0].cid).toEqual(requests[1].cid)
+      expect(expiredRequests[1].cid).toEqual(requests[3].cid)
+    })
+
+    test("Don't cleanup streams who have both old and new requests", async () => {
+      const repeatedStreamId = new StreamID('tile', await randomCID()).toString()
+
+      const threeMonthsAgo = new Date(Date.now() - MS_IN_MONTH * 3)
+      const fiveDaysAgo = new Date(Date.now() - MS_IN_DAY * 5)
+      const twoMonthsAgo = new Date(Date.now() - MS_IN_MONTH * 2)
+
+      // only expired requests should be garbage collected unless the request's stream has recently been updated (possible in another request)
+      const requests = await Promise.all([
+        generateRequests({
+          // not expired
+          status: RequestStatus.COMPLETED,
+          createdAt: threeMonthsAgo,
+          updatedAt: fiveDaysAgo,
+          pinned: true,
+        }),
+        // expired
+        generateRequests({
+          status: RequestStatus.COMPLETED,
+          createdAt: threeMonthsAgo,
+          updatedAt: twoMonthsAgo,
+          pinned: true,
+        }),
+        // not expired with stream that has multiple requests
+        generateRequests({
+          status: RequestStatus.FAILED,
+          streamId: repeatedStreamId,
+          createdAt: threeMonthsAgo,
+          updatedAt: fiveDaysAgo,
+          pinned: true,
+        }),
+        // expired with stream that has multiple requests
+        generateRequests({
+          status: RequestStatus.FAILED,
+          streamId: repeatedStreamId,
+          createdAt: threeMonthsAgo,
+          updatedAt: twoMonthsAgo,
+          pinned: true,
+        }),
+      ]).then((arr) => arr.flat())
+
+      await requestRepository.createRequests(requests)
+
+      const expiredRequests = await requestRepository.findRequestsToGarbageCollect()
+      expect(expiredRequests.length).toEqual(1)
+      expect(expiredRequests[0].cid).toEqual(requests[1].cid)
+    })
   })
 
   describe('findAndMarkReady', () => {

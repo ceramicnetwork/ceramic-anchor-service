@@ -27,7 +27,6 @@
     "prebuild": "npm run clean",
     "postinstall": "./node_modules/.bin/node-config-ts",
     "lint": "./node_modules/.bin/eslint --fix ./src --ext .js,.jsx,.ts,.tsx",
-    "typeorm": "./node_modules/.bin/ts-node -r tsconfig-paths/register ./node_modules//typeorm/cli.js",
     "clean": "rm -rf ./build; rm -rf coverage; rm -rf .nyc_output",
     "start": "node --loader tsm ./build/main.js",
     "startDev": "NODE_ENV=dev APP_MODE=bundled node ./build/main.js ",
@@ -81,7 +80,6 @@
     "sqlite3": "^5.0.11",
     "tsm": "^2.2.2",
     "tsyringe": "^4.7.0",
-    "typeorm": "0.2.42-dev.1446e02",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

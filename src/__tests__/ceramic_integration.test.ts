@@ -14,8 +14,8 @@ import express from 'express'
 import Ganache from 'ganache-core'
 import tmp from 'tmp-promise'
 import getPort from 'get-port'
-import type { Connection } from 'typeorm'
-import { DBConnection } from '../services/__tests__/db-connection.js'
+import type { Knex } from 'knex'
+import { createDbConnection } from '../db-connection.js'
 import { CeramicAnchorApp } from '../app.js'
 import { container } from 'tsyringe'
 import { config } from 'node-config-ts'
@@ -32,10 +32,9 @@ import * as KeyDidResolver from 'key-did-resolver'
 import { Utils } from '../utils.js'
 import { DependencyContainer } from 'tsyringe'
 import { RequestRepository } from '../repositories/request-repository.js'
-import { Request } from '../models/request.js'
+import { Request, RequestStatus } from '../models/request.js'
 import { CID } from 'multiformats/cid'
 import { AnchorService } from '../services/anchor-service.js'
-import { RequestStatus } from '../models/request-status.js'
 import { METRIC_NAMES } from '../settings.js'
 import { Server } from 'http'
 
@@ -149,7 +148,7 @@ interface MinimalCASConfig {
 
 async function makeCAS(
   container: DependencyContainer,
-  dbConnection: Connection,
+  dbConnection: Knex,
   minConfig: MinimalCASConfig
 ): Promise<CeramicAnchorApp> {
   const configCopy = cloneDeep(config)
@@ -258,8 +257,8 @@ describe('Ceramic Integration Test', () => {
   let daemon1: CeramicDaemon // CAS1 Ceramic http server
   let daemon2: CeramicDaemon // CAS2 Ceramic http server
 
-  let dbConnection1: Connection
-  let dbConnection2: Connection
+  let dbConnection1: Knex
+  let dbConnection2: Knex
 
   let cas1: CeramicAnchorApp
   let container1: DependencyContainer
@@ -271,7 +270,6 @@ describe('Ceramic Integration Test', () => {
   const blockchainStartTime = new Date(1586784002000)
   let ganachePort
   let ganacheServer: Ganache.Server
-
   let anchorLauncher: FauxAnchorLauncher
 
   describe.each([0, 1])('Using anchor version %i', (version) => {
@@ -317,7 +315,7 @@ describe('Ceramic Integration Test', () => {
       // Start anchor services
       const daemonPort1 = await getPort()
       const daemonPort2 = await getPort()
-      dbConnection1 = await DBConnection.create()
+      dbConnection1 = await createDbConnection()
       const casPort1 = await getPort()
 
       container1 = container.createChildContainer()
@@ -332,7 +330,7 @@ describe('Ceramic Integration Test', () => {
       await cas1.start()
       anchorService1 = container1.resolve<AnchorService>('anchorService')
 
-      dbConnection2 = await DBConnection.create()
+      dbConnection2 = await createDbConnection()
       const casPort2 = await getPort()
       container2 = container.createChildContainer()
       cas2 = await makeCAS(container2, dbConnection2, {
@@ -377,7 +375,7 @@ describe('Ceramic Integration Test', () => {
     afterAll(async () => {
       cas1.stop()
       cas2.stop()
-      await Promise.all([dbConnection1.close(), dbConnection2.close()])
+      await Promise.all([dbConnection1.destroy(), dbConnection2.destroy()])
       await Promise.all([daemon1.close(), daemon2.close()])
       await Promise.all([
         casCeramic1.close(),

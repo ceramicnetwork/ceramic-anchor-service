@@ -34,9 +34,9 @@
   "db": {
     "client": "postgresql",
     "connection": {
-      "host": "localhost",
-      "user": "test-user",
-      "port": 5432
+      "database": "test-db",
+      "connectionString": "@@DATABASE_URL",
+      "user": "test-user"
     },
     "debug": false,
     "migrations": {

@@ -1,7 +1,5 @@
 import { CID } from 'multiformats/cid'
 
-import { RequestStatus as RS } from '../models/request-status.js'
-
 import { MerkleTree } from '../merkle/merkle-tree.js'
 import { PathDirection, TreeMetadata } from '../merkle/merkle.js'
 
@@ -10,7 +8,7 @@ import { Config } from 'node-config-ts'
 import { logger, logEvent } from '../logger/index.js'
 import { Utils } from '../utils.js'
 import { Anchor } from '../models/anchor.js'
-import { Request, REQUEST_MESSAGES } from '../models/request.js'
+import { Request, REQUEST_MESSAGES, RequestStatus as RS } from '../models/request.js'
 import { Transaction } from '../models/transaction.js'
 import { AnchorRepository } from '../repositories/anchor-repository.js'
 import { RequestRepository } from '../repositories/request-repository.js'
@@ -31,8 +29,8 @@ import {
   IpfsLeafCompare,
   IpfsMerge,
 } from '../merkle/merkle-objects.js'
-import type { Connection } from 'typeorm'
 import { v4 as uuidv4 } from 'uuid'
+import type { Knex } from 'knex'
 
 export const READY_TIMEOUT = 1000 * 60 * 15
 
@@ -100,7 +98,7 @@ export class AnchorService {
     @inject('requestRepository') private requestRepository?: RequestRepository,
     @inject('ceramicService') private ceramicService?: CeramicService,
     @inject('anchorRepository') private anchorRepository?: AnchorRepository,
-    @inject('dbConnection') private connection?: Connection,
+    @inject('dbConnection') private connection?: Knex,
     @inject('eventProducerService') private eventProducerService?: EventProducerService
   ) {
     this.ipfsMerge = new IpfsMerge(this.ipfsService)
@@ -392,7 +390,7 @@ export class AnchorService {
     merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
   ): Promise<Anchor | null> {
     const anchor: Anchor = new Anchor()
-    anchor.request = candidate.newestAcceptedRequest
+    anchor.requestId = candidate.newestAcceptedRequest.id
     anchor.proofCid = ipfsProofCid.toString()
 
     const path = await merkleTree.getDirectPathFromRoot(candidateIndex)
@@ -446,10 +444,9 @@ export class AnchorService {
       acceptedRequests.push(...candidate.acceptedRequests)
     }
 
-    const queryRunner = this.connection.createQueryRunner()
-    await queryRunner.startTransaction()
+    const trx = await this.connection.transaction()
     try {
-      await this.anchorRepository.createAnchors(anchors, queryRunner.manager)
+      await this.anchorRepository.createAnchors(anchors, { connection: trx })
 
       await this.requestRepository.updateRequests(
         {
@@ -458,15 +455,13 @@ export class AnchorService {
           pinned: true,
         },
         acceptedRequests,
-        queryRunner.manager
+        { connection: trx }
       )
 
-      await queryRunner.commitTransaction()
+      await trx.commit()
     } catch (err) {
-      await queryRunner.rollbackTransaction()
+      await trx.rollback()
       throw err
-    } finally {
-      await queryRunner.release()
     }
 
     Metrics.count(METRIC_NAMES.ACCEPTED_REQUESTS, acceptedRequests.length)
