@@ -156,6 +156,7 @@ describe('ETH service connected to ganache', () => {
     test('should anchor to contract', async () => {
       const block = await providerForGanache.getBlock(await providerForGanache.getBlockNumber())
       const startTimestamp = block.timestamp
+      const startBlockNumber = block.number
 
       const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
       const tx = await ethBc.sendTransaction(cid)
@@ -169,7 +170,7 @@ describe('ETH service connected to ganache', () => {
       // checking the values against the snapshot is too brittle since ganache is time based so we test manually
       expect(tx.blockTimestamp).toBeGreaterThan(startTimestamp)
       expect(tx.blockTimestamp).toBeLessThan(startTimestamp + 5)
-      expect(tx.blockNumber).toBe(block.number + 1)
+      expect(tx.blockNumber).toBeGreaterThan(startBlockNumber)
       expect(tx.txHash).toEqual(
         '0x09d184cd4f62672de91fd5eaa7e7b1bf62ca1c2936281dc37201534b013c8f48'
       )

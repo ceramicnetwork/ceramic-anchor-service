@@ -52,6 +52,11 @@ export async function createDbConnection() {
   return connection
 }
 
+/**
+ * USED FOR TESTING
+ * Clears all tables
+ * @param connection
+ */
 export async function clearTables(connection: Knex): Promise<void> {
   const { rows } = await connection.raw(
     'SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_catalog = ?',
