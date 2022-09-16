@@ -91,14 +91,23 @@ export class RequestRepository {
    */
   public async createOrUpdate(request: Request, options: Options = {}): Promise<Request> {
     const { connection = this.connection } = options
-
     const [{ id }] = await connection
       .table(TABLE_NAME)
       .insert(request, ['id'])
       .onConflict('cid')
       .merge()
 
-    return connection.table(TABLE_NAME).first().where({ id })
+    const created = await connection.table(TABLE_NAME).first().where({ id })
+
+    logEvent.db({
+      type: 'request',
+      action: 'upsert',
+      ...request,
+      createdAt: created.createdAt.getTime(),
+      updatedAt: created.updatedAt.getTime(),
+    })
+
+    return created
   }
 
   /**
@@ -169,6 +178,7 @@ export class RequestRepository {
     requests.map((request) => {
       logEvent.db({
         type: 'request',
+        action: 'update',
         ...request,
         ...fields,
         createdAt: request.createdAt.getTime(),

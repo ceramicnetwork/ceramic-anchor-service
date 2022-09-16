@@ -1,7 +1,6 @@
 version: '3.4'
 
 services:
-
   cas_api:
     build: .
     environment:
@@ -29,26 +28,20 @@ services:
       - LOG_PATH=/usr/local/var/log
       - MERKLE_DEPTH_LIMIT=0
 
-      - TYPEORM_CONNECTION=postgres
-      - TYPEORM_DATABASE=anchor_db
-      - TYPEORM_HOST=database
-      - TYPEORM_PORT=5432
-      - TYPEORM_USERNAME=root
-      - TYPEORM_PASSWORD=root
-
-      - TYPEORM_ENTITIES=build/models/**/*.js
-      - TYPEORM_SUBSCRIBERS=build/subscribers/**/*.js
-      - TYPEORM_LOGGING=false
-      - TYPEORM_SYNCHRONIZE=true
+      - DB_NAME=anchor_db
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
 
       - VALIDATE_RECORDS=false
     volumes:
-      - "/usr/local/var/log:/usr/local/var/log"
+      - '/usr/local/var/log:/usr/local/var/log'
     depends_on:
       - ipfs
       - database
     ports:
-      - "8081:8081"
+      - '8081:8081'
     networks:
       - internal
 
@@ -80,21 +73,15 @@ services:
       - LOG_PATH=/usr/local/var/log
       - MERKLE_DEPTH_LIMIT=0
 
-      - TYPEORM_CONNECTION=postgres
-      - TYPEORM_DATABASE=anchor_db
-      - TYPEORM_HOST=database
-      - TYPEORM_PORT=5432
-      - TYPEORM_USERNAME=root
-      - TYPEORM_PASSWORD=root
-
-      - TYPEORM_ENTITIES=build/models/**/*.js
-      - TYPEORM_SUBSCRIBERS=build/subscribers/**/*.js
-      - TYPEORM_LOGGING=false
-      - TYPEORM_SYNCHRONIZE=true
+      - DB_NAME=anchor_db
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
 
       - VALIDATE_RECORDS=false
     volumes:
-      - "/usr/local/var/log:/usr/local/var/log"
+      - '/usr/local/var/log:/usr/local/var/log'
     depends_on:
       - ipfs
       - database
@@ -104,23 +91,23 @@ services:
   ipfs:
     image: ceramicnetwork/ipfs-daemon
     volumes:
-      - "./export:/export"
-      - "./data/ipfs:/data/ipfs"
+      - './export:/export'
+      - './data/ipfs:/data/ipfs'
     ports:
-      - "5011:5011"
-      - "4001:4001"
-      - "8080:8080"
+      - '5011:5011'
+      - '4001:4001'
+      - '8080:8080'
     networks:
       - internal
 
   database:
-    image: "postgres"
+    image: 'postgres'
     environment:
       - POSTGRES_USER=root
       - POSTGRES_PASSWORD=root
       - POSTGRES_DB=anchor_db
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - ./data/postgres:/var/lib/postgresql/data/
     networks:

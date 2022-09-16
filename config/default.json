@@ -48,9 +48,10 @@
   "db": {
     "client": "postgresql",
     "connection": {
-      "database": "test-db",
+      "database": "anchor_db",
       "host": "localhost",
-      "user": "test-user",
+      "user": "root",
+      "password": "root",
       "port": 5432
     },
     "debug": false,

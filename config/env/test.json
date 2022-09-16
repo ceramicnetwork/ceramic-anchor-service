@@ -35,7 +35,6 @@
     "client": "postgresql",
     "connection": {
       "database": "test-db",
-      "connectionString": "@@DATABASE_URL",
       "user": "test-user"
     },
     "debug": false,

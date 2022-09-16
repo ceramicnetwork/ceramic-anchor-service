@@ -38,6 +38,7 @@ export async function createDbConnection() {
     postProcessResponse: (result) => toCamelCase(result),
   }
 
+  console.log('🚀 ~ file: db-connection.ts ~ line 37 ~ createDbConnection ~ knexConfig', knexConfig)
   let connection
   try {
     connection = knex(knexConfig)
