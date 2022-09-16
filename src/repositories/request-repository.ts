@@ -17,6 +17,7 @@ import {
   REQUEST_MESSAGES,
 } from '../models/request.js'
 import { LimitOptions, Options } from './repository-types.js'
+import { logger } from '../logger/index.js'
 
 // application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
@@ -292,8 +293,14 @@ export class RequestRepository {
 
           countRetryMetrics(requests, anchoringDeadline)
 
+          logger.debug(`Updated ${updatedCount} requests to READY`)
+
           return requests
         }
+
+        logger.debug(
+          `Not updating any requests to READY because there are not enough streams for a batch ${streamsToAnchor.length}/${minStreamLimit} and the earliest request is not expired (created at ${streamsToAnchor[0].minCreatedAt})`
+        )
 
         return []
       },
