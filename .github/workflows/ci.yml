@@ -1,4 +1,4 @@
-name: Publish Docker image
+name: Dagger CI Workflow
 
 on:
   repository_dispatch:
