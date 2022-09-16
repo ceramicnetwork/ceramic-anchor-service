@@ -3,7 +3,7 @@
 
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http'
-import { Utils } from './utils.js'
+import { Utils } from '../utils.js'
 
 export const UNKNOWN_CALLER = 'Unknown'
 
@@ -28,20 +28,21 @@ class _ServiceMetrics {
 
   /* Set up the exporter at run time, after we have read the configuration */
   start(collectorHost: string = '', caller: string = UNKNOWN_CALLER) {
-
     this.caller = caller
     this.meterProvider = new MeterProvider({})
 
     if (collectorHost) {
       this.collectorURL = `http://${collectorHost}:4318/v1/metrics`
       this.metricExporter = new OTLPMetricExporter({
-           url: this.collectorURL,
-           concurrencyLimit: CONCURRENCY_LIMIT
+        url: this.collectorURL,
+        concurrencyLimit: CONCURRENCY_LIMIT,
       })
-      this.meterProvider.addMetricReader(new PeriodicExportingMetricReader({
-           exporter: this.metricExporter,
-           exportIntervalMillis: 1000
-      }))
+      this.meterProvider.addMetricReader(
+        new PeriodicExportingMetricReader({
+          exporter: this.metricExporter,
+          exportIntervalMillis: 1000,
+        })
+      )
 
       // Meter for calling application
       this.meter = this.meterProvider.getMeter(caller)
@@ -82,7 +83,7 @@ class _ServiceMetrics {
   recordAverage(name: string, arr: number[]) {
     // if array is empty, just return
     if (arr.length <= 0) {
-       return
+      return
     }
     this.record(name, Utils.averageArray(arr))
   }

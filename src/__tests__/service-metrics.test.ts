@@ -1,4 +1,4 @@
-import { ServiceMetrics } from '../service-metrics.js'
+import { ServiceMetrics } from '../service-metrics/index.js'
 
 describe('simple test of metrics', () => {
   beforeAll(async () => {

@@ -4,6 +4,7 @@ import 'dotenv/config'
 import { Config } from 'node-config-ts'
 import { instanceCachingFactory, DependencyContainer } from 'tsyringe'
 import type { Knex } from 'knex'
+import cloneDeep from 'lodash.clonedeep'
 
 import { logger } from './logger/index.js'
 import { CeramicAnchorServer } from './server.js'
@@ -12,18 +13,16 @@ import { AnchorService } from './services/anchor-service.js'
 import { SchedulerService } from './services/scheduler-service.js'
 import { BlockchainService } from './services/blockchain/blockchain-service.js'
 import { HTTPEventProducerService } from './services/event-producer/http/http-event-producer-service.js'
-
 import { AnchorRepository } from './repositories/anchor-repository.js'
 import { RequestRepository } from './repositories/request-repository.js'
+import { TransactionRepository } from './repositories/transaction-repository.js'
 import { CeramicServiceImpl } from './services/ceramic-service.js'
 import { HealthcheckController } from './controllers/healthcheck-controller.js'
 import { AnchorController } from './controllers/anchor-controller.js'
 import { RequestController } from './controllers/request-controller.js'
 import { ServiceInfoController } from './controllers/service-info-controller.js'
 import { EthereumBlockchainService } from './services/blockchain/ethereum/ethereum-blockchain-service.js'
-
-import cloneDeep from 'lodash.clonedeep'
-import { ServiceMetrics as Metrics } from './service-metrics.js'
+import { ServiceMetrics as Metrics } from './service-metrics/index.js'
 
 const version = process.env.npm_package_version
 /**
@@ -55,6 +54,7 @@ export class CeramicAnchorApp {
     // register repositories
     container.registerSingleton('requestRepository', RequestRepository)
     container.registerSingleton('anchorRepository', AnchorRepository)
+    container.registerSingleton('transactionRepository', TransactionRepository)
 
     // register services
     container.register('blockchainService', {

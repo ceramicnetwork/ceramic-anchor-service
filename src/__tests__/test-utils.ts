@@ -5,10 +5,10 @@ import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
 import * as dagCBOR from '@ipld/dag-cbor'
 import { randomBytes } from '@stablelib/random'
 import { jest } from '@jest/globals'
-import { CeramicService } from './services/ceramic-service.js'
-import { EventProducerService } from './services/event-producer/event-producer-service.js'
-import { IpfsService } from './services/ipfs-service.js'
-import { Request, RequestStatus } from './models/request.js'
+import { CeramicService } from '../services/ceramic-service.js'
+import { EventProducerService } from '../services/event-producer/event-producer-service.js'
+import { IpfsService } from '../services/ipfs-service.js'
+import { Request, RequestStatus } from '../models/request.js'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60

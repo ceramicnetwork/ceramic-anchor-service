@@ -15,7 +15,7 @@ import {
   MockIpfsClient,
   generateRequests,
   MockEventProducerService,
-} from '../../test-utils.js'
+} from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { CID } from 'multiformats/cid'
 import { Candidate } from '../../merkle/merkle-objects.js'
@@ -25,6 +25,7 @@ import cloneDeep from 'lodash.clonedeep'
 import { Utils } from '../../utils.js'
 import { PubsubMessage } from '@ceramicnetwork/core'
 import { validate as validateUUID } from 'uuid'
+import { TransactionRepository } from '../../repositories/transaction-repository.js'
 
 process.env.NODE_ENV = 'test'
 
@@ -115,6 +116,7 @@ describe('anchor service', () => {
     container.registerInstance('dbConnection', connection)
     container.registerSingleton('anchorRepository', AnchorRepository)
     container.registerSingleton('requestRepository', RequestRepository)
+    container.registerSingleton('transactionRepository', TransactionRepository)
     container.registerSingleton('blockchainService', FakeEthereumBlockchainService)
     container.registerSingleton('ipfsService', IpfsServiceImpl)
     ipfsService = container.resolve<IpfsService>('ipfsService')

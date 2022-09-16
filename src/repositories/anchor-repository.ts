@@ -2,14 +2,7 @@ import { inject, singleton } from 'tsyringe'
 import type { Knex } from 'knex'
 import { Request } from '../models/request.js'
 import { Anchor, TABLE_NAME } from '../models/anchor.js'
-
-/**
- *
- */
-interface Options {
-  connection?: Knex
-  limit?: number
-}
+import { Options } from './repository-types.js'
 
 @singleton()
 export class AnchorRepository {
@@ -26,8 +19,11 @@ export class AnchorRepository {
   }
 
   /**
+   *
    * Gets anchor metadata
    * @param request - Request
+   * @param options
+   * @returns A promise that resolve to the anchor associated to the request
    */
   public async findByRequest(request: Request, options: Options = {}): Promise<Anchor> {
     const { connection = this.connection } = options

@@ -4,15 +4,17 @@ import { container } from 'tsyringe'
 import { StreamID } from '@ceramicnetwork/streamid'
 import type { Knex } from 'knex'
 
+import { RequestRepository } from '../request-repository.js'
 import {
-  RequestRepository,
+  Request,
+  REQUEST_MESSAGES,
+  TABLE_NAME,
+  RequestStatus,
   MAX_ANCHORING_DELAY_MS,
-  PROCESSING_TIMEOUT,
   FAILURE_RETRY_WINDOW,
-} from '../request-repository.js'
-import { Request, REQUEST_MESSAGES, TABLE_NAME, RequestStatus } from '../../models/request.js'
-import { randomCID } from '../../test-utils.js'
-import { Utils } from '../../utils.js'
+  PROCESSING_TIMEOUT,
+} from '../../models/request.js'
+import { randomCID } from '../../__tests__/test-utils.js'
 import { createDbConnection, clearTables } from '../../db-connection.js'
 import { AnchorRepository } from '../anchor-repository.js'
 
@@ -80,35 +82,6 @@ describe('request repository test', () => {
   afterAll(async () => {
     await connection.destroy()
     await connection2.destroy()
-  })
-
-  // TODO STEPH: REMOVE
-  test('cheese', async () => {
-    const requests = await generateRequests(
-      {
-        status: RequestStatus.READY,
-      },
-      2
-    )
-
-    await requestRepository.createRequests(requests)
-    const created = await getAllRequests(connection)
-
-    const anchorRepository = container.resolve<AnchorRepository>('anchorRepository')
-
-    await anchorRepository.createAnchors(
-      created.map((request) => ({
-        requestId: request.id,
-        path: 'path',
-        cid: 'cid',
-        proofCid: 'cid',
-      }))
-    )
-
-    console.log(await connection.table('anchor'))
-
-    console.log(await anchorRepository.findByRequest(created[0]))
-    console.log(await anchorRepository.findByRequest(created[1]))
   })
 
   test('createOrUpdate: can createOrUpdate simultaneously', async () => {
@@ -673,39 +646,6 @@ describe('request repository test', () => {
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
       expect(updatedRequests.length).toEqual(0)
-    })
-  })
-
-  describe('transaction mutex', () => {
-    test('Can successfully acquire transaction mutex', async () => {
-      await requestRepository.withTransactionMutex(async () => {
-        await Utils.delay(1000)
-      })
-    })
-
-    test('Will block until can acquire transaction mutex', async () => {
-      const childContainer = container.createChildContainer()
-      childContainer.registerInstance('dbConnection', connection2)
-      childContainer.registerSingleton('requestRepository', RequestRepository)
-      const requestRepository2 = childContainer.resolve<RequestRepository>('requestRepository')
-
-      await requestRepository.withTransactionMutex(async () => {
-        await expect(
-          requestRepository2.withTransactionMutex(() => Utils.delay(1000), 2, 1000)
-        ).rejects.toThrow(/Failed to acquire transaction mutex/)
-      })
-
-      await requestRepository2.withTransactionMutex(() => Utils.delay(1000))
-    })
-
-    test('Will unlock the transaction mutex if the operation fails', async () => {
-      await expect(
-        requestRepository.withTransactionMutex(async () => {
-          throw new Error('test error')
-        })
-      ).rejects.toThrow(/test error/)
-
-      await requestRepository.withTransactionMutex(() => Utils.delay(1000))
     })
   })
 })

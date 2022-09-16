@@ -12,11 +12,12 @@ import { Request, REQUEST_MESSAGES, RequestStatus as RS } from '../models/reques
 import { Transaction } from '../models/transaction.js'
 import { AnchorRepository } from '../repositories/anchor-repository.js'
 import { RequestRepository } from '../repositories/request-repository.js'
+import { TransactionRepository } from '../repositories/transaction-repository.js'
 
 import { IpfsService } from './ipfs-service.js'
 import { EventProducerService } from './event-producer/event-producer-service.js'
 import { CeramicService } from './ceramic-service.js'
-import { ServiceMetrics as Metrics } from '../service-metrics.js'
+import { ServiceMetrics as Metrics } from '../service-metrics/index.js'
 import { METRIC_NAMES } from '../settings.js'
 import { BlockchainService } from './blockchain/blockchain-service.js'
 import { inject, singleton } from 'tsyringe'
@@ -96,6 +97,7 @@ export class AnchorService {
     @inject('config') private config?: Config,
     @inject('ipfsService') private ipfsService?: IpfsService,
     @inject('requestRepository') private requestRepository?: RequestRepository,
+    @inject('transactionRepository') private transactionRepository?: TransactionRepository,
     @inject('ceramicService') private ceramicService?: CeramicService,
     @inject('anchorRepository') private anchorRepository?: AnchorRepository,
     @inject('dbConnection') private connection?: Knex,
@@ -203,7 +205,7 @@ export class AnchorService {
     const merkleTree = await this._buildMerkleTree(candidates)
 
     // create and send ETH transaction
-    const tx: Transaction = await this.requestRepository.withTransactionMutex(() => {
+    const tx: Transaction = await this.transactionRepository.withTransactionMutex(() => {
       logger.debug('Preparing to send transaction to put merkle root on blockchain')
       return this.blockchainService.sendTransaction(merkleTree.getRoot().data.cid)
     })

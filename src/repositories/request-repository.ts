@@ -1,30 +1,25 @@
 import { inject, singleton } from 'tsyringe'
-import { ServiceMetrics as Metrics } from '../service-metrics.js'
+import { ServiceMetrics as Metrics } from '../service-metrics/index.js'
 import type { Knex } from 'knex'
 import { CID } from 'multiformats/cid'
-import { logEvent, logger } from '../logger/index.js'
+import { logEvent } from '../logger/index.js'
 import { METRIC_NAMES } from '../settings.js'
 import { Utils } from '../utils.js'
 import {
   TABLE_NAME,
+  ANCHOR_DATA_RETENTION_WINDOW,
+  MAX_ANCHORING_DELAY_MS,
+  PROCESSING_TIMEOUT,
+  FAILURE_RETRY_WINDOW,
   RequestStatus,
   Request,
   RequestUpdateFields,
   REQUEST_MESSAGES,
 } from '../models/request.js'
-interface Options {
-  connection?: Knex
-  limit?: number
-}
-// TODO STEPH: Move constants and add comments
-const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
-const TRANSACTION_ISOLATION_LEVEL = 'repeatable read'
+import { LimitOptions, Options } from './repository-types.js'
+
 // application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
-const TRANSACTION_MUTEX_ID = 4532
-export const MAX_ANCHORING_DELAY_MS = 1000 * 60 * 60 * 12 //12H
-export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 3 //3H
-export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
 
 const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder => {
   const earliestDateToRetryFailed = new Date(now.getTime() - FAILURE_RETRY_WINDOW)
@@ -91,6 +86,8 @@ export class RequestRepository {
   /**
    * Create/updates client request
    * @param request - Request
+   * @param options
+   * @returns A promise that resolves to the created request
    */
   public async createOrUpdate(request: Request, options: Options = {}): Promise<Request> {
     const { connection = this.connection } = options
@@ -107,6 +104,8 @@ export class RequestRepository {
   /**
    * Gets all requests that were anchored over a month ago, and that are on streams that have had
    * no other requests in the last month.
+   * @param options
+   * @returns A promise that resolves to an array of request
    */
   public async findRequestsToGarbageCollect(options: Options = {}): Promise<Request[]> {
     const { connection = this.connection } = options
@@ -130,8 +129,11 @@ export class RequestRepository {
 
   /**
    * Finds requests of a given status
+   * @param status
+   * @param options
+   * @returns A promise that resolves to an array of request with the given status
    */
-  public async findByStatus(status: RequestStatus, options: Options = {}): Promise<Request[]> {
+  public async findByStatus(status: RequestStatus, options: LimitOptions = {}): Promise<Request[]> {
     const { connection = this.connection, limit } = options
 
     const query = connection(TABLE_NAME).orderBy('updatedAt').where({ status })
@@ -147,8 +149,8 @@ export class RequestRepository {
    * Create/updates client requests
    * @param fields - Fields to update
    * @param requests - Requests to update
-   * @param manager - An optional EntityManager which if provided *must* be used for all database
-   *   access. This is needed when creating anchors as part of a larger database transaction.
+   * @param options
+   * @returns A promise that resolves to the number of updated requests
    */
   public async updateRequests(
     fields: RequestUpdateFields,
@@ -177,6 +179,11 @@ export class RequestRepository {
     return result
   }
 
+  /**
+   * Finds all requests that are READY and sets them as PROCESSING
+   * @param options
+   * @returns A promise for the array of READY requests that were updated
+   */
   public async findAndMarkAsProcessing(options: Options = {}): Promise<Request[]> {
     const { connection = this.connection } = options
 
@@ -205,7 +212,7 @@ export class RequestRepository {
           return requests
         },
         {
-          isolationLevel: TRANSACTION_ISOLATION_LEVEL,
+          isolationLevel: 'repeatable read',
         }
       )
       .catch(async (err) => {
@@ -226,7 +233,10 @@ export class RequestRepository {
    *  3. there are PENDING requests that need to be anchored (the maximum anchoring delay has elapsed)
    * These requests are only marked as ready if there are streamLimit streams needing an anchor OR the earliest chosen request is about to expire
    *
-   * Returns the original requests that were marked as READY
+   * @param maxStreamLimit the max amount of streams that can be in a batch
+   * @param minStreamLimit (defaults to maxStreamLimit) the minimum amount of streams needed to create a READY batch
+   * @param options
+   * @returns A promise that resolves to an array of the original requests that were marked as READY
    */
   public async findAndMarkReady(
     maxStreamLimit: number,
@@ -278,14 +288,16 @@ export class RequestRepository {
         return []
       },
       {
-        isolationLevel: TRANSACTION_ISOLATION_LEVEL,
+        isolationLevel: 'repeatable read',
       }
     )
   }
 
   /**
-   * Creates new client request
-   * @param cid: Client request CID
+   * Finds a request with the given CID if exists
+   * @param cid CID the request is for
+   * @param options
+   * @returns request
    */
   public async findByCid(cid: CID, options: Options = {}): Promise<Request> {
     const { connection = this.connection } = options
@@ -294,51 +306,10 @@ export class RequestRepository {
   }
 
   /**
-   * Acquires the transaction mutex before performing the operation.
-   *
-   * @param operation
-   * @param maxAttempts Maximum amount of attempt to acquire the transaction mutex (defaults to Infinity)
-   * @param delayMS The number of MS to wait between attempt (defaults to 5000 MS)
+   * For test use. Creates an array of requests.
+   * @param requests array of requests
+   * @param options
    * @returns
-   */
-  public async withTransactionMutex<T>(
-    operation: () => Promise<T>,
-    maxAttempts = Infinity,
-    delayMS = 5000,
-    options: Options = {}
-  ): Promise<T> {
-    const { connection = this.connection } = options
-
-    return connection.transaction(
-      async (trx) => {
-        let attempt = 1
-        while (attempt <= maxAttempts) {
-          logger.debug(`Attempt ${attempt} at acquiring the transaction mutex before operation`)
-          if (attempt > 5) Metrics.count(METRIC_NAMES.MANY_ATTEMPTS_TO_ACQUIRE_MUTEX, 1)
-
-          const {
-            rows: [{ pg_try_advisory_xact_lock: success }],
-          } = await trx.raw(`SELECT pg_try_advisory_xact_lock(${TRANSACTION_MUTEX_ID})`)
-
-          if (success) {
-            return operation()
-          }
-
-          attempt++
-
-          await Utils.delay(delayMS)
-        }
-
-        throw new Error(`Failed to acquire transaction mutex after ${maxAttempts} tries`)
-      },
-      {
-        isolationLevel: TRANSACTION_ISOLATION_LEVEL,
-      }
-    )
-  }
-
-  /**
-   * For test use only
    */
   public async createRequests(requests: Array<Request>, options: Options = {}): Promise<void> {
     const { connection = this.connection } = options
