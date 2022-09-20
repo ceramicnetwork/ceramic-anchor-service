@@ -77,6 +77,7 @@ function createStream(id: StreamID, log: CID[], anchorStatus: AnchorStatus = Anc
         return { cid }
       }),
       anchorStatus,
+      metadata: { controllers: ['this is totally a did'] },
     },
     tip: log[log.length - 1],
   }

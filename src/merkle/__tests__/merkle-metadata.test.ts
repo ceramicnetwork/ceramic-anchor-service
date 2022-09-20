@@ -32,7 +32,7 @@ describe('Bloom filter', () => {
       id: new StreamID('tile', cid),
       tip: cid,
       metadata,
-      state: { anchorStatus: AnchorStatus.PENDING, log: [{ cid }] },
+      state: { anchorStatus: AnchorStatus.PENDING, log: [{ cid }], metadata },
     }
     const candidate = new Candidate(stream.id, [new Request()])
     candidate.setTipToAnchor(stream as any)
