@@ -8,6 +8,7 @@
   "merkleDepthLimit": 0,
   "minStreamCount": 1,
   "anchorLauncherUrl": "http://localhost:8001",
+  "maxAnchoringDelayMS": 43200000,
   "ipfsConfig": {
     "url": "http://localhost:5001",
     "pubsubTopic": "/ceramic/testnet-clay",

@@ -18,7 +18,6 @@ import { METRIC_NAMES } from '../settings.js'
  * AnchorCommit available to the network.
  */
 const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
-export const MAX_ANCHORING_DELAY_MS = 1000 * 60 * 60 * 12 //12H
 export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 3 //3H
 export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
 const TRANSACTION_MUTEX_ID = 4532
@@ -209,7 +208,7 @@ export class RequestRepository extends Repository<Request> {
     maxStreamLimit: number,
     minStreamLimit = maxStreamLimit
   ): Promise<Request[]> {
-    const anchoringDeadline = new Date(Date.now() - MAX_ANCHORING_DELAY_MS)
+    const anchoringDeadline = new Date(Date.now() - this.config.maxAnchoringDelayMS)
     const processingDeadline = new Date(Date.now() - PROCESSING_TIMEOUT)
     const earliestDateToRetry = new Date(Date.now() - FAILURE_RETRY_WINDOW)
 
@@ -259,6 +258,7 @@ export class RequestRepository extends Repository<Request> {
 
         // Do not anchor if there are no streams to anhor
         if (streamsToAnchor.length === 0) {
+          logger.debug(`Not updating any requests to READY because there are no streams to anchor`)
           return []
         }
 
@@ -288,12 +288,15 @@ export class RequestRepository extends Repository<Request> {
 
           countRetryMetrics(requests, anchoringDeadline)
 
+          logger.debug(`Updated ${results.affected} requests to READY`)
+
           return requests
         }
 
         logger.debug(
-          'Not updating any requests to READY because there are not enough streams for a batch and the earliest request is not expired'
+          `Not updating any requests to READY because there are not enough streams for a batch ${streamsToAnchor.length}/${minStreamLimit} and the earliest request is not expired (created at ${streamsToAnchor[0].createdAt})`
         )
+
         return []
       })
       .catch(async (err) => {

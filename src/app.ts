@@ -78,14 +78,14 @@ export class CeramicAnchorApp {
     }
 
     try {
-        Metrics.start(config.metrics.collectorHost, 'cas-' + config.mode)
-        Metrics.count('HELLO', 1) 
-        logger.imp("Metrics exporter started")
-    } catch (e) {
-        logger.err(e)
-        // start anchor service even if metrics threw an error
-    }
+      Metrics.start(config.metrics.collectorHost, 'cas-' + config.mode)
+      Metrics.count('HELLO', 1) 
+      logger.imp("Metrics exporter started")
+  } catch (e) {
+      logger.err(e)
+      // start anchor service even if metrics threw an error
   }
+}
 
   /**
    * Handles normalizing the arguments passed via the config, for example turning string
