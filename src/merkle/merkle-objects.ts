@@ -157,7 +157,7 @@ export class Candidate implements CIDHolder {
       this._alreadyAnchored = true
     } else {
       this._cid = stream.tip
-      this._metadata = stream.metadata as StreamMetadata
+      this._metadata = stream.state.metadata as StreamMetadata
     }
 
     // Check the log of the Stream that was loaded from Ceramic to see which of the pending requests
