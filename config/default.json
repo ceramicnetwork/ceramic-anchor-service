@@ -6,7 +6,7 @@
   "schedulerIntervalMS": 300000,
   "expirationPeriod": 5400000,
   "merkleDepthLimit": 0,
-  "minStreamCount": 1,
+  "minStreamCount": 1024,
   "anchorLauncherUrl": "http://localhost:8001",
   "maxAnchoringDelayMS": 43200000,
   "ipfsConfig": {
