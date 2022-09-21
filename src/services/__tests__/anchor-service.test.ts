@@ -887,7 +887,7 @@ describe('anchor service', () => {
         {
           status: RequestStatus.PENDING,
         },
-        streamLimit - 1
+        minStreamCount - 1
       )
 
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
