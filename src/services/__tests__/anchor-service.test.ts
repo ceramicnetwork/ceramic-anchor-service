@@ -4,7 +4,7 @@ import { container } from 'tsyringe'
 
 import { Request } from '../../models/request.js'
 import { RequestStatus } from '../../models/request-status.js'
-import { AnchorService, READY_TIMEOUT } from '../anchor-service.js'
+import { AnchorService } from '../anchor-service.js'
 
 import { DBConnection } from './db-connection.js'
 
@@ -102,6 +102,7 @@ describe('anchor service', () => {
   let ceramicService: MockCeramicService
   let connection: Connection
   const merkleDepthLimit = 3
+  const readyRetryIntervalMS = 1000
   const streamLimit = Math.pow(2, merkleDepthLimit)
   const minStreamCount = Math.floor(streamLimit / 2)
 
@@ -112,7 +113,7 @@ describe('anchor service', () => {
 
     container.registerInstance(
       'config',
-      Object.assign({}, config, { merkleDepthLimit, minStreamCount })
+      Object.assign({}, config, { merkleDepthLimit, minStreamCount, readyRetryIntervalMS })
     )
     container.registerInstance('dbConnection', connection)
     container.registerSingleton('anchorRepository', AnchorRepository)
@@ -844,7 +845,8 @@ describe('anchor service', () => {
     })
 
     test('Emits an event if ready requests exist but they have timed out', async () => {
-      const updatedTooLongAgo = new Date(Date.now() - READY_TIMEOUT - 1000)
+      const config = container.resolve<Config>('config')
+      const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
       // Ready requests that have timed out (created too long ago)
       const originalRequests = await generateRequests(
         {
