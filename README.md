@@ -262,13 +262,13 @@ The image below represents anchor proof IPLD document.
 
 ## Running the tests
 
-Tests are located in the `test` directory. In order to run test start the following command:
-
-```npm run test```
-
-In order to run tests with coverage run:
-
-```npm run coverage```
+1. Install node modules by running `npm install`
+1. Compile smart contracts
+    1. Install [foundry](https://github.com/foundry-rs/foundry)
+    1. Install required submodules: `./add-submodules.sh`
+    1. Compile the smart contracts: `cd contracts && make build`
+1. Run the tests: `npm run test`
+1. (Optional) Run tests with coverage: `npm run coverage`
 
 ## Contributing
 
