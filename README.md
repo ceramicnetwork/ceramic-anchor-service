@@ -265,8 +265,8 @@ The image below represents anchor proof IPLD document.
 1. Install node modules by running `npm install`
 1. Compile smart contracts
     1. Install [foundry](https://github.com/foundry-rs/foundry)
-    1. Install required submodules: `./add-submodules.sh`
-    1. Compile the smart contracts: `cd contracts && make build`
+    1. `npm run installContractDeps`
+    1. `npm run buildContract`
 1. Run the tests: `npm run test`
 1. (Optional) Run tests with coverage: `npm run coverage`
 
