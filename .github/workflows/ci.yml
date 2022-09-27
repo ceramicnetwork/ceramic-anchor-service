@@ -75,9 +75,8 @@ jobs:
 #        name: Verify Docker image
 #        run: dagger do verify -p ${{ env.DAGGER_PLAN }}
       -
-        # TODO: Use for all envs once Prod starts using the CD manager.
         name: Create deployment job
-        if: ${{ env.BRANCH == 'develop' || env.BRANCH == 'release-candidate' }}
+        if: ${{ env.BRANCH == 'develop' || env.BRANCH == 'release-candidate' || env.BRANCH == 'main' }}
         run: dagger do -l error deploy -w "actions:deploy:\"${{ env.AWS_REGION }}\":\"${{ env.ENV_TAG }}\":latest:\"${{ env.SHA_TAG }}\":_" -p ${{ env.DAGGER_PLAN }}
       -
         name: Set commit status "success"
