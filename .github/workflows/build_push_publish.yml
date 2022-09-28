@@ -8,10 +8,9 @@ on:
       - develop
   workflow_dispatch:
     inputs:
-      environment:
-        description: 'Environment name (one of: dev, tnet, prod)'
-        required: true
-        default: 'dev'
+      branch:
+        description: 'Branch to deploy (one of: develop, release-candidate, main)'
+        required: false
 
 jobs:
   build_push_publish:
@@ -20,6 +19,8 @@ jobs:
     -
       name: Checkout
       uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.inputs.branch || github.ref_name }}
     -
       name: Set variables
       id: set-vars
