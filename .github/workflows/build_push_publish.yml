@@ -34,7 +34,9 @@ jobs:
       name: Set variables
       id: set-vars
       run: |
-        SHA_TAG=$(git rev-parse --short=12 "${{ github.sha }}")
+        SHA=$(git log -n 1 --pretty=format:"%H")
+        SHA_TAG=$(git rev-parse --short=12 $SHA)
+        echo "::set-output name=SHA::$SHA"
         echo "::set-output name=SHA_TAG::$SHA_TAG"
         if [[ "${{ env.BRANCH }}" == "main" ]]; then
           echo "::set-output name=ECR_REPOSITORY::ceramic-prod-cas"
@@ -73,7 +75,7 @@ jobs:
         DOCKERHUB_IMAGE_ID: "ceramicnetwork/ceramic-anchor-service"
         ECR_IMAGE_ID: "${{ steps.login-ecr.outputs.registry }}/${{ steps.set-vars.outputs.ECR_REPOSITORY }}"
         SHA_TAG: ${{ steps.set-vars.outputs.SHA_TAG }}
-        FULL_SHA_TAG: ${{ github.sha }}
+        FULL_SHA_TAG: ${{ steps.set-vars.outputs.SHA }}
         IMAGE_TAG: ${{ steps.set-vars.outputs.IMAGE_TAG }}
         IMAGE_TAG_2: ${{ steps.set-vars.outputs.IMAGE_TAG_2 }}
       run: |
