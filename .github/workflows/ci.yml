@@ -35,7 +35,7 @@ env:
 
 jobs:
   image:
-    name: Verify and publish Docker image
+    name: Verify and publish  Docker image
     runs-on: ubuntu-latest
     steps:
       -
