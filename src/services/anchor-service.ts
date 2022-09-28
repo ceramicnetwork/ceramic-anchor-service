@@ -298,7 +298,11 @@ export class AnchorService {
       }
     }
 
-    await this.eventProducerService.emitAnchorEvent(uuidv4().toString())
+    await this.eventProducerService.emitAnchorEvent(uuidv4().toString()).catch((err) => {
+      // We do not crash when we cannot emit an anchor event
+      // An event will emit the next time this is run and the ready requests have expired (in READY_TIMEOUT)
+      logger.err(`Error when emitting an anchor event: ${err}`)
+    })
 
     return
   }

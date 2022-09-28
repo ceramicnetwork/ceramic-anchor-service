@@ -927,5 +927,26 @@ describe('anchor service', () => {
         originalRequests.map(({ cid }) => cid).sort()
       )
     })
+
+    test('Does not crash if the event producer rejects', async () => {
+      const originalRequests = await generateRequests(
+        {
+          status: RequestStatus.PENDING,
+        },
+        streamLimit
+      )
+
+      const eventProducerService =
+        container.resolve<MockEventProducerService>('eventProducerService')
+      eventProducerService.emitAnchorEvent = jest.fn(() => {
+        return Promise.reject('test error')
+      })
+
+      const requestRepository = container.resolve<RequestRepository>('requestRepository')
+      await requestRepository.createRequests(originalRequests)
+
+      const anchorService = container.resolve<AnchorService>('anchorService')
+      await anchorService.emitAnchorEventIfReady()
+    })
   })
 })
