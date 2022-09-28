@@ -12,6 +12,15 @@ on:
         description: 'Branch to deploy (one of: develop, release-candidate, main)'
         required: false
 
+env:
+  # Secrets
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  # Miscellaneous
+  BRANCH: ${{ github.event.inputs.branch || github.ref_name }}
+
 jobs:
   build_push_publish:
     runs-on: ubuntu-latest
@@ -20,18 +29,18 @@ jobs:
       name: Checkout
       uses: actions/checkout@v2
       with:
-        ref: ${{ github.event.inputs.branch || github.ref_name }}
+        ref: ${{ env.BRANCH }}
     -
       name: Set variables
       id: set-vars
       run: |
         SHA_TAG=$(git rev-parse --short=12 "${{ github.sha }}")
         echo "::set-output name=SHA_TAG::$SHA_TAG"
-        if [[ "${{github.base_ref}}" == "main" || "${{github.ref}}" == "refs/heads/main" ]]; then
+        if [[ "${{ env.BRANCH }}" == "main" ]]; then
           echo "::set-output name=ECR_REPOSITORY::ceramic-prod-cas"
           echo "::set-output name=IMAGE_TAG::prod"
           echo "::set-output name=IMAGE_TAG_2::latest"
-        elif [[ "${{github.base_ref}}" == "release-candidate" || "${{github.ref}}" == "refs/heads/release-candidate" ]]; then
+        elif [[ "${{ env.BRANCH }}" == "release-candidate" ]]; then
           echo "::set-output name=ECR_REPOSITORY::ceramic-tnet-cas"
           echo "::set-output name=IMAGE_TAG::tnet"
           echo "::set-output name=IMAGE_TAG_2::release-candidate"
@@ -44,8 +53,8 @@ jobs:
       name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-2
     -
       name: Login to Amazon ECR
@@ -55,8 +64,8 @@ jobs:
       name: Login to DockerHub
       uses: docker/login-action@v1
       with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        username: ${{ env.DOCKERHUB_USERNAME }}
+        password: ${{ env.DOCKERHUB_TOKEN }}
     -
       name: Build, tag, and push images ECR and DockerHub
       id: build-image
