@@ -27,8 +27,7 @@ export class SchedulerService {
           exhaustMap(() => task()),
           catchError((err) => {
             Metrics.count(METRIC_NAMES.SCHEDULER_TASK_UNCAUGHT_ERROR, 1)
-            logger.err('Failed to anchor CIDs... ')
-            logger.err(err)
+            logger.err(`Scheduler task failed: ${err}`)
             throw err
           }),
           retry(),

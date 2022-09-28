@@ -258,6 +258,7 @@ export class RequestRepository extends Repository<Request> {
 
         // Do not anchor if there are no streams to anhor
         if (streamsToAnchor.length === 0) {
+          logger.debug(`Not updating any requests to READY because there are no streams to anchor`)
           return []
         }
 
@@ -287,12 +288,15 @@ export class RequestRepository extends Repository<Request> {
 
           countRetryMetrics(requests, anchoringDeadline)
 
+          logger.debug(`Updated ${results.affected} requests to READY`)
+
           return requests
         }
 
         logger.debug(
-          'Not updating any requests to READY because there are not enough streams for a batch and the earliest request is not expired'
+          `Not updating any requests to READY because there are not enough streams for a batch ${streamsToAnchor.length}/${minStreamLimit} and the earliest request is not expired (created at ${streamsToAnchor[0].createdAt})`
         )
+
         return []
       })
       .catch(async (err) => {

@@ -1,4 +1,4 @@
-name: Publish Docker image
+name: Dagger CI Workflow
 
 on:
   repository_dispatch:
@@ -75,10 +75,9 @@ jobs:
 #        name: Verify Docker image
 #        run: dagger do verify -p ${{ env.DAGGER_PLAN }}
       -
-        # TODO: Use for all envs once Prod starts using the CD manager.
         name: Create deployment job
-        if: ${{ env.BRANCH == 'develop' || env.BRANCH == 'release-candidate' }}
-        run: dagger do -l error deploy -w "actions:deploy:\"${{ env.AWS_REGION }}\":\"${{ env.ENV_TAG }}\":\"${{ env.SHA }}\":\"${{ env.SHA_TAG }}\":_" -p ${{ env.DAGGER_PLAN }}
+        if: ${{ env.BRANCH == 'develop' || env.BRANCH == 'release-candidate' || env.BRANCH == 'main' }}
+        run: dagger do -l error deploy -w "actions:deploy:\"${{ env.AWS_REGION }}\":\"${{ env.ENV_TAG }}\":latest:\"${{ env.SHA_TAG }}\":_" -p ${{ env.DAGGER_PLAN }}
       -
         name: Set commit status "success"
         run: dagger do success -p ${{ env.STATUS_PLAN }}

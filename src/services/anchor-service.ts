@@ -34,8 +34,6 @@ import {
 import type { Connection } from 'typeorm'
 import { v4 as uuidv4 } from 'uuid'
 
-export const READY_TIMEOUT = 1000 * 60 * 15
-
 type RequestGroups = {
   alreadyAnchoredRequests: Request[]
   conflictingRequests: Request[]
@@ -273,7 +271,7 @@ export class AnchorService {
    */
   public async emitAnchorEventIfReady(): Promise<void> {
     const readyRequests = await this.requestRepository.findByStatus(RS.READY)
-    const readyDeadline = Date.now() - READY_TIMEOUT
+    const readyDeadline = Date.now() - this.config.readyRetryIntervalMS
 
     if (readyRequests.length > 0) {
       const earliestNotTimedOut = readyDeadline < readyRequests[0].updatedAt.getTime()
@@ -286,10 +284,14 @@ export class AnchorService {
 
       Metrics.count(METRIC_NAMES.RETRY_EMIT_ANCHOR_EVENT, readyRequests.length)
     } else {
-      const streamLimit =
+      const maxStreamLimit =
         this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0
+      const minStreamLimit = this.config.minStreamCount || Math.floor(maxStreamLimit / 2)
 
-      const updatedRequests = await this.requestRepository.findAndMarkReady(streamLimit)
+      const updatedRequests = await this.requestRepository.findAndMarkReady(
+        maxStreamLimit,
+        minStreamLimit
+      )
 
       if (updatedRequests.length === 0) {
         return
