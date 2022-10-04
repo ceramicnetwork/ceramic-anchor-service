@@ -17,7 +17,7 @@ import { TransactionRepository } from '../repositories/transaction-repository.js
 import { IpfsService } from './ipfs-service.js'
 import { EventProducerService } from './event-producer/event-producer-service.js'
 import { CeramicService } from './ceramic-service.js'
-import { ServiceMetrics as Metrics } from '../service-metrics/index.js'
+import { ServiceMetrics as Metrics } from '../service-metrics.js'
 import { METRIC_NAMES } from '../settings.js'
 import { BlockchainService } from './blockchain/blockchain-service.js'
 import { inject, singleton } from 'tsyringe'

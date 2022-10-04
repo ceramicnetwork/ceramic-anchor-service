@@ -8,7 +8,7 @@
 // knex has an open PR to fix this but as a workaround we use raw queries
 //
 // We also create the anchor table's request_id column manually because it was originally
-// misnamed when the tables were created with typeORM (there is a space at the end of the column name)
+// misnamed when the tables were created with typeORM (there is a trailing space)
 
 const ANCHOR_TABLE_NAME = 'anchor'
 const ANCHOR_TABLE_COLUMN_INFO = {

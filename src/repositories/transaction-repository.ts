@@ -1,5 +1,5 @@
 import { inject, singleton } from 'tsyringe'
-import { ServiceMetrics as Metrics } from '../service-metrics/index.js'
+import { ServiceMetrics as Metrics } from '../service-metrics.js'
 import type { Knex } from 'knex'
 import { logger } from '../logger/index.js'
 import { METRIC_NAMES } from '../settings.js'

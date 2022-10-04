@@ -22,7 +22,7 @@ import { AnchorController } from './controllers/anchor-controller.js'
 import { RequestController } from './controllers/request-controller.js'
 import { ServiceInfoController } from './controllers/service-info-controller.js'
 import { EthereumBlockchainService } from './services/blockchain/ethereum/ethereum-blockchain-service.js'
-import { ServiceMetrics as Metrics } from './service-metrics/index.js'
+import { ServiceMetrics as Metrics } from './service-metrics.js'
 
 const version = process.env.npm_package_version
 /**

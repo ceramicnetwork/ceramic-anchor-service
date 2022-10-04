@@ -3,7 +3,7 @@
 
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http'
-import { Utils } from '../utils.js'
+import { Utils } from './utils.js'
 
 export const UNKNOWN_CALLER = 'Unknown'
 

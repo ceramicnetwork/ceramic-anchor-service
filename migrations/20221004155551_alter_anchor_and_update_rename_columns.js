@@ -6,7 +6,7 @@ const ANCHOR_TABLE_NAME = 'anchor'
  * @returns { Promise<void> }
  */
 export async function up(knex) {
-  // Misnamed when the tables were created with typeORM (there is a space at the end of the column name)
+  // Misnamed when the tables were created with typeORM (there is a trailing space)
   await knex.raw(`alter table "${ANCHOR_TABLE_NAME}" RENAME COLUMN "request_id " TO "request_id"`)
   await knex.schema.alterTable(REQUEST_TABLE_NAME, (table) => {
     table.renameColumn('doc_id', 'stream_id')
