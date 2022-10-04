@@ -3,7 +3,7 @@ import { jest } from '@jest/globals'
 import { container } from 'tsyringe'
 
 import { Request, RequestStatus } from '../../models/request.js'
-import { AnchorService, READY_TIMEOUT } from '../anchor-service.js'
+import { AnchorService } from '../anchor-service.js'
 import { clearTables, createDbConnection } from '../../db-connection.js'
 import { RequestRepository } from '../../repositories/request-repository.js'
 import { IpfsService } from '../ipfs-service.js'
@@ -77,6 +77,7 @@ function createStream(id: StreamID, log: CID[], anchorStatus: AnchorStatus = Anc
         return { cid }
       }),
       anchorStatus,
+      metadata: { controllers: ['this is totally a did'] },
     },
     tip: log[log.length - 1],
   }
@@ -101,6 +102,7 @@ describe('anchor service', () => {
   let ceramicService: MockCeramicService
   let connection: Knex
   const merkleDepthLimit = 3
+  const readyRetryIntervalMS = 1000
   const streamLimit = Math.pow(2, merkleDepthLimit)
   const minStreamCount = Math.floor(streamLimit / 2)
 
@@ -111,7 +113,7 @@ describe('anchor service', () => {
 
     container.registerInstance(
       'config',
-      Object.assign({}, config, { merkleDepthLimit, minStreamCount })
+      Object.assign({}, config, { merkleDepthLimit, minStreamCount, readyRetryIntervalMS })
     )
     container.registerInstance('dbConnection', connection)
     container.registerSingleton('anchorRepository', AnchorRepository)
@@ -841,7 +843,8 @@ describe('anchor service', () => {
     })
 
     test('Emits an event if ready requests exist but they have timed out', async () => {
-      const updatedTooLongAgo = new Date(Date.now() - READY_TIMEOUT - 1000)
+      const config = container.resolve<Config>('config')
+      const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
       // Ready requests that have timed out (created too long ago)
       const originalRequests = await generateRequests(
         {
@@ -885,7 +888,7 @@ describe('anchor service', () => {
         {
           status: RequestStatus.PENDING,
         },
-        streamLimit - 1
+        minStreamCount - 1
       )
 
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
@@ -922,6 +925,27 @@ describe('anchor service', () => {
       expect(updatedRequests.map(({ cid }) => cid).sort()).toEqual(
         originalRequests.map(({ cid }) => cid).sort()
       )
+    })
+
+    test('Does not crash if the event producer rejects', async () => {
+      const originalRequests = await generateRequests(
+        {
+          status: RequestStatus.PENDING,
+        },
+        streamLimit
+      )
+
+      const eventProducerService =
+        container.resolve<MockEventProducerService>('eventProducerService')
+      eventProducerService.emitAnchorEvent = jest.fn(() => {
+        return Promise.reject('test error')
+      })
+
+      const requestRepository = container.resolve<RequestRepository>('requestRepository')
+      await requestRepository.createRequests(originalRequests)
+
+      const anchorService = container.resolve<AnchorService>('anchorService')
+      await anchorService.emitAnchorEventIfReady()
     })
   })
 })

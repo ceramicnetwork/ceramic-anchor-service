@@ -90,17 +90,21 @@ describe('ETH service connected to ganache', () => {
     test('should send CID to local ganache server', async () => {
       const block = await providerForGanache.getBlock(await providerForGanache.getBlockNumber())
       const startTimestamp = block.timestamp
+      const startBlockNumber = block.number
 
       const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
       const tx = await ethBc.sendTransaction(cid)
       expect(tx).toBeDefined()
 
-      // checking the timestamp against the snapshot is too brittle since if the test runs slowly it
+      // checking the timestamp + block number against the snapshot is too brittle since if the test runs slowly it
       // can be off slightly.  So we test it manually here instead.
       const blockTimestamp = tx.blockTimestamp
       delete tx.blockTimestamp
+      const blockNumber = tx.blockNumber
+      delete tx.blockNumber
       expect(blockTimestamp).toBeGreaterThan(startTimestamp)
       expect(blockTimestamp).toBeLessThan(startTimestamp + 5)
+      expect(blockNumber).toBeGreaterThan(startBlockNumber)
 
       expect(tx).toMatchSnapshot()
     })

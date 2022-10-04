@@ -264,6 +264,7 @@ export class RequestRepository {
 
         // Do not anchor if there are no streams to anchor
         if (streamsToAnchor.length === 0) {
+          logger.debug(`Not updating any requests to READY because there are no streams to anchor`)
           return []
         }
 

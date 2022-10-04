@@ -10,7 +10,6 @@ import {
   REQUEST_MESSAGES,
   TABLE_NAME,
   RequestStatus,
-  MAX_ANCHORING_DELAY_MS,
   FAILURE_RETRY_WINDOW,
   PROCESSING_TIMEOUT,
 } from '../../models/request.js'
@@ -310,7 +309,7 @@ describe('request repository test', () => {
       const streamLimit = 5
       // 13 hours ago (delay is 12 hours)
       const creationDateOfExpiredRequest = new Date(
-        Date.now() - MAX_ANCHORING_DELAY_MS - MS_IN_HOUR
+        Date.now() - config.maxAnchoringDelayMS - MS_IN_HOUR
       )
       const requests = await Promise.all([
         // expired pending request

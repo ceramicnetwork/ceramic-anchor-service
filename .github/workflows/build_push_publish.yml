@@ -8,10 +8,18 @@ on:
       - develop
   workflow_dispatch:
     inputs:
-      environment:
-        description: 'Environment name (one of: dev, tnet, prod)'
-        required: true
-        default: 'dev'
+      branch:
+        description: 'Branch to deploy (one of: develop, release-candidate, main)'
+        required: false
+
+env:
+  # Secrets
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  # Miscellaneous
+  BRANCH: ${{ github.event.inputs.branch || github.ref_name }}
 
 jobs:
   build_push_publish:
@@ -20,22 +28,24 @@ jobs:
     -
       name: Checkout
       uses: actions/checkout@v2
+      with:
+        ref: ${{ env.BRANCH }}
     -
       name: Set variables
       id: set-vars
       run: |
-        SHA_TAG=$(git rev-parse --short=12 "${{ github.sha }}")
+        SHA=$(git log -n 1 --pretty=format:"%H")
+        SHA_TAG=$(git rev-parse --short=12 $SHA)
+        echo "::set-output name=SHA::$SHA"
         echo "::set-output name=SHA_TAG::$SHA_TAG"
-        if [[ "${{github.base_ref}}" == "main" || "${{github.ref}}" == "refs/heads/main" ]]; then
+        if [[ "${{ env.BRANCH }}" == "main" ]]; then
           echo "::set-output name=ECR_REPOSITORY::ceramic-prod-cas"
           echo "::set-output name=IMAGE_TAG::prod"
           echo "::set-output name=IMAGE_TAG_2::latest"
-          echo "::set-output name=WEBHOOK_URL::${{ secrets.WEBHOOK_URL_FIRE }}"
-        elif [[ "${{github.base_ref}}" == "release-candidate" || "${{github.ref}}" == "refs/heads/release-candidate" ]]; then
+        elif [[ "${{ env.BRANCH }}" == "release-candidate" ]]; then
           echo "::set-output name=ECR_REPOSITORY::ceramic-tnet-cas"
           echo "::set-output name=IMAGE_TAG::tnet"
           echo "::set-output name=IMAGE_TAG_2::release-candidate"
-          echo "::set-output name=WEBHOOK_URL::${{ secrets.WEBHOOK_URL_CLAY }}"
         else
           echo "::set-output name=ECR_REPOSITORY::ceramic-dev-cas"
           echo "::set-output name=IMAGE_TAG::dev"
@@ -45,8 +55,8 @@ jobs:
       name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-2
     -
       name: Login to Amazon ECR
@@ -56,8 +66,8 @@ jobs:
       name: Login to DockerHub
       uses: docker/login-action@v1
       with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        username: ${{ env.DOCKERHUB_USERNAME }}
+        password: ${{ env.DOCKERHUB_TOKEN }}
     -
       name: Build, tag, and push images ECR and DockerHub
       id: build-image
@@ -65,7 +75,7 @@ jobs:
         DOCKERHUB_IMAGE_ID: "ceramicnetwork/ceramic-anchor-service"
         ECR_IMAGE_ID: "${{ steps.login-ecr.outputs.registry }}/${{ steps.set-vars.outputs.ECR_REPOSITORY }}"
         SHA_TAG: ${{ steps.set-vars.outputs.SHA_TAG }}
-        FULL_SHA_TAG: ${{ github.sha }}
+        FULL_SHA_TAG: ${{ steps.set-vars.outputs.SHA }}
         IMAGE_TAG: ${{ steps.set-vars.outputs.IMAGE_TAG }}
         IMAGE_TAG_2: ${{ steps.set-vars.outputs.IMAGE_TAG_2 }}
       run: |
@@ -84,7 +94,7 @@ jobs:
           QA_ECR_IMAGE_ID="${{ steps.login-ecr.outputs.registry }}/ceramic-qa-cas"
           QA_ECR_TAGS="-t $QA_ECR_IMAGE_ID:qa -t $QA_ECR_IMAGE_ID:$SHA_TAG -t $QA_ECR_IMAGE_ID:$FULL_SHA_TAG -t $QA_ECR_IMAGE_ID:$IMAGE_TAG -t $QA_ECR_IMAGE_ID:$IMAGE_TAG_2"
           QA_RUNNER_ECR_IMAGE_ID="$QA_ECR_IMAGE_ID-runner"
-          QA_RUNNER_ECR_TAGS="-t $QA_RUNNER_ECR_IMAGE_ID:$SHA_TAG -t $QA_RUNNER_ECR_IMAGE_ID:$FULL_SHA_TAG -t $QA_RUNNER_ECR_IMAGE_ID:$IMAGE_TAG -t $QA_RUNNER_ECR_IMAGE_ID:$IMAGE_TAG_2"
+          QA_RUNNER_ECR_TAGS="-t $QA_RUNNER_ECR_IMAGE_ID:qa -t $QA_RUNNER_ECR_IMAGE_ID:$SHA_TAG -t $QA_RUNNER_ECR_IMAGE_ID:$FULL_SHA_TAG -t $QA_RUNNER_ECR_IMAGE_ID:$IMAGE_TAG -t $QA_RUNNER_ECR_IMAGE_ID:$IMAGE_TAG_2"
         fi
 
         docker build -f Dockerfile -t cas $ECR_TAGS $DOCKERHUB_TAGS $QA_ECR_TAGS .
@@ -97,33 +107,4 @@ jobs:
         fi
         if [[ -n $QA_RUNNER_ECR_IMAGE_ID ]]; then
           docker push -a $QA_RUNNER_ECR_IMAGE_ID
-        fi
-    -
-      # TODO: Remove old build event once Prod starts using the CD manager.
-      name: Publish build event
-      if: ${{ github.base_ref == 'main' || github.ref == 'refs/heads/main' }}
-      env:
-        IMAGE_TAG: ${{ steps.set-vars.outputs.IMAGE_TAG }}
-        EVENT_WEBHOOK_URL: "${{ steps.set-vars.outputs.WEBHOOK_URL }}/github/event"
-        ECR_IMAGE_ID: ${{ steps.build-image.outputs.ECR_IMAGE_ID }}
-      run: |
-        res=$(docker run --rm curlimages/curl curl -X POST $EVENT_WEBHOOK_URL \
-          -H "Content-Type: application/json" \
-          --user "${{ secrets.AWS_ACCESS_KEY_ID }}:${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
-          --aws-sigv4 "aws:amz:${{ secrets.AWS_DEFAULT_REGION }}:execute-api" \
-          -d '
-            {
-              "event_type": "new_cas_image",
-              "client_payload":
-              {
-                "env_tag": "${{ env.IMAGE_TAG }}",
-                "sha_tag": "${{ github.sha }}",
-                "image_id": "${{ env.ECR_IMAGE_ID }}",
-                "attempt": "${{ github.run_attempt }}"
-              }
-            }
-          ') || exit 1
-        echo $res
-        if [[ $res != *"Forwarded event"* ]]; then
-          exit 1
         fi
