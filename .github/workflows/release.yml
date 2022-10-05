@@ -35,12 +35,13 @@ jobs:
         with:
           token: ${{ secrets.GH_TOKEN }}
           ref: main
-      - name: Merge down from `main` -> `rc` -> `develop`
+      -
+        name: Merge down from `main` -> `rc` -> `develop`
         if: ${{ steps.set-vars.outputs.full == 'true' }}
         run: |
-          git checkout -B release-candidate refs/remotes/origin/release-candidate
+          git checkout -B release-candidate origin/release-candidate
           git merge main
-          git checkout -B develop refs/remotes/origin/develop
+          git checkout -B develop origin/develop
           git merge release-candidate
           git checkout main
       -
@@ -113,7 +114,7 @@ jobs:
         name: Merge down from `rc` -> `develop`
         if: ${{ steps.set-vars.outputs.rc == 'true' }}
         run: |
-          git checkout -B develop refs/remotes/origin/develop
+          git checkout -B develop origin/develop
           git merge release-candidate
           git checkout release-candidate
       -
