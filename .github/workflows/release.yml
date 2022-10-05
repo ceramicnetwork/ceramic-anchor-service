@@ -36,6 +36,13 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           ref: main
       -
+        name: Configure git
+        if: ${{ steps.set-env.outputs.full == 'true' }}
+        run: |
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config user.name ${{ github.actor }}
+          git fetch --all
+      -
         name: Merge down from `main` -> `rc` -> `develop`
         if: ${{ steps.set-vars.outputs.full == 'true' }}
         run: |
@@ -59,10 +66,7 @@ jobs:
         if: ${{ steps.set-vars.outputs.full == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-          git config user.name ${{ github.actor }}
-          npm run release -- --ci --github.release --no-npm-publish
+        run: npm run release -- --ci --github.release --no-npm-publish
       -
         name: Update and push code to `release-candidate` and `develop`
         if: ${{ steps.set-vars.outputs.full == 'true' }}
@@ -111,6 +115,13 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           ref: release-candidate
       -
+        name: Configure git
+        if: ${{ steps.set-vars.outputs.rc == 'true' }}
+        run: |
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config user.name ${{ github.actor }}
+          git fetch --all
+      -
         name: Merge down from `rc` -> `develop`
         if: ${{ steps.set-vars.outputs.rc == 'true' }}
         run: |
@@ -132,10 +143,7 @@ jobs:
         if: ${{ steps.set-vars.outputs.rc == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-          git config user.name ${{ github.actor }}
-          npm run release -- --ci --preReleaseId=rc --github.preRelease --no-npm-publish
+        run: npm run release -- --ci --preReleaseId=rc --github.preRelease --no-npm-publish
       -
         name: Update and push code to `develop`
         if: ${{ steps.set-vars.outputs.rc == 'true' }}
