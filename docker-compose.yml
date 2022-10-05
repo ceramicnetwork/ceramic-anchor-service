@@ -90,7 +90,7 @@ services:
       - TYPEORM_ENTITIES=build/models/**/*.js
       - TYPEORM_SUBSCRIBERS=build/subscribers/**/*.js
       - TYPEORM_LOGGING=false
-      - TYPEORM_SYNCHRONIZE=true
+      - TYPEORM_SYNCHRONIZE=false
 
       - VALIDATE_RECORDS=false
     volumes:
@@ -98,6 +98,7 @@ services:
     depends_on:
       - ipfs
       - database
+      - cas_api
     networks:
       - internal
 
