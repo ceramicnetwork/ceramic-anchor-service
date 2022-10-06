@@ -36,11 +36,25 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           ref: main
       -
+        name: Configure git
+        if: ${{ steps.set-vars.outputs.full == 'true' }}
+        run: |
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config user.name ${{ github.actor }}
+          git fetch --all
+      -
+        name: Merge down from `main` -> `rc` -> `develop`
+        if: ${{ steps.set-vars.outputs.full == 'true' }}
+        run: |
+          git checkout -B release-candidate origin/release-candidate
+          git merge main
+          git checkout -B develop origin/develop
+          git merge release-candidate
+          git checkout main
+      -
         name: Merge `release-candidate` -> `main`
         if: ${{ steps.set-vars.outputs.full == 'true' && steps.set-vars.outputs.hotfix != 'true' }}
-        run: |
-          git fetch origin release-candidate
-          git merge origin/release-candidate
+        run: git merge release-candidate
       -
         name: Initialize and build code
         if: ${{ steps.set-vars.outputs.full == 'true' }}
@@ -52,19 +66,16 @@ jobs:
         if: ${{ steps.set-vars.outputs.full == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-          git config user.name ${{ github.actor }}
-          npm run release -- --ci --github.release --no-npm-publish
+        run: npm run release -- --ci --github.release --no-npm-publish
       -
         name: Update and push code to `release-candidate` and `develop`
         if: ${{ steps.set-vars.outputs.full == 'true' }}
         run: |
-          git checkout -B release-candidate refs/remotes/origin/release-candidate
-          git merge origin/main
+          git checkout release-candidate
+          git merge main
           git push
-          git checkout -B develop refs/remotes/origin/develop
-          git merge origin/main
+          git checkout develop
+          git merge main
           git push
       -
         name: Send Discord notification
@@ -104,11 +115,23 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           ref: release-candidate
       -
-        name: Merge `develop` -> `release-candidate`
+        name: Configure git
         if: ${{ steps.set-vars.outputs.rc == 'true' }}
         run: |
-          git fetch origin develop
-          git merge origin/develop
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config user.name ${{ github.actor }}
+          git fetch --all
+      -
+        name: Merge down from `rc` -> `develop`
+        if: ${{ steps.set-vars.outputs.rc == 'true' }}
+        run: |
+          git checkout -B develop origin/develop
+          git merge release-candidate
+          git checkout release-candidate
+      -
+        name: Merge `develop` -> `release-candidate`
+        if: ${{ steps.set-vars.outputs.rc == 'true' }}
+        run: git merge develop
       -
         name: Initialize and build code
         if: ${{ steps.set-vars.outputs.rc == 'true' }}
@@ -120,16 +143,13 @@ jobs:
         if: ${{ steps.set-vars.outputs.rc == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-          git config user.name ${{ github.actor }}
-          npm run release -- --ci --preReleaseId=rc --github.preRelease --no-npm-publish
+        run: npm run release -- --ci --preReleaseId=rc --github.preRelease --no-npm-publish
       -
         name: Update and push code to `develop`
         if: ${{ steps.set-vars.outputs.rc == 'true' }}
         run: |
-          git checkout -B develop refs/remotes/origin/develop
-          git merge origin/release-candidate
+          git checkout develop
+          git merge release-candidate
           git push
       -
         name: Send Discord notification
