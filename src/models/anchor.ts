@@ -7,5 +7,3 @@ export class Anchor {
   createdAt: Date
   updatedAt: Date
 }
-
-export const TABLE_NAME = 'anchor'

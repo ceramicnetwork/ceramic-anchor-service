@@ -1,8 +1,10 @@
+import { Anchor } from '../models/anchor.js'
+import { Request } from '../models/request.js'
 import { inject, singleton } from 'tsyringe'
 import type { Knex } from 'knex'
-import { Request } from '../models/request.js'
-import { Anchor, TABLE_NAME } from '../models/anchor.js'
 import { Options } from './repository-types.js'
+
+export const TABLE_NAME = 'anchor'
 
 @singleton()
 export class AnchorRepository {

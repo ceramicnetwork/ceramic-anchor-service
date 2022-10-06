@@ -27,7 +27,7 @@ class _ServiceMetrics {
   }
 
   /* Set up the exporter at run time, after we have read the configuration */
-  start(collectorHost: string = '', caller: string = UNKNOWN_CALLER) {
+  start(collectorHost: string, caller: string = UNKNOWN_CALLER) {
     this.caller = caller
     this.meterProvider = new MeterProvider({})
 

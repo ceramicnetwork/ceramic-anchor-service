@@ -4,7 +4,9 @@ import { container } from 'tsyringe'
 
 import { Request, RequestStatus } from '../../models/request.js'
 import { AnchorService } from '../anchor-service.js'
+
 import { clearTables, createDbConnection } from '../../db-connection.js'
+
 import { RequestRepository } from '../../repositories/request-repository.js'
 import { IpfsService } from '../ipfs-service.js'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
@@ -853,7 +855,7 @@ describe('anchor service', () => {
           updatedAt: updatedTooLongAgo,
         },
         3,
-        false
+        0
       )
 
       const requestRepository = container.resolve<RequestRepository>('requestRepository')

@@ -1,26 +1,35 @@
-import { inject, singleton } from 'tsyringe'
-import { ServiceMetrics as Metrics } from '../service-metrics.js'
-import type { Knex } from 'knex'
 import { CID } from 'multiformats/cid'
-import { logEvent } from '../logger/index.js'
-import { METRIC_NAMES } from '../settings.js'
-import { Utils } from '../utils.js'
-import {
-  TABLE_NAME,
-  ANCHOR_DATA_RETENTION_WINDOW,
-  MAX_ANCHORING_DELAY_MS,
-  PROCESSING_TIMEOUT,
-  FAILURE_RETRY_WINDOW,
-  RequestStatus,
-  Request,
-  RequestUpdateFields,
-  REQUEST_MESSAGES,
-} from '../models/request.js'
+import type { Knex } from 'knex'
+import { RequestStatus, Request, RequestUpdateFields, REQUEST_MESSAGES } from '../models/request.js'
 import { LimitOptions, Options } from './repository-types.js'
+import { logEvent } from '../logger/index.js'
+import { Config } from 'node-config-ts'
+import { inject, singleton } from 'tsyringe'
 import { logger } from '../logger/index.js'
+import { Utils } from '../utils.js'
+import { ServiceMetrics as Metrics } from '../service-metrics.js'
+import { METRIC_NAMES } from '../settings.js'
 
+// How long we should retain requests that were completed or failed
+export const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
+// Amount of time a request can remain processing before being retried
+export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 3 //3H
+// If a request fails during this window, retry
+export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
 // application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
+export const TABLE_NAME = 'request'
+
+const countRetryMetrics = (requests: Request[], anchoringDeadline: Date): void => {
+  const expired = requests.filter((request) => request.createdAt < anchoringDeadline)
+  if (expired.length > 0) Metrics.count(METRIC_NAMES.RETRY_EXPIRING, expired.length)
+
+  const processing = requests.filter((request) => request.status === RequestStatus.PROCESSING)
+  if (processing.length > 0) Metrics.count(METRIC_NAMES.RETRY_PROCESSING, processing.length)
+
+  const failed = requests.filter((request) => request.status === RequestStatus.FAILED)
+  if (failed.length > 0) Metrics.count(METRIC_NAMES.RETRY_FAILED, failed.length)
+}
 
 const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder => {
   const earliestDateToRetryFailed = new Date(now.getTime() - FAILURE_RETRY_WINDOW)
@@ -69,20 +78,12 @@ const findRequestsToAnchorForStreams = (
     .andWhere('streamId', 'in', streamIds)
     .orderBy('createdAt', 'asc')
 
-const countRetryMetrics = (requests: Request[], anchoringDeadline: Date): void => {
-  const expired = requests.filter((request) => request.createdAt < anchoringDeadline)
-  if (expired.length > 0) Metrics.count(METRIC_NAMES.RETRY_EXPIRING, expired.length)
-
-  const processing = requests.filter((request) => request.status === RequestStatus.PROCESSING)
-  if (processing.length > 0) Metrics.count(METRIC_NAMES.RETRY_PROCESSING, processing.length)
-
-  const failed = requests.filter((request) => request.status === RequestStatus.FAILED)
-  if (failed.length > 0) Metrics.count(METRIC_NAMES.RETRY_FAILED, failed.length)
-}
-
 @singleton()
 export class RequestRepository {
-  constructor(@inject('dbConnection') private connection?: Knex) {}
+  constructor(
+    @inject('config') private config?: Config,
+    @inject('dbConnection') private connection?: Knex
+  ) {}
 
   /**
    * Create/updates client request
@@ -112,47 +113,15 @@ export class RequestRepository {
   }
 
   /**
-   * Gets all requests that were anchored over a month ago, and that are on streams that have had
-   * no other requests in the last month.
+   * For test use. Creates an array of requests.
+   * @param requests array of requests
    * @param options
-   * @returns A promise that resolves to an array of request
+   * @returns
    */
-  public async findRequestsToGarbageCollect(options: Options = {}): Promise<Request[]> {
+  public async createRequests(requests: Array<Request>, options: Options = {}): Promise<void> {
     const { connection = this.connection } = options
 
-    const now: number = new Date().getTime()
-    const deadlineDate = new Date(now - ANCHOR_DATA_RETENTION_WINDOW)
-
-    const recentlyUpdatedRequests = connection(TABLE_NAME)
-      .orderBy('updatedAt', 'desc')
-      .select('streamId')
-      .where('updatedAt', '>=', deadlineDate)
-
-    // expired requests with streams that have not been recently updated
-    return await connection(TABLE_NAME)
-      .orderBy('updatedAt', 'desc')
-      .whereIn('status', [RequestStatus.COMPLETED, RequestStatus.FAILED])
-      .andWhere('pinned', true)
-      .andWhere('updatedAt', '<', deadlineDate)
-      .whereNotIn('streamId', recentlyUpdatedRequests)
-  }
-
-  /**
-   * Finds requests of a given status
-   * @param status
-   * @param options
-   * @returns A promise that resolves to an array of request with the given status
-   */
-  public async findByStatus(status: RequestStatus, options: LimitOptions = {}): Promise<Request[]> {
-    const { connection = this.connection, limit } = options
-
-    const query = connection(TABLE_NAME).orderBy('updatedAt').where({ status })
-
-    if (limit && limit !== 0) {
-      query.limit(limit)
-    }
-
-    return query
+    await connection.table(TABLE_NAME).insert(requests)
   }
 
   /**
@@ -169,9 +138,7 @@ export class RequestRepository {
   ): Promise<number> {
     const { connection = this.connection } = options
     const updatedAt = new Date(Date.now())
-
     const ids = requests.map((r) => r.id)
-
     const result = await connection(TABLE_NAME)
       .update({ ...fields, updatedAt: updatedAt })
       .whereIn('id', ids)
@@ -238,6 +205,44 @@ export class RequestRepository {
   }
 
   /**
+   * Finds a request with the given CID if exists
+   * @param cid CID the request is for
+   * @param options
+   * @returns Promise for the associated request
+   */
+  public async findByCid(cid: CID, options: Options = {}): Promise<Request> {
+    const { connection = this.connection } = options
+
+    return connection(TABLE_NAME).where({ cid: cid.toString() }).first()
+  }
+
+  /**
+   * Gets all requests that were anchored over a month ago, and that are on streams that have had
+   * no other requests in the last month.
+   * @param options
+   * @returns A promise that resolves to an array of request
+   */
+  public async findRequestsToGarbageCollect(options: Options = {}): Promise<Request[]> {
+    const { connection = this.connection } = options
+
+    const now: number = new Date().getTime()
+    const deadlineDate = new Date(now - ANCHOR_DATA_RETENTION_WINDOW)
+
+    const recentlyUpdatedRequests = connection(TABLE_NAME)
+      .orderBy('updatedAt', 'desc')
+      .select('streamId')
+      .where('updatedAt', '>=', deadlineDate)
+
+    // expired requests with streams that have not been recently updated
+    return await connection(TABLE_NAME)
+      .orderBy('updatedAt', 'desc')
+      .whereIn('status', [RequestStatus.COMPLETED, RequestStatus.FAILED])
+      .andWhere('pinned', true)
+      .andWhere('updatedAt', '<', deadlineDate)
+      .whereNotIn('streamId', recentlyUpdatedRequests)
+  }
+
+  /**
    * Marks requests as READY. The following requests may be marked as ready in the order of precendence:
    *  1. There are FAILED requests that were not failed because of conflict resolution
    *  2. there are PROCESSING requests that need to be anchored and retried (the maximum anchoring delay has elapsed and the request hasn't been updated in a long time)
@@ -256,7 +261,7 @@ export class RequestRepository {
   ): Promise<Request[]> {
     const { connection = this.connection } = options
     const now = new Date()
-    const anchoringDeadline = new Date(now.getTime() - MAX_ANCHORING_DELAY_MS)
+    const anchoringDeadline = new Date(now.getTime() - this.config.maxAnchoringDelayMS)
 
     return connection.transaction(
       async (trx) => {
@@ -312,26 +317,20 @@ export class RequestRepository {
   }
 
   /**
-   * Finds a request with the given CID if exists
-   * @param cid CID the request is for
+   * Finds requests of a given status
+   * @param status
    * @param options
-   * @returns request
+   * @returns A promise that resolves to an array of request with the given status
    */
-  public async findByCid(cid: CID, options: Options = {}): Promise<Request> {
-    const { connection = this.connection } = options
+  public async findByStatus(status: RequestStatus, options: LimitOptions = {}): Promise<Request[]> {
+    const { connection = this.connection, limit } = options
 
-    return connection(TABLE_NAME).where({ cid: cid.toString() }).first()
-  }
+    const query = connection(TABLE_NAME).orderBy('updatedAt', 'asc').where({ status })
 
-  /**
-   * For test use. Creates an array of requests.
-   * @param requests array of requests
-   * @param options
-   * @returns
-   */
-  public async createRequests(requests: Array<Request>, options: Options = {}): Promise<void> {
-    const { connection = this.connection } = options
+    if (limit && limit !== 0) {
+      query.limit(limit)
+    }
 
-    return connection.table(TABLE_NAME).insert(requests)
+    return query
   }
 }

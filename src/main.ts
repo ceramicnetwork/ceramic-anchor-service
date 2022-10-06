@@ -1,8 +1,9 @@
 import 'reflect-metadata'
-import { config } from 'node-config-ts'
-import { container } from 'tsyringe'
+
 import { CeramicAnchorApp } from './app.js'
 import { logger } from './logger/index.js'
+import { config } from 'node-config-ts'
+import { container } from 'tsyringe'
 import { createDbConnection } from './db-connection.js'
 
 async function startApp() {
