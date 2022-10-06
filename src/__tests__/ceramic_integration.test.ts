@@ -428,7 +428,7 @@ describe('Ceramic Integration Test', () => {
 
           console.log('Test complete: Anchors on different CAS instances are independent')
         },
-        60 * 1000 * 3
+        60 * 1000 * 4
       )
 
       test(

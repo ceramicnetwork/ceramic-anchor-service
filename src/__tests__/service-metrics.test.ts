@@ -1,8 +1,9 @@
 import { ServiceMetrics } from '../service-metrics.js'
+import { config } from 'node-config-ts'
 
 describe('simple test of metrics', () => {
   beforeAll(async () => {
-    ServiceMetrics.start()
+    ServiceMetrics.start(config.metrics.collectorHost, 'cas-test-' + config.mode)
   })
   test('create metric', async () => {
     ServiceMetrics.count('test_metric', 1, {
