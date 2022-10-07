@@ -15,7 +15,7 @@ import Ganache from 'ganache-core'
 import tmp from 'tmp-promise'
 import getPort from 'get-port'
 import type { Knex } from 'knex'
-import { createDbConnection } from '../db-connection.js'
+import { clearTables, createDbConnection } from '../db-connection.js'
 import { CeramicAnchorApp } from '../app.js'
 import { container } from 'tsyringe'
 import { config } from 'node-config-ts'
@@ -311,6 +311,11 @@ describe('Ceramic Integration Test', () => {
     anchorLauncher = makeAnchorLauncher(8001)
   })
 
+  beforeEach(async () => {
+    await clearTables(dbConnection1)
+    await clearTables(dbConnection2)
+  })
+
   afterAll(async () => {
     await Promise.all([ipfsServer1.stop(), ipfsServer2.stop()])
     await Promise.all([
@@ -389,8 +394,6 @@ describe('Ceramic Integration Test', () => {
       await did.authenticate()
       ceramic1.did = did
       ceramic2.did = did
-
-      await Utils.delay(10000)
     })
 
     afterAll(async () => {
