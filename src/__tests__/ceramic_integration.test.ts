@@ -389,6 +389,8 @@ describe('Ceramic Integration Test', () => {
       await did.authenticate()
       ceramic1.did = did
       ceramic2.did = did
+
+      await Utils.delay(10000)
     })
 
     afterAll(async () => {
