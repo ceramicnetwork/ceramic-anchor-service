@@ -18,8 +18,7 @@ export class RequestPresentation {
   async body(request: Request): Promise<any> {
     switch (request.status) {
       case RequestStatus.COMPLETED: {
-        const anchor = await this.anchorRepository.findByRequest(request)
-        return {
+        const requestData = {
           id: request.id,
           status: RequestStatus[request.status],
           cid: request.cid,
@@ -28,6 +27,15 @@ export class RequestPresentation {
           message: request.message,
           createdAt: request.createdAt.getTime(),
           updatedAt: request.updatedAt.getTime(),
+        }
+
+        const anchor = await this.anchorRepository.findByRequest(request)
+        if (!anchor) {
+          return requestData
+        }
+
+        return {
+          ...requestData,
           anchorRecord: {
             // TODO: Remove this backwards compatibility field
             cid: anchor.cid,
