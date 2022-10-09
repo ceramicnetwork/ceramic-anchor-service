@@ -113,7 +113,8 @@ export class RequestController {
       }
     } catch (err) {
       const errmsg = `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed: ${err.message}`
-      logger.err(err)
+      logger.err(errmsg)
+      logger.err(err) // Log stack trace
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: errmsg,
       })
