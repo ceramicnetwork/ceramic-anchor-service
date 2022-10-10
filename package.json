@@ -52,7 +52,7 @@
     "@ceramicnetwork/http-client": "^2.5.0-rc.0",
     "@ceramicnetwork/logger": "^2.0.9",
     "@ceramicnetwork/streamid": "^2.3.5-rc.0",
-    "@ethersproject/abi": "^5.6.4",
+    "@ethersproject/abi": "^5.7.0",
     "@ipld/dag-cbor": "^7.0.2",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.32.0",
     "@opentelemetry/sdk-metrics": "^0.32.0",
