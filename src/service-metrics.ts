@@ -3,23 +3,33 @@
 
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http'
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
+import { BasicTracerProvider, TraceIdRatioBasedSampler,
+         ParentBasedSampler, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
+import {trace} from '@opentelemetry/api'
+
 import { Utils } from './utils.js'
 
 export const UNKNOWN_CALLER = 'Unknown'
 
 export const CONCURRENCY_LIMIT = 1
+export const TRACE_CONCURRENCY_LIMIT = 1
+export const DEFAULT_TRACE_SAMPLE_RATIO = 0.1
 
 class _ServiceMetrics {
   protected caller
   protected collectorURL
+  protected traceCollectorURL
   protected readonly counters
   protected readonly histograms
   protected meterProvider: MeterProvider
   protected metricExporter: OTLPMetricExporter
+  protected traceExporter: OTLPTraceExporter
   protected meter
   constructor() {
     this.caller = ''
     this.collectorURL = ''
+    this.traceCollectorURL = ''
     this.counters = {}
     this.histograms = {}
     this.meter = null
@@ -27,13 +37,17 @@ class _ServiceMetrics {
   }
 
   /* Set up the exporter at run time, after we have read the configuration */
-  start(collectorHost: string = '', caller: string = UNKNOWN_CALLER) {
+  start(collectorHost = '',
+        caller: string = UNKNOWN_CALLER,
+        sample_ratio: number = DEFAULT_TRACE_SAMPLE_RATIO) {
 
     this.caller = caller
     this.meterProvider = new MeterProvider({})
 
     if (collectorHost) {
       this.collectorURL = `http://${collectorHost}:4318/v1/metrics`
+      this.traceCollectorURL = `http://${collectorHost}:4318/v1/traces`
+
       this.metricExporter = new OTLPMetricExporter({
            url: this.collectorURL,
            concurrencyLimit: CONCURRENCY_LIMIT
@@ -45,6 +59,22 @@ class _ServiceMetrics {
 
       // Meter for calling application
       this.meter = this.meterProvider.getMeter(caller)
+
+      // now set up trace exporter
+      this.traceExporter = new OTLPTraceExporter( {
+          url: this.traceCollectorURL,
+          concurrencyLimit: TRACE_CONCURRENCY_LIMIT
+      })
+
+      //https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-sdk-trace-base
+      const tracerProvider = new BasicTracerProvider({
+
+        sampler: new ParentBasedSampler({
+          // sample_ratio represents the percentage of traces which should
+          // be sampled.
+          root: new TraceIdRatioBasedSampler(sample_ratio)
+        })
+      })
     }
     // If no collector URL then the functions will be no-ops
   }

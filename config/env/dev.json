@@ -43,6 +43,7 @@
     "filePath": "@@LOG_PATH"
   },
   "metrics": {
-    "collectorHost": "@@COLLECTOR_HOSTNAME"
+    "collectorHost": "@@COLLECTOR_HOSTNAME",
+    "traceRatio": "@@METRICS_TRACE_RATIO"
   }
 }
