@@ -429,6 +429,7 @@ export class AnchorService {
         candidate.cid
       } for stream ${candidate.streamId.toString()}: ${err}`
       logger.err(msg)
+      Metrics.count(METRIC_NAMES.ERROR_IPFS, 1)
       await this.requestRepository.updateRequests(
         { status: RS.FAILED, message: msg },
         candidate.acceptedRequests
@@ -735,6 +736,7 @@ export class AnchorService {
           missingRequests.length
         } missing commits: ${err}`
       )
+      Metrics.count(METRIC_NAMES.ERROR_MULTIQUERY, 1)
       candidate.failAllRequests()
       return
     }
@@ -746,6 +748,7 @@ export class AnchorService {
         logger.err(
           `Failed to load stream ${commitId.baseID.toString()} at commit ${commitId.commit.toString()}`
         )
+        Metrics.count(METRIC_NAMES.FAILED_TIP, 1)
         candidate.failRequest(request)
       }
     }
@@ -762,6 +765,7 @@ export class AnchorService {
     stream = response[candidate.streamId.toString()]
     if (!stream) {
       logger.err(`Failed to load stream ${candidate.streamId.toString()}`)
+      Metrics.count(METRIC_NAMES.FAILED_STREAM, 1)
       candidate.failAllRequests()
       return
     }

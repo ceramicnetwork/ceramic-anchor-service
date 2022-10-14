@@ -5,9 +5,9 @@ describe('simple test of metrics', () => {
     ServiceMetrics.start()
   })
   test('trace span', async() => {
-    ServiceMetrics.start_span("doing it")
+    const span = ServiceMetrics.start_span("doing it")
     // do things
-    ServiceMetrics.end_span("doing it")
+    span.end()
   })
 
   test('create metric', async () => {
