@@ -4,6 +4,12 @@ describe('simple test of metrics', () => {
   beforeAll(async () => {
     ServiceMetrics.start()
   })
+  test('trace span', async() => {
+    ServiceMetrics.start_span("doing it")
+    // do things
+    ServiceMetrics.end_span("doing it")
+  })
+
   test('create metric', async () => {
     ServiceMetrics.count('test_metric', 1, {
       anyparam: null,
@@ -16,6 +22,7 @@ describe('simple test of metrics', () => {
       intparam: 2,
     })
   })
+
   test('create metric and add values', async () => {
     ServiceMetrics.count('test_metric', 1, {
       anyparam: null,
@@ -39,5 +46,6 @@ describe('simple test of metrics', () => {
       intparam: 2,
     })
     ServiceMetrics.record('test_metric', 5, { newparam: 9 })
+    ServiceMetrics.observe('test_metric', 3)
   })
 })

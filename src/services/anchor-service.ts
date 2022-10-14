@@ -200,6 +200,7 @@ export class AnchorService {
 
   private async _anchorCandidates(candidates: Candidate[]): Promise<Partial<AnchorSummary>> {
     logger.imp(`Creating Merkle tree from ${candidates.length} selected streams`)
+    const span = Metrics.start_span('anchor_candidates')
     const merkleTree = await this._buildMerkleTree(candidates)
 
     // create and send ETH transaction
@@ -222,6 +223,8 @@ export class AnchorService {
 
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
     Metrics.count(METRIC_NAMES.ANCHOR_SUCCESS, anchors.length)
+
+    span.end()
 
     return {
       anchoredRequestsCount: numAnchoredRequests,
