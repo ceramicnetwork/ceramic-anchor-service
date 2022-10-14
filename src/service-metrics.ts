@@ -113,7 +113,7 @@ class _ServiceMetrics {
 
   start_span(name: string, params?: any) {
     if (! this.tracer) {
-      return
+      return new _NullSpan()
     }
 
     try {
