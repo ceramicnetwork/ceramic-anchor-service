@@ -138,6 +138,11 @@ export class MockEventProducerService implements EventProducerService {
   destroy(): void {}
 }
 
+/**
+ * Generates a single request
+ * @param override request data to use. If some values are not provided, they will be generated.
+ * @returns a promise for a request
+ */
 export async function generateRequest(override: Partial<Request>) {
   const request = new Request()
   const cid = await randomCID()
@@ -152,6 +157,13 @@ export async function generateRequest(override: Partial<Request>) {
   return request
 }
 
+/**
+ * Generates an array of requests
+ * @param override request data to use. If some values are not provided, they will be generated.
+ * @param count number of requests to generate (defaults to 1)
+ * @param varianceMS time between generated requests (defaults to 1000 ms)
+ * @returns a promise for an array of count requests
+ */
 export async function generateRequests(
   override: Partial<Request>,
   count = 1,

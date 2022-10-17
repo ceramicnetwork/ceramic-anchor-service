@@ -34,9 +34,12 @@ async function runMigrations(connection: Knex) {
 export async function createDbConnection() {
   const knexConfig: Knex.Config = {
     ...config.db,
-    // transforms identifier names from camel case to snake case. Prevents useage of snakecase in code to maintain consistency.
+    // In our DB, identifiers have snake case formatting while in our code identifiers have camel case formatting.
+    // We use the following transformers so we can always use camel case formatting in our code.
+
+    // transforms identifier names in our queries from camel case to snake case. This is because the DB uses snake case identifiers.
     wrapIdentifier: (value, origWrap): string => origWrap(snakeCase(value)),
-    // modifies returned rows transforming identifiers from snake case to camel case. Prevents having to do it manually in code.
+    // modifies returned rows from the DB. This transforms identifiers from snake case to camel case.
     postProcessResponse: (result) => toCamelCase(result),
   }
 

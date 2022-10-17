@@ -10,7 +10,8 @@ import { Utils } from '../utils.js'
 import { ServiceMetrics as Metrics } from '../service-metrics.js'
 import { METRIC_NAMES } from '../settings.js'
 
-// How long we should retain requests that were completed or failed
+// How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
+// AnchorCommit available to the network.
 export const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
 // Amount of time a request can remain processing before being retried
 export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 3 //3H
@@ -31,34 +32,57 @@ const countRetryMetrics = (requests: Request[], anchoringDeadline: Date): void =
   if (failed.length > 0) Metrics.count(METRIC_NAMES.RETRY_FAILED, failed.length)
 }
 
+/**
+ * Finds a batch of requests to anchor. A request will be included in the batch if:
+ *  1. it is a PENDING request that need to be anchored
+ *  2. it is ia PROCESSING requests that needs to be anchored and retried (the request hasn't been updated in a long time)
+ *  3. it is a FAILED requests that failed for reasons other than conflict resolution and did not expire
+ * @param connection
+ * @param now
+ * @returns
+ */
 const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder => {
   const earliestDateToRetryFailed = new Date(now.getTime() - FAILURE_RETRY_WINDOW)
   const processingDeadline = new Date(now.getTime() - PROCESSING_TIMEOUT)
 
-  return connection(TABLE_NAME)
-    .where((builder) =>
-      builder
-        .where({ status: RequestStatus.FAILED })
-        .andWhere('createdAt', '>=', earliestDateToRetryFailed)
-        .andWhere((subBuilder) =>
-          subBuilder
-            .whereNull('message')
-            .orWhereNot({ message: REQUEST_MESSAGES.conflictResolutionRejection })
-        )
-    )
-    .orWhere((builder) =>
-      builder
-        .where({ status: RequestStatus.PROCESSING })
-        .andWhere('updatedAt', '<', processingDeadline)
-    )
-    .orWhere({ status: RequestStatus.PENDING })
+  return connection(TABLE_NAME).where((builder) => {
+    builder
+      .where({ status: RequestStatus.PENDING })
+      .orWhere((subBuilder) =>
+        subBuilder
+          .where({ status: RequestStatus.PROCESSING })
+          .andWhere('updatedAt', '<', processingDeadline)
+      )
+      .orWhere((subBuilder) =>
+        subBuilder
+          .where({ status: RequestStatus.FAILED })
+          .andWhere('createdAt', '>=', earliestDateToRetryFailed)
+          .andWhere((subSubBuilder) =>
+            subSubBuilder
+              .whereNull('message')
+              .orWhereNot({ message: REQUEST_MESSAGES.conflictResolutionRejection })
+          )
+      )
+  })
 }
 
+type streamAndEarliestRequestDate = {
+  streamId: string
+  minCreatedAt: Date
+}
+
+/**
+ * Finds a batch of streams to anchor based on whether a stream's associated requests need to be anchored.
+ * @param connection
+ * @param maxStreamLimit max size of the batch
+ * @param now
+ * @returns streams and the date of each stream's earliest requests
+ */
 const findStreamsToAnchor = (
   connection: Knex,
   maxStreamLimit: number,
   now: Date
-): Knex.QueryBuilder => {
+): Promise<Array<streamAndEarliestRequestDate>> => {
   const query = findRequestsToAnchor(connection, now)
     .select(['streamId', connection.raw('MIN(request.created_at) as min_created_at')])
     .orderBy('min_created_at', 'asc')
@@ -69,14 +93,19 @@ const findStreamsToAnchor = (
   return query
 }
 
+/**
+ * Finds a batch of requests to anchor that are are associated with the given streams
+ * @param connection
+ * @param streamIds streams to anchor
+ * @param now
+ * @returns
+ */
 const findRequestsToAnchorForStreams = (
   connection: Knex,
   streamIds: string[],
   now: Date
-): Knex.QueryBuilder =>
-  findRequestsToAnchor(connection, now)
-    .andWhere('streamId', 'in', streamIds)
-    .orderBy('createdAt', 'asc')
+): Promise<Array<Request>> =>
+  findRequestsToAnchor(connection, now).whereIn('streamId', streamIds).orderBy('createdAt', 'asc')
 
 @singleton()
 export class RequestRepository {
@@ -140,7 +169,12 @@ export class RequestRepository {
     const updatedAt = new Date(Date.now())
     const ids = requests.map((r) => r.id)
     const result = await connection(TABLE_NAME)
-      .update({ ...fields, updatedAt: updatedAt })
+      .update({
+        message: fields.message,
+        status: fields.status,
+        pinned: fields.pinned,
+        updatedAt: updatedAt,
+      })
       .whereIn('id', ids)
 
     requests.map((request) => {
@@ -228,7 +262,7 @@ export class RequestRepository {
     const now: number = new Date().getTime()
     const deadlineDate = new Date(now - ANCHOR_DATA_RETENTION_WINDOW)
 
-    const recentlyUpdatedRequests = connection(TABLE_NAME)
+    const requestsOnRecentlyUpdatedStreams = connection(TABLE_NAME)
       .orderBy('updatedAt', 'desc')
       .select('streamId')
       .where('updatedAt', '>=', deadlineDate)
@@ -239,15 +273,15 @@ export class RequestRepository {
       .whereIn('status', [RequestStatus.COMPLETED, RequestStatus.FAILED])
       .andWhere('pinned', true)
       .andWhere('updatedAt', '<', deadlineDate)
-      .whereNotIn('streamId', recentlyUpdatedRequests)
+      .whereNotIn('streamId', requestsOnRecentlyUpdatedStreams)
   }
 
   /**
-   * Marks requests as READY. The following requests may be marked as ready in the order of precendence:
-   *  1. There are FAILED requests that were not failed because of conflict resolution
-   *  2. there are PROCESSING requests that need to be anchored and retried (the maximum anchoring delay has elapsed and the request hasn't been updated in a long time)
-   *  3. there are PENDING requests that need to be anchored (the maximum anchoring delay has elapsed)
-   * These requests are only marked as ready if there are streamLimit streams needing an anchor OR the earliest chosen request is about to expire
+   * Marks requests as READY.
+   * The scheduler service uses this function to create a batch of READY requests.
+   * These READY requests should get picked up by an anchor worker (launched by the scheduler service)
+   * A READY batch will only be created if there are at least minStreamLimit streams included OR if requests are about to expire
+   * A READY batch will include up to maxStreamLimit streams and their associated requests.
    *
    * @param maxStreamLimit the max amount of streams that can be in a batch
    * @param minStreamLimit (defaults to maxStreamLimit) the minimum amount of streams needed to create a READY batch
@@ -263,21 +297,31 @@ export class RequestRepository {
     const now = new Date()
     const anchoringDeadline = new Date(now.getTime() - this.config.maxAnchoringDelayMS)
 
-    return connection.transaction(
-      async (trx) => {
-        const streamsToAnchor = await findStreamsToAnchor(trx, maxStreamLimit, now)
+    return connection
+      .transaction(
+        async (trx) => {
+          const streamsToAnchor = await findStreamsToAnchor(trx, maxStreamLimit, now)
 
-        // Do not anchor if there are no streams to anchor
-        if (streamsToAnchor.length === 0) {
-          logger.debug(`Not updating any requests to READY because there are no streams to anchor`)
-          return []
-        }
+          // Do not anchor if there are no streams to anchor
+          if (streamsToAnchor.length === 0) {
+            logger.debug(
+              `Not updating any requests to READY because there are no streams to anchor`
+            )
+            return []
+          }
 
-        // Anchor if we have enough streams or the earliest stream request is expired
-        const enoughStreams = streamsToAnchor.length >= minStreamLimit
-        const earliestIsExpired = streamsToAnchor[0].minCreatedAt < anchoringDeadline
+          // Anchor if we have enough streams or the earliest stream request is expired
+          const enoughStreams = streamsToAnchor.length >= minStreamLimit
+          const earliestIsExpired = streamsToAnchor[0].minCreatedAt < anchoringDeadline
 
-        if (enoughStreams || earliestIsExpired) {
+          if (!enoughStreams && !earliestIsExpired) {
+            logger.debug(
+              `Not updating any requests to READY because there are not enough streams for a batch ${streamsToAnchor.length}/${minStreamLimit} and the earliest request is not expired (created at ${streamsToAnchor[0].minCreatedAt})`
+            )
+
+            return []
+          }
+
           const streamIds = streamsToAnchor.map(({ streamId }) => streamId)
 
           const requests = await findRequestsToAnchorForStreams(trx, streamIds, now)
@@ -302,18 +346,20 @@ export class RequestRepository {
           logger.debug(`Updated ${updatedCount} requests to READY`)
 
           return requests
+        },
+        {
+          isolationLevel: 'repeatable read',
+        }
+      )
+      .catch(async (err) => {
+        if (err?.code === REPEATED_READ_SERIALIZATION_ERROR) {
+          Metrics.count(METRIC_NAMES.DB_SERIALIZATION_ERROR, 1)
+          await Utils.delay(100)
+          return this.findAndMarkReady(maxStreamLimit, minStreamLimit, options)
         }
 
-        logger.debug(
-          `Not updating any requests to READY because there are not enough streams for a batch ${streamsToAnchor.length}/${minStreamLimit} and the earliest request is not expired (created at ${streamsToAnchor[0].minCreatedAt})`
-        )
-
-        return []
-      },
-      {
-        isolationLevel: 'repeatable read',
-      }
-    )
+        throw err
+      })
   }
 
   /**
