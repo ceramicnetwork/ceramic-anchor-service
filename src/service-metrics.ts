@@ -6,6 +6,8 @@ import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { BasicTracerProvider, TraceIdRatioBasedSampler,
          ParentBasedSampler, BatchSpanProcessor } from '@opentelemetry/sdk-trace-base'
+import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
+import { Resource } from '@opentelemetry/resources'
 import {trace} from '@opentelemetry/api'
 
 import { Utils } from './utils.js'
@@ -61,7 +63,11 @@ class _ServiceMetrics {
         logger: any = null) {
 
     this.caller = caller
-    const meterProvider = new MeterProvider({})
+    const meterProvider = new MeterProvider({
+     resource: new Resource({
+        [SemanticResourceAttributes.SERVICE_NAME]: caller,
+      }),
+    })
 
     if (! collectorHost) {
         // If no collector URL then the functions will be no-ops
