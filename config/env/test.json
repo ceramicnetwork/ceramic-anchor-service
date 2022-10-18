@@ -34,10 +34,7 @@
   },
   "db": {
     "client": "postgresql",
-    "connection": {
-      "database": "test-db",
-      "user": "test-user"
-    },
+    "connection": "postgres://test-user@localhost:5432/test-db",
     "debug": false,
     "migrations": {
       "tableName": "knex_migrations"

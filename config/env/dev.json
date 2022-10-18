@@ -46,12 +46,6 @@
     "collectorHost": "@@COLLECTOR_HOSTNAME"
   },
   "db": {
-    "connection": {
-      "database": "@@DB_NAME",
-      "host": "@@DB_HOST",
-      "user": "@@DB_USERNAME",
-      "password": "@@DB_PASSWORD",
-      "port": "@@DB_PORT"
-    }
+    "connection": "@@DB_CONNECTION"
   }
 }
