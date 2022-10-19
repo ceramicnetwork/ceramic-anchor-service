@@ -626,5 +626,43 @@ describe('Ceramic Integration Test', () => {
       )
       expect(RequestStatus[originalTipRequest.status]).toEqual(RequestStatus.COMPLETED)
     })
+
+    test.only('Can retreive completed request that was marked COMPLETE because its stream was already anchored', async () => {
+      const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: false })
+      const tipWithNoRequest = doc1.tip
+      await doc1.update({ foo: 2 }, null, { anchor: true })
+      const tipWithRequest = doc1.tip
+
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+      await anchorUpdate(doc1, cas1, anchorService1)
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+
+      const tipWithRequestInfo = await fetchJson(
+        'http://localhost:' + casPort1 + '/api/v0/requests/' + tipWithRequest.toString()
+      )
+      expect(RequestStatus[tipWithRequestInfo.status]).toEqual(RequestStatus.COMPLETED)
+
+      await fetchJson('http://localhost:' + casPort1 + '/api/v0/requests', {
+        method: 'POST',
+        body: {
+          streamId: doc1.id.toString(),
+          docId: doc1.id.toString(),
+          cid: tipWithNoRequest.toString(),
+        },
+      })
+
+      const tipWithNoRequestBeforeAnchorInfo = await fetchJson(
+        'http://localhost:' + casPort1 + '/api/v0/requests/' + tipWithNoRequest.toString()
+      )
+      expect(RequestStatus[tipWithNoRequestBeforeAnchorInfo.status]).toEqual(RequestStatus.PENDING)
+
+      await anchorService1.emitAnchorEventIfReady()
+      await cas1.anchor()
+
+      const tipWithNoRequestAfterAnchorInfo = await fetchJson(
+        'http://localhost:' + casPort1 + '/api/v0/requests/' + tipWithNoRequest.toString()
+      )
+      expect(RequestStatus[tipWithNoRequestAfterAnchorInfo.status]).toEqual(RequestStatus.COMPLETED)
+    })
   })
 })
