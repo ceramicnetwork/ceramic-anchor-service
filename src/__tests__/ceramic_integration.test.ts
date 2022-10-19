@@ -604,7 +604,7 @@ describe('Ceramic Integration Test', () => {
       console.log('Test complete: Metrics counts anchor attempts')
     })
 
-    test('Can retrieve completed request when the request CID was not the stream tip when anchored', async () => {
+    test.only('Can retrieve completed request when the request CID was not the stream tip when anchored', async () => {
       const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
       const originalTip = doc1.tip
       await doc1.update({ foo: 2 }, null, { anchor: true })
