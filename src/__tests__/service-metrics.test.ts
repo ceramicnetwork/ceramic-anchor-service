@@ -10,6 +10,7 @@ describe('simple test of metrics', () => {
     ServiceMetrics.start()
   })
   test('trace span', async() => {
+    // We only check here if we *can call* the methods
     const span = ServiceMetrics.startSpan("doing it")
     // do things
     span.end()
