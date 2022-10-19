@@ -1,5 +1,10 @@
 import { ServiceMetrics } from '../service-metrics.js'
 
+/*
+ * Without exporter, all methods are essentially no-ops
+ * Just exercise the existence of the methods and parameters
+ *
+ */
 describe('simple test of metrics', () => {
   beforeAll(async () => {
     ServiceMetrics.start()
