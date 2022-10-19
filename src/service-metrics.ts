@@ -11,6 +11,7 @@ import { Resource } from '@opentelemetry/resources'
 import {trace} from '@opentelemetry/api'
 
 import { Utils } from './utils.js'
+import {TimeInput} from "@opentelemetry/api/build/src/common/Time";
 
 export const UNKNOWN_CALLER = 'Unknown'
 
@@ -34,8 +35,17 @@ class _NullLogger {
   err(msg){}
 }
 
-class _NullSpan {
-  end() {}
+interface Endable {
+   end(endTime?: TimeInput): void;
+}
+
+class NullSpan implements Endable {
+  // if we start using other span methods, add null methods here
+
+  // Returns the flag whether this span will be recorded.
+  end(endTime?: TimeInput) {
+      return false
+  }
 }
 
 class _ServiceMetrics {
@@ -117,9 +127,9 @@ class _ServiceMetrics {
   // could have subclasses or specific functions with set params, but we want to
   // easily and quickly change what is recorded, there are no code dependencies on it
 
-  start_span(name: string, params?: any) {
+  startSpan(name: string, params?: any): Endable {
     if (! this.tracer) {
-      return new _NullSpan()
+      return new NullSpan()
     }
 
     try {
@@ -130,7 +140,7 @@ class _ServiceMetrics {
         return span
     } catch (e){
         this.logger.warn(`Error starting span ${name}: ${e}`)
-        return new _NullSpan()
+        return new NullSpan()
     }
   }
 

@@ -200,7 +200,7 @@ export class AnchorService {
 
   private async _anchorCandidates(candidates: Candidate[]): Promise<Partial<AnchorSummary>> {
     logger.imp(`Creating Merkle tree from ${candidates.length} selected streams`)
-    const span = Metrics.start_span('anchor_candidates')
+    const span = Metrics.startSpan('anchor_candidates')
     const merkleTree = await this._buildMerkleTree(candidates)
 
     // create and send ETH transaction

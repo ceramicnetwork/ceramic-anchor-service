@@ -10,7 +10,7 @@ describe('simple test of metrics', () => {
     ServiceMetrics.start()
   })
   test('trace span', async() => {
-    const span = ServiceMetrics.start_span("doing it")
+    const span = ServiceMetrics.startSpan("doing it")
     // do things
     span.end()
   })
