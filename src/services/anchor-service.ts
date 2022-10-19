@@ -200,6 +200,7 @@ export class AnchorService {
 
   private async _anchorCandidates(candidates: Candidate[]): Promise<Partial<AnchorSummary>> {
     logger.imp(`Creating Merkle tree from ${candidates.length} selected streams`)
+    const span = Metrics.startSpan('anchor_candidates')
     const merkleTree = await this._buildMerkleTree(candidates)
 
     // create and send ETH transaction
@@ -222,6 +223,8 @@ export class AnchorService {
 
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
     Metrics.count(METRIC_NAMES.ANCHOR_SUCCESS, anchors.length)
+
+    span.end()
 
     return {
       anchoredRequestsCount: numAnchoredRequests,
@@ -426,6 +429,7 @@ export class AnchorService {
         candidate.cid
       } for stream ${candidate.streamId.toString()}: ${err}`
       logger.err(msg)
+      Metrics.count(METRIC_NAMES.ERROR_IPFS, 1)
       await this.requestRepository.updateRequests(
         { status: RS.FAILED, message: msg },
         candidate.acceptedRequests
@@ -732,6 +736,7 @@ export class AnchorService {
           missingRequests.length
         } missing commits: ${err}`
       )
+      Metrics.count(METRIC_NAMES.ERROR_MULTIQUERY, 1)
       candidate.failAllRequests()
       return
     }
@@ -743,6 +748,7 @@ export class AnchorService {
         logger.err(
           `Failed to load stream ${commitId.baseID.toString()} at commit ${commitId.commit.toString()}`
         )
+        Metrics.count(METRIC_NAMES.FAILED_TIP, 1)
         candidate.failRequest(request)
       }
     }
@@ -759,6 +765,7 @@ export class AnchorService {
     stream = response[candidate.streamId.toString()]
     if (!stream) {
       logger.err(`Failed to load stream ${candidate.streamId.toString()}`)
+      Metrics.count(METRIC_NAMES.FAILED_STREAM, 1)
       candidate.failAllRequests()
       return
     }
