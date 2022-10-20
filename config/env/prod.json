@@ -1,6 +1,7 @@
 {
   "mode": "@@APP_MODE",
   "port": "@@APP_PORT",
+  "useSmartContractAnchors": "@@USE_SMART_CONTRACT_ANCHORS",
   "anchorControllerEnabled": "@@ANCHOR_CONTROLLER_ENABLED",
   "anchorLauncherUrl": "@@ANCHOR_LAUNCHER_URL",
   "expirationPeriod": "@@ANCHOR_EXPIRATION_PERIOD",
@@ -33,7 +34,8 @@
         "transactionTimeoutSecs": "@@ETH_TXN_TIMEOUT",
         "account": {
           "privateKey": "@@ETH_WALLET_PK"
-        }
+        },
+        "contractAddress": "@@ETH_CONTRACT_ADDRESS"
       }
     }
   },
