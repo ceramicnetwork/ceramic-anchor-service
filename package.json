@@ -81,7 +81,7 @@
     "sqlite3": "^5.1.2",
     "tsm": "^2.2.2",
     "tsyringe": "^4.7.0",
-    "typeorm": "0.2.42-dev.1446e02",
+    "typeorm": "0.3.10",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
