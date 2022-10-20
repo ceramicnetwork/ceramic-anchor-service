@@ -1,19 +1,15 @@
+import 'reflect-metadata'
+
 import { CeramicAnchorApp } from './app.js'
 import { logger } from './logger/index.js'
 import { config } from 'node-config-ts'
 import { container } from 'tsyringe'
-import TypeORM from 'typeorm'
-const { createConnection } = TypeORM
+import { createDbConnection } from './db-connection.js'
 
 async function startApp() {
-  let connection
-  try {
-    logger.imp('Connecting to database...')
-    connection = await createConnection()
-    logger.imp(`Connected to database: ${connection.name}`)
-  } catch (e) {
-    throw new Error(`Database connection failed: ${e}`)
-  }
+  logger.imp('Connecting to database...')
+  const connection = await createDbConnection()
+  logger.imp(`Connected to database: ${config.db.client}`)
 
   const app = new CeramicAnchorApp(container, config, connection)
   await app.start()

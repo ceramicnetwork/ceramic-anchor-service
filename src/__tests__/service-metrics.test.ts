@@ -1,4 +1,5 @@
 import { ServiceMetrics } from '../service-metrics.js'
+import { config } from 'node-config-ts'
 
 /*
  * Without exporter, all methods are essentially no-ops
@@ -7,7 +8,7 @@ import { ServiceMetrics } from '../service-metrics.js'
  */
 describe('simple test of metrics', () => {
   beforeAll(async () => {
-    ServiceMetrics.start()
+    ServiceMetrics.start(config.metrics.collectorHost, 'cas-test-' + config.mode)
   })
   test('trace span', async() => {
     // We only check here if we *can call* the methods

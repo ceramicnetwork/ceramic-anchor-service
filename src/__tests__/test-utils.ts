@@ -1,16 +1,15 @@
 import { CID } from 'multiformats/cid'
 import { create } from 'multiformats/hashes/digest'
 
-import { CeramicService } from './services/ceramic-service.js'
-import { EventProducerService } from './services/event-producer/event-producer-service.js'
-import { IpfsService } from './services/ipfs-service.js'
+import { CeramicService } from '../services/ceramic-service.js'
+import { EventProducerService } from '../services/event-producer/event-producer-service.js'
+import { IpfsService } from '../services/ipfs-service.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
 import * as dagCBOR from '@ipld/dag-cbor'
 import { randomBytes } from '@stablelib/random'
 import { jest } from '@jest/globals'
-import { Request } from './models/request.js'
-import { RequestStatus } from './models/request-status.js'
+import { Request, RequestStatus } from '../models/request.js'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -139,29 +138,51 @@ export class MockEventProducerService implements EventProducerService {
   destroy(): void {}
 }
 
+/**
+ * Generates a single request
+ * @param override request data to use. If some values are not provided, they will be generated.
+ * @returns a promise for a request
+ */
+export async function generateRequest(override: Partial<Request>) {
+  const request = new Request()
+  const cid = await randomCID()
+  request.cid = cid.toString()
+  request.streamId = new StreamID('tile', cid).toString()
+  request.status = RequestStatus.PENDING
+  request.createdAt = new Date(Date.now() - Math.random() * MS_IN_HOUR)
+  request.updatedAt = new Date(request.createdAt.getTime())
+
+  Object.assign(request, override)
+
+  return request
+}
+
+/**
+ * Generates an array of requests
+ * @param override request data to use. If some values are not provided, they will be generated.
+ * @param count number of requests to generate (defaults to 1)
+ * @param varianceMS time between generated requests (defaults to 1000 ms)
+ * @returns a promise for an array of count requests
+ */
 export async function generateRequests(
   override: Partial<Request>,
   count = 1,
-  addVariance = true
+  varianceMS = 1000
 ): Promise<Request[]> {
   const requests = await Promise.all(
     Array.from(Array(count)).map(async (_, i) => {
-      const request = new Request()
-      const cid = await randomCID()
-      request.cid = cid.toString()
-      request.streamId = new StreamID('tile', cid).toString()
-      request.status = RequestStatus.PENDING
-      request.createdAt = new Date(Date.now() - Math.random() * MS_IN_HOUR)
-      request.updatedAt = new Date(request.createdAt.getTime())
+      if (varianceMS > 0) {
+        const createdAt = override.createdAt || new Date(Date.now())
+        const updatedAt = override.updatedAt || new Date(createdAt.getTime())
 
-      Object.assign(request, override)
-
-      if (addVariance) {
-        const variance = Math.random() * 5
-        request.createdAt = new Date(request.createdAt.getTime() + MS_IN_MINUTE * (i + variance))
-        request.updatedAt = new Date(request.updatedAt.getTime() + MS_IN_MINUTE * (i + variance))
+        return generateRequest({
+          createdAt: new Date(createdAt.getTime() + i * varianceMS),
+          updatedAt: new Date(updatedAt.getTime() + i * varianceMS),
+          ...override,
+        })
       }
-      return request
+
+      return generateRequest(override)
     })
   )
 

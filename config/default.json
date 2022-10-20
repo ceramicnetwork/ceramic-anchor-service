@@ -46,5 +46,19 @@
   },
   "metrics": {
     "collectorHost": ""
+  },
+  "db": {
+    "client": "postgresql",
+    "connection": {
+      "database": "anchor_db",
+      "host": "localhost",
+      "user": "root",
+      "password": "root",
+      "port": 5432
+    },
+    "debug": false,
+    "migrations": {
+      "tableName": "knex_migrations"
+    }
   }
 }

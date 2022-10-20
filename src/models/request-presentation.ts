@@ -1,6 +1,5 @@
 import { AnchorRepository } from '../repositories/anchor-repository.js'
-import { InvalidRequestStatusError, RequestStatus } from './request-status.js'
-import { Request } from './request.js'
+import { Request, InvalidRequestStatusError, RequestStatus } from './request.js'
 
 /**
  * Render anchoring Request as JSON for a client to consume.
@@ -34,7 +33,7 @@ export class RequestPresentation {
             cid: anchor.cid,
             content: {
               path: anchor.path,
-              prev: anchor.request.cid,
+              prev: request.cid,
               proof: anchor.proofCid,
             },
           },
@@ -42,7 +41,7 @@ export class RequestPresentation {
             cid: anchor.cid,
             content: {
               path: anchor.path,
-              prev: anchor.request.cid,
+              prev: request.cid,
               proof: anchor.proofCid,
             },
           },
