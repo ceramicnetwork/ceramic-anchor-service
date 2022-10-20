@@ -1,13 +1,13 @@
 version: '3.4'
 
 services:
-
   cas_api:
     build: .
     environment:
       - NODE_ENV=dev
       - APP_MODE=server
       - APP_PORT=8081
+      - USE_SMART_CONTRACT_ANCHORS=true
 
       - ANCHOR_CONTROLLER_ENABLED=false
       - ANCHOR_EXPIRATION_PERIOD=0
@@ -20,6 +20,7 @@ services:
       - ETH_NETWORK=ropsten
       - ETH_OVERRIDE_GAS_CONFIG=false
       - ETH_WALLET_PK=0x16dd0990d19001c50eeea6d32e8fdeef40d3945962caf18c18c3930baa5a6ec9
+      - ETH_CONTRACT_ADDRESS=0xD3f84Cf6Be3DD0EB16dC89c972f7a27B441A39f2
 
       - IPFS_API_URL=http://ipfs:5011
       - IPFS_API_TIMEOUT=10000
@@ -43,12 +44,12 @@ services:
 
       - VALIDATE_RECORDS=false
     volumes:
-      - "/usr/local/var/log:/usr/local/var/log"
+      - '/usr/local/var/log:/usr/local/var/log'
     depends_on:
       - ipfs
       - database
     ports:
-      - "8081:8081"
+      - '8081:8081'
     networks:
       - internal
 
@@ -59,6 +60,7 @@ services:
       - NODE_ENV=dev
       - APP_MODE=anchor
       - APP_PORT=8081
+      - USE_SMART_CONTRACT_ANCHORS=true
 
       - ANCHOR_CONTROLLER_ENABLED=false
       - ANCHOR_EXPIRATION_PERIOD=0
@@ -71,6 +73,7 @@ services:
       - ETH_NETWORK=ropsten
       - ETH_OVERRIDE_GAS_CONFIG=false
       - ETH_WALLET_PK=0x16dd0990d19001c50eeea6d32e8fdeef40d3945962caf18c18c3930baa5a6ec9
+      - ETH_CONTRACT_ADDRESS=0xD3f84Cf6Be3DD0EB16dC89c972f7a27B441A39f2
 
       - IPFS_API_URL=http://ipfs:5011
       - IPFS_API_TIMEOUT=10000
@@ -94,7 +97,7 @@ services:
 
       - VALIDATE_RECORDS=false
     volumes:
-      - "/usr/local/var/log:/usr/local/var/log"
+      - '/usr/local/var/log:/usr/local/var/log'
     depends_on:
       - ipfs
       - database
@@ -105,23 +108,23 @@ services:
   ipfs:
     image: ceramicnetwork/ipfs-daemon
     volumes:
-      - "./export:/export"
-      - "./data/ipfs:/data/ipfs"
+      - './export:/export'
+      - './data/ipfs:/data/ipfs'
     ports:
-      - "5011:5011"
-      - "4001:4001"
-      - "8080:8080"
+      - '5011:5011'
+      - '4001:4001'
+      - '8080:8080'
     networks:
       - internal
 
   database:
-    image: "postgres"
+    image: 'postgres'
     environment:
       - POSTGRES_USER=root
       - POSTGRES_PASSWORD=root
       - POSTGRES_DB=anchor_db
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - ./data/postgres:/var/lib/postgresql/data/
     networks:
