@@ -30,7 +30,8 @@
     "filePath": ""
   },
   "metrics": {
-    "collectorHost": "@@COLLECTOR_HOSTNAME"
+    "collectorHost": "@@COLLECTOR_HOSTNAME",
+    "traceRatio": "@@METRICS_TRACE_RATIO"
   },
   "db": {
     "client": "postgresql",

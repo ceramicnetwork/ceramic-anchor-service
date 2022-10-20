@@ -5,6 +5,8 @@ import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
 import { IpfsService } from './ipfs-service.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
+import { ServiceMetrics as Metrics } from '../service-metrics.js'
+import { METRIC_NAMES } from '../settings.js'
 import { logger } from '../logger/index.js'
 
 // Interface to allow injecting a mock in tests
@@ -62,6 +64,7 @@ export class CeramicServiceImpl implements CeramicService {
         .add(streamId)
         .then(() => {
           logger.debug(`Successfully pinned stream ${streamId.toString()}`)
+          Metrics.count(METRIC_NAMES.PIN_SUCCEEDED, 1)
         })
         .finally(() => {
           clearTimeout(timeout)
@@ -77,6 +80,7 @@ export class CeramicServiceImpl implements CeramicService {
     } catch (e) {
       // Pinning is best-effort, as we don't want to fail requests if the Ceramic node is unavailable
       logger.err(`Error pinning stream ${streamId.toString()}: ${e.toString()}`)
+      Metrics.count(METRIC_NAMES.PIN_FAILED, 1)
     }
   }
 

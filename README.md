@@ -1,10 +1,9 @@
-# Ceramic anchor service - PoC
+# Ceramic Anchor Service
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fceramicnetwork%2Fceramic-anchor-service.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fceramicnetwork%2Fceramic-anchor-service?ref=badge_shield)
 
+Ceramic Anchor Service is a proof of concept implementation of an anchor service according to the Ceramic [specification](https://github.com/ceramicnetwork/specs).
 
-Ceramic anchor service is a PoC implementation of an anchor service according to the Ceramic [specification](https://github.com/ceramicnetwork/specs).
-
-This implementation currently uses the Ethereum blockchain but is built in order to be blockchain agnostic. It is fairly easy to add more modules to support other blockchains as well.  
+This implementation currently uses the Ethereum blockchain but is built in order to be blockchain agnostic. It is fairly easy to add more modules to support other blockchains as well.
 
 ## Usage (Docker)
 
@@ -42,225 +41,18 @@ docker compose down
 
 ## Usage (Node.js)
 
-### Prerequisites
-
 In order to run the simulation you need to install [Node.js](https://nodejs.org).
-
-### Installing
 
 Configuration file is located under `./config` directory.
 
 In order to build the application start the IPFS node locally and run the following commands:
 
-```docker-compose up -d```
+```sh
+npm run build
+npm run start
+```
 
-```npm run build```
-
-```npm run start```
-
-### RESTful APIs
-
-RESTful APIs are enabled on `http://localhost:3000/api/v0/` by default.
-
-----
-  #### Create Anchor Request
-  
-  Creates CID anchor request.
-
-* **URL**
-
-  `/requests`
-
-* **Method:**
-
-  `POST`
-  
-* **Data Params**<br />
-
-  * **Content:** 
-    ```json
-      {
-      	"cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
-      	"docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa" 
-      }
-    ```
-
-* **Success Response:**
-
-  * **Code:** 201 <br />
-    **Content:** 
-     ```json
-     {
-         "id": "06a483c9-eb73-4e08-a019-7b5665588172",
-         "status": "PENDING",
-         "message": "Request is pending.",
-         "cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
-         "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
-         "createdAt": 1586438625,
-         "updatedAt": 1586438625,
-     }
-     ```
-
-----
-  #### Get CID anchor request information
-    
-  Creates CID anchor request.
-
-* **URL**
-
-  `/requests/:cid`
-
-* **Method:**
-
-  `GET`
-  
-*  **URL Params**
-
-   **Required:**
- 
-   `cid=[string]`
-
-* **Data Params**
-
-  None
-
-* **Success Response - `PENDING`:**
-
-  * **Code:** 200 <br />
-    **Content:** 
-    ```json
-    {
-        "id": "06a483c9-eb73-4e08-a019-7b5665588172",
-        "status": "PENDING",
-        "message": "Request is pending.",
-        "cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
-        "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
-        "createdAt": 1586438625,
-        "updatedAt": 1586438625,
-    }
-    ```
-
-* **Success Response - `FAILED`:**
-
-  * **Code:** 200 <br />
-    **Content:** 
-    ```json
-    {
-        "id": "06a483c9-eb73-4e08-a019-7b5665588172",
-        "status": "FAILED",
-        "message": "Request failed. Staled request.",
-        "cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
-        "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
-        "createdAt": 1586438625,
-        "updatedAt": 1586438625
-    }
-    ```
-
-* **Success Response - `COMPLETED`:**
-
-  * **Code:** 200 <br />
-    **Content:** 
-    ```json
-    {
-        "id": "06a483c9-eb73-4e08-a019-7b5665588172",
-        "status": "COMPLETED",
-        "message": "CID successfully anchored.",
-        "cid": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
-        "docId": "doc_875c56f9-9d5d-4031-8d3d-d171a91b15aa",
-        "createdAt": 1586438625,
-        "updatedAt": 1586438625,
-        "anchorRecord": {
-            "cid": "bafyreicq6rwooyi2dk24p52nutgysi4gpu2lvoeilooekqypk4h4f32wpy",
-            "content": {
-                "path": "L/L",
-                "prev": "bafyreihgmyh2srmmyiw7fdihrc2lw2uodvpxb2hbpyxo7w2jlqizga6pne",
-                "proof": "bafyreid3fjhoybtbgzdt2afdrxzikprbmgvufn3z7oavodd37k2tnof5ry"
-            }
-        }
-    }
-    ```
- 
-* **Error Response - `NOT FOUND`:**
-
-  * **Code:** 404 (NOT FOUND) <br />
-    **Content:** `{ error : "Request doesn't exist" }`
-    
-    Indicates that no anchor request was found for the given CID.
-
-* **Error Response - `BAD REQUEST`:**
-
-  * **Code:** 400 (BAD REQUEST) <br />
-    **Content:** `{ error : "error message" }`
-    
-    Indicates that the request was malformed or missing necessary arguments like the CID.
-
-
-----
-  #### Get Chain ID
-  
-  Returns the CAIP-2 chain id of the configured blockchain.
-
-* **URL**
-
-  `/service-info/chainid`
-
-* **Method:**
-
-  `GET`
-
-* **Success Response:**
-
-  * **Code:** 200 <br />
-    **Content:** 
-     ```json
-     {
-         "chainId": "eip155:1"
-     }
-     ```
-----
-  #### Healthcheck
-  
-  Perform a healthcheck against the anchor service itself
-
-* **URL**
-
-  `/healthcheck`
-
-* **Method:**
-
-  `GET`
-
-* **Success Response:**
-
-  * **Code:** 200 <br />
-  
-* **Error Response:**
-
-  * **Code:** 503 <br />
-
-----
-
-## IPFS explorer visualization
-
-The image below represents requested CID IPLD document.
-
-<p align="center">
-    <img src="./resources/ipld-cid.png" width="800" alt="CID IPLD document"/>
-</p>
-    
-The image below represents anchor record IPLD document.
-
-<p align="center">
-    <img src="./resources/ipld-anchor-record.png" width="800" alt="Anchor IPLD document"/>
-</p>
-
-The image below represents anchor proof IPLD document.
-
-<p align="center">
-    <img src="./resources/ipld-anchor-proof.png" width="800" alt="Anchor IPLD document"/>
-</p>
-
-## Running the tests
+## Testing
 
 1. Install node modules by running `npm install`
 1. Compile smart contracts
@@ -277,21 +69,15 @@ The image below represents anchor proof IPLD document.
 Values in the config files get their types auto-generated by [node-config-ts](https://github.com/tusharmath/node-config-ts) when running `npm run postinstall`.
 
 ## Maintainers
-[@simonovic86](https://github.com/simonovic86)
-
-## Built With
-
-* [Node.js - v16](https://nodejs.org)
-* [TypeScript - v3.8.3](https://www.typescriptlang.org)
-* [SQLite](https://www.sqlite.org/index.html)
+[@stephhuynh18](https://github.com/stephhuynh18)
 
 ## License
 
 Apache-2.0 OR MIT
 
-
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fceramicnetwork%2Fceramic-anchor-service.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fceramicnetwork%2Fceramic-anchor-service?ref=badge_large)
 
 ## Team
 
-Built with  <img src="./resources/heart.png" width="20"/>  from [3Box](https://3box.io) team.
+Built with  <img src="./resources/heart.png" width="20"/>  from the [3Box Labs](https://3box.io) team.
+

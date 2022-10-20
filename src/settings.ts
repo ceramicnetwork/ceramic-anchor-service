@@ -2,11 +2,20 @@ export enum METRIC_NAMES {
   ANCHOR_SUCCESS = 'anchor_success',
   ANCHOR_TIMEOUT = 'anchor_timeout',
   ERROR_ETH = 'error_eth',
+  ERROR_IPFS = 'error_ipfs',
+  ERROR_MULTIQUERY = 'error_multiquery',
+
+  FAILED_TIP = 'failed_load_tip',
+  FAILED_STREAM = 'failed_load_stream', 
 
   RETRY_EMIT_ANCHOR_EVENT = 'retry_emit_anchor_event',
   REVERT_TO_PENDING = 'revert_to_pending',
 
   DB_SERIALIZATION_ERROR = 'db_serialization_error',
+
+  PIN_REQUESTED = 'pin_requested',
+  PIN_SUCCEEDED = 'pin_succeeded',
+  PIN_FAILED = 'pin_failed',
 
   RETRY_PROCESSING = 'retry_processing',
   RETRY_FAILED = 'retry_failed',
