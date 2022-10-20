@@ -66,23 +66,20 @@ const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder =>
   })
 }
 
-type streamAndEarliestRequestDate = {
-  streamId: string
-  minCreatedAt: Date
-}
-
 /**
  * Finds a batch of streams to anchor based on whether a stream's associated requests need to be anchored.
  * @param connection
  * @param maxStreamLimit max size of the batch
  * @param now
- * @returns streams and the date of each stream's earliest requests
+ * @returns Promise for the stream ids to anchor
  */
-const findStreamsToAnchor = (
+const findStreamsToAnchor = async (
   connection: Knex,
   maxStreamLimit: number,
+  minStreamLimit: number,
+  anchoringDeadline: Date,
   now: Date
-): Promise<Array<streamAndEarliestRequestDate>> => {
+): Promise<Array<string>> => {
   const query = findRequestsToAnchor(connection, now)
     .select(['streamId', connection.raw('MIN(request.created_at) as min_created_at')])
     .orderBy('min_created_at', 'asc')
@@ -90,7 +87,27 @@ const findStreamsToAnchor = (
 
   if (maxStreamLimit !== 0) query.limit(maxStreamLimit)
 
-  return query
+  const streamsToAnchor = await query
+
+  // Do not anchor if there are no streams to anchor
+  if (streamsToAnchor.length === 0) {
+    logger.debug(`No streams were found that are ready to anchor`)
+    return []
+  }
+
+  // Return a batch of streams only if we have enough streams to fill a batch or the earliest stream request is expired
+  const enoughStreams = streamsToAnchor.length >= minStreamLimit
+  const earliestIsExpired = streamsToAnchor[0].minCreatedAt < anchoringDeadline
+
+  if (!enoughStreams && !earliestIsExpired) {
+    logger.debug(
+      `No streams are ready to anchor because there are not enough streams for a batch ${streamsToAnchor.length}/${minStreamLimit} and the earliest request is not expired (created at ${streamsToAnchor[0].minCreatedAt})`
+    )
+
+    return []
+  }
+
+  return streamsToAnchor.map(({ streamId }) => streamId)
 }
 
 /**
@@ -300,29 +317,18 @@ export class RequestRepository {
     return connection
       .transaction(
         async (trx) => {
-          const streamsToAnchor = await findStreamsToAnchor(trx, maxStreamLimit, now)
+          const streamIds = await findStreamsToAnchor(
+            trx,
+            maxStreamLimit,
+            minStreamLimit,
+            anchoringDeadline,
+            now
+          )
 
-          // Do not anchor if there are no streams to anchor
-          if (streamsToAnchor.length === 0) {
-            logger.debug(
-              `Not updating any requests to READY because there are no streams to anchor`
-            )
+          if (streamIds.length === 0) {
+            logger.debug(`Not updating any requests to READY`)
             return []
           }
-
-          // Anchor if we have enough streams or the earliest stream request is expired
-          const enoughStreams = streamsToAnchor.length >= minStreamLimit
-          const earliestIsExpired = streamsToAnchor[0].minCreatedAt < anchoringDeadline
-
-          if (!enoughStreams && !earliestIsExpired) {
-            logger.debug(
-              `Not updating any requests to READY because there are not enough streams for a batch ${streamsToAnchor.length}/${minStreamLimit} and the earliest request is not expired (created at ${streamsToAnchor[0].minCreatedAt})`
-            )
-
-            return []
-          }
-
-          const streamIds = streamsToAnchor.map(({ streamId }) => streamId)
 
           const requests = await findRequestsToAnchorForStreams(trx, streamIds, now)
 
