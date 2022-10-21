@@ -83,7 +83,7 @@ jobs:
       - send-dispatch-event
 
 workflows:
-  test:
+  test_and_queue_deploy:
     jobs:
       - test
       - dispatch-event:
