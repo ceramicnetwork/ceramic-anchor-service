@@ -84,6 +84,7 @@ jobs:
 
 workflows:
   test:
+    name: Test and Queue Deploy
     jobs:
       - test
       - dispatch-event:
