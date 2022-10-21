@@ -20,10 +20,15 @@ const MS_IN_HOUR = MS_IN_MINUTE * 60
 const MS_IN_DAY = MS_IN_HOUR * 24
 const MS_IN_MONTH = MS_IN_DAY * 30
 
-async function generateCompletedRequest(expired: boolean, failed: boolean): Promise<Request> {
-  const threeMonthsAgo = new Date(Date.now() - MS_IN_MONTH * 3)
-  const fiveDaysAgo = new Date(Date.now() - MS_IN_DAY * 5)
-  const moreThanMonthAgo = new Date(Date.now() - MS_IN_DAY * 31)
+async function generateCompletedRequest(
+  expired: boolean,
+  failed: boolean,
+  varianceMS = 0
+): Promise<Request> {
+  const now = new Date()
+  const threeMonthsAgo = new Date(now.getTime() - MS_IN_MONTH * 3 + varianceMS)
+  const fiveDaysAgo = new Date(now.getTime() - MS_IN_DAY * 5 + varianceMS)
+  const moreThanMonthAgo = new Date(now.getTime() - MS_IN_DAY * 31 + varianceMS)
 
   return generateRequest({
     status: failed ? RequestStatus.FAILED : RequestStatus.COMPLETED,
@@ -87,18 +92,18 @@ describe('request repository test', () => {
       // Create two requests that are expired and should be garbage collected, and two that should not
       // be.
       const requests = await Promise.all([
-        generateCompletedRequest(false, false),
-        generateCompletedRequest(true, false),
-        generateCompletedRequest(false, true),
-        generateCompletedRequest(true, true),
+        generateCompletedRequest(false, false, 0),
+        generateCompletedRequest(true, false, 100),
+        generateCompletedRequest(false, true, 200),
+        generateCompletedRequest(true, true, 300),
       ])
 
       await requestRepository.createRequests(requests)
 
       const expiredRequests = await requestRepository.findRequestsToGarbageCollect()
       expect(expiredRequests.length).toEqual(2)
-      expect(expiredRequests[0].cid).toEqual(requests[1].cid)
-      expect(expiredRequests[1].cid).toEqual(requests[3].cid)
+      expect(expiredRequests[0].cid).toEqual(requests[3].cid)
+      expect(expiredRequests[1].cid).toEqual(requests[1].cid)
     })
 
     test("Don't cleanup streams who have both old and new requests", async () => {
