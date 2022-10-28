@@ -721,7 +721,7 @@ describe('anchor service', () => {
       expect(updatedRequest.status).toEqual(RequestStatus.COMPLETED)
     })
 
-    test('Request succeeds without anchor for already CIDs with next CIDs that have been anchored', async () => {
+    test('Request succeeds without anchor if subsequent CIDs are already anchored', async () => {
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const anchorService = container.resolve<AnchorService>('anchorService')
 
