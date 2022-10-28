@@ -23,7 +23,7 @@ import type { Connection } from 'typeorm'
 import { CID } from 'multiformats/cid'
 import { Candidate } from '../../merkle/merkle-objects.js'
 import { Anchor } from '../../models/anchor.js'
-import { AnchorStatus, toCID } from '@ceramicnetwork/common'
+import { AnchorStatus, LogEntry, CommitType, toCID } from '@ceramicnetwork/common'
 import cloneDeep from 'lodash.clonedeep'
 import { Utils } from '../../utils.js'
 import { PubsubMessage } from '@ceramicnetwork/core'
@@ -68,13 +68,19 @@ async function anchorCandidates(
   return anchors
 }
 
-function createStream(id: StreamID, log: CID[], anchorStatus: AnchorStatus = AnchorStatus.PENDING) {
+function createStream(
+  id: StreamID,
+  log: CID[] | LogEntry[],
+  anchorStatus: AnchorStatus = AnchorStatus.PENDING
+) {
   return {
     id,
     metadata: { controllers: ['this is totally a did'] },
     state: {
-      log: log.map((cid) => {
-        return { cid }
+      log: log.map((logEntry) => {
+        const cid = CID.asCID(logEntry)
+        if (cid) return { cid }
+        return logEntry
       }),
       anchorStatus,
       metadata: { controllers: ['this is totally a did'] },
@@ -707,6 +713,66 @@ describe('anchor service', () => {
       ceramicService.putStream(
         streamId,
         createStream(streamId, [toCID(request.cid), anchorCommitCID], AnchorStatus.ANCHORED)
+      )
+
+      const [candidates, _] = await anchorService._findCandidates([request], 0)
+      expect(candidates.length).toEqual(0)
+
+      // request should still be marked as completed even though no anchor was performed
+      const updatedRequest = await requestRepository.findByCid(toCID(request.cid))
+      expect(updatedRequest.status).toEqual(RequestStatus.COMPLETED)
+    })
+
+    test('Request succeeds without anchor for already CIDs with next CIDs that have been anchored', async () => {
+      const requestRepository = container.resolve<RequestRepository>('requestRepository')
+      const anchorService = container.resolve<AnchorService>('anchorService')
+
+      const streamId = await ceramicService.generateBaseStreamID()
+      const request = await createRequest(streamId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request)
+      const commitId = CommitID.make(streamId, request.cid)
+
+      const nextRequest = await createRequest(streamId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request)
+      const nextCommitId = CommitID.make(streamId, request.cid)
+      const anchorCommitCID = await ipfsService.storeRecord({})
+
+      const nextNextRequest = await createRequest(streamId.toString(), ipfsService)
+      await requestRepository.createOrUpdate(request)
+      const nextNextCommitId = CommitID.make(streamId, request.cid)
+
+      ceramicService.putStream(
+        commitId,
+        createStream(streamId, [{ cid: toCID(request.cid), type: CommitType.GENESIS }])
+      )
+      ceramicService.putStream(
+        nextCommitId,
+        createStream(streamId, [
+          { cid: toCID(request.cid), type: CommitType.GENESIS },
+          { cid: toCID(nextRequest.cid), type: CommitType.SIGNED },
+        ])
+      )
+      ceramicService.putStream(
+        nextNextCommitId,
+        createStream(streamId, [
+          { cid: toCID(request.cid), type: CommitType.GENESIS },
+          { cid: toCID(nextRequest.cid), type: CommitType.SIGNED },
+          { cid: anchorCommitCID, type: CommitType.ANCHOR },
+          { cid: toCID(nextNextRequest.cid), type: CommitType.SIGNED },
+        ])
+      )
+      ceramicService.putStream(
+        streamId,
+        createStream(
+          streamId,
+          [
+            { cid: toCID(request.cid), type: CommitType.GENESIS },
+            { cid: toCID(nextRequest.cid), type: CommitType.SIGNED },
+            { cid: anchorCommitCID, type: CommitType.ANCHOR },
+            { cid: toCID(nextNextRequest.cid), type: CommitType.SIGNED },
+          ],
+          AnchorStatus.PENDING
+        )
       )
 
       const [candidates, _] = await anchorService._findCandidates([request], 0)
