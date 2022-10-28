@@ -1,7 +1,7 @@
 import { CID } from 'multiformats/cid'
 import * as fs from 'fs'
 
-import { AnchorStatus, Stream, StreamMetadata } from '@ceramicnetwork/common'
+import { AnchorStatus, Stream, StreamMetadata, CommitType } from '@ceramicnetwork/common'
 import { CompareFunction, MergeFunction, MetadataFunction, Node, TreeMetadata } from './merkle.js'
 import { Request } from '../models/request.js'
 
@@ -175,20 +175,25 @@ export class Candidate implements CIDHolder {
       return !includedRequests.includes(req)
     })
 
-    // Pick which request to put in the anchor database entry for the anchor that will result
-    // from anchoring this Candidate Stream.
-    const newestRequestCid = stream.state.log.reverse().find((logEntry) => {
-      return includedRequests.find((req) => {
-        return req.cid == logEntry.cid.toString()
-      })
-    })
-    const newestRequest = includedRequests.find((req) => {
-      return req.cid == newestRequestCid.cid.toString()
-    })
-
-    this._newestAcceptedRequest = newestRequest
     this._acceptedRequests = includedRequests
     this._rejectedRequests = rejectedRequests
+
+    // Pick which request to put in the anchor database entry for the anchor that will result
+    // from anchoring this Candidate Stream. If there are any anchor commits that are after the
+    // newest request, the candidate has already been anchored.
+    for (const logEntry of stream.state.log.reverse()) {
+      if (logEntry.type === CommitType.ANCHOR) {
+        this._alreadyAnchored = true
+        return
+      }
+
+      const newestRequest = includedRequests.find((req) => req.cid == logEntry.cid.toString())
+
+      if (newestRequest) {
+        this._newestAcceptedRequest = newestRequest
+        return
+      }
+    }
   }
 }
 
