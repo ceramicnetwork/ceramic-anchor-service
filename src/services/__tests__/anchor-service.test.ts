@@ -785,7 +785,7 @@ describe('anchor service', () => {
       expect(updatedRequest.status).toEqual(RequestStatus.COMPLETED)
     })
 
-    test('Request succeeds for anchor requests that already have been anchored but not updated to COMPLETE', async () => {
+    test('Request succeeds for anchor requests that have been anchored but not updated to COMPLETE', async () => {
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const anchorService = container.resolve<AnchorService>('anchorService')
 
