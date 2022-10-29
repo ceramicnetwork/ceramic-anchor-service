@@ -30,10 +30,13 @@ export class AnchorRepository {
   public async findByRequest(request: Request, options: Options = {}): Promise<Anchor> {
     const { connection = this.connection } = options
 
-    const { requestId, ...anchorWithoutRequestId } = await connection(TABLE_NAME)
-      .where({ requestId: request.id })
-      .first()
+    const results = await connection(TABLE_NAME).where({ requestId: request.id }).first()
 
+    if (!results) {
+      return results
+    }
+
+    const { requestId, ...anchorWithoutRequestId } = results
     return { ...anchorWithoutRequestId, request }
   }
 }

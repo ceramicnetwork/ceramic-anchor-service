@@ -784,6 +784,29 @@ describe('anchor service', () => {
       const updatedRequest = await requestRepository.findByCid(toCID(request.cid))
       expect(updatedRequest.status).toEqual(RequestStatus.COMPLETED)
     })
+
+    test('Request succeeds without anchor requests that already have been anchored but not updated', async () => {
+      const requestRepository = container.resolve<RequestRepository>('requestRepository')
+      const anchorService = container.resolve<AnchorService>('anchorService')
+
+      // 1 stream with 2 pending requests, one request is newer and inclusive of the other.
+      const streamId = await ceramicService.generateBaseStreamID()
+      const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
+      await requestRepository.createOrUpdate(request)
+      const commitId0 = CommitID.make(streamId, request.cid)
+
+      ceramicService.putStream(commitId0, createStream(streamId, [toCID(request.cid)]))
+      ceramicService.putStream(streamId, createStream(streamId, [toCID(request.cid)]))
+
+      const [candidates] = await anchorService._findCandidates([request], 0)
+      await anchorCandidates(candidates, anchorService, ipfsService)
+      const updatedRequest = await requestRepository.findByCid(toCID(request.cid))
+      expect(updatedRequest.status).toEqual(RequestStatus.COMPLETED)
+
+      await requestRepository.updateRequests({ status: RequestStatus.PENDING }, [updatedRequest])
+      const [candidates2] = await anchorService._findCandidates([request], 0)
+      expect(candidates2.length).toEqual(0)
+    })
   })
 
   describe('Request pinning', () => {
