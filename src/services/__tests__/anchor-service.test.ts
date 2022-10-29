@@ -789,7 +789,6 @@ describe('anchor service', () => {
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const anchorService = container.resolve<AnchorService>('anchorService')
 
-      // 1 stream with 2 pending requests, one request is newer and inclusive of the other.
       const streamId = await ceramicService.generateBaseStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       await requestRepository.createOrUpdate(request)
@@ -804,8 +803,12 @@ describe('anchor service', () => {
       expect(updatedRequest.status).toEqual(RequestStatus.COMPLETED)
 
       await requestRepository.updateRequests({ status: RequestStatus.PENDING }, [updatedRequest])
+
+      // request should not be a candidate again because it already has an anchor
       const [candidates2] = await anchorService._findCandidates([request], 0)
       expect(candidates2.length).toEqual(0)
+      const updatedRequest2 = await requestRepository.findByCid(toCID(request.cid))
+      expect(updatedRequest2.status).toEqual(RequestStatus.COMPLETED)
     })
   })
 
