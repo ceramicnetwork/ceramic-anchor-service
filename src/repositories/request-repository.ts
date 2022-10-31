@@ -387,8 +387,8 @@ export class RequestRepository {
   }
 
   /**
-   * Finds and updates all READY requests that have not been moved to PROCESSING in a sufficient amount of time
-   * Updates them again to indicate that they are being retried
+   * Finds and updates all READY requests that are expired (have not been moved to PROCESSING in a sufficient amount of time)
+   * Updating them indicates that they are being retried
    * @param options
    * @returns A promise for the number of expired ready requests updated
    */
@@ -411,7 +411,7 @@ export class RequestRepository {
           }
 
           // since the expiration of ready requests are determined by their "updated_at" field, update the requests again
-          // to indicate that a new anchor event has been emitted
+          // to indicate that they are being retried
           const updatedCount = await this.updateRequests(
             { status: RequestStatus.READY },
             readyRequests,

@@ -277,6 +277,9 @@ export class AnchorService {
 
     const updatedExpiredReadyRequestsCount =
       await this.requestRepository.updateExpiringReadyRequests()
+
+    // if ready requests have been updated because they have expired
+    // we will retry them by emitting an anchor event and not marking anymore requests as READY
     if (updatedExpiredReadyRequestsCount > 0) {
       logger.debug(
         `Emitting an anchor event beacuse ${updatedExpiredReadyRequestsCount} READY requests expired`
