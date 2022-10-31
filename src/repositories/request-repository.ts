@@ -349,7 +349,7 @@ export class RequestRepository {
 
           countRetryMetrics(requests, anchoringDeadline)
 
-          logger.debug(`Updated ${updatedCount} requests to READY`)
+          logger.debug(`Updated ${updatedCount} requests to READY for ${streamIds.length} streams`)
 
           return requests
         },
