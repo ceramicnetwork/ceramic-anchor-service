@@ -565,4 +565,46 @@ describe('request repository test', () => {
       expect(updatedRequests.length).toEqual(0)
     })
   })
+
+  describe('updateExpiringReadyRequests', () => {
+    test('Updates expiring ready requests if they exist', async () => {
+      const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
+      const expiredReadyRequestsCount = 3
+
+      // expired ready request
+      const requests = await generateRequests(
+        {
+          status: RequestStatus.READY,
+          createdAt: updatedTooLongAgo,
+          updatedAt: updatedTooLongAgo,
+        },
+        expiredReadyRequestsCount,
+        0
+      )
+
+      await requestRepository.createRequests(requests)
+
+      const createdRequests = await getAllRequests(connection)
+      expect(requests.length).toEqual(createdRequests.length)
+
+      const retriedReadyRequestsCount = await requestRepository.updateExpiringReadyRequests()
+      expect(retriedReadyRequestsCount).toEqual(expiredReadyRequestsCount)
+
+      const allReadyRequests = await getAllRequests(connection)
+      expect(allReadyRequests.every(({ updatedAt }) => updatedAt > updatedTooLongAgo)).toEqual(true)
+    })
+
+    test('Does not update any expired ready requests if there are none', async () => {
+      // ready requests created now
+      const requests = await generateRequests({})
+
+      await requestRepository.createRequests(requests)
+
+      const createdRequests = await getAllRequests(connection)
+      expect(requests.length).toEqual(createdRequests.length)
+
+      const retriedReadyRequestsCount = await requestRepository.updateExpiringReadyRequests()
+      expect(retriedReadyRequestsCount).toEqual(0)
+    })
+  })
 })

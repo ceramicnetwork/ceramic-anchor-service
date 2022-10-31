@@ -1018,5 +1018,50 @@ describe('anchor service', () => {
       const anchorService = container.resolve<AnchorService>('anchorService')
       await anchorService.emitAnchorEventIfReady()
     })
+
+    test('Does not retry requests that are being updated simultaneously', async () => {
+      const config = container.resolve<Config>('config')
+      const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
+
+      // Ready requests that have timed out (created too long ago)
+      const requests = await generateRequests(
+        {
+          status: RequestStatus.READY,
+          createdAt: updatedTooLongAgo,
+          updatedAt: updatedTooLongAgo,
+        },
+        3,
+        0
+      )
+
+      const requestRepository = container.resolve<RequestRepository>('requestRepository')
+      await requestRepository.createRequests(requests)
+      const createdRequests = await requestRepository.findByStatus(RequestStatus.READY)
+
+      const anchorService = container.resolve<AnchorService>('anchorService')
+
+      await Promise.all([
+        requestRepository.updateRequests(
+          { status: RequestStatus.COMPLETED, message: 'request0' },
+          createdRequests.slice(0, 1)
+        ),
+        requestRepository.updateRequests(
+          { status: RequestStatus.PENDING, message: 'request1' },
+          createdRequests.slice(1, 2)
+        ),
+        requestRepository.updateRequests(
+          { status: RequestStatus.FAILED, message: 'request2' },
+          createdRequests.slice(2)
+        ),
+        anchorService.emitAnchorEventIfReady(),
+      ])
+
+      const updatedRequests = await requestRepository.findByStatus(RequestStatus.READY)
+      expect(updatedRequests.length).toEqual(0)
+
+      const eventProducerService =
+        container.resolve<MockEventProducerService>('eventProducerService')
+      expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(0)
+    })
   })
 })

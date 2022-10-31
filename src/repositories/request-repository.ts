@@ -385,4 +385,53 @@ export class RequestRepository {
 
     return query
   }
+
+  /**
+   * Finds and updates all READY requests that have not been moved to PROCESSING in a sufficient amount of time
+   * Updates them again to indicate that they are being retried
+   * @param options
+   * @returns A promise for the number of expired ready requests updated
+   */
+  public async updateExpiringReadyRequests(options: Options = {}): Promise<Number> {
+    const { connection = this.connection } = options
+
+    return await connection
+      .transaction(
+        async (trx) => {
+          const readyRequests = await this.findByStatus(RequestStatus.READY, { connection: trx })
+          const readyDeadline = Date.now() - this.config.readyRetryIntervalMS
+
+          if (readyRequests.length === 0) {
+            return 0
+          }
+
+          const earliestNotTimedOut = readyDeadline < readyRequests[0].updatedAt.getTime()
+          if (earliestNotTimedOut) {
+            return 0
+          }
+
+          // since the expiration of ready requests are determined by their "updated_at" field, update the requests again
+          // to indicate that a new anchor event has been emitted
+          const updatedCount = await this.updateRequests(
+            { status: RequestStatus.READY },
+            readyRequests,
+            { connection: trx }
+          )
+
+          return updatedCount
+        },
+        {
+          isolationLevel: 'serializable',
+        }
+      )
+      .catch(async (err) => {
+        if (err?.code === REPEATED_READ_SERIALIZATION_ERROR) {
+          Metrics.count(METRIC_NAMES.DB_SERIALIZATION_ERROR, 1)
+          await Utils.delay(100)
+          return this.updateExpiringReadyRequests(options)
+        }
+
+        throw err
+      })
+  }
 }
