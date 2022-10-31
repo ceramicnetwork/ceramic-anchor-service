@@ -273,23 +273,16 @@ export class AnchorService {
    * mark them as PROCESSING, and perform an anchor.
    */
   public async emitAnchorEventIfReady(): Promise<void> {
-    const readyRequests = await this.requestRepository.findByStatus(RS.READY)
-    const readyDeadline = Date.now() - this.config.readyRetryIntervalMS
+    const updatedExpiredReadyRequestsCount =
+      await this.requestRepository.updateExpiringReadyRequests()
 
-    if (readyRequests.length > 0) {
-      const earliestNotTimedOut = readyDeadline < readyRequests[0].updatedAt.getTime()
-      if (earliestNotTimedOut) {
-        return
-      }
-      // since the expiration of ready requests are determined by their "updated_at" field, update the requests again
-      // to indicate that a new anchor event has been emitted
-      const updatedCount = await this.requestRepository.updateRequests(
-        { status: RS.READY },
-        readyRequests
+    // if ready requests have been updated because they have expired
+    // we will retry them by emitting an anchor event and not marking anymore requests as READY
+    if (updatedExpiredReadyRequestsCount > 0) {
+      logger.debug(
+        `Emitting an anchor event beacuse ${updatedExpiredReadyRequestsCount} READY requests expired`
       )
-
-      logger.debug(`Emitting an anchor event beacuse ${updatedCount} READY requests expired`)
-      Metrics.count(METRIC_NAMES.RETRY_EMIT_ANCHOR_EVENT, readyRequests.length)
+      Metrics.count(METRIC_NAMES.RETRY_EMIT_ANCHOR_EVENT, updatedExpiredReadyRequestsCount)
     } else {
       const maxStreamLimit =
         this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0
@@ -460,7 +453,7 @@ export class AnchorService {
       acceptedRequests.push(...candidate.acceptedRequests)
     }
 
-    const trx = await this.connection.transaction()
+    const trx = await this.connection.transaction(null, { isolationLevel: 'serializable' })
     try {
       await this.anchorRepository.createAnchors(anchors, { connection: trx })
 
