@@ -392,7 +392,7 @@ export class RequestRepository {
    * @param options
    * @returns A promise for the number of expired ready requests updated
    */
-  public async updateExpiringReadyRequests(options: Options = {}): Promise<Number> {
+  public async updateExpiringReadyRequests(options: Options = {}): Promise<number> {
     const { connection = this.connection } = options
 
     return await connection

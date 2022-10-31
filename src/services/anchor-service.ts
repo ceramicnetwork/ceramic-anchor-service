@@ -273,8 +273,6 @@ export class AnchorService {
    * mark them as PROCESSING, and perform an anchor.
    */
   public async emitAnchorEventIfReady(): Promise<void> {
-    const readyRequests = await this.requestRepository.findByStatus(RS.READY)
-
     const updatedExpiredReadyRequestsCount =
       await this.requestRepository.updateExpiringReadyRequests()
 
@@ -284,7 +282,7 @@ export class AnchorService {
       logger.debug(
         `Emitting an anchor event beacuse ${updatedExpiredReadyRequestsCount} READY requests expired`
       )
-      Metrics.count(METRIC_NAMES.RETRY_EMIT_ANCHOR_EVENT, readyRequests.length)
+      Metrics.count(METRIC_NAMES.RETRY_EMIT_ANCHOR_EVENT, updatedExpiredReadyRequestsCount)
     } else {
       const maxStreamLimit =
         this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0
