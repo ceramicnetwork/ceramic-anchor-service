@@ -45,7 +45,8 @@ export class RequestRepository extends Repository<Request> {
     @inject('dbConnection') private connection?: Connection
   ) {
     super()
-    this.isolationLevel = 'SERIALIZABLE'
+    this.isolationLevel =
+      this.connection.options.type === 'sqlite' ? 'SERIALIZABLE' : 'REPEATABLE READ'
   }
 
   /**
