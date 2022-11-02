@@ -1,4 +1,7 @@
 export enum METRIC_NAMES {
+
+  ANCHOR_REQUESTS_BATCH_TIME = 'anchor_requests_batch_time',
+
   ANCHOR_SUCCESS = 'anchor_success',
   ANCHOR_TIMEOUT = 'anchor_timeout',
   ERROR_ETH = 'error_eth',
@@ -17,7 +20,8 @@ export enum METRIC_NAMES {
   PIN_SUCCEEDED = 'pin_succeeded',
   PIN_FAILED = 'pin_failed',
 
-  RETRY_PROCESSING = 'retry_processing',
+  READY_PROCESSING = 'ready_processing', // is this a good name ??
+  RETRY_PROCESSING = 'retry_processing', // is this really being used for retry only?
   RETRY_FAILED = 'retry_failed',
   RETRY_EXPIRING = 'retry_expiring',
 

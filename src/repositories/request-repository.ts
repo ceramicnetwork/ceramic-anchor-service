@@ -48,7 +48,7 @@ const recordAnchorRequestMetrics = (requests: Request[], anchoringDeadline: Date
   }
 
   expired.publishStats(METRIC_NAMES.RETRY_EXPIRING)
-  processing.publishStats(METRIC_NAMES.RETRY_PROCESSING)
+  processing.publishStats(METRIC_NAMES.RETRY_PROCESSING) // Is this really retry??
   failed.publishStats(METRIC_NAMES.RETRY_FAILED)
 }
 
@@ -257,8 +257,11 @@ export class RequestRepository {
               `A problem occured when updated requests to PROCESSING. Only ${updatedCount}/${requests.length} requests were updated`
             )
           }
-          // at this point record times from now - updatedat  (we didn't update the requests in memory just the db)
-          // mean, max, the status will be PROCESSING in all cases
+
+          // Record the timing of the processing requests, relative to the last update (when we submitted them)
+          const processing = new TimeableMetric(SinceField.UpdatedAt)
+          processing.recordAll(requests)
+          processing.publishStats(METRIC_NAMES.READY_PROCESSING)
           return requests
         },
         {

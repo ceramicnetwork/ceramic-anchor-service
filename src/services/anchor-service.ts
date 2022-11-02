@@ -137,10 +137,11 @@ export class AnchorService {
 
     logger.imp('Anchoring ready requests...')
     logger.debug(`Loading requests from the database`)
-    // Metric for performance.now()
+    const before = performance.now()
     const requests: Request[] = await this.requestRepository.findAndMarkAsProcessing()
     await this._anchorRequests(requests)
-
+    const after = performance.now()
+    Metrics.record(METRIC_NAMES.ANCHOR_REQUESTS_BATCH_TIME, after - before)
     // Sleep 5 seconds before exiting the process to give time for the logs to flush.
     await Utils.delay(5000)
   }

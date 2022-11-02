@@ -75,6 +75,12 @@ export class TimeableMetric {
     this.since = since
   } 
 
+  public recordAll(requests: Timeable[]) {
+     for (const req of requests) {
+       this.record(req)
+     }
+  }
+
   public record(request: Timeable) {
     // we could lean on prometheus to do this but it might be too heavyweight
     // so calculate the average ourselves
