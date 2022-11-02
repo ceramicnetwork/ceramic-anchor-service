@@ -1,159 +1,134 @@
 import 'reflect-metadata'
 import { jest } from '@jest/globals'
-import type { Connection } from 'typeorm'
-import { DBConnection } from '../../services/__tests__/db-connection.js'
+import type { Knex } from 'knex'
+import { createDbConnection, clearTables } from '../../db-connection.js'
 import { container } from 'tsyringe'
 import { config } from 'node-config-ts'
 import {
   RequestRepository,
   PROCESSING_TIMEOUT,
   FAILURE_RETRY_WINDOW,
+  TABLE_NAME,
 } from '../request-repository.js'
 import { AnchorRepository } from '../anchor-repository.js'
-import { Request, REQUEST_MESSAGES } from '../../models/request.js'
-import { randomCID, generateRequests } from '../../test-utils.js'
+import { Request, REQUEST_MESSAGES, RequestStatus } from '../../models/request.js'
+import { randomCID, generateRequests, generateRequest } from '../../__tests__/test-utils.js'
 import { StreamID } from '@ceramicnetwork/streamid'
-import { RequestStatus } from '../../models/request-status.js'
-import { Utils } from '../../utils.js'
-import { CID } from 'multiformats/cid'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
 const MS_IN_DAY = MS_IN_HOUR * 24
 const MS_IN_MONTH = MS_IN_DAY * 30
 
-async function generateCompletedRequest(expired: boolean, failed: boolean): Promise<Request> {
-  const request = new Request()
-  const cid = await randomCID()
-  request.cid = cid.toString()
-  request.streamId = new StreamID('tile', cid).toString()
-  request.status = failed ? RequestStatus.FAILED : RequestStatus.COMPLETED
-  request.message = 'cid anchored successfully'
-  request.pinned = true
-
+async function generateCompletedRequest(
+  expired: boolean,
+  failed: boolean,
+  varianceMS = 0
+): Promise<Request> {
   const now = new Date()
-  request.createdAt = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate())
-  if (expired) {
-    // Request was last updated over a month ago
-    request.updatedAt = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate())
-  } else {
-    // Request was last updated less than a week ago
-    request.updatedAt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 5)
-  }
+  const threeMonthsAgo = new Date(now.getTime() - MS_IN_MONTH * 3 + varianceMS)
+  const fiveDaysAgo = new Date(now.getTime() - MS_IN_DAY * 5 + varianceMS)
+  const moreThanMonthAgo = new Date(now.getTime() - MS_IN_DAY * 31 + varianceMS)
 
-  return request
+  return generateRequest({
+    status: failed ? RequestStatus.FAILED : RequestStatus.COMPLETED,
+    message: 'cid anchored successfully',
+    pinned: true,
+    createdAt: threeMonthsAgo,
+    updatedAt: expired ? moreThanMonthAgo : fiveDaysAgo,
+  })
 }
 
 async function generateReadyRequests(count: number): Promise<Request[]> {
-  const now = new Date()
-  const requests: Request[] = []
-
-  for (let i = 0; i < count; i++) {
-    const request = new Request()
-    const cid = await randomCID()
-    request.cid = cid.toString()
-    request.streamId = new StreamID('tile', cid).toString()
-    request.status = RequestStatus.READY
-    const createdAt = new Date(now)
-    createdAt.setHours(now.getHours() + i)
-    request.createdAt = createdAt
-
-    requests.push(request)
-  }
-
-  return requests
+  return generateRequests({ status: RequestStatus.READY }, count, MS_IN_HOUR)
 }
 
-async function getAllRequests(connection): Promise<Request[]> {
-  return await connection
-    .getRepository(Request)
-    .createQueryBuilder('request')
-    .orderBy('request.createdAt', 'ASC')
-    .getMany()
+async function getAllRequests(connection: Knex): Promise<Request[]> {
+  return await connection.table(TABLE_NAME).orderBy('createdAt', 'asc')
 }
 
 describe('request repository test', () => {
   jest.setTimeout(10000)
-  let connection: Connection
+  let connection: Knex
+  let connection2: Knex
   let requestRepository: RequestRepository
-  let connection2: Connection
 
   beforeAll(async () => {
-    connection = await DBConnection.create()
-    connection2 = await DBConnection.create()
+    connection = await createDbConnection()
+    connection2 = await createDbConnection()
 
     container.registerInstance('config', config)
     container.registerInstance('dbConnection', connection)
-    container.registerSingleton('anchorRepository', AnchorRepository)
     container.registerSingleton('requestRepository', RequestRepository)
+    container.registerSingleton('anchorRepository', AnchorRepository)
 
     requestRepository = container.resolve<RequestRepository>('requestRepository')
   })
 
   beforeEach(async () => {
-    await DBConnection.clear(connection)
-    await DBConnection.clear(connection2)
+    await clearTables(connection)
+    await clearTables(connection2)
   })
 
   afterAll(async () => {
-    await DBConnection.close(connection)
+    await connection.destroy()
+    await connection2.destroy()
   })
 
-  test('Can createOrUpdate simultaneously', async () => {
-    const request = await generateRequests(
-      {
-        status: RequestStatus.READY,
-      },
-      1
-    )
+  test('createOrUpdate: can createOrUpdate simultaneously', async () => {
+    const request = await generateRequest({
+      status: RequestStatus.READY,
+    })
 
     const [result1, result2] = await Promise.all([
-      requestRepository.createOrUpdate(request[0]),
-      requestRepository.createOrUpdate(request[0]),
+      requestRepository.createOrUpdate(request),
+      requestRepository.createOrUpdate(request),
     ])
     expect(result1).toEqual(result2)
   })
 
-  test('Finds requests older than a month', async () => {
-    // Create two requests that are expired and should be garbage collected, and two that should not
-    // be.
-    const requests = await Promise.all([
-      generateCompletedRequest(false, false),
-      generateCompletedRequest(true, false),
-      generateCompletedRequest(false, true),
-      generateCompletedRequest(true, true),
-    ])
+  describe('findRequestsToGarbageCollect', () => {
+    test('Finds requests older than a month', async () => {
+      // Create two requests that are expired and should be garbage collected, and two that should not
+      // be.
+      const requests = await Promise.all([
+        generateCompletedRequest(false, false, 0),
+        generateCompletedRequest(true, false, 100),
+        generateCompletedRequest(false, true, 200),
+        generateCompletedRequest(true, true, 300),
+      ])
 
-    await requestRepository.createRequests(requests)
+      await requestRepository.createRequests(requests)
 
-    const expiredRequests = await requestRepository.findRequestsToGarbageCollect()
-    expect(expiredRequests.length).toEqual(2)
-    expect(expiredRequests[0].cid).toEqual(requests[1].cid)
-    expect(expiredRequests[1].cid).toEqual(requests[3].cid)
+      const expiredRequests = await requestRepository.findRequestsToGarbageCollect()
+      expect(expiredRequests.length).toEqual(2)
+      expect(expiredRequests[0].cid).toEqual(requests[3].cid)
+      expect(expiredRequests[1].cid).toEqual(requests[1].cid)
+    })
+
+    test("Don't cleanup streams who have both old and new requests", async () => {
+      // Create two requests that are expired and should be garbage collected, and two that should not
+      // be.
+      const requests = await Promise.all([
+        generateCompletedRequest(false, false),
+        generateCompletedRequest(true, false),
+        generateCompletedRequest(false, true),
+        generateCompletedRequest(true, true),
+      ])
+
+      // Set an expired and non-expired request to be on the same streamId. The expired request should
+      // not show up to be garbage collected.
+      requests[3].streamId = requests[2].streamId
+
+      await requestRepository.createRequests(requests)
+
+      const expiredRequests = await requestRepository.findRequestsToGarbageCollect()
+      expect(expiredRequests.length).toEqual(1)
+      expect(expiredRequests[0].cid).toEqual(requests[1].cid)
+    })
   })
 
-  test("Don't cleanup streams who have both old and new requests", async () => {
-    // Create two requests that are expired and should be garbage collected, and two that should not
-    // be.
-    const requests = await Promise.all([
-      generateCompletedRequest(false, false),
-      generateCompletedRequest(true, false),
-      generateCompletedRequest(false, true),
-      generateCompletedRequest(true, true),
-    ])
-
-    // Set an expired and non-expired request to be on the same streamId. The expired request should
-    // not show up to be garbage collected.
-    requests[3].streamId = requests[2].streamId
-
-    await requestRepository.createRequests(requests)
-
-    const expiredRequests = await requestRepository.findRequestsToGarbageCollect()
-    expect(expiredRequests.length).toEqual(1)
-    expect(expiredRequests[0].cid).toEqual(requests[1].cid)
-  })
-
-  test('Process requests oldest to newest', async () => {
+  test('findAndMarkAsProcessing: process requests oldest to newest', async () => {
     const requests = await generateReadyRequests(2)
     await requestRepository.createRequests(requests)
     const loadedRequests = await requestRepository.findAndMarkAsProcessing()
@@ -166,7 +141,7 @@ describe('request repository test', () => {
     expect(loadedRequests[1].cid).toEqual(requests[1].cid)
   })
 
-  test('Retrieves all requests of a specified status', async () => {
+  test('findByStatus: retrieves all requests of a specified status', async () => {
     const requests = await Promise.all([
       generateRequests(
         {
@@ -588,39 +563,6 @@ describe('request repository test', () => {
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
       expect(updatedRequests.length).toEqual(0)
-    })
-  })
-
-  describe('transaction mutex', () => {
-    test('Can successfully acquire transaction mutex', async () => {
-      await requestRepository.withTransactionMutex(async () => {
-        await Utils.delay(1000)
-      })
-    })
-
-    test('Will block until can acquire transaction mutex', async () => {
-      const childContainer = container.createChildContainer()
-      childContainer.registerInstance('dbConnection', connection2)
-      childContainer.registerSingleton('requestRepository', RequestRepository)
-      const requestRepository2 = childContainer.resolve<RequestRepository>('requestRepository')
-
-      await requestRepository.withTransactionMutex(async () => {
-        await expect(
-          requestRepository2.withTransactionMutex(() => Utils.delay(1000), 2, 1000)
-        ).rejects.toThrow(/Failed to acquire transaction mutex/)
-      })
-
-      await requestRepository2.withTransactionMutex(() => Utils.delay(1000))
-    })
-
-    test('Will unlock the transaction mutex if the operation fails', async () => {
-      await expect(
-        requestRepository.withTransactionMutex(async () => {
-          throw new Error('test error')
-        })
-      ).rejects.toThrow(/test error/)
-
-      await requestRepository.withTransactionMutex(() => Utils.delay(1000))
     })
   })
 })

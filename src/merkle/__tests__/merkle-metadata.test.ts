@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals'
-import { MockIpfsService, randomCID } from '../../test-utils.js'
+import { MockIpfsService, randomCID } from '../../__tests__/test-utils.js'
 import { MerkleTree } from '../merkle-tree.js'
 import { TreeMetadata } from '../merkle.js'
 import {

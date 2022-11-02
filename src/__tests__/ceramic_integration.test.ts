@@ -14,8 +14,8 @@ import express from 'express'
 import Ganache from 'ganache-core'
 import tmp from 'tmp-promise'
 import getPort from 'get-port'
-import type { Connection } from 'typeorm'
-import { DBConnection } from '../services/__tests__/db-connection.js'
+import type { Knex } from 'knex'
+import { clearTables, createDbConnection } from '../db-connection.js'
 import { CeramicAnchorApp } from '../app.js'
 import { container } from 'tsyringe'
 import { config } from 'node-config-ts'
@@ -32,10 +32,9 @@ import * as KeyDidResolver from 'key-did-resolver'
 import { Utils } from '../utils.js'
 import { DependencyContainer } from 'tsyringe'
 import { RequestRepository } from '../repositories/request-repository.js'
-import { Request } from '../models/request.js'
+import { Request, RequestStatus } from '../models/request.js'
 import { CID } from 'multiformats/cid'
 import { AnchorService } from '../services/anchor-service.js'
-import { RequestStatus } from '../models/request-status.js'
 import { METRIC_NAMES } from '../settings.js'
 import { Server } from 'http'
 
@@ -149,7 +148,7 @@ interface MinimalCASConfig {
 
 async function makeCAS(
   container: DependencyContainer,
-  dbConnection: Connection,
+  dbConnection: Knex,
   minConfig: MinimalCASConfig
 ): Promise<CeramicAnchorApp> {
   const configCopy = cloneDeep(config)
@@ -240,6 +239,9 @@ async function waitForNoReadyRequests(
 describe('Ceramic Integration Test', () => {
   jest.setTimeout(60 * 1000 * 10)
 
+  let ipfsApiPort1: number
+  let ipfsApiPort2: number
+
   let ipfs1: IpfsApi // Used by CAS1 directly
   let ipfs2: IpfsApi // Used by CAS2 directly
   let ipfs3: IpfsApi // Used by CAS1 ceramic
@@ -258,8 +260,8 @@ describe('Ceramic Integration Test', () => {
   let daemon1: CeramicDaemon // CAS1 Ceramic http server
   let daemon2: CeramicDaemon // CAS2 Ceramic http server
 
-  let dbConnection1: Connection
-  let dbConnection2: Connection
+  let dbConnection1: Knex
+  let dbConnection2: Knex
 
   let cas1: CeramicAnchorApp
   let container1: DependencyContainer
@@ -271,53 +273,71 @@ describe('Ceramic Integration Test', () => {
   const blockchainStartTime = new Date(1586784002000)
   let ganachePort
   let ganacheServer: Ganache.Server
-
   let anchorLauncher: FauxAnchorLauncher
+
+  beforeAll(async () => {
+    ipfsApiPort1 = await getPort()
+    ipfsApiPort2 = await getPort()
+    ;[ipfs1, ipfs2, ipfs3, ipfs4, ipfs5, ipfs6] = await Promise.all([
+      createIPFS(ipfsApiPort1),
+      createIPFS(ipfsApiPort2),
+      createIPFS(),
+      createIPFS(),
+      createIPFS(),
+      createIPFS(),
+    ])
+
+    ipfsServer1 = new HttpApi(ipfs1)
+    await ipfsServer1.start()
+    ipfsServer2 = new HttpApi(ipfs2)
+    await ipfsServer2.start()
+
+    // Now make sure all ipfs nodes are connected to all other ipfs nodes
+    const ipfsNodes = [ipfs1, ipfs2, ipfs3, ipfs4, ipfs5, ipfs6]
+    for (const [i, _] of ipfsNodes.entries()) {
+      for (const [j, _] of ipfsNodes.entries()) {
+        if (i == j) {
+          continue
+        }
+        await swarmConnect(ipfsNodes[i], ipfsNodes[j])
+      }
+    }
+
+    // Start up Ganache
+    ganachePort = await getPort()
+    ganacheServer = await makeGanache(blockchainStartTime, ganachePort)
+
+    // Start faux anchor launcher
+    anchorLauncher = makeAnchorLauncher(8001)
+  })
+
+  beforeEach(async () => {
+    await clearTables(dbConnection1)
+    await clearTables(dbConnection2)
+  })
+
+  afterAll(async () => {
+    await Promise.all([ipfsServer1.stop(), ipfsServer2.stop()])
+    await Promise.all([
+      ipfs1.stop(),
+      ipfs2.stop(),
+      ipfs3.stop(),
+      ipfs4.stop(),
+      ipfs5.stop(),
+      ipfs6.stop(),
+    ])
+    await ganacheServer.close()
+    await anchorLauncher.stop()
+  })
 
   describe.each([0, 1])('Using anchor version %i', (version) => {
     beforeAll(async () => {
       const useSmartContractAnchors = version === 1
 
-      const ipfsApiPort1 = await getPort()
-      const ipfsApiPort2 = await getPort()
-
-      ;[ipfs1, ipfs2, ipfs3, ipfs4, ipfs5, ipfs6] = await Promise.all([
-        createIPFS(ipfsApiPort1),
-        createIPFS(ipfsApiPort2),
-        createIPFS(),
-        createIPFS(),
-        createIPFS(),
-        createIPFS(),
-      ])
-
-      ipfsServer1 = new HttpApi(ipfs1)
-      await ipfsServer1.start()
-      ipfsServer2 = new HttpApi(ipfs2)
-      await ipfsServer2.start()
-
-      // Now make sure all ipfs nodes are connected to all other ipfs nodes
-      const ipfsNodes = [ipfs1, ipfs2, ipfs3, ipfs4, ipfs5, ipfs6]
-      for (const [i, _] of ipfsNodes.entries()) {
-        for (const [j, _] of ipfsNodes.entries()) {
-          if (i == j) {
-            continue
-          }
-          await swarmConnect(ipfsNodes[i], ipfsNodes[j])
-        }
-      }
-
-      // Start up Ganache
-      ganachePort = await getPort()
-      const ganacheURL = 'http://localhost:' + ganachePort
-      ganacheServer = await makeGanache(blockchainStartTime, ganachePort)
-
-      // Start faux anchor launcher
-      anchorLauncher = makeAnchorLauncher(8001)
-
       // Start anchor services
       const daemonPort1 = await getPort()
       const daemonPort2 = await getPort()
-      dbConnection1 = await DBConnection.create()
+      dbConnection1 = await createDbConnection()
       const casPort1 = await getPort()
 
       container1 = container.createChildContainer()
@@ -332,7 +352,7 @@ describe('Ceramic Integration Test', () => {
       await cas1.start()
       anchorService1 = container1.resolve<AnchorService>('anchorService')
 
-      dbConnection2 = await DBConnection.create()
+      dbConnection2 = await createDbConnection()
       const casPort2 = await getPort()
       container2 = container.createChildContainer()
       cas2 = await makeCAS(container2, dbConnection2, {
@@ -345,6 +365,8 @@ describe('Ceramic Integration Test', () => {
       })
       await cas2.start()
       anchorService2 = container2.resolve<AnchorService>('anchorService')
+
+      const ganacheURL = 'http://localhost:' + ganachePort
 
       // Make the Ceramic nodes that will be used by the CAS.
       ;[casCeramic1, casCeramic2] = await Promise.all([
@@ -377,7 +399,7 @@ describe('Ceramic Integration Test', () => {
     afterAll(async () => {
       cas1.stop()
       cas2.stop()
-      await Promise.all([dbConnection1.close(), dbConnection2.close()])
+      await Promise.all([dbConnection1.destroy(), dbConnection2.destroy()])
       await Promise.all([daemon1.close(), daemon2.close()])
       await Promise.all([
         casCeramic1.close(),
@@ -385,17 +407,6 @@ describe('Ceramic Integration Test', () => {
         ceramic1.close(),
         ceramic2.close(),
       ])
-      await Promise.all([ipfsServer1.stop(), ipfsServer2.stop()])
-      await Promise.all([
-        ipfs1.stop(),
-        ipfs2.stop(),
-        ipfs3.stop(),
-        ipfs4.stop(),
-        ipfs5.stop(),
-        ipfs6.stop(),
-      ])
-      await ganacheServer.close()
-      await anchorLauncher.stop()
     })
 
     beforeEach(async () => {

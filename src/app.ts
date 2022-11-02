@@ -3,26 +3,25 @@ import 'dotenv/config'
 
 import { Config } from 'node-config-ts'
 import { instanceCachingFactory, DependencyContainer } from 'tsyringe'
+import type { Knex } from 'knex'
+import cloneDeep from 'lodash.clonedeep'
 
 import { logger } from './logger/index.js'
 import { CeramicAnchorServer } from './server.js'
-import type { Connection } from 'typeorm'
 import { IpfsServiceImpl } from './services/ipfs-service.js'
 import { AnchorService } from './services/anchor-service.js'
 import { SchedulerService } from './services/scheduler-service.js'
 import { BlockchainService } from './services/blockchain/blockchain-service.js'
 import { HTTPEventProducerService } from './services/event-producer/http/http-event-producer-service.js'
-
 import { AnchorRepository } from './repositories/anchor-repository.js'
 import { RequestRepository } from './repositories/request-repository.js'
+import { TransactionRepository } from './repositories/transaction-repository.js'
 import { CeramicServiceImpl } from './services/ceramic-service.js'
 import { HealthcheckController } from './controllers/healthcheck-controller.js'
 import { AnchorController } from './controllers/anchor-controller.js'
 import { RequestController } from './controllers/request-controller.js'
 import { ServiceInfoController } from './controllers/service-info-controller.js'
 import { EthereumBlockchainService } from './services/blockchain/ethereum/ethereum-blockchain-service.js'
-
-import cloneDeep from 'lodash.clonedeep'
 import { ServiceMetrics as Metrics } from './service-metrics.js'
 
 const version = process.env.npm_package_version
@@ -36,7 +35,7 @@ export class CeramicAnchorApp {
   constructor(
     private readonly container: DependencyContainer,
     private readonly config: Config,
-    dbConnection: Connection
+    dbConnection: Knex
   ) {
     CeramicAnchorApp._normalizeConfig(config)
 
@@ -49,12 +48,13 @@ export class CeramicAnchorApp {
 
     // register database connection
     container.register('dbConnection', {
-      useFactory: instanceCachingFactory<Connection>((c) => dbConnection),
+      useFactory: instanceCachingFactory<Knex>((c) => dbConnection),
     })
 
     // register repositories
-    container.registerSingleton('anchorRepository', AnchorRepository)
     container.registerSingleton('requestRepository', RequestRepository)
+    container.registerSingleton('anchorRepository', AnchorRepository)
+    container.registerSingleton('transactionRepository', TransactionRepository)
 
     // register services
     container.register('blockchainService', {
@@ -79,13 +79,13 @@ export class CeramicAnchorApp {
 
     try {
       Metrics.start(config.metrics.collectorHost, 'cas-' + config.mode)
-      Metrics.count('HELLO', 1) 
-      logger.imp("Metrics exporter started")
-  } catch (e) {
+      Metrics.count('HELLO', 1)
+      logger.imp('Metrics exporter started')
+    } catch (e) {
       logger.err(e)
       // start anchor service even if metrics threw an error
+    }
   }
-}
 
   /**
    * Handles normalizing the arguments passed via the config, for example turning string

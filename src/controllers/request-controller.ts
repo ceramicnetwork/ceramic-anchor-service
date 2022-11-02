@@ -7,12 +7,13 @@ import cors from 'cors'
 import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core'
 
 import { toCID } from '@ceramicnetwork/common'
-import { RequestStatus } from '../models/request-status.js'
 import { AnchorRepository } from '../repositories/anchor-repository.js'
 import { RequestRepository } from '../repositories/request-repository.js'
-import { Request } from '../models/request.js'
+import { Request, RequestStatus } from '../models/request.js'
 import { inject, singleton } from 'tsyringe'
 import { logger } from '../logger/index.js'
+import { ServiceMetrics as Metrics } from '../service-metrics.js'
+import { METRIC_NAMES } from '../settings.js'
 import { RequestPresentation } from '../models/request-presentation.js'
 import { CeramicService } from '../services/ceramic-service.js'
 
@@ -95,6 +96,7 @@ export class RequestController {
       } else {
         // Intentionally don't await the pinStream promise, let it happen in the background.
         this.ceramicService.pinStream(streamId)
+        Metrics.count(METRIC_NAMES.PIN_REQUESTED, 1)
 
         request = new Request()
         request.cid = cid.toString()
@@ -113,7 +115,8 @@ export class RequestController {
       }
     } catch (err) {
       const errmsg = `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed: ${err.message}`
-      logger.err(err)
+      logger.err(errmsg)
+      logger.err(err) // Log stack trace
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: errmsg,
       })

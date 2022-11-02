@@ -1,7 +1,5 @@
 import { CID } from 'multiformats/cid'
 
-import { RequestStatus as RS } from '../models/request-status.js'
-
 import { MerkleTree } from '../merkle/merkle-tree.js'
 import { PathDirection, TreeMetadata } from '../merkle/merkle.js'
 
@@ -10,10 +8,11 @@ import { Config } from 'node-config-ts'
 import { logger, logEvent } from '../logger/index.js'
 import { Utils } from '../utils.js'
 import { Anchor } from '../models/anchor.js'
-import { Request, REQUEST_MESSAGES } from '../models/request.js'
+import { Request, REQUEST_MESSAGES, RequestStatus as RS } from '../models/request.js'
 import { Transaction } from '../models/transaction.js'
 import { AnchorRepository } from '../repositories/anchor-repository.js'
 import { RequestRepository } from '../repositories/request-repository.js'
+import { TransactionRepository } from '../repositories/transaction-repository.js'
 
 import { IpfsService } from './ipfs-service.js'
 import { EventProducerService } from './event-producer/event-producer-service.js'
@@ -31,8 +30,8 @@ import {
   IpfsLeafCompare,
   IpfsMerge,
 } from '../merkle/merkle-objects.js'
-import type { Connection } from 'typeorm'
 import { v4 as uuidv4 } from 'uuid'
+import type { Knex } from 'knex'
 
 type RequestGroups = {
   alreadyAnchoredRequests: Request[]
@@ -96,9 +95,10 @@ export class AnchorService {
     @inject('config') private config?: Config,
     @inject('ipfsService') private ipfsService?: IpfsService,
     @inject('requestRepository') private requestRepository?: RequestRepository,
+    @inject('transactionRepository') private transactionRepository?: TransactionRepository,
     @inject('ceramicService') private ceramicService?: CeramicService,
     @inject('anchorRepository') private anchorRepository?: AnchorRepository,
-    @inject('dbConnection') private connection?: Connection,
+    @inject('dbConnection') private connection?: Knex,
     @inject('eventProducerService') private eventProducerService?: EventProducerService
   ) {
     this.ipfsMerge = new IpfsMerge(this.ipfsService)
@@ -200,10 +200,11 @@ export class AnchorService {
 
   private async _anchorCandidates(candidates: Candidate[]): Promise<Partial<AnchorSummary>> {
     logger.imp(`Creating Merkle tree from ${candidates.length} selected streams`)
+    const span = Metrics.startSpan('anchor_candidates')
     const merkleTree = await this._buildMerkleTree(candidates)
 
     // create and send ETH transaction
-    const tx: Transaction = await this.requestRepository.withTransactionMutex(() => {
+    const tx: Transaction = await this.transactionRepository.withTransactionMutex(() => {
       logger.debug('Preparing to send transaction to put merkle root on blockchain')
       return this.blockchainService.sendTransaction(merkleTree.getRoot().data.cid)
     })
@@ -222,6 +223,8 @@ export class AnchorService {
 
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
     Metrics.count(METRIC_NAMES.ANCHOR_SUCCESS, anchors.length)
+
+    span.end()
 
     return {
       anchoredRequestsCount: numAnchoredRequests,
@@ -280,8 +283,12 @@ export class AnchorService {
       }
       // since the expiration of ready requests are determined by their "updated_at" field, update the requests again
       // to indicate that a new anchor event has been emitted
-      await this.requestRepository.updateRequests({ status: RS.READY }, readyRequests)
+      const updatedCount = await this.requestRepository.updateRequests(
+        { status: RS.READY },
+        readyRequests
+      )
 
+      logger.debug(`Emitting an anchor event beacuse ${updatedCount} READY requests expired`)
       Metrics.count(METRIC_NAMES.RETRY_EMIT_ANCHOR_EVENT, readyRequests.length)
     } else {
       const maxStreamLimit =
@@ -398,7 +405,7 @@ export class AnchorService {
     merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
   ): Promise<Anchor | null> {
     const anchor: Anchor = new Anchor()
-    anchor.request = candidate.newestAcceptedRequest
+    anchor.requestId = candidate.newestAcceptedRequest.id
     anchor.proofCid = ipfsProofCid.toString()
 
     const path = await merkleTree.getDirectPathFromRoot(candidateIndex)
@@ -426,6 +433,7 @@ export class AnchorService {
         candidate.cid
       } for stream ${candidate.streamId.toString()}: ${err}`
       logger.err(msg)
+      Metrics.count(METRIC_NAMES.ERROR_IPFS, 1)
       await this.requestRepository.updateRequests(
         { status: RS.FAILED, message: msg },
         candidate.acceptedRequests
@@ -452,10 +460,9 @@ export class AnchorService {
       acceptedRequests.push(...candidate.acceptedRequests)
     }
 
-    const queryRunner = this.connection.createQueryRunner()
-    await queryRunner.startTransaction()
+    const trx = await this.connection.transaction()
     try {
-      await this.anchorRepository.createAnchors(anchors, queryRunner.manager)
+      await this.anchorRepository.createAnchors(anchors, { connection: trx })
 
       await this.requestRepository.updateRequests(
         {
@@ -464,15 +471,13 @@ export class AnchorService {
           pinned: true,
         },
         acceptedRequests,
-        queryRunner.manager
+        { connection: trx }
       )
 
-      await queryRunner.commitTransaction()
+      await trx.commit()
     } catch (err) {
-      await queryRunner.rollbackTransaction()
+      await trx.rollback()
       throw err
-    } finally {
-      await queryRunner.release()
     }
 
     Metrics.count(METRIC_NAMES.ACCEPTED_REQUESTS, acceptedRequests.length)
@@ -732,6 +737,7 @@ export class AnchorService {
           missingRequests.length
         } missing commits: ${err}`
       )
+      Metrics.count(METRIC_NAMES.ERROR_MULTIQUERY, 1)
       candidate.failAllRequests()
       return
     }
@@ -743,6 +749,7 @@ export class AnchorService {
         logger.err(
           `Failed to load stream ${commitId.baseID.toString()} at commit ${commitId.commit.toString()}`
         )
+        Metrics.count(METRIC_NAMES.FAILED_TIP, 1)
         candidate.failRequest(request)
       }
     }
@@ -759,6 +766,7 @@ export class AnchorService {
     stream = response[candidate.streamId.toString()]
     if (!stream) {
       logger.err(`Failed to load stream ${candidate.streamId.toString()}`)
+      Metrics.count(METRIC_NAMES.FAILED_STREAM, 1)
       candidate.failAllRequests()
       return
     }
