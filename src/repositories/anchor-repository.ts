@@ -6,6 +6,10 @@ import { Options } from './repository-types.js'
 
 export const TABLE_NAME = 'anchor'
 
+export class AnchorWithRequest extends Anchor {
+  request: Request
+}
+
 @singleton()
 export class AnchorRepository {
   constructor(@inject('dbConnection') private connection?: Knex) {}
@@ -27,13 +31,15 @@ export class AnchorRepository {
    * @param options
    * @returns A promise that resolve to the anchor associated to the request
    */
-  public async findByRequest(request: Request, options: Options = {}): Promise<Anchor> {
+  public async findByRequest(request: Request, options: Options = {}): Promise<AnchorWithRequest> {
     const { connection = this.connection } = options
 
-    const { requestId, ...anchorWithoutRequestId } = await connection(TABLE_NAME)
-      .where({ requestId: request.id })
-      .first()
+    const anchor = await connection(TABLE_NAME).where({ requestId: request.id }).first()
 
-    return { ...anchorWithoutRequestId, request }
+    if (!anchor) {
+      return anchor
+    }
+
+    return { ...anchor, request }
   }
 }

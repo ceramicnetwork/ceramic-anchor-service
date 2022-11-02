@@ -195,6 +195,10 @@ export class Candidate implements CIDHolder {
       }
     }
   }
+
+  markAsAnchored(): void {
+    this._alreadyAnchored = true
+  }
 }
 
 /**
