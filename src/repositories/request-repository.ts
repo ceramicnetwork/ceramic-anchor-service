@@ -21,6 +21,9 @@ export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
 export const TABLE_NAME = 'request'
 
+// change this to recordMetrics
+// filter only once
+// get this data plus also the time from createdat
 const countRetryMetrics = (requests: Request[], anchoringDeadline: Date): void => {
   const expired = requests.filter((request) => request.createdAt < anchoringDeadline)
   if (expired.length > 0) Metrics.count(METRIC_NAMES.RETRY_EXPIRING, expired.length)
@@ -30,6 +33,7 @@ const countRetryMetrics = (requests: Request[], anchoringDeadline: Date): void =
 
   const failed = requests.filter((request) => request.status === RequestStatus.FAILED)
   if (failed.length > 0) Metrics.count(METRIC_NAMES.RETRY_FAILED, failed.length)
+
 }
 
 /**
@@ -237,7 +241,8 @@ export class RequestRepository {
               `A problem occured when updated requests to PROCESSING. Only ${updatedCount}/${requests.length} requests were updated`
             )
           }
-
+          // at this point record times from now - updatedat  (we didn't update the requests in memory just the db)
+          // mean, max, the status will be PROCESSING in all cases
           return requests
         },
         {
@@ -346,6 +351,11 @@ export class RequestRepository {
               `A problem occured when updated requests to READY. Only ${updatedCount}/${requests.length} requests were updated`
             )
           }
+          // do the now-createdAt  for all requests with RequestStatus.PENDING
+          // these ones just updated to READY in the db
+          // it must have worked for all of them if we got here
+          // may want mean, max ; may also want for failed and other groups
+
 
           countRetryMetrics(requests, anchoringDeadline)
 

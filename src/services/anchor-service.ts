@@ -129,6 +129,7 @@ export class AnchorService {
   public async anchorReadyRequests(): Promise<void> {
     // TODO: Remove this after restart loop removed as part of switching to go-ipfs
     // Skip sleep for unit tests
+    // this is the whole function if we want to time it
     if (process.env.NODE_ENV != 'test') {
       logger.imp('sleeping one minute for ipfs to stabilize')
       await Utils.delay(1000 * 60)
@@ -136,6 +137,7 @@ export class AnchorService {
 
     logger.imp('Anchoring ready requests...')
     logger.debug(`Loading requests from the database`)
+    // Metric for performance.now()
     const requests: Request[] = await this.requestRepository.findAndMarkAsProcessing()
     await this._anchorRequests(requests)
 
@@ -153,6 +155,8 @@ export class AnchorService {
       logger.debug('No pending CID requests found. Skipping anchor.')
       return
     }
+    // we still have pristine requests here (until _findCandidates)
+    // this is the function we want to trace.span()
 
     let streamCountLimit = 0 // 0 means no limit
     if (this.config.merkleDepthLimit > 0) {
