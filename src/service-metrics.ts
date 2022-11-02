@@ -43,6 +43,11 @@ interface Endable {
   end(endTime?: TimeInput): void
 }
 
+interface Timeable {
+  createdAt: Date
+  updatedAt: Date
+}
+
 class NullSpan implements Endable {
   // if we start using other span methods, add null methods here
 
@@ -51,6 +56,56 @@ class NullSpan implements Endable {
     return false
   }
 }
+
+export enum SinceField {
+  CreatedAt = 0,
+  UpdatedAt = 1
+}
+
+export class TimeableMetric {
+  protected cnt: number
+  protected totTime: number
+  protected maxTime: number
+  protected since: SinceField
+
+  constructor(since:SinceField) {
+    this.cnt = 0
+    this.totTime = 0
+    this.maxTime = 0
+    this.since = since
+  } 
+
+  public record(request: Timeable) {
+    // we could lean on prometheus to do this but it might be too heavyweight
+    // so calculate the average ourselves
+    // the Request class is imported from CAS but we could make it an interface
+    // it only requires createdAt and 
+
+    this.cnt += 1
+    let time_elapsed = 0
+    if (this.since === SinceField.CreatedAt) {
+      time_elapsed = Date.now() - request.createdAt.getTime()
+    } else { // UpdatedAt
+      time_elapsed = Date.now() - request.updatedAt.getTime()
+    }
+    this.totTime += time_elapsed
+    if (time_elapsed > this.maxTime) {
+      this.maxTime = time_elapsed
+    }
+  }
+
+  private getMeanTime(): number {
+    return this.totTime/this.cnt
+  }
+
+  public publishStats(name:string): void {
+    ServiceMetrics.count(name + '_total', this.cnt)
+    ServiceMetrics.record(name + '_mean', this.getMeanTime())
+    ServiceMetrics.record(name + '_max', this.maxTime)
+  }
+
+}
+
 
 class _ServiceMetrics {
   protected caller

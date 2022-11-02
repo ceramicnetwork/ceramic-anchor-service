@@ -7,7 +7,7 @@ import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
 import { logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
-import { ServiceMetrics as Metrics } from '../service-metrics.js'
+import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '../service-metrics.js'
 import { METRIC_NAMES } from '../settings.js'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
@@ -21,19 +21,35 @@ export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
 export const TABLE_NAME = 'request'
 
-// change this to recordMetrics
-// filter only once
-// get this data plus also the time from createdat
-const countRetryMetrics = (requests: Request[], anchoringDeadline: Date): void => {
-  const expired = requests.filter((request) => request.createdAt < anchoringDeadline)
-  if (expired.length > 0) Metrics.count(METRIC_NAMES.RETRY_EXPIRING, expired.length)
+/**
+ * Records statistics about the set of requests
+ * Groups by EXPIRED (if the time is past the deadline), PROCESSING, and FAILED
+ * 
+ * Will record the total count, the mean time since createdAt, and the max time since createdAt
+ * for each group
+ *
+ * @param requests
+ * @param anchoringDeadline
+ * @returns
+ */
+const recordAnchorRequestMetrics = (requests: Request[], anchoringDeadline: Date): void => {
+  const expired = new TimeableMetric(SinceField.CreatedAt)
+  const processing = new TimeableMetric(SinceField.CreatedAt)
+  const failed = new TimeableMetric(SinceField.CreatedAt)
 
-  const processing = requests.filter((request) => request.status === RequestStatus.PROCESSING)
-  if (processing.length > 0) Metrics.count(METRIC_NAMES.RETRY_PROCESSING, processing.length)
+  for (const req of requests) {
+      if (req.createdAt < anchoringDeadline) {
+          expired.record(req)
+      } else if (req.status === RequestStatus.PROCESSING) {
+          processing.record(req)
+      } else if (req.status === RequestStatus.FAILED) {
+          failed.record(req)
+      }
+  }
 
-  const failed = requests.filter((request) => request.status === RequestStatus.FAILED)
-  if (failed.length > 0) Metrics.count(METRIC_NAMES.RETRY_FAILED, failed.length)
-
+  expired.publishStats(METRIC_NAMES.RETRY_EXPIRING)
+  processing.publishStats(METRIC_NAMES.RETRY_PROCESSING)
+  failed.publishStats(METRIC_NAMES.RETRY_FAILED)
 }
 
 /**
@@ -351,13 +367,10 @@ export class RequestRepository {
               `A problem occured when updated requests to READY. Only ${updatedCount}/${requests.length} requests were updated`
             )
           }
-          // do the now-createdAt  for all requests with RequestStatus.PENDING
-          // these ones just updated to READY in the db
-          // it must have worked for all of them if we got here
-          // may want mean, max ; may also want for failed and other groups
 
-
-          countRetryMetrics(requests, anchoringDeadline)
+          // Record statistics about the anchor requests
+          // Note they will be updated to READY in the database but the request status will still be PENDING
+          recordAnchorRequestMetrics(requests, anchoringDeadline)
 
           logger.debug(`Updated ${updatedCount} requests to READY for ${streamIds.length} streams`)
 
