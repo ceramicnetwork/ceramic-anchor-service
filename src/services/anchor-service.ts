@@ -660,6 +660,11 @@ export class AnchorService {
         : null
 
       if (existingAnchorCommit) {
+        logger.debug(
+          `Marking candidate stream ${candidate.streamId.toString()} as already anchored. Its newest accepted request ${
+            candidate.newestAcceptedRequest.cid
+          } has an existing anchor commit of ${existingAnchorCommit.cid}`
+        )
         candidate.markAsAnchored()
       }
 
