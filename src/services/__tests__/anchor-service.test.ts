@@ -698,6 +698,7 @@ describe('anchor service', () => {
 
     test('Request succeeds without anchor for already anchored CIDs', async () => {
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
+      const anchorRepository = container.resolve<AnchorRepository>('anchorRepository')
       const anchorService = container.resolve<AnchorService>('anchorService')
 
       const streamId = await ceramicService.generateBaseStreamID()
@@ -713,12 +714,19 @@ describe('anchor service', () => {
         createStream(streamId, [toCID(request.cid), anchorCommitCID], AnchorStatus.ANCHORED)
       )
 
+      // Anchor entry doesn't exist in db
+      await expect(anchorRepository.findByRequest(request)).resolves.toEqual(null)
+
       const [candidates, _] = await anchorService._findCandidates([request], 0)
       expect(candidates.length).toEqual(0)
 
       // request should still be marked as completed even though no anchor was performed
       const updatedRequest = await requestRepository.findByCid(toCID(request.cid))
       expect(updatedRequest.status).toEqual(RequestStatus.COMPLETED)
+
+      // anchor should exist now
+      const anchor = await anchorRepository.findByRequest(request)
+      expect(anchor.request.cid).toEqual(request.cid)
     })
 
     test('Request succeeds without anchor if subsequent CIDs are already anchored', async () => {
