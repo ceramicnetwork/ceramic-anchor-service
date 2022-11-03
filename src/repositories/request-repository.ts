@@ -241,7 +241,7 @@ export class RequestRepository {
           return requests
         },
         {
-          isolationLevel: 'serializable',
+          isolationLevel: 'repeatable read',
         }
       )
       .catch(async (err) => {
@@ -354,7 +354,7 @@ export class RequestRepository {
           return requests
         },
         {
-          isolationLevel: 'serializable',
+          isolationLevel: 'repeatable read',
         }
       )
       .catch(async (err) => {
@@ -421,7 +421,7 @@ export class RequestRepository {
           return updatedCount
         },
         {
-          isolationLevel: 'serializable',
+          isolationLevel: 'repeatable read',
         }
       )
       .catch(async (err) => {

@@ -28,31 +28,26 @@ export class TransactionRepository {
   ): Promise<T> {
     const { connection = this.connection } = options
 
-    return connection.transaction(
-      async (trx) => {
-        let attempt = 1
-        while (attempt <= maxAttempts) {
-          logger.debug(`Attempt ${attempt} at acquiring the transaction mutex before operation`)
-          if (attempt > 5) Metrics.count(METRIC_NAMES.MANY_ATTEMPTS_TO_ACQUIRE_MUTEX, 1)
+    return connection.transaction(async (trx) => {
+      let attempt = 1
+      while (attempt <= maxAttempts) {
+        logger.debug(`Attempt ${attempt} at acquiring the transaction mutex before operation`)
+        if (attempt > 5) Metrics.count(METRIC_NAMES.MANY_ATTEMPTS_TO_ACQUIRE_MUTEX, 1)
 
-          const {
-            rows: [{ pg_try_advisory_xact_lock: success }],
-          } = await trx.raw(`SELECT pg_try_advisory_xact_lock(${TRANSACTION_MUTEX_ID})`)
+        const {
+          rows: [{ pg_try_advisory_xact_lock: success }],
+        } = await trx.raw(`SELECT pg_try_advisory_xact_lock(${TRANSACTION_MUTEX_ID})`)
 
-          if (success) {
-            return operation()
-          }
-
-          attempt++
-
-          await Utils.delay(delayMS)
+        if (success) {
+          return operation()
         }
 
-        throw new Error(`Failed to acquire transaction mutex after ${maxAttempts} tries`)
-      },
-      {
-        isolationLevel: 'repeatable read',
+        attempt++
+
+        await Utils.delay(delayMS)
       }
-    )
+
+      throw new Error(`Failed to acquire transaction mutex after ${maxAttempts} tries`)
+    })
   }
 }
