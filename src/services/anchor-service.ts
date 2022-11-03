@@ -654,20 +654,6 @@ export class AnchorService {
 
       await AnchorService._loadCandidate(candidate, this.ceramicService)
 
-      // anchor commit may already exist so check first
-      const existingAnchorCommit = candidate.shouldAnchor()
-        ? await this.anchorRepository.findByRequest(candidate.newestAcceptedRequest)
-        : null
-
-      if (existingAnchorCommit) {
-        logger.debug(
-          `Marking candidate stream ${candidate.streamId.toString()} as already anchored. Its newest accepted request ${
-            candidate.newestAcceptedRequest.cid
-          } has an existing anchor commit of ${existingAnchorCommit.cid}`
-        )
-        candidate.markAsAnchored()
-      }
-
       if (candidate.shouldAnchor()) {
         numSelectedCandidates++
         logger.debug(
