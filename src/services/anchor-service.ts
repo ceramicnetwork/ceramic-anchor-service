@@ -54,11 +54,15 @@ type AnchorSummary = {
   canRetryCount: number
 }
 
-const logAnchorSummary = (
+const logAnchorSummary = async (
+  requestRepository: RequestRepository,
   groupedRequests: RequestGroups,
   candidates: Candidate[],
   results: Partial<AnchorSummary> = {}
 ) => {
+  const pendingRequestsCount = await requestRepository.countPendingRequests()
+  Metrics.count(METRIC_NAMES.PENDING_REQUESTS, pendingRequestsCount)
+
   const anchorSummary: AnchorSummary = Object.assign(
     {
       acceptedRequestsCount: groupedRequests.acceptedRequests.length,
@@ -68,6 +72,7 @@ const logAnchorSummary = (
       failedRequestsCount: groupedRequests.failedRequests.length,
       failedToPublishAnchorCommitCount: 0,
       unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
+      pendingRequestsCount,
       candidateCount: candidates.length,
       anchorCount: 0,
       canRetryCount:
@@ -117,7 +122,8 @@ export class AnchorService {
       const maxStreamLimit =
         this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0
       const minStreamLimit = this.config.minStreamCount || Math.floor(maxStreamLimit / 2)
-      await this.requestRepository.findAndMarkReady(maxStreamLimit, minStreamLimit)
+      // Pull in twice as many streams as we want to anchor, since some of those streams may fail to load.
+      await this.requestRepository.findAndMarkReady(maxStreamLimit * 2, minStreamLimit)
     }
 
     return this.anchorReadyRequests()
@@ -164,13 +170,13 @@ export class AnchorService {
 
     if (candidates.length === 0) {
       logger.imp('No candidates found. Skipping anchor.')
-      logAnchorSummary(groupedRequests, candidates)
+      await logAnchorSummary(this.requestRepository, groupedRequests, candidates)
       return
     }
 
     try {
       const results = await this._anchorCandidates(candidates)
-      logAnchorSummary(groupedRequests, candidates, results)
+      await logAnchorSummary(this.requestRepository, groupedRequests, candidates, results)
       return
     } catch (err) {
       logger.warn(
@@ -183,7 +189,7 @@ export class AnchorService {
 
       // groupRequests.failedRequests does not include all the newly failed requests so we recount here
       const failedRequests = candidates.map((candidate) => candidate.failedRequests).flat()
-      logAnchorSummary(groupedRequests, candidates, {
+      await logAnchorSummary(this.requestRepository, groupedRequests, candidates, {
         failedRequestsCount: failedRequests.length,
         // NOTE: We will retry all of the above requests that were updated back to PENDING.
         // We also may retry all failed requests other than requests rejected from conflict resolution.
