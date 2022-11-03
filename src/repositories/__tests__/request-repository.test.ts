@@ -87,6 +87,32 @@ describe('request repository test', () => {
     expect(result1).toEqual(result2)
   })
 
+  test('countPendingRequests', async () => {
+    const requests = await Promise.all([
+      generateRequest({
+        status: RequestStatus.PENDING,
+      }),
+      generateRequest({
+        status: RequestStatus.PROCESSING,
+      }),
+      generateRequest({
+        status: RequestStatus.READY,
+      }),
+      generateRequest({
+        status: RequestStatus.FAILED,
+      }),
+      generateRequest({
+        status: RequestStatus.COMPLETED,
+      }),
+      generateRequest({
+        status: RequestStatus.PENDING,
+      }),
+    ])
+    await requestRepository.createRequests(requests)
+
+    await expect(requestRepository.countPendingRequests()).resolves.toEqual(2)
+  })
+
   describe('findRequestsToGarbageCollect', () => {
     test('Finds requests older than a month', async () => {
       // Create two requests that are expired and should be garbage collected, and two that should not

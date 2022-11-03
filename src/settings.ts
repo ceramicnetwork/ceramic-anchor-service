@@ -6,7 +6,7 @@ export enum METRIC_NAMES {
   ERROR_MULTIQUERY = 'error_multiquery',
 
   FAILED_TIP = 'failed_load_tip',
-  FAILED_STREAM = 'failed_load_stream', 
+  FAILED_STREAM = 'failed_load_stream',
 
   RETRY_EMIT_ANCHOR_EVENT = 'retry_emit_anchor_event',
   REVERT_TO_PENDING = 'revert_to_pending',
@@ -29,6 +29,7 @@ export enum METRIC_NAMES {
   CONFLICTING_REQUESTS = 'conflicting_requests',
   FAILED_REQUESTS = 'failed_requests',
   UNPROCESSED_REQUESTS = 'unprocessed_requests',
+  PENDING_REQUESTS = 'pending_requests',
 
   SCHEDULER_TASK_UNCAUGHT_ERROR = 'scheduler_task_uncaught_error',
   MANY_ATTEMPTS_TO_ACQUIRE_MUTEX = 'many_attempts_to_acquire_mutex',

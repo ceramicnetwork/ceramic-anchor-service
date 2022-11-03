@@ -387,6 +387,18 @@ export class RequestRepository {
   }
 
   /**
+   * Returns the number of pending anchor requests that remain in the database.
+   * @returns The number of requests in the database in status PENDING
+   */
+  public async countPendingRequests(): Promise<number> {
+    const res = await this.connection(TABLE_NAME)
+      .count('id')
+      .where({ status: RequestStatus.PENDING })
+      .first()
+    return parseInt(res.count as string)
+  }
+
+  /**
    * Finds and updates all READY requests that are expired (have not been moved to PROCESSING in a sufficient amount of time)
    * Updating them indicates that they are being retried
    * @param options
