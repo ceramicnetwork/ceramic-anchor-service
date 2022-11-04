@@ -459,7 +459,7 @@ export class AnchorService {
       acceptedRequests.push(...candidate.acceptedRequests)
     }
 
-    const trx = await this.connection.transaction(null, { isolationLevel: 'serializable' })
+    const trx = await this.connection.transaction(null, { isolationLevel: 'repeatable read' })
     try {
       await this.anchorRepository.createAnchors(anchors, { connection: trx })
 
