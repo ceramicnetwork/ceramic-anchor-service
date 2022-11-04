@@ -1,5 +1,6 @@
 export enum METRIC_NAMES {
 
+  ANCHOR_REQUESTED = 'anchor_requested',
   ANCHOR_REQUESTS_BATCH_TIME = 'anchor_requests_batch_time',
   ANCHOR_REQUESTS_BATCH_FAILURE_TIME = 'anchor_requests_batch_failure_time',
 
