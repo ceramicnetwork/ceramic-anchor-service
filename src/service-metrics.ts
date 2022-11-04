@@ -58,8 +58,8 @@ class NullSpan implements Endable {
 }
 
 export enum SinceField {
-  CreatedAt = 0,
-  UpdatedAt = 1
+  CREATED_AT = 0,
+  UPDATED_AT = 1
 }
 
 export class TimeableMetric {
@@ -89,7 +89,7 @@ export class TimeableMetric {
 
     this.cnt += 1
     let time_elapsed = 0
-    if (this.since === SinceField.CreatedAt) {
+    if (this.since === SinceField.CREATED_AT) {
       time_elapsed = Date.now() - request.createdAt.getTime()
     } else { // UpdatedAt
       time_elapsed = Date.now() - request.updatedAt.getTime()

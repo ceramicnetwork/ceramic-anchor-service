@@ -33,9 +33,9 @@ export const TABLE_NAME = 'request'
  * @returns
  */
 const recordAnchorRequestMetrics = (requests: Request[], anchoringDeadline: Date): void => {
-  const expired = new TimeableMetric(SinceField.CreatedAt)
-  const processing = new TimeableMetric(SinceField.CreatedAt)
-  const failed = new TimeableMetric(SinceField.CreatedAt)
+  const expired = new TimeableMetric(SinceField.CREATED_AT)
+  const processing = new TimeableMetric(SinceField.CREATED_AT)
+  const failed = new TimeableMetric(SinceField.CREATED_AT)
 
   for (const req of requests) {
       if (req.createdAt < anchoringDeadline) {
@@ -259,7 +259,7 @@ export class RequestRepository {
           }
 
           // Record the timing of the processing requests, relative to the last update (when we submitted them)
-          const processing = new TimeableMetric(SinceField.UpdatedAt)
+          const processing = new TimeableMetric(SinceField.UPDATED_AT)
           processing.recordAll(requests)
           processing.publishStats(METRIC_NAMES.READY_PROCESSING)
           return requests
