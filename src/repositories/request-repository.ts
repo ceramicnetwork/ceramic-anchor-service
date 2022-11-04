@@ -48,7 +48,7 @@ const recordAnchorRequestMetrics = (requests: Request[], anchoringDeadline: Date
   }
 
   expired.publishStats(METRIC_NAMES.RETRY_EXPIRING)
-  processing.publishStats(METRIC_NAMES.RETRY_PROCESSING) // Is this really retry??
+  processing.publishStats(METRIC_NAMES.RETRY_PROCESSING)
   failed.publishStats(METRIC_NAMES.RETRY_FAILED)
 }
 
@@ -258,7 +258,7 @@ export class RequestRepository {
             )
           }
 
-          // Record the timing of the processing requests, relative to the last update (when we submitted them)
+          // Record the requests we are processing, along with the time since they were marked as ready.
           const processing = new TimeableMetric(SinceField.UPDATED_AT)
           processing.recordAll(requests)
           processing.publishStats(METRIC_NAMES.READY_PROCESSING)

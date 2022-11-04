@@ -82,10 +82,6 @@ export class TimeableMetric {
   }
 
   public record(request: Timeable) {
-    // we could lean on prometheus to do this but it might be too heavyweight
-    // so calculate the average ourselves
-    // the Request class is imported from CAS but we could make it an interface
-    // it only requires createdAt and 
 
     this.cnt += 1
     let time_elapsed = 0

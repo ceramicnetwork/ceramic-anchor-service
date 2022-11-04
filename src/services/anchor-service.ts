@@ -129,7 +129,6 @@ export class AnchorService {
   public async anchorReadyRequests(): Promise<void> {
     // TODO: Remove this after restart loop removed as part of switching to go-ipfs
     // Skip sleep for unit tests
-    // this is the whole function if we want to time it
     if (process.env.NODE_ENV != 'test') {
       logger.imp('sleeping one minute for ipfs to stabilize')
       await Utils.delay(1000 * 60)
@@ -137,11 +136,9 @@ export class AnchorService {
 
     logger.imp('Anchoring ready requests...')
     logger.debug(`Loading requests from the database`)
-    const before = performance.now()
     const requests: Request[] = await this.requestRepository.findAndMarkAsProcessing()
     await this._anchorRequests(requests)
-    const after = performance.now()
-    Metrics.record(METRIC_NAMES.ANCHOR_REQUESTS_BATCH_TIME, after - before)
+
     // Sleep 5 seconds before exiting the process to give time for the logs to flush.
     await Utils.delay(5000)
   }
