@@ -84,15 +84,15 @@ export class TimeableMetric {
   public record(request: Timeable) {
 
     this.cnt += 1
-    let time_elapsed = 0
+    let timeElapsed = 0
     if (this.since === SinceField.CREATED_AT) {
-      time_elapsed = Date.now() - request.createdAt.getTime()
+      timeElapsed = Date.now() - request.createdAt.getTime()
     } else { // UpdatedAt
-      time_elapsed = Date.now() - request.updatedAt.getTime()
+      timeElapsed = Date.now() - request.updatedAt.getTime()
     }
-    this.totTime += time_elapsed
-    if (time_elapsed > this.maxTime) {
-      this.maxTime = time_elapsed
+    this.totTime += timeElapsed
+    if (timeElapsed > this.maxTime) {
+      this.maxTime = timeElapsed
     }
   }
 

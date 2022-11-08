@@ -153,8 +153,6 @@ export class AnchorService {
       logger.debug('No pending CID requests found. Skipping anchor.')
       return
     }
-    // we still have pristine requests here (until _findCandidates)
-    // this is the function we want to trace.span()
 
     let streamCountLimit = 0 // 0 means no limit
     if (this.config.merkleDepthLimit > 0) {
