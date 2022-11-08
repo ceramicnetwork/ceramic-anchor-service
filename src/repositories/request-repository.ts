@@ -33,21 +33,28 @@ export const TABLE_NAME = 'request'
  * @returns
  */
 const recordAnchorRequestMetrics = (requests: Request[], anchoringDeadline: Date): void => {
+  const created = new TimeableMetric(SinceField.CREATED_AT)
   const expired = new TimeableMetric(SinceField.CREATED_AT)
-  const processing = new TimeableMetric(SinceField.CREATED_AT)
-  const failed = new TimeableMetric(SinceField.CREATED_AT)
+  const processing = new TimeableMetric(SinceField.UPDATED_AT)
+  const failed = new TimeableMetric(SinceField.UPDATED_AT)
 
   for (const req of requests) {
       if (req.createdAt < anchoringDeadline) {
-          expired.record(req)
-      } else if (req.status === RequestStatus.PROCESSING) {
+          expired.record(req)  
+      }
+
+      if (req.status === RequestStatus.PROCESSING) {
           processing.record(req)
       } else if (req.status === RequestStatus.FAILED) {
           failed.record(req)
+      } else if (req.status === RequestStatus.PENDING) {
+          created.record(req)
       }
   }
 
-  expired.publishStats(METRIC_NAMES.RETRY_EXPIRING)
+  expired.publishStats(METRIC_NAMES.REQUEST_EXPIRED)
+  created.publishStats(METRIC_NAMES.REQUEST_CREATED)
+
   processing.publishStats(METRIC_NAMES.RETRY_PROCESSING)
   failed.publishStats(METRIC_NAMES.RETRY_FAILED)
 }
