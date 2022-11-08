@@ -9,7 +9,7 @@ import { clearTables, createDbConnection } from '../../db-connection.js'
 
 import { RequestRepository } from '../../repositories/request-repository.js'
 import { IpfsService } from '../ipfs-service.js'
-import { AnchorRepository } from '../../repositories/anchor-repository.js'
+import { AnchorRepository, TABLE_NAME } from '../../repositories/anchor-repository.js'
 import { config, Config } from 'node-config-ts'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import {
@@ -596,6 +596,44 @@ describe('anchor service', () => {
     expect(anchors.find((anchor) => anchor.requestId == requests[1].id)).toBeFalsy()
     expect(anchors.find((anchor) => anchor.requestId == requests[2].id)).toBeTruthy()
     expect(anchors.find((anchor) => anchor.requestId == requests[3].id)).toBeFalsy()
+  })
+
+  test('Does not create anchor commits if stream has already been anchored for those requests', async () => {
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    const anchorService = container.resolve<AnchorService>('anchorService')
+
+    const anchorLimit = 0 // 0 means infinity
+    const numRequests = 5
+
+    // Create pending requests
+    for (let i = 0; i < numRequests; i++) {
+      const streamId = await ceramicService.generateBaseStreamID()
+      const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
+      const commitId = CommitID.make(streamId, request.cid)
+      const stream = createStream(streamId, [toCID(request.cid)])
+      ceramicService.putStream(streamId, stream)
+      ceramicService.putStream(commitId, stream)
+    }
+
+    await requestRepository.findAndMarkReady(anchorLimit)
+
+    let requests = await requestRepository.findByStatus(RequestStatus.READY)
+    expect(requests.length).toEqual(numRequests)
+    const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
+    expect(candidates.length).toEqual(numRequests)
+    await anchorCandidates(candidates, anchorService, ipfsService)
+
+    // All requests should have been processed
+    requests = await requestRepository.findByStatus(RequestStatus.READY)
+    expect(requests.length).toEqual(0)
+
+    let anchors = await connection.select().from(TABLE_NAME)
+    expect(anchors.length).toEqual(numRequests)
+
+    await anchorCandidates(candidates, anchorService, ipfsService)
+
+    anchors = await connection.select().from(TABLE_NAME)
+    expect(anchors.length).toEqual(numRequests)
   })
 
   describe('Picks proper commit to anchor', () => {
