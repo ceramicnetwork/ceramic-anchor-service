@@ -96,7 +96,7 @@ export class RequestController {
       } else {
         // Intentionally don't await the pinStream promise, let it happen in the background.
         this.ceramicService.pinStream(streamId)
-        Metrics.count(METRIC_NAMES.PIN_REQUESTED, 1)
+        Metrics.count(METRIC_NAMES.ANCHOR_REQUESTED, 1, {'ip_addr': req.ip})
 
         request = new Request()
         request.cid = cid.toString()

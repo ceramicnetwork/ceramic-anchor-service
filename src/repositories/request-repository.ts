@@ -7,7 +7,7 @@ import { Config } from 'node-config-ts'
 import { inject, singleton } from 'tsyringe'
 import { logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
-import { ServiceMetrics as Metrics } from '../service-metrics.js'
+import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '../service-metrics.js'
 import { METRIC_NAMES } from '../settings.js'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
@@ -21,15 +21,42 @@ export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
 export const TABLE_NAME = 'request'
 
-const countRetryMetrics = (requests: Request[], anchoringDeadline: Date): void => {
-  const expired = requests.filter((request) => request.createdAt < anchoringDeadline)
-  if (expired.length > 0) Metrics.count(METRIC_NAMES.RETRY_EXPIRING, expired.length)
+/**
+ * Records statistics about the set of requests
+ * Groups by EXPIRED (if the time is past the deadline), PROCESSING, and FAILED
+ * 
+ * Will record the total count, the mean time since createdAt, and the max time since createdAt
+ * for each group
+ *
+ * @param requests
+ * @param anchoringDeadline
+ * @returns
+ */
+const recordAnchorRequestMetrics = (requests: Request[], anchoringDeadline: Date): void => {
+  const created = new TimeableMetric(SinceField.CREATED_AT)
+  const expired = new TimeableMetric(SinceField.CREATED_AT)
+  const processing = new TimeableMetric(SinceField.UPDATED_AT)
+  const failed = new TimeableMetric(SinceField.UPDATED_AT)
 
-  const processing = requests.filter((request) => request.status === RequestStatus.PROCESSING)
-  if (processing.length > 0) Metrics.count(METRIC_NAMES.RETRY_PROCESSING, processing.length)
+  for (const req of requests) {
+      if (req.createdAt < anchoringDeadline) {
+          expired.record(req)  
+      }
 
-  const failed = requests.filter((request) => request.status === RequestStatus.FAILED)
-  if (failed.length > 0) Metrics.count(METRIC_NAMES.RETRY_FAILED, failed.length)
+      if (req.status === RequestStatus.PROCESSING) {
+          processing.record(req)
+      } else if (req.status === RequestStatus.FAILED) {
+          failed.record(req)
+      } else if (req.status === RequestStatus.PENDING) {
+          created.record(req)
+      }
+  }
+
+  expired.publishStats(METRIC_NAMES.REQUEST_EXPIRED)
+  created.publishStats(METRIC_NAMES.REQUEST_CREATED)
+
+  processing.publishStats(METRIC_NAMES.RETRY_PROCESSING)
+  failed.publishStats(METRIC_NAMES.RETRY_FAILED)
 }
 
 /**
@@ -238,6 +265,10 @@ export class RequestRepository {
             )
           }
 
+          // Record the requests we are processing, along with the time since they were marked as ready.
+          const processing = new TimeableMetric(SinceField.UPDATED_AT)
+          processing.recordAll(requests)
+          processing.publishStats(METRIC_NAMES.READY_PROCESSING)
           return requests
         },
         {
@@ -347,7 +378,9 @@ export class RequestRepository {
             )
           }
 
-          countRetryMetrics(requests, anchoringDeadline)
+          // Record statistics about the anchor requests
+          // Note they will be updated to READY in the database but the request status will still be PENDING
+          recordAnchorRequestMetrics(requests, anchoringDeadline)
 
           logger.debug(`Updated ${updatedCount} requests to READY for ${streamIds.length} streams`)
 

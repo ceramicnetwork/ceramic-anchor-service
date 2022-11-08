@@ -43,6 +43,11 @@ interface Endable {
   end(endTime?: TimeInput): void
 }
 
+interface Timeable {
+  createdAt: Date
+  updatedAt: Date
+}
+
 class NullSpan implements Endable {
   // if we start using other span methods, add null methods here
 
@@ -51,6 +56,58 @@ class NullSpan implements Endable {
     return false
   }
 }
+
+export enum SinceField {
+  CREATED_AT = 0,
+  UPDATED_AT = 1
+}
+
+export class TimeableMetric {
+  protected cnt: number
+  protected totTime: number
+  protected maxTime: number
+  protected since: SinceField
+
+  constructor(since:SinceField) {
+    this.cnt = 0
+    this.totTime = 0
+    this.maxTime = 0
+    this.since = since
+  } 
+
+  public recordAll(requests: Timeable[]) {
+     for (const req of requests) {
+       this.record(req)
+     }
+  }
+
+  public record(request: Timeable) {
+
+    this.cnt += 1
+    let timeElapsed = 0
+    if (this.since === SinceField.CREATED_AT) {
+      timeElapsed = Date.now() - request.createdAt.getTime()
+    } else { // UpdatedAt
+      timeElapsed = Date.now() - request.updatedAt.getTime()
+    }
+    this.totTime += timeElapsed
+    if (timeElapsed > this.maxTime) {
+      this.maxTime = timeElapsed
+    }
+  }
+
+  private getMeanTime(): number {
+    return this.totTime/this.cnt
+  }
+
+  public publishStats(name:string): void {
+    ServiceMetrics.count(name + '_total', this.cnt)
+    ServiceMetrics.record(name + '_mean', this.getMeanTime())
+    ServiceMetrics.record(name + '_max', this.maxTime)
+  }
+
+}
+
 
 class _ServiceMetrics {
   protected caller
