@@ -31,12 +31,12 @@ export class AnchorRepository {
       .onConflict('requestId')
       .ignore()) as any
 
-    const reAnchoredCount = anchors.length - result.rowCount
+    const notCreatedCount = anchors.length - result.rowCount
 
     logger.debug(
-      `Not creating ${reAnchoredCount} anchor commits as they have been already created for these requests`
+      `Not creating ${notCreatedCount} anchor commits as they have been already created for these requests`
     )
-    Metrics.count(METRIC_NAMES.REANCHORED, reAnchoredCount)
+    Metrics.count(METRIC_NAMES.REANCHORED, notCreatedCount)
   }
 
   /**
