@@ -623,15 +623,16 @@ describe('anchor service', () => {
     expect(candidates.length).toEqual(numRequests)
     await anchorCandidates(candidates, anchorService, ipfsService)
 
-    // All requests should have been processed
     requests = await requestRepository.findByStatus(RequestStatus.READY)
     expect(requests.length).toEqual(0)
 
     let anchors = await connection.select().from(TABLE_NAME)
     expect(anchors.length).toEqual(numRequests)
 
+    // reanchor the same candidates
     await anchorCandidates(candidates, anchorService, ipfsService)
 
+    // no new anchor should have been created
     anchors = await connection.select().from(TABLE_NAME)
     expect(anchors.length).toEqual(numRequests)
   })
