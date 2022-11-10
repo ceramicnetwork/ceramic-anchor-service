@@ -17,7 +17,7 @@ export const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
 export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 3 //3H
 // If a request fails during this window, retry
 export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
-// only retry failed requests if it hasn't been tried 6 hours ago
+// only retry failed requests if it hasn't been tried within the last 6 hours
 export const FAILURE_RETRY_INTERVAL = 1000 * 60 * 60 * 6 // 6H
 // application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
@@ -73,7 +73,7 @@ const recordAnchorRequestMetrics = (requests: Request[], anchoringDeadline: Date
 const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder => {
   const earliestFailedCreatedAtToRetry = new Date(now.getTime() - FAILURE_RETRY_WINDOW)
   const processingDeadline = new Date(now.getTime() - PROCESSING_TIMEOUT)
-  const earliestFailedUpdatedAtToRetry = new Date(now.getTime() - FAILURE_RETRY_INTERVAL)
+  const latestFailedUpdatedAtToRetry = new Date(now.getTime() - FAILURE_RETRY_INTERVAL)
 
   return connection(TABLE_NAME).where((builder) => {
     builder
@@ -87,7 +87,7 @@ const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder =>
         subBuilder
           .where({ status: RequestStatus.FAILED })
           .andWhere('createdAt', '>=', earliestFailedCreatedAtToRetry)
-          .andWhere('updatedAt', '<=', earliestFailedUpdatedAtToRetry)
+          .andWhere('updatedAt', '<=', latestFailedUpdatedAtToRetry)
           .andWhere((subSubBuilder) =>
             subSubBuilder
               .whereNull('message')
