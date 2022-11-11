@@ -9,6 +9,7 @@ import {
   PROCESSING_TIMEOUT,
   FAILURE_RETRY_WINDOW,
   TABLE_NAME,
+  FAILURE_RETRY_INTERVAL,
 } from '../request-repository.js'
 import { AnchorRepository } from '../anchor-repository.js'
 import { Request, REQUEST_MESSAGES, RequestStatus } from '../../models/request.js'
@@ -406,13 +407,13 @@ describe('request repository test', () => {
           },
           1
         ),
-        // failed request updated 30 minutes ago
+        // failed request
         generateRequests(
           {
             status: RequestStatus.FAILED,
             streamId: repeatedStreamId,
-            createdAt: new Date(Date.now() - MS_IN_HOUR),
-            updatedAt: new Date(Date.now() - MS_IN_MINUTE * 30),
+            createdAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+            updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_MINUTE * 30),
           },
           1
         ),
@@ -520,7 +521,7 @@ describe('request repository test', () => {
           {
             status: RequestStatus.FAILED,
             createdAt: dateDuringRetryPeriod,
-            updatedAt: new Date(Date.now() - MS_IN_HOUR),
+            updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
             message: 'random',
           },
           1
@@ -529,7 +530,7 @@ describe('request repository test', () => {
           {
             status: RequestStatus.FAILED,
             createdAt: dateDuringRetryPeriod,
-            updatedAt: new Date(Date.now() - MS_IN_HOUR),
+            updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
           },
           streamLimit - 1
         ),
@@ -554,7 +555,7 @@ describe('request repository test', () => {
         {
           status: RequestStatus.FAILED,
           createdAt: dateBeforeRetryPeriod,
-          updatedAt: new Date(Date.now() - MS_IN_HOUR),
+          updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
         },
         streamLimit
       )
@@ -576,8 +577,30 @@ describe('request repository test', () => {
         {
           status: RequestStatus.FAILED,
           createdAt: dateDuringRetryPeriod,
-          updatedAt: new Date(Date.now() - MS_IN_HOUR),
+          updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
           message: REQUEST_MESSAGES.conflictResolutionRejection,
+        },
+        streamLimit
+      )
+
+      await requestRepository.createRequests(requests)
+
+      const createdRequests = await getAllRequests(connection)
+      expect(requests.length).toEqual(createdRequests.length)
+
+      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+      expect(updatedRequests.length).toEqual(0)
+    })
+
+    test('Will not mark failed requests that were tried recently as ready', async () => {
+      const streamLimit = 5
+      const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+
+      const requests = await generateRequests(
+        {
+          status: RequestStatus.FAILED,
+          createdAt: dateDuringRetryPeriod,
+          updatedAt: new Date(Date.now() - MS_IN_HOUR),
         },
         streamLimit
       )
