@@ -8,14 +8,17 @@ import { Request } from '../models/request.js'
 import { logger } from '../logger/index.js'
 import { IpfsService } from '../services/ipfs-service.js'
 
-import { BloomFilter } from 'bloom-filters'
+import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { StreamID } from '@ceramicnetwork/streamid'
 
 const packageJson = JSON.parse(
-  fs.readFileSync(new URL('../../node_modules/bloom-filters/package.json', import.meta.url), 'utf8')
+  fs.readFileSync(
+    new URL('../../node_modules/@ceramicnetwork/wasm-bloom-filter/package.json', import.meta.url),
+    'utf8'
+  )
 )
 
-const BLOOM_FILTER_TYPE = 'jsnpm_bloom-filters'
+const BLOOM_FILTER_TYPE = 'jsnpm_@ceramicnetwork/wasm-bloom-filter'
 const BLOOM_FILTER_FALSE_POSITIVE_RATE = 0.0001
 const bloomFilterVersion = packageJson['version']
 
@@ -265,9 +268,14 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
         bloomFilterEntries.add(`controller-${controller}`)
       }
     }
-    const bloomFilter = BloomFilter.from(bloomFilterEntries, BLOOM_FILTER_FALSE_POSITIVE_RATE)
+
+    const bloomFilter = new BloomFilter(BLOOM_FILTER_FALSE_POSITIVE_RATE, bloomFilterEntries.size)
+    for (const entry of bloomFilterEntries) {
+      bloomFilter.add(entry)
+    }
+
     // @ts-ignore
-    const serializedBloomFilter = bloomFilter.saveAsJSON()
+    const serializedBloomFilter = bloomFilter.toString()
     return {
       numEntries: leaves.length,
       bloomFilter: {
