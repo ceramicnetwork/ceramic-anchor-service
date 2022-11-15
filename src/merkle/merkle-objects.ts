@@ -274,7 +274,6 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
       bloomFilter.add(entry)
     }
 
-    // @ts-ignore
     const serializedBloomFilter = bloomFilter.toString()
     return {
       numEntries: leaves.length,
