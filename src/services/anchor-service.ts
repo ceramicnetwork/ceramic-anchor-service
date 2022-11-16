@@ -279,12 +279,18 @@ export class AnchorService {
    * mark them as PROCESSING, and perform an anchor.
    */
   public async emitAnchorEventIfReady(): Promise<void> {
-    const updatedExpiredReadyRequestsCount =
-      await this.requestRepository.updateExpiringReadyRequests()
+    const readyRequests = await this.requestRepository.findByStatus(RS.READY)
 
-    // if ready requests have been updated because they have expired
-    // we will retry them by emitting an anchor event and not marking anymore requests as READY
-    if (updatedExpiredReadyRequestsCount > 0) {
+    if (readyRequests.length > 0) {
+      // if ready requests have been updated because they have expired
+      // we will retry them by emitting an anchor event and not marking anymore requests as READY
+      const updatedExpiredReadyRequestsCount =
+        await this.requestRepository.updateExpiringReadyRequests()
+
+      if (updatedExpiredReadyRequestsCount === 0) {
+        return
+      }
+
       logger.debug(
         `Emitting an anchor event beacuse ${updatedExpiredReadyRequestsCount} READY requests expired`
       )

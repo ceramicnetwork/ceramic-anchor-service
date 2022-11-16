@@ -910,15 +910,22 @@ describe('anchor service', () => {
 
   describe('emitAnchorEventIfReady', () => {
     test('Does not emit if ready requests exist but they are not timed out', async () => {
-      // Ready requests that have not timed out (created now)
-      const originalRequests = await generateRequests(
-        {
-          status: RequestStatus.READY,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        3
-      )
+      const originalRequests = await Promise.all([
+        generateRequests(
+          {
+            status: RequestStatus.READY,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          2
+        ),
+        generateRequests(
+          {
+            status: RequestStatus.PENDING,
+          },
+          4
+        ),
+      ]).then((arr) => arr.flat())
 
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const requestRepositoryUpdateSpy = jest.spyOn(requestRepository, 'updateRequests')
