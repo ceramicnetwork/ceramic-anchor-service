@@ -10,12 +10,12 @@ import {
   IpfsMerge,
 } from '../merkle-objects.js'
 import { StreamID } from '@ceramicnetwork/streamid'
-import { BloomFilter } from 'bloom-filters'
+import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { Request } from '../../models/request.js'
 import { AnchorStatus } from '@ceramicnetwork/common'
 
 const TYPE_REGEX =
-  /^jsnpm_bloom-filters-v((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/
+  /^jsnpm_@ceramicnetwork\/wasm-bloom-filter-v((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/
 const isTypeString = (str: string) => Boolean(str.match(TYPE_REGEX))
 
 describe('Bloom filter', () => {
@@ -58,11 +58,11 @@ describe('Bloom filter', () => {
     expect(isTypeString(metadata.bloomFilter.type)).toEqual(true)
 
     // @ts-ignore
-    const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
+    const bloomFilter = BloomFilter.fromString(metadata.bloomFilter.data)
 
-    expect(bloomFilter.has(`streamid-${candidates[0].streamId.toString()}`)).toBeTruthy()
-    expect(bloomFilter.has(`controller-a`)).toBeTruthy()
-    expect(bloomFilter.has(`controller-b`)).toBeFalsy()
+    expect(bloomFilter.contains(`streamid-${candidates[0].streamId.toString()}`)).toBeTruthy()
+    expect(bloomFilter.contains(`controller-a`)).toBeTruthy()
+    expect(bloomFilter.contains(`controller-b`)).toBeFalsy()
   })
 
   test('Single stream full metadata', async () => {
@@ -82,18 +82,18 @@ describe('Bloom filter', () => {
     expect(isTypeString(metadata.bloomFilter.type)).toEqual(true)
 
     // @ts-ignore
-    const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
+    const bloomFilter = BloomFilter.fromString(metadata.bloomFilter.data)
 
-    expect(bloomFilter.has(`streamid-${candidates[0].streamId.toString()}`)).toBeTruthy()
-    expect(bloomFilter.has(`controller-a`)).toBeTruthy()
-    expect(bloomFilter.has(`controller-b`)).toBeTruthy()
-    expect(bloomFilter.has(`controller-c`)).toBeFalsy()
-    expect(bloomFilter.has(`a`)).toBeFalsy()
-    expect(bloomFilter.has(`schema-schema`)).toBeTruthy()
-    expect(bloomFilter.has(`family-family`)).toBeTruthy()
-    expect(bloomFilter.has(`tag-a`)).toBeTruthy()
-    expect(bloomFilter.has(`tag-b`)).toBeTruthy()
-    expect(bloomFilter.has(`tag-c`)).toBeFalsy()
+    expect(bloomFilter.contains(`streamid-${candidates[0].streamId.toString()}`)).toBeTruthy()
+    expect(bloomFilter.contains(`controller-a`)).toBeTruthy()
+    expect(bloomFilter.contains(`controller-b`)).toBeTruthy()
+    expect(bloomFilter.contains(`controller-c`)).toBeFalsy()
+    expect(bloomFilter.contains(`a`)).toBeFalsy()
+    expect(bloomFilter.contains(`schema-schema`)).toBeTruthy()
+    expect(bloomFilter.contains(`family-family`)).toBeTruthy()
+    expect(bloomFilter.contains(`tag-a`)).toBeTruthy()
+    expect(bloomFilter.contains(`tag-b`)).toBeTruthy()
+    expect(bloomFilter.contains(`tag-c`)).toBeFalsy()
   })
 
   test('Multiple streams full metadata', async () => {
@@ -131,28 +131,28 @@ describe('Bloom filter', () => {
     expect(isTypeString(metadata.bloomFilter.type)).toEqual(true)
 
     // @ts-ignore
-    const bloomFilter = BloomFilter.fromJSON(metadata.bloomFilter.data)
+    const bloomFilter = BloomFilter.fromString(metadata.bloomFilter.data)
 
-    expect(bloomFilter.has(`streamid-${candidates[0].streamId.toString()}`)).toBeTruthy()
-    expect(bloomFilter.has(`streamid-${candidates[1].streamId.toString()}`)).toBeTruthy()
-    expect(bloomFilter.has(`streamid-${candidates[2].streamId.toString()}`)).toBeTruthy()
-    expect(bloomFilter.has(`controller-a`)).toBeTruthy()
-    expect(bloomFilter.has(`controller-b`)).toBeTruthy()
-    expect(bloomFilter.has(`controller-c`)).toBeTruthy()
-    expect(bloomFilter.has(`controller-d`)).toBeFalsy()
-    expect(bloomFilter.has(`a`)).toBeFalsy()
-    expect(bloomFilter.has(`schema-schema0`)).toBeTruthy()
-    expect(bloomFilter.has(`schema-schema1`)).toBeTruthy()
-    expect(bloomFilter.has(`schema-schema2`)).toBeTruthy()
-    expect(bloomFilter.has(`schema-schema3`)).toBeFalsy()
-    expect(bloomFilter.has(`family-family0`)).toBeTruthy()
-    expect(bloomFilter.has(`family-family1`)).toBeTruthy()
-    expect(bloomFilter.has(`family-family2`)).toBeFalsy()
-    expect(bloomFilter.has(`tag-a`)).toBeTruthy()
-    expect(bloomFilter.has(`tag-b`)).toBeTruthy()
-    expect(bloomFilter.has(`tag-c`)).toBeTruthy()
-    expect(bloomFilter.has(`tag-d`)).toBeTruthy()
-    expect(bloomFilter.has(`tag-e`)).toBeTruthy()
-    expect(bloomFilter.has(`tag-f`)).toBeFalsy()
+    expect(bloomFilter.contains(`streamid-${candidates[0].streamId.toString()}`)).toBeTruthy()
+    expect(bloomFilter.contains(`streamid-${candidates[1].streamId.toString()}`)).toBeTruthy()
+    expect(bloomFilter.contains(`streamid-${candidates[2].streamId.toString()}`)).toBeTruthy()
+    expect(bloomFilter.contains(`controller-a`)).toBeTruthy()
+    expect(bloomFilter.contains(`controller-b`)).toBeTruthy()
+    expect(bloomFilter.contains(`controller-c`)).toBeTruthy()
+    expect(bloomFilter.contains(`controller-d`)).toBeFalsy()
+    expect(bloomFilter.contains(`a`)).toBeFalsy()
+    expect(bloomFilter.contains(`schema-schema0`)).toBeTruthy()
+    expect(bloomFilter.contains(`schema-schema1`)).toBeTruthy()
+    expect(bloomFilter.contains(`schema-schema2`)).toBeTruthy()
+    expect(bloomFilter.contains(`schema-schema3`)).toBeFalsy()
+    expect(bloomFilter.contains(`family-family0`)).toBeTruthy()
+    expect(bloomFilter.contains(`family-family1`)).toBeTruthy()
+    expect(bloomFilter.contains(`family-family2`)).toBeFalsy()
+    expect(bloomFilter.contains(`tag-a`)).toBeTruthy()
+    expect(bloomFilter.contains(`tag-b`)).toBeTruthy()
+    expect(bloomFilter.contains(`tag-c`)).toBeTruthy()
+    expect(bloomFilter.contains(`tag-d`)).toBeTruthy()
+    expect(bloomFilter.contains(`tag-e`)).toBeTruthy()
+    expect(bloomFilter.contains(`tag-f`)).toBeFalsy()
   })
 })
