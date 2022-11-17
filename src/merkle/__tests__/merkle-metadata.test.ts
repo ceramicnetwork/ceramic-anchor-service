@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals'
 import { MockIpfsService, randomCID } from '../../__tests__/test-utils.js'
 import { MerkleTree } from '../merkle-tree.js'
-import { TreeMetadata } from '../merkle.js'
+import { type Node, TreeMetadata } from '../merkle.js'
 import {
   BloomMetadata,
   Candidate,
@@ -127,5 +127,51 @@ describe('Bloom filter', () => {
     expect(bloomFilter.contains(`model-model1`)).toBeTruthy()
     expect(bloomFilter.contains(`model-model2`)).toBeTruthy()
     expect(bloomFilter.contains(`model-model3`)).toBeFalsy()
+  })
+})
+
+describe('IpfsLeafCompare sorting', () => {
+  const leaves = new IpfsLeafCompare()
+
+  const mockNode = (streamId: string, metadata: any): Node<Candidate> => {
+    return { data: { streamId, metadata } } as unknown as Node<Candidate>
+  }
+
+  const node0 = mockNode('id0', { controllers: ['a'] })
+  const node1 = mockNode('id1', {
+    controllers: ['b'],
+    model: 'model1',
+  })
+  const node2 = mockNode('id2', {
+    controllers: ['a'],
+    model: 'model2',
+  })
+  const node3 = mockNode('id3', {
+    controllers: ['b'],
+    model: 'model2',
+  })
+  const node4 = mockNode('id4', {
+    controllers: ['b'],
+    model: 'model2',
+  })
+
+  test('model ordering - single model', () => {
+    // Pick node1 that contains a model
+    expect(leaves.compare(node0, node1)).toBe(1)
+  })
+
+  test('model ordering - two models', () => {
+    // Pick node1, sorted by model name
+    expect(leaves.compare(node1, node2)).toBe(-1)
+  })
+
+  test('controller ordering', () => {
+    // Same model, compare by controller, pick node2 sorted by controller name
+    expect(leaves.compare(node2, node3)).toBe(-1)
+  })
+
+  test('streamID ordering', () => {
+    // Same model and controller, pick node3 sorted by stream ID
+    expect(leaves.compare(node3, node4)).toBe(-1)
   })
 })
