@@ -149,7 +149,7 @@ export class MockEventProducerService implements EventProducerService {
  * @param override request data to use. If some values are not provided, they will be generated.
  * @returns a promise for a request
  */
-export async function generateRequest(override: Partial<Request>) {
+export function generateRequest(override: Partial<Request>): Request {
   const request = new Request()
   const streamID = randomStreamID()
   request.cid = streamID.cid.toString()
@@ -170,27 +170,23 @@ export async function generateRequest(override: Partial<Request>) {
  * @param varianceMS time between generated requests (defaults to 1000 ms)
  * @returns a promise for an array of count requests
  */
-export async function generateRequests(
+export function generateRequests(
   override: Partial<Request>,
   count = 1,
   varianceMS = 1000
-): Promise<Request[]> {
-  const requests = await Promise.all(
-    Array.from(Array(count)).map(async (_, i) => {
-      if (varianceMS > 0) {
-        const createdAt = override.createdAt || new Date(Date.now())
-        const updatedAt = override.updatedAt || new Date(createdAt.getTime())
+): Array<Request> {
+  return Array.from({ length: count }).map((_, i) => {
+    if (varianceMS > 0) {
+      const createdAt = override.createdAt || new Date(Date.now())
+      const updatedAt = override.updatedAt || new Date(createdAt.getTime())
 
-        return generateRequest({
-          createdAt: new Date(createdAt.getTime() + i * varianceMS),
-          updatedAt: new Date(updatedAt.getTime() + i * varianceMS),
-          ...override,
-        })
-      }
+      return generateRequest({
+        createdAt: new Date(createdAt.getTime() + i * varianceMS),
+        updatedAt: new Date(updatedAt.getTime() + i * varianceMS),
+        ...override,
+      })
+    }
 
-      return generateRequest(override)
-    })
-  )
-
-  return requests
+    return generateRequest(override)
+  })
 }

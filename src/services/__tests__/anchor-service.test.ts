@@ -909,7 +909,7 @@ describe('anchor service', () => {
 
   describe('emitAnchorEventIfReady', () => {
     test('Does not emit if ready requests exist but they are not timed out', async () => {
-      const originalRequests = await Promise.all([
+      const originalRequests = [
         generateRequests(
           {
             status: RequestStatus.READY,
@@ -924,7 +924,7 @@ describe('anchor service', () => {
           },
           4
         ),
-      ]).then((arr) => arr.flat())
+      ].flat()
 
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const requestRepositoryUpdateSpy = jest.spyOn(requestRepository, 'updateRequests')
@@ -949,7 +949,7 @@ describe('anchor service', () => {
       const config = container.resolve<Config>('config')
       const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
       // Ready requests that have timed out (created too long ago)
-      const originalRequests = await generateRequests(
+      const originalRequests = generateRequests(
         {
           status: RequestStatus.READY,
           createdAt: updatedTooLongAgo,
@@ -987,7 +987,7 @@ describe('anchor service', () => {
 
     test('does not emit if no requests were updated to ready', async () => {
       // not enough request generated
-      const originalRequests = await generateRequests(
+      const originalRequests = generateRequests(
         {
           status: RequestStatus.PENDING,
         },
@@ -1006,7 +1006,7 @@ describe('anchor service', () => {
     })
 
     test('emits if requests were updated to ready', async () => {
-      const originalRequests = await generateRequests(
+      const originalRequests = generateRequests(
         {
           status: RequestStatus.PENDING,
         },
@@ -1031,7 +1031,7 @@ describe('anchor service', () => {
     })
 
     test('Does not crash if the event producer rejects', async () => {
-      const originalRequests = await generateRequests(
+      const originalRequests = generateRequests(
         {
           status: RequestStatus.PENDING,
         },
@@ -1056,7 +1056,7 @@ describe('anchor service', () => {
       const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
 
       // Ready requests that have timed out (created too long ago)
-      const requests = await generateRequests(
+      const requests = generateRequests(
         {
           status: RequestStatus.READY,
           createdAt: updatedTooLongAgo,
