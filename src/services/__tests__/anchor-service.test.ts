@@ -819,7 +819,7 @@ describe('anchor service', () => {
       const anchorService = container.resolve<AnchorService>('anchorService')
 
       // Create Requests
-      const streamIds = new Array(numRequests).map(() => randomStreamID())
+      const streamIds = Array.from({ length: numRequests }).map(() => randomStreamID())
       const requests = await Promise.all(
         streamIds.map((streamId) =>
           createRequest(streamId.toString(), ipfsService, requestRepository)
