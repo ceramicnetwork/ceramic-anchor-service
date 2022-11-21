@@ -232,6 +232,9 @@ describe('anchor service', () => {
     const merkleTree = await anchorService._buildMerkleTree(candidates)
     const ipfsProofCid = await ipfsService.storeRecord({})
 
+    expect(mockIpfsClient.dag.put).toHaveBeenCalled()
+    expect(mockIpfsClient.pin.add).toHaveBeenCalledWith(ipfsProofCid)
+
     const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree)
 
     expect(candidates.length).toEqual(requests.length)

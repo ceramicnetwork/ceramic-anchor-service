@@ -120,9 +120,12 @@ export class IpfsServiceImpl implements IpfsService {
   public async storeRecord(record: Record<string, unknown>): Promise<CID> {
     let timeout: any
 
-    const putPromise = this._ipfs.dag.put(record).finally(() => {
-      clearTimeout(timeout)
-    })
+    const putPromise = this._ipfs.dag
+      .put(record)
+      .then((cid) => this._ipfs.pin.add(cid))
+      .finally(() => {
+        clearTimeout(timeout)
+      })
 
     const timeoutPromise = new Promise((resolve) => {
       timeout = setTimeout(resolve, IPFS_PUT_TIMEOUT)

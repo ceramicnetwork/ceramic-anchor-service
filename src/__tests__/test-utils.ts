@@ -26,6 +26,7 @@ export class MockIpfsClient {
   private _streams: Record<string, any> = {}
   pubsub: any
   dag: any
+  pin: any
 
   reset() {
     this.pubsub = {
@@ -41,6 +42,9 @@ export class MockIpfsClient {
         this._streams[cid.toString()] = record
         return cid
       }),
+    }
+    this.pin = {
+      add: jest.fn((cid: CID) => cid),
     }
 
     this._streams = {}
