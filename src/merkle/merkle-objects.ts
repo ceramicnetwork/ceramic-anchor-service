@@ -253,16 +253,8 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
       const candidate = node.data
       streamIds.push(candidate.streamId.toString())
       bloomFilterEntries.add(`streamid-${candidate.streamId.toString()}`)
-      if (candidate.metadata.schema) {
-        bloomFilterEntries.add(`schema-${candidate.metadata.schema}`)
-      }
-      if (candidate.metadata.family) {
-        bloomFilterEntries.add(`family-${candidate.metadata.family}`)
-      }
-      if (candidate.metadata.tags) {
-        for (const tag of candidate.metadata.tags) {
-          bloomFilterEntries.add(`tag-${tag}`)
-        }
+      if (candidate.metadata.model) {
+        bloomFilterEntries.add(`model-${candidate.metadata.model.toString()}`)
       }
       for (const controller of candidate.metadata.controllers) {
         bloomFilterEntries.add(`controller-${controller}`)
