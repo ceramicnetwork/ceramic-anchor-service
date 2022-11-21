@@ -351,7 +351,7 @@ describe('request repository test', () => {
 
     test('Marks requests for same streams as ready', async () => {
       const streamLimit = 5
-      const repeatedStreamId = new StreamID('tile', await randomCID()).toString()
+      const repeatedStreamId = new StreamID('tile', randomCID()).toString()
       const requests = await Promise.all([
         // repeated request created an hour ago
         generateRequests(
@@ -396,7 +396,7 @@ describe('request repository test', () => {
     })
 
     test('Does not mark irrelevant requests as READY if a new request comes in for a stream', async () => {
-      const repeatedStreamId = new StreamID('tile', await randomCID()).toString()
+      const repeatedStreamId = new StreamID('tile', randomCID()).toString()
 
       const shouldBeIncluded = await Promise.all([
         // PENDING created now

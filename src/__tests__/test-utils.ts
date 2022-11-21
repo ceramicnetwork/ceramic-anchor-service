@@ -6,7 +6,6 @@ import { EventProducerService } from '../services/event-producer/event-producer-
 import { IpfsService } from '../services/ipfs-service.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
-import * as dagCBOR from '@ipld/dag-cbor'
 import { randomBytes } from '@stablelib/random'
 import { jest } from '@jest/globals'
 import { Request, RequestStatus } from '../models/request.js'
@@ -14,8 +13,12 @@ import { Request, RequestStatus } from '../models/request.js'
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
 
-export async function randomCID(): Promise<CID> {
-  return CID.create(1, dagCBOR.code, create(0x12, randomBytes(32)))
+/**
+ * Create random DAG-CBOR CID
+ */
+export function randomCID(): CID {
+  // 113 is DAG-CBOR codec identifier
+  return CID.create(1, 113, create(0x12, randomBytes(32)))
 }
 
 export class MockIpfsClient {
@@ -37,7 +40,7 @@ export class MockIpfsClient {
         return Promise.resolve({ value: this._streams[cid.toString()] })
       }),
       put: jest.fn(async (record: Record<string, unknown>) => {
-        const cid = await randomCID()
+        const cid = randomCID()
         this._streams[cid.toString()] = record
         return cid
       }),
@@ -61,7 +64,7 @@ export class MockIpfsService implements IpfsService {
   }
 
   async storeRecord(record: Record<string, unknown>): Promise<CID> {
-    const cid = await randomCID()
+    const cid = randomCID()
     this._streams[cid.toString()] = record
     return cid
   }
@@ -112,7 +115,7 @@ export class MockCeramicService implements CeramicService {
 
   // Mock-only method to generate a random base StreamID
   async generateBaseStreamID(): Promise<StreamID> {
-    const cid = await randomCID()
+    const cid = randomCID()
     return new StreamID('tile', cid)
   }
 
@@ -145,7 +148,7 @@ export class MockEventProducerService implements EventProducerService {
  */
 export async function generateRequest(override: Partial<Request>) {
   const request = new Request()
-  const cid = await randomCID()
+  const cid = randomCID()
   request.cid = cid.toString()
   request.streamId = new StreamID('tile', cid).toString()
   request.status = RequestStatus.PENDING

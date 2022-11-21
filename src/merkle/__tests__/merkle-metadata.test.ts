@@ -27,7 +27,7 @@ describe('Bloom filter', () => {
   })
 
   const createCandidate = async function (metadata: any): Promise<Candidate> {
-    const cid = await randomCID()
+    const cid = randomCID()
     const stream = {
       id: new StreamID('tile', cid),
       tip: cid,
