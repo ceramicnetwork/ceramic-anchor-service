@@ -46,11 +46,11 @@
     }
   },
   "dependencies": {
-    "@ceramicnetwork/common": "^2.8.0-rc.2",
-    "@ceramicnetwork/core": "^2.11.0-rc.2",
-    "@ceramicnetwork/http-client": "^2.5.0",
-    "@ceramicnetwork/logger": "^2.0.9",
-    "@ceramicnetwork/streamid": "^2.3.5-rc.0",
+    "@ceramicnetwork/common": "^2.13.0",
+    "@ceramicnetwork/core": "^2.18.0",
+    "@ceramicnetwork/http-client": "^2.10.0",
+    "@ceramicnetwork/logger": "^2.5.0",
+    "@ceramicnetwork/streamid": "^2.7.0",
     "@ceramicnetwork/wasm-bloom-filter": "^0.1.0",
     "@opentelemetry/api": "^1.1.0",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.32.0",
