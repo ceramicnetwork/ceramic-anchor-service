@@ -14,11 +14,20 @@ const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
 
 /**
- * Create random DAG-CBOR CID
+ * Create random DAG-CBOR CID.
  */
 export function randomCID(): CID {
   // 113 is DAG-CBOR codec identifier
   return CID.create(1, 113, create(0x12, randomBytes(32)))
+}
+
+/**
+ * Create random StreamID.
+ *
+ * @param type - type of StreamID, "tile" by default.
+ */
+export function randomStreamID(type: string | number = 'tile'): StreamID {
+  return new StreamID(type, randomCID())
 }
 
 export class MockIpfsClient {
@@ -113,12 +122,6 @@ export class MockCeramicService implements CeramicService {
     this._streams[id.toString()] = stream
   }
 
-  // Mock-only method to generate a random base StreamID
-  async generateBaseStreamID(): Promise<StreamID> {
-    const cid = randomCID()
-    return new StreamID('tile', cid)
-  }
-
   async unpinStream(streamId: StreamID) {}
 
   reset() {
@@ -148,9 +151,9 @@ export class MockEventProducerService implements EventProducerService {
  */
 export async function generateRequest(override: Partial<Request>) {
   const request = new Request()
-  const cid = randomCID()
-  request.cid = cid.toString()
-  request.streamId = new StreamID('tile', cid).toString()
+  const streamID = randomStreamID()
+  request.cid = streamID.cid.toString()
+  request.streamId = streamID.toString()
   request.status = RequestStatus.PENDING
   request.createdAt = new Date(Date.now() - Math.random() * MS_IN_HOUR)
   request.updatedAt = new Date(request.createdAt.getTime())

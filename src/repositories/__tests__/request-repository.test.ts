@@ -13,8 +13,7 @@ import {
 } from '../request-repository.js'
 import { AnchorRepository } from '../anchor-repository.js'
 import { Request, REQUEST_MESSAGES, RequestStatus } from '../../models/request.js'
-import { randomCID, generateRequests, generateRequest } from '../../__tests__/test-utils.js'
-import { StreamID } from '@ceramicnetwork/streamid'
+import { generateRequests, generateRequest, randomStreamID } from '../../__tests__/test-utils.js'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -351,7 +350,7 @@ describe('request repository test', () => {
 
     test('Marks requests for same streams as ready', async () => {
       const streamLimit = 5
-      const repeatedStreamId = new StreamID('tile', randomCID()).toString()
+      const repeatedStreamId = randomStreamID().toString()
       const requests = await Promise.all([
         // repeated request created an hour ago
         generateRequests(
@@ -396,7 +395,7 @@ describe('request repository test', () => {
     })
 
     test('Does not mark irrelevant requests as READY if a new request comes in for a stream', async () => {
-      const repeatedStreamId = new StreamID('tile', randomCID()).toString()
+      const repeatedStreamId = randomStreamID().toString()
 
       const shouldBeIncluded = await Promise.all([
         // PENDING created now
