@@ -104,7 +104,7 @@
     "@types/jest": "^27.4.0",
     "@types/lodash.clonedeep": "^4.5.6",
     "@types/morgan": "^1.9.3",
-    "@types/node": "^17.0.9",
+    "@types/node": "^16.18.3",
     "@types/os-utils": "0.0.1",
     "@types/uuid": "^8.3.4",
     "@typescript-eslint/eslint-plugin": "^5.9.1",
