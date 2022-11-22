@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals'
-import { MockIpfsService, randomCID } from '../../__tests__/test-utils.js'
+import { MockIpfsService, randomStreamID } from '../../__tests__/test-utils.js'
 import { MerkleTree } from '../merkle-tree.js'
 import { TreeMetadata } from '../merkle.js'
 import {
@@ -9,7 +9,6 @@ import {
   IpfsLeafCompare,
   IpfsMerge,
 } from '../merkle-objects.js'
-import { StreamID } from '@ceramicnetwork/streamid'
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { Request } from '../../models/request.js'
 import { AnchorStatus } from '@ceramicnetwork/common'
@@ -27,12 +26,12 @@ describe('Bloom filter', () => {
   })
 
   const createCandidate = async function (metadata: any): Promise<Candidate> {
-    const cid = randomCID()
+    const streamID = randomStreamID()
     const stream = {
-      id: new StreamID('tile', cid),
-      tip: cid,
+      id: streamID,
+      tip: streamID.cid,
       metadata,
-      state: { anchorStatus: AnchorStatus.PENDING, log: [{ cid }], metadata },
+      state: { anchorStatus: AnchorStatus.PENDING, log: [{ cid: streamID.cid }], metadata },
     }
     const candidate = new Candidate(stream.id, [new Request()])
     candidate.setTipToAnchor(stream as any)
