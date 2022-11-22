@@ -21,7 +21,7 @@
   "scripts": {
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --forceExit --coverage --runInBand",
     "coverage": "./node_modules/.bin/nyc npm run test",
-    "build": "./node_modules/.bin/tsc --project tsconfig.json",
+    "build": "./node_modules/.bin/genversion --es6 src/version.ts && ./node_modules/.bin/tsc --project tsconfig.json",
     "format": "./node_modules/.bin/prettier --write 'src/**/*{.ts,.tsx,.js}'",
     "prepublishOnly": "npm run build",
     "prebuild": "npm run clean",
@@ -115,6 +115,7 @@
     "eslint-config-3box": "^0.4.1",
     "eslint-plugin-jest": "^25.7.0",
     "ganache-core": "^2.13.2",
+    "genversion": "^3.1.1",
     "get-port": "^6.0.0",
     "husky": "^7.0.4",
     "ipfs-core": "^0.13.0",

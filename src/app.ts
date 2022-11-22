@@ -23,8 +23,8 @@ import { RequestController } from './controllers/request-controller.js'
 import { ServiceInfoController } from './controllers/service-info-controller.js'
 import { EthereumBlockchainService } from './services/blockchain/ethereum/ethereum-blockchain-service.js'
 import { ServiceMetrics as Metrics } from './service-metrics.js'
+import { version } from './version.js'
 
-const version = process.env.npm_package_version
 /**
  * Ceramic Anchor Service application
  */
