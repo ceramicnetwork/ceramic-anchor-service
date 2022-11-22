@@ -4,7 +4,6 @@ import { RequestStatus, Request, RequestUpdateFields, REQUEST_MESSAGES } from '.
 import { LimitOptions, Options } from './repository-types.js'
 import { logEvent } from '../logger/index.js'
 import { Config } from 'node-config-ts'
-import { inject, singleton } from 'tsyringe'
 import { logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
 import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '../service-metrics.js'
@@ -155,12 +154,10 @@ const findRequestsToAnchorForStreams = (
 ): Promise<Array<Request>> =>
   findRequestsToAnchor(connection, now).whereIn('streamId', streamIds).orderBy('createdAt', 'asc')
 
-@singleton()
 export class RequestRepository {
-  constructor(
-    @inject('config') private config?: Config,
-    @inject('dbConnection') private connection?: Knex
-  ) {}
+  static inject = ['config', 'dbConnection'] as const
+
+  constructor(private config: Config, private connection: Knex) {}
 
   /**
    * Create/updates client request
