@@ -1,18 +1,11 @@
 {
   "moduleFileExtensions": ["js", "json", "ts"],
+  "testEnvironment": "node",
   "extensionsToTreatAsEsm": [".ts"],
-  "globals": {
-    "ts-jest": {
-      "useESM": true
-    }
-  },
   "moduleNameMapper": {
     "^(\\.{1,2}/.*)\\.js$": "$1"
   },
-  "preset": "ts-jest",
-  "testEnvironment": "node",
-  "resolver": "jest-resolver-enhanced",
-  "testMatch": ["**/__tests__/**/*test.ts?(x)", "**/?(*.)+(test).ts?(x)"],
+  "testRegex": "(/__tests__/.*(\\.|/)(test|spec))\\.tsx?$",
   "globalSetup": "<rootDir>/node_modules/@databases/pg-test/jest/globalSetup",
   "globalTeardown": "<rootDir>/node_modules/@databases/pg-test/jest/globalTeardown"
 }
