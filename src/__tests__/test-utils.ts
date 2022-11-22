@@ -14,11 +14,20 @@ const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
 
 /**
- * Create random DAG-CBOR CID
+ * Create random DAG-CBOR CID.
  */
 export function randomCID(): CID {
   // 113 is DAG-CBOR codec identifier
   return CID.create(1, 113, create(0x12, randomBytes(32)))
+}
+
+/**
+ * Create random StreamID.
+ *
+ * @param type - type of StreamID, "tile" by default.
+ */
+export function randomStreamID(type: string | number = 'tile'): StreamID {
+  return new StreamID(type, randomCID())
 }
 
 export class MockIpfsClient {
@@ -113,12 +122,6 @@ export class MockCeramicService implements CeramicService {
     this._streams[id.toString()] = stream
   }
 
-  // Mock-only method to generate a random base StreamID
-  async generateBaseStreamID(): Promise<StreamID> {
-    const cid = randomCID()
-    return new StreamID('tile', cid)
-  }
-
   async unpinStream(streamId: StreamID) {}
 
   reset() {
@@ -146,11 +149,11 @@ export class MockEventProducerService implements EventProducerService {
  * @param override request data to use. If some values are not provided, they will be generated.
  * @returns a promise for a request
  */
-export async function generateRequest(override: Partial<Request>) {
+export function generateRequest(override: Partial<Request>): Request {
   const request = new Request()
-  const cid = randomCID()
-  request.cid = cid.toString()
-  request.streamId = new StreamID('tile', cid).toString()
+  const streamID = randomStreamID()
+  request.cid = streamID.cid.toString()
+  request.streamId = streamID.toString()
   request.status = RequestStatus.PENDING
   request.createdAt = new Date(Date.now() - Math.random() * MS_IN_HOUR)
   request.updatedAt = new Date(request.createdAt.getTime())
@@ -167,27 +170,23 @@ export async function generateRequest(override: Partial<Request>) {
  * @param varianceMS time between generated requests (defaults to 1000 ms)
  * @returns a promise for an array of count requests
  */
-export async function generateRequests(
+export function generateRequests(
   override: Partial<Request>,
   count = 1,
   varianceMS = 1000
-): Promise<Request[]> {
-  const requests = await Promise.all(
-    Array.from(Array(count)).map(async (_, i) => {
-      if (varianceMS > 0) {
-        const createdAt = override.createdAt || new Date(Date.now())
-        const updatedAt = override.updatedAt || new Date(createdAt.getTime())
+): Array<Request> {
+  return Array.from({ length: count }).map((_, i) => {
+    if (varianceMS > 0) {
+      const createdAt = override.createdAt || new Date(Date.now())
+      const updatedAt = override.updatedAt || new Date(createdAt.getTime())
 
-        return generateRequest({
-          createdAt: new Date(createdAt.getTime() + i * varianceMS),
-          updatedAt: new Date(updatedAt.getTime() + i * varianceMS),
-          ...override,
-        })
-      }
+      return generateRequest({
+        createdAt: new Date(createdAt.getTime() + i * varianceMS),
+        updatedAt: new Date(updatedAt.getTime() + i * varianceMS),
+        ...override,
+      })
+    }
 
-      return generateRequest(override)
-    })
-  )
-
-  return requests
+    return generateRequest(override)
+  })
 }
