@@ -1,6 +1,5 @@
 import { Anchor } from '../models/anchor.js'
 import { Request } from '../models/request.js'
-import { inject, singleton } from 'tsyringe'
 import type { Knex } from 'knex'
 import { Options } from './repository-types.js'
 
@@ -10,9 +9,10 @@ export class AnchorWithRequest extends Anchor {
   request: Request
 }
 
-@singleton()
 export class AnchorRepository {
-  constructor(@inject('dbConnection') private connection?: Knex) {}
+  static inject = ['dbConnection'] as const
+
+  constructor(private connection?: Knex) {}
 
   /**
    * Creates anchors
