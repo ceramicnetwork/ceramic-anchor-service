@@ -64,11 +64,11 @@ export class MockIpfsService implements IpfsService {
     return this._streams[cid.toString()]
   }
 
-  async storeRecord(record: Record<string, unknown>): Promise<CID> {
+  storeRecord = jest.fn(async (record: Record<string, unknown>, pin?: boolean): Promise<CID> => {
     const cid = await randomCID()
     this._streams[cid.toString()] = record
     return cid
-  }
+  })
 
   async publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID> {
     return this.storeRecord(anchorCommit as any)

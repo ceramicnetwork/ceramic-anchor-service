@@ -34,8 +34,9 @@ export interface IpfsService {
   /**
    * Sets the record and returns its CID
    * @param record - Record value
+   * @param pin - Add to the pin store
    */
-  storeRecord(record: any): Promise<CID>
+  storeRecord(record: any, pin?: boolean): Promise<CID>
 
   /**
    * Stores the anchor commit to ipfs and publishes an update pubsub message to the Ceramic pubsub topic
@@ -116,16 +117,18 @@ export class IpfsServiceImpl implements IpfsService {
   /**
    * Sets the record and returns its CID
    * @param record - Record value
+   * @param pin - Add to the pin store
    */
-  public async storeRecord(record: Record<string, unknown>): Promise<CID> {
+  public async storeRecord(record: Record<string, unknown>, pin = false): Promise<CID> {
     let timeout: any
 
-    const putPromise = this._ipfs.dag
-      .put(record)
-      .then((cid) => this._ipfs.pin.add(cid))
-      .finally(() => {
-        clearTimeout(timeout)
-      })
+    let putPromise = this._ipfs.dag.put(record)
+    if (pin) {
+      putPromise = putPromise.then((cid) => this._ipfs.pin.add(cid))
+    }
+    putPromise = putPromise.finally(() => {
+      clearTimeout(timeout)
+    })
 
     const timeoutPromise = new Promise((resolve) => {
       timeout = setTimeout(resolve, IPFS_PUT_TIMEOUT)

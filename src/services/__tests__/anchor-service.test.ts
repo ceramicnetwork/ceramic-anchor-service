@@ -232,9 +232,6 @@ describe('anchor service', () => {
     const merkleTree = await anchorService._buildMerkleTree(candidates)
     const ipfsProofCid = await ipfsService.storeRecord({})
 
-    expect(mockIpfsClient.dag.put).toHaveBeenCalled()
-    expect(mockIpfsClient.pin.add).toHaveBeenCalledWith(ipfsProofCid)
-
     const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree)
 
     expect(candidates.length).toEqual(requests.length)
@@ -1098,6 +1095,21 @@ describe('anchor service', () => {
       const eventProducerService =
         container.resolve<MockEventProducerService>('eventProducerService')
       expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(0)
+    })
+  })
+
+  describe('IpfsService storeRecord() optionally pins records', () => {
+    test('does not pin by default', async () => {
+      await ipfsService.storeRecord({})
+      expect(mockIpfsClient.dag.put).toHaveBeenCalledTimes(1)
+      expect(mockIpfsClient.pin.add).toHaveBeenCalledTimes(0)
+    })
+
+    test('adds the cid to the pin set ', async () => {
+      const cid = await ipfsService.storeRecord({}, true)
+      expect(mockIpfsClient.dag.put).toHaveBeenCalledTimes(1)
+      expect(mockIpfsClient.pin.add).toHaveBeenCalledTimes(1)
+      expect(mockIpfsClient.pin.add).toHaveBeenCalledWith(cid)
     })
   })
 })

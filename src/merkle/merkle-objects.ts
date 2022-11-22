@@ -222,7 +222,7 @@ export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
     const merged = [left.data.cid, right?.data?.cid || null]
 
     if (metadata) {
-      const metadataCid = await this.ipfsService.storeRecord(metadata)
+      const metadataCid = await this.ipfsService.storeRecord(metadata, true)
       merged.push(metadataCid)
     }
 
