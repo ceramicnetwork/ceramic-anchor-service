@@ -1098,18 +1098,18 @@ describe('anchor service', () => {
     })
   })
 
-  describe('IpfsService storeRecord() optionally pins records', () => {
-    test('does not pin by default', async () => {
-      await ipfsService.storeRecord({})
-      expect(mockIpfsClient.dag.put).toHaveBeenCalledTimes(1)
-      expect(mockIpfsClient.pin.add).toHaveBeenCalledTimes(0)
-    })
-
-    test('adds the cid to the pin set ', async () => {
-      const cid = await ipfsService.storeRecord({}, true)
+  describe('IpfsService storeRecord() pins records', () => {
+    test('pins by default', async () => {
+      const cid = await ipfsService.storeRecord({})
       expect(mockIpfsClient.dag.put).toHaveBeenCalledTimes(1)
       expect(mockIpfsClient.pin.add).toHaveBeenCalledTimes(1)
       expect(mockIpfsClient.pin.add).toHaveBeenCalledWith(cid)
+    })
+
+    test('optionally does not pin', async () => {
+      await ipfsService.storeRecord({}, false)
+      expect(mockIpfsClient.dag.put).toHaveBeenCalledTimes(1)
+      expect(mockIpfsClient.pin.add).toHaveBeenCalledTimes(0)
     })
   })
 })

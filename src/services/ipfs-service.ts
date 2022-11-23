@@ -119,7 +119,7 @@ export class IpfsServiceImpl implements IpfsService {
    * @param record - Record value
    * @param pin - Add to the pin store
    */
-  public async storeRecord(record: Record<string, unknown>, pin = false): Promise<CID> {
+  public async storeRecord(record: Record<string, unknown>, pin = true): Promise<CID> {
     let timeout: any
 
     let putPromise = this._ipfs.dag.put(record)
