@@ -1,5 +1,19 @@
 version: 2.1
 
+parameters:
+  GHA_Event:
+    type: string
+    default: ""
+  GHA_Actor:
+    type: string
+    default: ""
+  GHA_Action:
+    type: string
+    default: ""
+  GHA_Meta:
+    type: string
+    default: ""
+
 commands:
   send-dispatch-event:
     steps:
@@ -84,6 +98,8 @@ jobs:
 
 workflows:
   test_and_queue_deploy:
+    # This workflow is set to be triggered conditionally, only when the GitHub Action is triggered.
+    when: << pipeline.parameters.GHA_Event >>
     jobs:
       - test
       - dispatch-event:
