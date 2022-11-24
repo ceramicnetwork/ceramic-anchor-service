@@ -23,6 +23,8 @@ import { CeramicService } from '../services/ceramic-service.js'
 export class RequestController {
   #requestPresentation: RequestPresentation
 
+  static inject = ['config', 'anchorRepository', 'requestRepository', 'ceramicService'] as const
+
   constructor(
     @inject('config') private config?: Config,
     @inject('anchorRepository') private anchorRepository?: AnchorRepository,
@@ -96,7 +98,7 @@ export class RequestController {
       } else {
         // Intentionally don't await the pinStream promise, let it happen in the background.
         this.ceramicService.pinStream(streamId)
-        Metrics.count(METRIC_NAMES.ANCHOR_REQUESTED, 1, {'ip_addr': req.ip})
+        Metrics.count(METRIC_NAMES.ANCHOR_REQUESTED, 1, { ip_addr: req.ip })
 
         request = new Request()
         request.cid = cid.toString()
