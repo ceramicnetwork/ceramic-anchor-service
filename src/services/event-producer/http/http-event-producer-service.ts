@@ -6,6 +6,8 @@ import { EventProducerService } from '../event-producer-service.js'
 
 @singleton()
 export class HTTPEventProducerService implements EventProducerService {
+  static inject = ['config'] as const
+
   constructor(@inject('config') private config?: Config) {}
 
   /**
