@@ -88,6 +88,8 @@ export class MockIpfsService implements IpfsService {
 }
 
 export class MockCeramicService implements CeramicService {
+  static inject = ['ipfsService'] as const
+
   constructor(
     private _ipfsService: IpfsService,
     private _streams: Record<string, any> = {},
