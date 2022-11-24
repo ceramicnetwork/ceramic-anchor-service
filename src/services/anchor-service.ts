@@ -291,6 +291,7 @@ export class AnchorService {
    * mark them as PROCESSING, and perform an anchor.
    */
   public async emitAnchorEventIfReady(): Promise<void> {
+    // FIXME Use countByStatus
     const readyRequests = await this.requestRepository.findByStatus(RS.READY)
 
     if (readyRequests.length > 0) {
