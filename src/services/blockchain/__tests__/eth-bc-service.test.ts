@@ -114,10 +114,10 @@ describe('ETH service connected to ganache', () => {
     })
 
     test('gas price increase math', () => {
-      const gasEstimate: FeeData = {
+      const gasEstimate = {
         maxFeePerGas: BigNumber.from(2000),
         maxPriorityFeePerGas: BigNumber.from(1000),
-        gasPrice: BigNumber.from(0),
+        gasPrice: BigNumber.from(0)
       }
       const firstRetry = BigNumber.from(1100)
       // Note that this is not 1200. It needs to be 10% over the previous attempt's gas,
