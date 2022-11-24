@@ -17,6 +17,9 @@ const { INTERNAL_SERVER_ERROR, OK } = httpStatusCodes
 @Controller('api/v0/anchors')
 @ClassMiddleware([cors()])
 export class AnchorController {
+
+  static inject = ['anchorService'] as const
+
   constructor(private anchorService: AnchorService) {}
 
   @Post()
