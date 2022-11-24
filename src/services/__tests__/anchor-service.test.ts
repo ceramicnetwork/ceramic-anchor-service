@@ -110,15 +110,16 @@ jest.unstable_mockModule('ipfs-http-client', () => {
   }
 })
 
+const MERKLE_DEPTH_LIMIT = 3
+const READY_RETRY_INTERVAL_MS = 1000
+const STREAM_LIMIT = Math.pow(2, MERKLE_DEPTH_LIMIT)
+const MIN_STREAM_COUNT = Math.floor(STREAM_LIMIT / 2)
+
 describe('anchor service', () => {
   jest.setTimeout(10000)
   let ipfsService: IpfsService
   let ceramicService: MockCeramicService
   let connection: Knex
-  const merkleDepthLimit = 3
-  const readyRetryIntervalMS = 1000
-  const streamLimit = Math.pow(2, merkleDepthLimit)
-  const minStreamCount = Math.floor(streamLimit / 2)
 
   beforeAll(async () => {
     const { IpfsServiceImpl } = await import('../ipfs-service.js')
@@ -127,7 +128,11 @@ describe('anchor service', () => {
 
     container.registerInstance(
       'config',
-      Object.assign({}, config, { merkleDepthLimit, minStreamCount, readyRetryIntervalMS })
+      Object.assign({}, config, {
+        MERKLE_DEPTH_LIMIT,
+        minStreamCount: MIN_STREAM_COUNT,
+        READY_RETRY_INTERVAL_MS,
+      })
     )
     container.registerInstance('dbConnection', connection)
     container.registerSingleton('anchorRepository', AnchorRepository)
@@ -158,7 +163,7 @@ describe('anchor service', () => {
 
   test('check state on tx fail', async () => {
     const requests: Request[] = []
-    for (let i = 0; i < minStreamCount; i++) {
+    for (let i = 0; i < MIN_STREAM_COUNT; i++) {
       const streamId = await randomStreamID()
       const cid = await ipfsService.storeRecord({})
       const streamCommitId = CommitID.make(streamId, cid)
@@ -193,7 +198,7 @@ describe('anchor service', () => {
     const requestRepository = container.resolve<RequestRepository>('requestRepository')
     const anchorService = container.resolve<AnchorService>('anchorService')
 
-    const numRequests = minStreamCount - 1
+    const numRequests = MIN_STREAM_COUNT - 1
     // Create pending requests
     for (let i = 0; i < numRequests; i++) {
       const streamId = await randomStreamID()
@@ -953,7 +958,7 @@ describe('anchor service', () => {
 
     test('Emits an event if ready requests exist but they have timed out', async () => {
       const config = container.resolve<Config>('config')
-      const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
+      const updatedTooLongAgo = new Date(Date.now() - config.READY_RETRY_INTERVAL_MS - 1000)
       // Ready requests that have timed out (created too long ago)
       const originalRequests = generateRequests(
         {
@@ -997,7 +1002,7 @@ describe('anchor service', () => {
         {
           status: RequestStatus.PENDING,
         },
-        minStreamCount - 1
+        MIN_STREAM_COUNT - 1
       )
 
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
@@ -1016,7 +1021,7 @@ describe('anchor service', () => {
         {
           status: RequestStatus.PENDING,
         },
-        streamLimit
+        STREAM_LIMIT
       )
 
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
@@ -1041,7 +1046,7 @@ describe('anchor service', () => {
         {
           status: RequestStatus.PENDING,
         },
-        streamLimit
+        STREAM_LIMIT
       )
 
       const eventProducerService =
@@ -1059,7 +1064,7 @@ describe('anchor service', () => {
 
     test('Does not retry requests that are being updated simultaneously', async () => {
       const config = container.resolve<Config>('config')
-      const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
+      const updatedTooLongAgo = new Date(Date.now() - config.READY_RETRY_INTERVAL_MS - 1000)
 
       // Ready requests that have timed out (created too long ago)
       const requests = generateRequests(
