@@ -10,7 +10,9 @@ const TRANSACTION_MUTEX_ID = 4532
 
 @singleton()
 export class TransactionRepository {
-  constructor(@inject('dbConnection') private connection?: Knex) {}
+  static inject = ['dbConnection'] as const
+
+  constructor(@inject('dbConnection') private connection: Knex) {}
 
   /**
    * Acquires the transaction mutex before performing the operation.

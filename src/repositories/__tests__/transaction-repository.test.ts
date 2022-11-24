@@ -1,10 +1,10 @@
 import 'reflect-metadata'
 import { jest } from '@jest/globals'
-import { container } from 'tsyringe'
 import type { Knex } from 'knex'
 import { Utils } from '../../utils.js'
 import { createDbConnection } from '../../db-connection.js'
 import { TransactionRepository } from '../transaction-repository.js'
+import { createInjector } from 'typed-inject'
 
 describe('transaction repository test', () => {
   jest.setTimeout(10000)
@@ -14,10 +14,11 @@ describe('transaction repository test', () => {
   beforeAll(async () => {
     connection = await createDbConnection()
 
-    container.registerInstance('dbConnection', connection)
-    container.registerSingleton('transactionRepository', TransactionRepository)
+    const injector = createInjector()
+      .provideValue('dbConnection', connection)
+      .provideClass('transactionRepository', TransactionRepository)
 
-    transactionRepository = container.resolve<TransactionRepository>('transactionRepository')
+    transactionRepository = injector.resolve('transactionRepository')
   })
 
   afterAll(async () => {
@@ -32,12 +33,11 @@ describe('transaction repository test', () => {
     })
 
     test('Will block until can acquire transaction mutex', async () => {
-      const childContainer = container.createChildContainer()
       const connection2 = await createDbConnection()
-      childContainer.registerInstance('dbConnection', connection2)
-      childContainer.registerSingleton('transactionRepository', TransactionRepository)
-      const transactionRepository2 =
-        childContainer.resolve<TransactionRepository>('transactionRepository')
+      const injector2 = createInjector()
+        .provideValue('dbConnection', connection2)
+        .provideClass('transactionRepository', TransactionRepository)
+      const transactionRepository2 = injector2.resolve('transactionRepository')
 
       try {
         await transactionRepository.withTransactionMutex(async () => {
@@ -49,7 +49,7 @@ describe('transaction repository test', () => {
         await transactionRepository2.withTransactionMutex(() => Utils.delay(1000))
       } finally {
         await connection2.destroy()
-        await childContainer.dispose()
+        await injector2.dispose()
       }
     })
 
