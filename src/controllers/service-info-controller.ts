@@ -16,6 +16,8 @@ const { OK, SERVICE_UNAVAILABLE } = httpStatusCodes
 @Controller('api/v0/service-info')
 @ClassMiddleware([cors()])
 export class ServiceInfoController {
+  static inject = ['blockchainService'] as const
+
   constructor(@inject('blockchainService') private blockchainService?: BlockchainService) {}
 
   @Get('supported_chains')
