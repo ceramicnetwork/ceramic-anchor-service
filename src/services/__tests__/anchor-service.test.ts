@@ -92,7 +92,7 @@ function createStream(
 }
 
 const mockIpfsClient = new MockIpfsClient()
-jest.mock('ipfs-http-client', () => {
+jest.unstable_mockModule('ipfs-http-client', () => {
   const originalModule = jest.requireActual('ipfs-http-client') as any
 
   return {
