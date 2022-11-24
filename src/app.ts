@@ -4,8 +4,6 @@ import 'dotenv/config'
 import { Config } from 'node-config-ts'
 import { instanceCachingFactory, DependencyContainer } from 'tsyringe'
 import type { Knex } from 'knex'
-import cloneDeep from 'lodash.clonedeep'
-
 import { logger } from './logger/index.js'
 import { CeramicAnchorServer } from './server.js'
 import { IpfsServiceImpl } from './services/ipfs-service.js'
@@ -24,6 +22,7 @@ import { ServiceInfoController } from './controllers/service-info-controller.js'
 import { EthereumBlockchainService } from './services/blockchain/ethereum/ethereum-blockchain-service.js'
 import { ServiceMetrics as Metrics } from './service-metrics.js'
 import { version } from './version.js'
+import { cleanupConfigForLogging, normalizeConfig } from './normalize-config.util.js'
 
 /**
  * Ceramic Anchor Service application
@@ -37,7 +36,7 @@ export class CeramicAnchorApp {
     private readonly config: Config,
     dbConnection: Knex
   ) {
-    CeramicAnchorApp._normalizeConfig(config)
+    normalizeConfig(config)
 
     // TODO: Selectively register only the global singletons needed based on the config
 
@@ -88,40 +87,6 @@ export class CeramicAnchorApp {
   }
 
   /**
-   * Handles normalizing the arguments passed via the config, for example turning string
-   * representations of booleans and numbers into the proper types
-   */
-  static _normalizeConfig(config: Config): void {
-    config.mode = config.mode.trim().toLowerCase()
-    if (typeof config.merkleDepthLimit == 'string') {
-      config.merkleDepthLimit = parseInt(config.merkleDepthLimit)
-    }
-
-    const replaceBools = function (o) {
-      for (const prop of Object.keys(o)) {
-        if (o[prop] === 'true' || o[prop] === 'false') {
-          o[prop] = o[prop] === 'true'
-        }
-        if (o[prop] !== null && typeof o[prop] === 'object') {
-          replaceBools(o[prop])
-        }
-      }
-    }
-    replaceBools(config)
-  }
-
-  /**
-   * Returns a copy of the config with any sensitive information removed so it is safe to log
-   * @param config
-   */
-  static _cleanupConfigForLogging(config): Record<string, any> {
-    const configCopy = cloneDeep(config)
-    delete configCopy?.blockchain?.connectors?.ethereum?.account?.privateKey
-    delete configCopy?.anchorLauncherUrl
-    return configCopy
-  }
-
-  /**
    * Returns true when we're running in a config that may do an anchor.
    * @private
    */
@@ -133,7 +98,7 @@ export class CeramicAnchorApp {
     )
   }
 
-  public async anchor(triggeredByAnchorEvent = false): Promise<void> {
+  async anchor(triggeredByAnchorEvent = false): Promise<void> {
     const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService')
     return anchorService.anchorRequests(triggeredByAnchorEvent)
   }
@@ -141,12 +106,8 @@ export class CeramicAnchorApp {
   /**
    * Start application
    */
-  public async start(): Promise<void> {
-    const configLogString = JSON.stringify(
-      CeramicAnchorApp._cleanupConfigForLogging(this.config),
-      null,
-      2
-    )
+  async start(): Promise<void> {
+    const configLogString = JSON.stringify(cleanupConfigForLogging(this.config), null, 2)
     logger.imp(
       `Starting Ceramic Anchor Service at version ${version} with config:\n${configLogString}`
     )
@@ -186,7 +147,7 @@ export class CeramicAnchorApp {
     logger.imp(`Ceramic Anchor Service initiated ${this.config.mode} mode`)
   }
 
-  public stop(): void {
+  stop(): void {
     if (this._schedulerService) {
       this._schedulerService.stop()
     }
