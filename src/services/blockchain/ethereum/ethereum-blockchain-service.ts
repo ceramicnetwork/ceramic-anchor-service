@@ -117,6 +117,28 @@ function handleTimeoutError(transactionTimeoutSecs: number): void {
   logger.err(`Transaction timed out after ${transactionTimeoutSecs} seconds without being mined`)
 }
 
+function make(config: Config): EthereumBlockchainService {
+  const ethereum = config.blockchain.connectors.ethereum
+  const { host, port, url } = ethereum.rpc
+
+  let provider
+  if (url) {
+    logger.imp(`Connecting ethereum provider to url: ${url}`)
+    provider = new ethers.providers.JsonRpcProvider(url)
+  } else if (host && port) {
+    logger.imp(`Connecting ethereum provider to host: ${host} and port ${port}`)
+    provider = new ethers.providers.JsonRpcProvider(`${host}:${port}`)
+  } else {
+    logger.imp(`Connecting ethereum to default provider for network ${ethereum.network}`)
+    provider = ethers.getDefaultProvider(ethereum.network)
+  }
+
+  provider.pollingInterval = POLLING_INTERVAL
+  const wallet = new ethers.Wallet(ethereum.account.privateKey, provider)
+  return new EthereumBlockchainService(config, wallet)
+}
+make.inject = ['config'] as const
+
 /**
  * Ethereum blockchain service
  */
@@ -135,26 +157,7 @@ export class EthereumBlockchainService implements BlockchainService {
     )
   }
 
-  public static make(config: Config): EthereumBlockchainService {
-    const ethereum = config.blockchain.connectors.ethereum
-    const { host, port, url } = ethereum.rpc
-
-    let provider
-    if (url) {
-      logger.imp(`Connecting ethereum provider to url: ${url}`)
-      provider = new ethers.providers.JsonRpcProvider(url)
-    } else if (host && port) {
-      logger.imp(`Connecting ethereum provider to host: ${host} and port ${port}`)
-      provider = new ethers.providers.JsonRpcProvider(`${host}:${port}`)
-    } else {
-      logger.imp(`Connecting ethereum to default provider for network ${ethereum.network}`)
-      provider = ethers.getDefaultProvider(ethereum.network)
-    }
-
-    provider.pollingInterval = POLLING_INTERVAL
-    const wallet = new ethers.Wallet(ethereum.account.privateKey, provider)
-    return new EthereumBlockchainService(config, wallet)
-  }
+  public static make = make
 
   /**
    * Connects to blockchain
