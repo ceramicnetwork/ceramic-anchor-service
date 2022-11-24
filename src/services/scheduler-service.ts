@@ -12,6 +12,8 @@ import { METRIC_NAMES } from '../settings.js'
 export class SchedulerService {
   private _subscription: Subscription
 
+  static inject = ['config'] as const
+
   constructor(@inject('config') private config?: Config) {}
 
   /**
