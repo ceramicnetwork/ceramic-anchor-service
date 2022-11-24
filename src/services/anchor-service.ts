@@ -95,6 +95,18 @@ export class AnchorService {
   private readonly ipfsCompare: IpfsLeafCompare
   private readonly bloomMetadata: BloomMetadata
 
+  static inject = [
+    'blockchainService',
+    'config',
+    'ipfsService',
+    'requestRepository',
+    'transactionRepository',
+    'ceramicService',
+    'anchorRepository',
+    'dbConnection',
+    'eventProducerService',
+  ] as const
+
   constructor(
     @inject('blockchainService') private blockchainService?: BlockchainService,
     @inject('config') private config?: Config,
