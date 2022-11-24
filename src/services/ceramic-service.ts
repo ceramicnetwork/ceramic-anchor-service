@@ -28,6 +28,8 @@ const PIN_TIMEOUT = 1000 * 60 * 2 // 2 minutes
 export class CeramicServiceImpl implements CeramicService {
   private readonly _client: CeramicApi
 
+  static inject = ['config', 'ipfsService'] as const
+
   /**
    * Sets dependencies
    */
