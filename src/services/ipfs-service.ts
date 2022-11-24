@@ -62,6 +62,8 @@ export class IpfsServiceImpl implements IpfsService {
   private _ipfs: IPFS
   private _cache: LRUCache<string, any>
 
+  static inject = ['config'] as const
+
   constructor(@inject('config') private config?: Config) {}
 
   /**
