@@ -29,13 +29,19 @@ import { Utils } from '../../utils.js'
 import { PubsubMessage } from '@ceramicnetwork/core'
 import { validate as validateUUID } from 'uuid'
 import { TransactionRepository } from '../../repositories/transaction-repository.js'
+import type { BlockchainService } from '../blockchain/blockchain-service'
+import type { Transaction } from '../../models/transaction.js'
 
 process.env.NODE_ENV = 'test'
 
-class FakeEthereumBlockchainService {
-  constructor() {}
+class FakeEthereumBlockchainService implements BlockchainService {
+  chainId = 'impossible'
 
-  public sendTransaction() {
+  connect(): Promise<void> {
+    throw new Error(`Failed to connect`)
+  }
+
+  sendTransaction(): Promise<Transaction> {
     throw new Error('Failed to send transaction!')
   }
 }
