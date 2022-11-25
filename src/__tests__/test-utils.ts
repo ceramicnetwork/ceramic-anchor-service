@@ -133,7 +133,7 @@ export class MockCeramicService implements CeramicService {
 }
 
 export class MockEventProducerService implements EventProducerService {
-  public emitAnchorEvent
+  emitAnchorEvent
 
   constructor() {
     this.reset()

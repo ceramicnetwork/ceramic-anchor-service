@@ -18,7 +18,7 @@ export class SchedulerService {
    * Starts the scheduler which will run the provided task
    *
    */
-  public start(task: () => Promise<void>): void {
+  start(task: () => Promise<void>): void {
     const intervalMS = this.config.schedulerIntervalMS
 
     const repeatingTask$ = from(task()).pipe(
@@ -39,7 +39,7 @@ export class SchedulerService {
     this._subscription = repeatingTask$.subscribe()
   }
 
-  public stop(): void {
+  stop(): void {
     this._subscription.unsubscribe()
   }
 }

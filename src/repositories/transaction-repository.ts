@@ -20,7 +20,7 @@ export class TransactionRepository {
    * @param delayMS The number of MS to wait between attempt (defaults to 5000 MS)
    * @returns
    */
-  public async withTransactionMutex<T>(
+  async withTransactionMutex<T>(
     operation: () => Promise<T>,
     maxAttempts = Infinity,
     delayMS = 5000,

@@ -125,7 +125,7 @@ export class AnchorService {
    * Creates anchors for pending client requests
    */
   // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
-  public async anchorRequests(triggeredByAnchorEvent = false): Promise<void> {
+  async anchorRequests(triggeredByAnchorEvent = false): Promise<void> {
     const readyRequests = await this.requestRepository.findByStatus(RS.READY)
 
     if (!triggeredByAnchorEvent && readyRequests.length === 0) {
@@ -142,7 +142,7 @@ export class AnchorService {
   /**
    * Creates anchors for client requests that have been marked as READY
    */
-  public async anchorReadyRequests(): Promise<void> {
+  async anchorReadyRequests(): Promise<void> {
     // TODO: Remove this after restart loop removed as part of switching to go-ipfs
     // Skip sleep for unit tests
     if (process.env.NODE_ENV != 'test') {
@@ -159,7 +159,7 @@ export class AnchorService {
     await Utils.delay(5000)
   }
 
-  public async garbageCollectPinnedStreams(): Promise<void> {
+  async garbageCollectPinnedStreams(): Promise<void> {
     const requests: Request[] = await this.requestRepository.findRequestsToGarbageCollect()
     await this._garbageCollect(requests)
   }
@@ -288,7 +288,7 @@ export class AnchorService {
    * An anchor event indicates that a batch of requests are ready to be anchored. An anchor worker will retrieve these READY requests,
    * mark them as PROCESSING, and perform an anchor.
    */
-  public async emitAnchorEventIfReady(): Promise<void> {
+  async emitAnchorEventIfReady(): Promise<void> {
     // FIXME Use countByStatus
     const readyRequests = await this.requestRepository.findByStatus(RS.READY)
 

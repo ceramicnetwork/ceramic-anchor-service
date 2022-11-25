@@ -33,7 +33,7 @@ export interface CIDHolder {
  * track of which CID should actually be anchored for this stream.
  */
 export class Candidate implements CIDHolder {
-  public readonly streamId: StreamID
+  readonly streamId: StreamID
   private readonly _requests: Request[] = []
   private readonly _earliestRequestDate: Date
 
@@ -58,22 +58,22 @@ export class Candidate implements CIDHolder {
     this._earliestRequestDate = minDate
   }
 
-  public get cid(): CID {
+  get cid(): CID {
     return this._cid
   }
 
-  public get metadata(): StreamMetadata {
+  get metadata(): StreamMetadata {
     return this._metadata
   }
 
-  public get earliestRequestDate(): Date {
+  get earliestRequestDate(): Date {
     return this._earliestRequestDate
   }
 
   /**
    * All requests being considered in this batch that are on this Stream
    */
-  public get requests(): Request[] {
+  get requests(): Request[] {
     return this._requests
   }
 
@@ -81,14 +81,14 @@ export class Candidate implements CIDHolder {
    * All requests that are included in the current version of the Stream. Only available after
    * calling 'setTipToAnchor'.
    */
-  public get acceptedRequests(): Request[] {
+  get acceptedRequests(): Request[] {
     return this._acceptedRequests
   }
 
   /**
    * All requests that failed to be loaded from the Ceramic node.
    */
-  public get failedRequests(): Request[] {
+  get failedRequests(): Request[] {
     return this._failedRequests
   }
 
@@ -96,7 +96,7 @@ export class Candidate implements CIDHolder {
    * All requests that were rejected by Ceramic's conflict resolution. Only available after
    * calling 'setTipToAnchor'.
    */
-  public get rejectedRequests(): Request[] {
+  get rejectedRequests(): Request[] {
     return this._rejectedRequests
   }
 
@@ -108,7 +108,7 @@ export class Candidate implements CIDHolder {
    * it the Request whose CID is latest in the log of all the Requests that were successfully
    * anchored for this stream.
    */
-  public get newestAcceptedRequest(): Request {
+  get newestAcceptedRequest(): Request {
     return this._newestAcceptedRequest
   }
 
@@ -117,7 +117,7 @@ export class Candidate implements CIDHolder {
    * anchoring process (most likely by another anchoring service after the creation of the original
    * Request(s)).
    */
-  public get alreadyAnchored(): boolean {
+  get alreadyAnchored(): boolean {
     return this._alreadyAnchored
   }
 
