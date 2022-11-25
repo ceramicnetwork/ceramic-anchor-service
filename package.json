@@ -82,7 +82,6 @@
     "reflect-metadata": "^0.1.13",
     "sqlite3": "^5.1.2",
     "tsm": "^2.2.2",
-    "tsyringe": "^4.7.0",
     "typed-inject": "^3.0.1",
     "uuid": "^9.0.0"
   },

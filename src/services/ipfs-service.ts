@@ -5,7 +5,6 @@ import { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
 import * as dagJose from 'dag-jose'
 import type { IPFS } from 'ipfs-core-types'
-import { inject, singleton } from 'tsyringe'
 import { AnchorCommit, toCID } from '@ceramicnetwork/common'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { Utils } from '../utils.js'
@@ -57,14 +56,13 @@ const ipfsHttpAgent = (ipfsEndpoint: string) => {
   }
 }
 
-@singleton()
 export class IpfsServiceImpl implements IpfsService {
   private _ipfs: IPFS
   private _cache: LRUCache<string, any>
 
   static inject = ['config'] as const
 
-  constructor(@inject('config') private config?: Config) {}
+  constructor(private readonly config: Config) {}
 
   /**
    * Initialize the service

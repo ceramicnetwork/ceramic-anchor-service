@@ -10,14 +10,12 @@ import { toCID } from '@ceramicnetwork/common'
 import { AnchorRepository } from '../repositories/anchor-repository.js'
 import { RequestRepository } from '../repositories/request-repository.js'
 import { Request, RequestStatus } from '../models/request.js'
-import { inject, singleton } from 'tsyringe'
 import { logger } from '../logger/index.js'
 import { ServiceMetrics as Metrics } from '../service-metrics.js'
 import { METRIC_NAMES } from '../settings.js'
 import { RequestPresentation } from '../models/request-presentation.js'
 import { CeramicService } from '../services/ceramic-service.js'
 
-@singleton()
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
 export class RequestController {
@@ -26,10 +24,10 @@ export class RequestController {
   static inject = ['config', 'anchorRepository', 'requestRepository', 'ceramicService'] as const
 
   constructor(
-    @inject('config') private config?: Config,
-    @inject('anchorRepository') private anchorRepository?: AnchorRepository,
-    @inject('requestRepository') private requestRepository?: RequestRepository,
-    @inject('ceramicService') private ceramicService?: CeramicService
+    private config: Config,
+    private anchorRepository: AnchorRepository,
+    private requestRepository: RequestRepository,
+    private ceramicService: CeramicService
   ) {
     this.#requestPresentation = new RequestPresentation(
       config.schedulerIntervalMS,
