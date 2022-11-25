@@ -10,17 +10,15 @@ import { ServiceMetrics as Metrics } from '../service-metrics.js'
 import { METRIC_NAMES } from '../settings.js'
 
 import type { Response } from 'express-serve-static-core'
-import { singleton } from 'tsyringe'
 
 const { INTERNAL_SERVER_ERROR, OK } = httpStatusCodes
-@singleton()
 @Controller('api/v0/anchors')
 @ClassMiddleware([cors()])
 export class AnchorController {
 
   static inject = ['anchorService'] as const
 
-  constructor(private anchorService: AnchorService) {}
+  constructor(private readonly anchorService: AnchorService) {}
 
   @Post()
   private async anchor(req: ExpReq, res: ExpRes): Promise<Response> {

@@ -20,7 +20,6 @@ import { CeramicService } from './ceramic-service.js'
 import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '../service-metrics.js'
 import { METRIC_NAMES } from '../settings.js'
 import { BlockchainService } from './blockchain/blockchain-service.js'
-import { inject, singleton } from 'tsyringe'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 
 import {
@@ -89,7 +88,6 @@ const logAnchorSummary = async (
 /**
  * Anchors CIDs to blockchain
  */
-@singleton()
 export class AnchorService {
   private readonly ipfsMerge: IpfsMerge
   private readonly ipfsCompare: IpfsLeafCompare
@@ -108,15 +106,15 @@ export class AnchorService {
   ] as const
 
   constructor(
-    @inject('blockchainService') private blockchainService?: BlockchainService,
-    @inject('config') private config?: Config,
-    @inject('ipfsService') private ipfsService?: IpfsService,
-    @inject('requestRepository') private requestRepository?: RequestRepository,
-    @inject('transactionRepository') private transactionRepository?: TransactionRepository,
-    @inject('ceramicService') private ceramicService?: CeramicService,
-    @inject('anchorRepository') private anchorRepository?: AnchorRepository,
-    @inject('dbConnection') private connection?: Knex,
-    @inject('eventProducerService') private eventProducerService?: EventProducerService
+    private readonly blockchainService: BlockchainService,
+    private readonly config: Config,
+    private readonly ipfsService: IpfsService,
+    private readonly requestRepository: RequestRepository,
+    private readonly transactionRepository: TransactionRepository,
+    private readonly ceramicService: CeramicService,
+    private readonly anchorRepository: AnchorRepository,
+    private readonly connection: Knex,
+    private readonly eventProducerService: EventProducerService
   ) {
     this.ipfsMerge = new IpfsMerge(this.ipfsService)
     this.ipfsCompare = new IpfsLeafCompare()

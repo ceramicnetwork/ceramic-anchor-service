@@ -1,4 +1,3 @@
-import { inject, singleton } from 'tsyringe'
 import { ServiceMetrics as Metrics } from '../service-metrics.js'
 import type { Knex } from 'knex'
 import { logger } from '../logger/index.js'
@@ -8,11 +7,10 @@ import { Options } from './repository-types.js'
 
 const TRANSACTION_MUTEX_ID = 4532
 
-@singleton()
 export class TransactionRepository {
   static inject = ['dbConnection'] as const
 
-  constructor(@inject('dbConnection') private connection: Knex) {}
+  constructor(private readonly connection: Knex) {}
 
   /**
    * Acquires the transaction mutex before performing the operation.
