@@ -17,7 +17,7 @@ export interface CeramicService {
   unpinStream(streamId: StreamID): Promise<void>
 }
 
-const LOAD_STREAM_TIMEOUT = 1000 * 60 // 1 minute
+const DEFAULT_LOAD_STREAM_TIMEOUT = 1000 * 60 // 1 minute
 const MULTIQUERY_SERVER_TIMEOUT = 1000 * 60 // 1 minute
 // 10 seconds more than server-side timeout so server-side timeout can fire first, which gives us a
 // more useful error message
@@ -50,7 +50,7 @@ export class CeramicServiceImpl implements CeramicService {
     const timeoutPromise = new Promise((_, reject) => {
       timeout = setTimeout(() => {
         reject(new Error(`Timed out loading stream: ${streamId.toString()}`))
-      }, LOAD_STREAM_TIMEOUT)
+      }, this.config.loadStreamTimeoutMs || DEFAULT_LOAD_STREAM_TIMEOUT)
     })
 
     return (await Promise.race([streamPromise, timeoutPromise])) as T
