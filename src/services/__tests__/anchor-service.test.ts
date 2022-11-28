@@ -598,6 +598,42 @@ describe('anchor service', () => {
     expect(anchors.find((anchor) => anchor.requestId == requests[3].id)).toBeFalsy()
   })
 
+  test('will not throw if no anchor commits were created', async () => {
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    const anchorService = container.resolve<AnchorService>('anchorService')
+
+    const anchorLimit = 2
+    const numRequests = 2
+
+    // Create pending requests
+    for (let i = 0; i < numRequests; i++) {
+      const streamId = await ceramicService.generateBaseStreamID()
+      const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
+      const commitId = CommitID.make(streamId, request.cid)
+      const stream = createStream(streamId, [toCID(request.cid)])
+      ceramicService.putStream(streamId, stream)
+      ceramicService.putStream(commitId, stream)
+    }
+
+    await requestRepository.findAndMarkReady(anchorLimit)
+
+    const requests = await requestRepository.findByStatus(RequestStatus.READY)
+    expect(requests.length).toEqual(numRequests)
+    const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
+    expect(candidates.length).toEqual(numRequests)
+
+    const original = anchorService._createAnchorCommit
+    try {
+      anchorService._createAnchorCommit = async (candidate) => {
+        candidate.failAllRequests()
+        return null
+      }
+      await anchorCandidates(candidates, anchorService, ipfsService)
+    } finally {
+      anchorService._createAnchorCommit = original
+    }
+  })
+
   describe('Picks proper commit to anchor', () => {
     test('Anchor more recent of two commits', async () => {
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
