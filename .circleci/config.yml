@@ -74,6 +74,10 @@ jobs:
           command: sudo npm run build --ignore-scripts
 
       - run:
+          name: run migrations
+          command: npm run migrateTestDb
+
+      - run:
           name: test
           command: npm run test && codecov
           no_output_timeout: 30m
