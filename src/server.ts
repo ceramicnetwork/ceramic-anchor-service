@@ -23,7 +23,7 @@ export class CeramicAnchorServer extends Server {
    * Start the application
    * @param port - Server listening port
    */
-  public start(port: number = DEFAULT_SERVER_PORT): Promise<void> {
+  start(port: number = DEFAULT_SERVER_PORT): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       this._server = this.app
         .listen(port, () => {
@@ -34,7 +34,7 @@ export class CeramicAnchorServer extends Server {
     })
   }
 
-  public stop(): void {
+  stop(): void {
     this._server.close()
   }
 }

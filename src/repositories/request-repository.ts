@@ -165,7 +165,7 @@ export class RequestRepository {
    * @param options
    * @returns A promise that resolves to the created request
    */
-  public async createOrUpdate(request: Request, options: Options = {}): Promise<Request> {
+  async createOrUpdate(request: Request, options: Options = {}): Promise<Request> {
     const { connection = this.connection } = options
     const keys = Object.keys(request).filter((key) => key !== 'id') // all keys except ID
     const [{ id }] = await connection
@@ -193,7 +193,7 @@ export class RequestRepository {
    * @param options
    * @returns
    */
-  public async createRequests(requests: Array<Request>, options: Options = {}): Promise<void> {
+  async createRequests(requests: Array<Request>, options: Options = {}): Promise<void> {
     const { connection = this.connection } = options
 
     await connection.table(TABLE_NAME).insert(requests)
@@ -206,7 +206,7 @@ export class RequestRepository {
    * @param options
    * @returns A promise that resolves to the number of updated requests
    */
-  public async updateRequests(
+  async updateRequests(
     fields: RequestUpdateFields,
     requests: Request[],
     options: Options = {}
@@ -242,7 +242,7 @@ export class RequestRepository {
    * @param options
    * @returns A promise for the array of READY requests that were updated
    */
-  public async findAndMarkAsProcessing(options: Options = {}): Promise<Request[]> {
+  async findAndMarkAsProcessing(options: Options = {}): Promise<Request[]> {
     const { connection = this.connection } = options
 
     return await connection
@@ -294,7 +294,7 @@ export class RequestRepository {
    * @param options
    * @returns Promise for the associated request
    */
-  public async findByCid(cid: CID, options: Options = {}): Promise<Request> {
+  async findByCid(cid: CID, options: Options = {}): Promise<Request> {
     const { connection = this.connection } = options
 
     return connection(TABLE_NAME).where({ cid: cid.toString() }).first()
@@ -306,7 +306,7 @@ export class RequestRepository {
    * @param options
    * @returns A promise that resolves to an array of request
    */
-  public async findRequestsToGarbageCollect(options: Options = {}): Promise<Request[]> {
+  async findRequestsToGarbageCollect(options: Options = {}): Promise<Request[]> {
     const { connection = this.connection } = options
 
     const now: number = new Date().getTime()
@@ -338,7 +338,7 @@ export class RequestRepository {
    * @param options
    * @returns A promise that resolves to an array of the original requests that were marked as READY
    */
-  public async findAndMarkReady(
+  async findAndMarkReady(
     maxStreamLimit: number,
     minStreamLimit = maxStreamLimit,
     options: Options = {}
@@ -409,7 +409,7 @@ export class RequestRepository {
    * @param options
    * @returns A promise that resolves to an array of request with the given status
    */
-  public async findByStatus(status: RequestStatus, options: LimitOptions = {}): Promise<Request[]> {
+  async findByStatus(status: RequestStatus, options: LimitOptions = {}): Promise<Request[]> {
     const { connection = this.connection, limit } = options
 
     const query = connection(TABLE_NAME).orderBy('updatedAt', 'asc').where({ status })
@@ -425,7 +425,7 @@ export class RequestRepository {
    * Returns the number of pending anchor requests that remain in the database.
    * @returns The number of requests in the database in status PENDING
    */
-  public async countPendingRequests(): Promise<number> {
+  async countPendingRequests(): Promise<number> {
     const res = await this.connection(TABLE_NAME)
       .count('id')
       .where({ status: RequestStatus.PENDING })
@@ -439,7 +439,7 @@ export class RequestRepository {
    * @param options
    * @returns A promise for the number of expired ready requests updated
    */
-  public async updateExpiringReadyRequests(options: Options = {}): Promise<number> {
+  async updateExpiringReadyRequests(options: Options = {}): Promise<number> {
     const { connection = this.connection } = options
 
     return await connection

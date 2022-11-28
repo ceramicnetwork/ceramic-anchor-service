@@ -11,7 +11,7 @@ export class HTTPEventProducerService implements EventProducerService {
   /**
    * Emits an anchor event by sending a message to the configured HTTP anchorLauncherUrl
    */
-  public async emitAnchorEvent(body: string): Promise<void> {
+  async emitAnchorEvent(body: string): Promise<void> {
     const payload = {
       type: 'anchor',
       data: body,
@@ -25,5 +25,5 @@ export class HTTPEventProducerService implements EventProducerService {
   /**
    * Destroy underlying resources
    */
-  public destroy(): void {}
+  destroy(): void {}
 }

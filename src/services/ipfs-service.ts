@@ -67,7 +67,7 @@ export class IpfsServiceImpl implements IpfsService {
   /**
    * Initialize the service
    */
-  public async init(): Promise<void> {
+  async init(): Promise<void> {
     this._ipfs = createIpfsClient({
       url: this.config.ipfsConfig.url,
       timeout: this.config.ipfsConfig.timeout,
@@ -90,7 +90,7 @@ export class IpfsServiceImpl implements IpfsService {
    * Gets the record by its CID value
    * @param cid - CID value
    */
-  public async retrieveRecord(cid: CID | string): Promise<any> {
+  async retrieveRecord(cid: CID | string): Promise<any> {
     let retryTimes = 2
     while (retryTimes > 0) {
       try {
@@ -118,7 +118,7 @@ export class IpfsServiceImpl implements IpfsService {
    * Sets the record and returns its CID
    * @param record - Record value
    */
-  public async storeRecord(record: Record<string, unknown>): Promise<CID> {
+  async storeRecord(record: Record<string, unknown>): Promise<CID> {
     let timeout: any
 
     const putPromise = this._ipfs.dag.put(record).finally(() => {
@@ -142,7 +142,7 @@ export class IpfsServiceImpl implements IpfsService {
    * @param anchorCommit - anchor commit
    * @param streamId
    */
-  public async publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID> {
+  async publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID> {
     const anchorCid = await this.storeRecord(anchorCommit as any)
 
     const updateMessage = {

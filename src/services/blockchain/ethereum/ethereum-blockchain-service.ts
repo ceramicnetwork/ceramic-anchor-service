@@ -157,12 +157,12 @@ export class EthereumBlockchainService implements BlockchainService {
     )
   }
 
-  public static make = make
+  static make = make
 
   /**
    * Connects to blockchain
    */
-  public async connect(): Promise<void> {
+  async connect(): Promise<void> {
     logger.imp(`Connecting to ${this._network} blockchain...`)
     await this._loadChainId()
     logger.imp(`Connected to ${this._network} blockchain with chain ID ${this.chainId}`)
@@ -277,7 +277,7 @@ export class EthereumBlockchainService implements BlockchainService {
    * Returns the cached 'chainId' representing the CAIP-2 ID of the configured blockchain.
    * Invalid to call before calling connect()
    */
-  public get chainId(): string {
+  get chainId(): string {
     return caipChainId(this._chainId)
   }
 
@@ -397,7 +397,7 @@ export class EthereumBlockchainService implements BlockchainService {
   /**
    * Sends transaction with root CID as data
    */
-  public async sendTransaction(rootCid: CID): Promise<Transaction> {
+  async sendTransaction(rootCid: CID): Promise<Transaction> {
     const txData = await this._buildTransactionRequest(rootCid)
     const txResponses: Array<TransactionResponse> = []
 

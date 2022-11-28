@@ -59,7 +59,7 @@ class NullSpan implements Endable {
 
 export enum SinceField {
   CREATED_AT = 0,
-  UPDATED_AT = 1
+  UPDATED_AT = 1,
 }
 
 export class TimeableMetric {
@@ -68,26 +68,26 @@ export class TimeableMetric {
   protected maxTime: number
   protected since: SinceField
 
-  constructor(since:SinceField) {
+  constructor(since: SinceField) {
     this.cnt = 0
     this.totTime = 0
     this.maxTime = 0
     this.since = since
-  } 
-
-  public recordAll(requests: Timeable[]) {
-     for (const req of requests) {
-       this.record(req)
-     }
   }
 
-  public record(request: Timeable) {
+  recordAll(requests: Timeable[]) {
+    for (const req of requests) {
+      this.record(req)
+    }
+  }
 
+  record(request: Timeable) {
     this.cnt += 1
     let timeElapsed = 0
     if (this.since === SinceField.CREATED_AT) {
       timeElapsed = Date.now() - request.createdAt.getTime()
-    } else { // UpdatedAt
+    } else {
+      // UpdatedAt
       timeElapsed = Date.now() - request.updatedAt.getTime()
     }
     this.totTime += timeElapsed
@@ -97,17 +97,15 @@ export class TimeableMetric {
   }
 
   private getMeanTime(): number {
-    return this.totTime/this.cnt
+    return this.totTime / this.cnt
   }
 
-  public publishStats(name:string): void {
+  publishStats(name: string): void {
     ServiceMetrics.count(name + '_total', this.cnt)
     ServiceMetrics.record(name + '_mean', this.getMeanTime())
     ServiceMetrics.record(name + '_max', this.maxTime)
   }
-
 }
-
 
 class _ServiceMetrics {
   protected caller
