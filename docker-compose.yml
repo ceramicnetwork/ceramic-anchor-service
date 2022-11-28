@@ -16,7 +16,7 @@ services:
       - CERAMIC_API_URL=http://host.docker.internal:7007
       - ETH_GAS_LIMIT=4712388
       - ETH_GAS_PRICE=100000000000
-      - ETH_NETWORK=ropsten
+      - ETH_NETWORK=goerli
       - ETH_OVERRIDE_GAS_CONFIG=false
       - ETH_WALLET_PK=0x16dd0990d19001c50eeea6d32e8fdeef40d3945962caf18c18c3930baa5a6ec9
 
@@ -61,7 +61,7 @@ services:
       - CERAMIC_API_URL=http://host.docker.internal:7007
       - ETH_GAS_LIMIT=4712388
       - ETH_GAS_PRICE=100000000000
-      - ETH_NETWORK=ropsten
+      - ETH_NETWORK=goerli
       - ETH_OVERRIDE_GAS_CONFIG=false
       - ETH_WALLET_PK=0x16dd0990d19001c50eeea6d32e8fdeef40d3945962caf18c18c3930baa5a6ec9
 
