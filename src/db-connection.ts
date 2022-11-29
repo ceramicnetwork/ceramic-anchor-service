@@ -31,7 +31,7 @@ async function runMigrations(connection: Knex) {
   }
 }
 
-export async function createDbConnection() {
+export async function createDbConnection(): Promise<Knex> {
   const knexConfig: Knex.Config = {
     ...config.db,
     // In our DB, identifiers have snake case formatting while in our code identifiers have camel case formatting.
