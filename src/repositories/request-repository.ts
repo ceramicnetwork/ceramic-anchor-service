@@ -170,11 +170,12 @@ export class RequestRepository {
    */
   public async createOrUpdate(request: Request, options: Options = {}): Promise<Request> {
     const { connection = this.connection } = options
+    const keys = Object.keys(request).filter((key) => key !== 'id') // all keys except ID
     const [{ id }] = await connection
       .table(TABLE_NAME)
       .insert(request, ['id'])
       .onConflict('cid')
-      .merge()
+      .merge(keys)
 
     const created = await connection.table(TABLE_NAME).first().where({ id })
 
