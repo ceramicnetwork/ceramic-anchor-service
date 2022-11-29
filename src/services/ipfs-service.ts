@@ -16,7 +16,7 @@ const { serialize, MsgType } = PubsubMessage
 
 const DEFAULT_GET_TIMEOUT = 30000 // 30 seconds
 const MAX_CACHE_ENTRIES = 100
-const IPFS_PUT_TIMEOUT = 60 * 1000 // 60 seconds
+const IPFS_PUT_TIMEOUT = 120 * 1000 // 2 minutes
 const PUBSUB_DELAY = 100
 
 export interface IpfsService {
