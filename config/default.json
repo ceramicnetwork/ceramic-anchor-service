@@ -5,6 +5,7 @@
   "anchorControllerEnabled": false,
   "anchorLauncherUrl": "http://localhost:8001",
   "expirationPeriod": 5400000,
+  "loadStreamTimeoutMs": 60000,
   "maxAnchoringDelayMS": 43200000,
   "merkleDepthLimit": 0,
   "minStreamCount": 1024,

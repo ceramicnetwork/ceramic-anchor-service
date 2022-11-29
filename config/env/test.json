@@ -1,6 +1,7 @@
 {
   "anchorLauncherUrl": "http://localhost:8001",
   "expirationPeriod": 0,
+  "loadStreamTimeoutMs": 1000,
   "readyRetryIntervalMS": 10000,
   "schedulerIntervalMS": 10000,
   "ceramic": {
