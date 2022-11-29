@@ -7,7 +7,7 @@ const REQUEST_TABLE_NAME = 'request'
 export async function up(knex) {
   await knex.schema.alterTable(REQUEST_TABLE_NAME, (table) => {
     table.string('origin', 1024).index()
-    table.timestamp('timestamp', { useTz: false })
+    table.timestamp('timestamp', { useTz: false }).notNullable().defaultTo(knex.raw('now()'))
   })
 }
 
