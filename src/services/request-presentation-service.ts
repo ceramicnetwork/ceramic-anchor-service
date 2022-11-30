@@ -1,10 +1,10 @@
 import { AnchorRepository } from '../repositories/anchor-repository.js'
-import { Request, InvalidRequestStatusError, RequestStatus } from './request.js'
+import { Request, InvalidRequestStatusError, RequestStatus } from '../models/request.js'
 
 /**
  * Render anchoring Request as JSON for a client to consume.
  */
-export class RequestPresentation {
+export class RequestPresentationService {
   constructor(
     private readonly schedulerIntervalMS: number,
     private readonly anchorRepository: AnchorRepository

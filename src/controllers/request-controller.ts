@@ -13,14 +13,14 @@ import { Request, RequestStatus } from '../models/request.js'
 import { logger } from '../logger/index.js'
 import { ServiceMetrics as Metrics } from '../service-metrics.js'
 import { METRIC_NAMES } from '../settings.js'
-import { RequestPresentation } from '../models/request-presentation.js'
 import { CeramicService } from '../services/ceramic-service.js'
 import { StreamID } from '@ceramicnetwork/streamid'
+import { RequestPresentationService } from '../services/request-presentation-service'
 
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
 export class RequestController {
-  #requestPresentation: RequestPresentation
+  #requestPresentation: RequestPresentationService
 
   static inject = ['config', 'anchorRepository', 'requestRepository', 'ceramicService'] as const
 
@@ -31,7 +31,10 @@ export class RequestController {
     private ceramicService: CeramicService
   ) {
     const schedulerIntervalMS = config.schedulerIntervalMS
-    this.#requestPresentation = new RequestPresentation(schedulerIntervalMS, anchorRepository)
+    this.#requestPresentation = new RequestPresentationService(
+      schedulerIntervalMS,
+      anchorRepository
+    )
   }
 
   @Get(':cid')
