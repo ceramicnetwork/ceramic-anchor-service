@@ -467,7 +467,9 @@ export class AnchorService {
 
     const trx = await this.connection.transaction(null, { isolationLevel: 'repeatable read' })
     try {
-      await this.anchorRepository.createAnchors(anchors, { connection: trx })
+      if (anchors.length > 0) {
+        await this.anchorRepository.createAnchors(anchors, { connection: trx })
+      }
 
       await this.requestRepository.updateRequests(
         {

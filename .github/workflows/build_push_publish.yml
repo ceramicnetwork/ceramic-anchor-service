@@ -1,11 +1,12 @@
+# Deprecated
 name: Build, push, publish CAS
 
 on:
-  push:
-    branches:
-      - main
-      - "release-candidate"
-      - develop
+#  push:
+#    branches:
+#      - main
+#      - "release-candidate"
+#      - develop
   workflow_dispatch:
     inputs:
       branch:
@@ -97,8 +98,8 @@ jobs:
           QA_RUNNER_ECR_TAGS="-t $QA_RUNNER_ECR_IMAGE_ID:qa -t $QA_RUNNER_ECR_IMAGE_ID:$SHA_TAG -t $QA_RUNNER_ECR_IMAGE_ID:$FULL_SHA_TAG -t $QA_RUNNER_ECR_IMAGE_ID:$IMAGE_TAG -t $QA_RUNNER_ECR_IMAGE_ID:$IMAGE_TAG_2"
         fi
 
-        docker build -f Dockerfile -t cas $ECR_TAGS $DOCKERHUB_TAGS $QA_ECR_TAGS .
-        docker build -f Dockerfile.runner $RUNNER_ECR_TAGS $QA_RUNNER_ECR_TAGS .
+        docker build --target base -t cas $ECR_TAGS $DOCKERHUB_TAGS $QA_ECR_TAGS .
+        docker build --target runner $RUNNER_ECR_TAGS $QA_RUNNER_ECR_TAGS .
         docker push -a $DOCKERHUB_IMAGE_ID
         docker push -a $ECR_IMAGE_ID
         docker push -a $RUNNER_ECR_IMAGE_ID

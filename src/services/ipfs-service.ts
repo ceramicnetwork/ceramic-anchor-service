@@ -40,6 +40,7 @@ export interface IpfsService {
   /**
    * Stores the anchor commit to ipfs and publishes an update pubsub message to the Ceramic pubsub topic
    * @param anchorCommit - anchor commit
+   * @param streamId
    */
   publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID>
 }
@@ -59,7 +60,7 @@ const ipfsHttpAgent = (ipfsEndpoint: string) => {
 @singleton()
 export class IpfsServiceImpl implements IpfsService {
   private _ipfs: IPFS
-  private _cache: LRUCache
+  private _cache: LRUCache<string, any>
 
   constructor(@inject('config') private config?: Config) {}
 
@@ -82,7 +83,7 @@ export class IpfsServiceImpl implements IpfsService {
       /* do nothing */
     })
 
-    this._cache = new LRUCache(MAX_CACHE_ENTRIES)
+    this._cache = new LRUCache<string, any>({ max: MAX_CACHE_ENTRIES })
   }
 
   /**
@@ -143,6 +144,7 @@ export class IpfsServiceImpl implements IpfsService {
   /**
    * Stores the anchor commit to ipfs and publishes an update pubsub message to the Ceramic pubsub topic
    * @param anchorCommit - anchor commit
+   * @param streamId
    */
   public async publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID> {
     const anchorCid = await this.storeRecord(anchorCommit as any)
