@@ -11,7 +11,7 @@ This implementation currently uses the Ethereum blockchain but is built in order
 
 **Build the CAS image:**
 ```sh
-docker build . -f Dockerfile -t cas
+docker build . --target base -t cas
 ```
 
 **Build the runner image (optional):**
@@ -19,9 +19,7 @@ docker build . -f Dockerfile -t cas
 The runner is only useful if running CAS with ECS.
 It sends updates on the start and exit status of the container to Discord webhooks.
 ```sh
-# First make sure your CAS image was tagged "cas"
-# then build the runner (a wrapper around CAS)
-docker build . -f Dockerfile.runner -t cas-runner
+docker build . --target runner -t cas-runner
 
 docker run cas-runner
 

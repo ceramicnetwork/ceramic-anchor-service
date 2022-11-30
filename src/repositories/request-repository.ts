@@ -17,6 +17,8 @@ export const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
 export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 3 //3H
 // If a request fails during this window, retry
 export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
+// only retry failed requests if it hasn't been tried within the last 6 hours
+export const FAILURE_RETRY_INTERVAL = 1000 * 60 * 60 * 6 // 6H
 // application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
 export const TABLE_NAME = 'request'
@@ -24,7 +26,7 @@ export const TABLE_NAME = 'request'
 /**
  * Records statistics about the set of requests
  * Groups by EXPIRED (if the time is past the deadline), PROCESSING, and FAILED
- * 
+ *
  * Will record the total count, the mean time since createdAt, and the max time since createdAt
  * for each group
  *
@@ -39,17 +41,17 @@ const recordAnchorRequestMetrics = (requests: Request[], anchoringDeadline: Date
   const failed = new TimeableMetric(SinceField.UPDATED_AT)
 
   for (const req of requests) {
-      if (req.createdAt < anchoringDeadline) {
-          expired.record(req)  
-      }
+    if (req.createdAt < anchoringDeadline) {
+      expired.record(req)
+    }
 
-      if (req.status === RequestStatus.PROCESSING) {
-          processing.record(req)
-      } else if (req.status === RequestStatus.FAILED) {
-          failed.record(req)
-      } else if (req.status === RequestStatus.PENDING) {
-          created.record(req)
-      }
+    if (req.status === RequestStatus.PROCESSING) {
+      processing.record(req)
+    } else if (req.status === RequestStatus.FAILED) {
+      failed.record(req)
+    } else if (req.status === RequestStatus.PENDING) {
+      created.record(req)
+    }
   }
 
   expired.publishStats(METRIC_NAMES.REQUEST_EXPIRED)
@@ -69,8 +71,9 @@ const recordAnchorRequestMetrics = (requests: Request[], anchoringDeadline: Date
  * @returns
  */
 const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder => {
-  const earliestDateToRetryFailed = new Date(now.getTime() - FAILURE_RETRY_WINDOW)
+  const earliestFailedCreatedAtToRetry = new Date(now.getTime() - FAILURE_RETRY_WINDOW)
   const processingDeadline = new Date(now.getTime() - PROCESSING_TIMEOUT)
+  const latestFailedUpdatedAtToRetry = new Date(now.getTime() - FAILURE_RETRY_INTERVAL)
 
   return connection(TABLE_NAME).where((builder) => {
     builder
@@ -83,7 +86,8 @@ const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder =>
       .orWhere((subBuilder) =>
         subBuilder
           .where({ status: RequestStatus.FAILED })
-          .andWhere('createdAt', '>=', earliestDateToRetryFailed)
+          .andWhere('createdAt', '>=', earliestFailedCreatedAtToRetry)
+          .andWhere('updatedAt', '<=', latestFailedUpdatedAtToRetry)
           .andWhere((subSubBuilder) =>
             subSubBuilder
               .whereNull('message')
@@ -166,11 +170,12 @@ export class RequestRepository {
    */
   public async createOrUpdate(request: Request, options: Options = {}): Promise<Request> {
     const { connection = this.connection } = options
+    const keys = Object.keys(request).filter((key) => key !== 'id') // all keys except ID
     const [{ id }] = await connection
       .table(TABLE_NAME)
       .insert(request, ['id'])
       .onConflict('cid')
-      .merge()
+      .merge(keys)
 
     const created = await connection.table(TABLE_NAME).first().where({ id })
 

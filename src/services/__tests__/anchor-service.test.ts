@@ -17,6 +17,7 @@ import {
   MockIpfsClient,
   generateRequests,
   MockEventProducerService,
+  randomStreamID,
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { CID } from 'multiformats/cid'
@@ -152,7 +153,7 @@ describe('anchor service', () => {
   test('check state on tx fail', async () => {
     const requests: Request[] = []
     for (let i = 0; i < minStreamCount; i++) {
-      const streamId = await ceramicService.generateBaseStreamID()
+      const streamId = await randomStreamID()
       const cid = await ipfsService.storeRecord({})
       const streamCommitId = CommitID.make(streamId, cid)
       const stream = createStream(streamId, [cid])
@@ -189,7 +190,7 @@ describe('anchor service', () => {
     const numRequests = minStreamCount - 1
     // Create pending requests
     for (let i = 0; i < numRequests; i++) {
-      const streamId = await ceramicService.generateBaseStreamID()
+      const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
       const stream = createStream(streamId, [toCID(request.cid)])
@@ -214,7 +215,7 @@ describe('anchor service', () => {
     const requests: Request[] = []
     const numRequests = 4
     for (let i = 0; i < numRequests; i++) {
-      const streamId = await ceramicService.generateBaseStreamID()
+      const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       requests.push(request)
       const commitId = CommitID.make(streamId, request.cid)
@@ -268,7 +269,7 @@ describe('anchor service', () => {
 
     // Create pending requests
     for (let i = 0; i < numRequests; i++) {
-      const streamId = await ceramicService.generateBaseStreamID()
+      const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
       const stream = createStream(streamId, [toCID(request.cid)])
@@ -316,7 +317,7 @@ describe('anchor service', () => {
     const requests: Request[] = []
     let numFailed = Math.floor(anchorLimit / 2)
     for (let i = 0; i < numStreams; i++) {
-      const streamId = await ceramicService.generateBaseStreamID()
+      const streamId = await randomStreamID()
 
       const request =
         numFailed > 0
@@ -411,7 +412,7 @@ describe('anchor service', () => {
 
     // Create pending requests
     for (let i = 0; i < numRequests; i++) {
-      const streamId = await ceramicService.generateBaseStreamID()
+      const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
       const stream = createStream(streamId, [toCID(request.cid)])
@@ -437,7 +438,7 @@ describe('anchor service', () => {
     const anchorService = container.resolve<AnchorService>('anchorService')
 
     const makeRequest = async function (valid: boolean) {
-      const streamId = await ceramicService.generateBaseStreamID()
+      const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
 
       if (valid) {
@@ -506,11 +507,11 @@ describe('anchor service', () => {
     }
 
     // One stream where 1 commit is present in the stream in ceramic already and one commit is not
-    const streamIdA = await ceramicService.generateBaseStreamID()
+    const streamIdA = await randomStreamID()
     const requestA0 = await makeRequest(streamIdA, true)
     const requestA1 = await makeRequest(streamIdA, false)
     // A second stream where both commits are included in the ceramic already
-    const streamIdB = await ceramicService.generateBaseStreamID()
+    const streamIdB = await randomStreamID()
     const requestB0 = await makeRequest(streamIdB, true)
     const requestB1 = await makeRequest(streamIdB, true)
 
@@ -553,7 +554,7 @@ describe('anchor service', () => {
     // Create pending requests
     const numRequests = 4
     for (let i = 0; i < numRequests; i++) {
-      const streamId = await ceramicService.generateBaseStreamID()
+      const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
       const stream = createStream(streamId, [toCID(request.cid)])
@@ -596,6 +597,42 @@ describe('anchor service', () => {
     expect(anchors.find((anchor) => anchor.requestId == requests[1].id)).toBeFalsy()
     expect(anchors.find((anchor) => anchor.requestId == requests[2].id)).toBeTruthy()
     expect(anchors.find((anchor) => anchor.requestId == requests[3].id)).toBeFalsy()
+  })
+
+  test('will not throw if no anchor commits were created', async () => {
+    const requestRepository = container.resolve<RequestRepository>('requestRepository')
+    const anchorService = container.resolve<AnchorService>('anchorService')
+
+    const anchorLimit = 2
+    const numRequests = 2
+
+    // Create pending requests
+    for (let i = 0; i < numRequests; i++) {
+      const streamId = await randomStreamID()
+      const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
+      const commitId = CommitID.make(streamId, request.cid)
+      const stream = createStream(streamId, [toCID(request.cid)])
+      ceramicService.putStream(streamId, stream)
+      ceramicService.putStream(commitId, stream)
+    }
+
+    await requestRepository.findAndMarkReady(anchorLimit)
+
+    const requests = await requestRepository.findByStatus(RequestStatus.READY)
+    expect(requests.length).toEqual(numRequests)
+    const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
+    expect(candidates.length).toEqual(numRequests)
+
+    const original = anchorService._createAnchorCommit
+    try {
+      anchorService._createAnchorCommit = async (candidate) => {
+        candidate.failAllRequests()
+        return null
+      }
+      await anchorCandidates(candidates, anchorService, ipfsService)
+    } finally {
+      anchorService._createAnchorCommit = original
+    }
   })
 
   test('Does not create anchor commits if stream has already been anchored for those requests', async () => {
@@ -643,7 +680,7 @@ describe('anchor service', () => {
       const anchorService = container.resolve<AnchorService>('anchorService')
 
       // 1 stream with 2 pending requests, one request is newer and inclusive of the other.
-      const streamId = await ceramicService.generateBaseStreamID()
+      const streamId = await randomStreamID()
       const request0 = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const request1 = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId0 = CommitID.make(streamId, request0.cid)
@@ -685,7 +722,7 @@ describe('anchor service', () => {
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const anchorService = container.resolve<AnchorService>('anchorService')
 
-      const streamId = await ceramicService.generateBaseStreamID()
+      const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
       const tipCID = await ipfsService.storeRecord({})
@@ -719,7 +756,7 @@ describe('anchor service', () => {
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const anchorService = container.resolve<AnchorService>('anchorService')
 
-      const streamId = await ceramicService.generateBaseStreamID()
+      const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
       const tipCID = await ipfsService.storeRecord({})
@@ -739,7 +776,7 @@ describe('anchor service', () => {
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const anchorService = container.resolve<AnchorService>('anchorService')
 
-      const streamId = await ceramicService.generateBaseStreamID()
+      const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
       const anchorCommitCID = await ipfsService.storeRecord({})
@@ -764,7 +801,7 @@ describe('anchor service', () => {
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const anchorService = container.resolve<AnchorService>('anchorService')
 
-      const streamId = await ceramicService.generateBaseStreamID()
+      const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       await requestRepository.createOrUpdate(request)
       const commitId = CommitID.make(streamId, request.cid)
@@ -828,7 +865,7 @@ describe('anchor service', () => {
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const anchorService = container.resolve<AnchorService>('anchorService')
 
-      const streamId = await ceramicService.generateBaseStreamID()
+      const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       await requestRepository.createOrUpdate(request)
       const commitId0 = CommitID.make(streamId, request.cid)
@@ -857,9 +894,7 @@ describe('anchor service', () => {
       const anchorService = container.resolve<AnchorService>('anchorService')
 
       // Create Requests
-      const streamIds = await Promise.all(
-        [...Array(numRequests)].map(() => ceramicService.generateBaseStreamID())
-      )
+      const streamIds = Array.from({ length: numRequests }).map(() => randomStreamID())
       const requests = await Promise.all(
         streamIds.map((streamId) =>
           createRequest(streamId.toString(), ipfsService, requestRepository)
@@ -949,15 +984,22 @@ describe('anchor service', () => {
 
   describe('emitAnchorEventIfReady', () => {
     test('Does not emit if ready requests exist but they are not timed out', async () => {
-      // Ready requests that have not timed out (created now)
-      const originalRequests = await generateRequests(
-        {
-          status: RequestStatus.READY,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        3
-      )
+      const originalRequests = [
+        generateRequests(
+          {
+            status: RequestStatus.READY,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          2
+        ),
+        generateRequests(
+          {
+            status: RequestStatus.PENDING,
+          },
+          4
+        ),
+      ].flat()
 
       const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const requestRepositoryUpdateSpy = jest.spyOn(requestRepository, 'updateRequests')
@@ -982,7 +1024,7 @@ describe('anchor service', () => {
       const config = container.resolve<Config>('config')
       const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
       // Ready requests that have timed out (created too long ago)
-      const originalRequests = await generateRequests(
+      const originalRequests = generateRequests(
         {
           status: RequestStatus.READY,
           createdAt: updatedTooLongAgo,
@@ -1020,7 +1062,7 @@ describe('anchor service', () => {
 
     test('does not emit if no requests were updated to ready', async () => {
       // not enough request generated
-      const originalRequests = await generateRequests(
+      const originalRequests = generateRequests(
         {
           status: RequestStatus.PENDING,
         },
@@ -1039,7 +1081,7 @@ describe('anchor service', () => {
     })
 
     test('emits if requests were updated to ready', async () => {
-      const originalRequests = await generateRequests(
+      const originalRequests = generateRequests(
         {
           status: RequestStatus.PENDING,
         },
@@ -1064,7 +1106,7 @@ describe('anchor service', () => {
     })
 
     test('Does not crash if the event producer rejects', async () => {
-      const originalRequests = await generateRequests(
+      const originalRequests = generateRequests(
         {
           status: RequestStatus.PENDING,
         },
@@ -1089,7 +1131,7 @@ describe('anchor service', () => {
       const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
 
       // Ready requests that have timed out (created too long ago)
-      const requests = await generateRequests(
+      const requests = generateRequests(
         {
           status: RequestStatus.READY,
           createdAt: updatedTooLongAgo,

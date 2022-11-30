@@ -9,22 +9,18 @@ import {
   PROCESSING_TIMEOUT,
   FAILURE_RETRY_WINDOW,
   TABLE_NAME,
+  FAILURE_RETRY_INTERVAL,
 } from '../request-repository.js'
 import { AnchorRepository } from '../anchor-repository.js'
 import { Request, REQUEST_MESSAGES, RequestStatus } from '../../models/request.js'
-import { randomCID, generateRequests, generateRequest } from '../../__tests__/test-utils.js'
-import { StreamID } from '@ceramicnetwork/streamid'
+import { generateRequests, generateRequest, randomStreamID } from '../../__tests__/test-utils.js'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
 const MS_IN_DAY = MS_IN_HOUR * 24
 const MS_IN_MONTH = MS_IN_DAY * 30
 
-async function generateCompletedRequest(
-  expired: boolean,
-  failed: boolean,
-  varianceMS = 0
-): Promise<Request> {
+function generateCompletedRequest(expired: boolean, failed: boolean, varianceMS = 0): Request {
   const now = new Date()
   const threeMonthsAgo = new Date(now.getTime() - MS_IN_MONTH * 3 + varianceMS)
   const fiveDaysAgo = new Date(now.getTime() - MS_IN_DAY * 5 + varianceMS)
@@ -39,12 +35,12 @@ async function generateCompletedRequest(
   })
 }
 
-async function generateReadyRequests(count: number): Promise<Request[]> {
+function generateReadyRequests(count: number): Array<Request> {
   return generateRequests({ status: RequestStatus.READY }, count, MS_IN_HOUR)
 }
 
-async function getAllRequests(connection: Knex): Promise<Request[]> {
-  return await connection.table(TABLE_NAME).orderBy('createdAt', 'asc')
+async function getAllRequests(connection: Knex): Promise<Array<Request>> {
+  return connection.table(TABLE_NAME).orderBy('createdAt', 'asc')
 }
 
 describe('request repository test', () => {
@@ -76,7 +72,7 @@ describe('request repository test', () => {
   })
 
   test('createOrUpdate: can createOrUpdate simultaneously', async () => {
-    const request = await generateRequest({
+    const request = generateRequest({
       status: RequestStatus.READY,
     })
 
@@ -88,7 +84,7 @@ describe('request repository test', () => {
   })
 
   test('countPendingRequests', async () => {
-    const requests = await Promise.all([
+    const requests = [
       generateRequest({
         status: RequestStatus.PENDING,
       }),
@@ -107,7 +103,7 @@ describe('request repository test', () => {
       generateRequest({
         status: RequestStatus.PENDING,
       }),
-    ])
+    ]
     await requestRepository.createRequests(requests)
 
     await expect(requestRepository.countPendingRequests()).resolves.toEqual(2)
@@ -117,12 +113,12 @@ describe('request repository test', () => {
     test('Finds requests older than a month', async () => {
       // Create two requests that are expired and should be garbage collected, and two that should not
       // be.
-      const requests = await Promise.all([
+      const requests = [
         generateCompletedRequest(false, false, 0),
         generateCompletedRequest(true, false, 100),
         generateCompletedRequest(false, true, 200),
         generateCompletedRequest(true, true, 300),
-      ])
+      ]
 
       await requestRepository.createRequests(requests)
 
@@ -135,12 +131,12 @@ describe('request repository test', () => {
     test("Don't cleanup streams who have both old and new requests", async () => {
       // Create two requests that are expired and should be garbage collected, and two that should not
       // be.
-      const requests = await Promise.all([
+      const requests = [
         generateCompletedRequest(false, false),
         generateCompletedRequest(true, false),
         generateCompletedRequest(false, true),
         generateCompletedRequest(true, true),
-      ])
+      ]
 
       // Set an expired and non-expired request to be on the same streamId. The expired request should
       // not show up to be garbage collected.
@@ -155,7 +151,7 @@ describe('request repository test', () => {
   })
 
   test('findAndMarkAsProcessing: process requests oldest to newest', async () => {
-    const requests = await generateReadyRequests(2)
+    const requests = generateReadyRequests(2)
     await requestRepository.createRequests(requests)
     const loadedRequests = await requestRepository.findAndMarkAsProcessing()
 
@@ -168,7 +164,7 @@ describe('request repository test', () => {
   })
 
   test('findByStatus: retrieves all requests of a specified status', async () => {
-    const requests = await Promise.all([
+    const requests = [
       generateRequests(
         {
           status: RequestStatus.READY,
@@ -181,7 +177,7 @@ describe('request repository test', () => {
         },
         3
       ),
-    ]).then((arr) => arr.flat())
+    ].flat()
 
     await requestRepository.createRequests(requests)
 
@@ -197,7 +193,7 @@ describe('request repository test', () => {
   describe('findAndMarkReady', () => {
     test('Marks pending requests as ready', async () => {
       const streamLimit = 5
-      const requests = await Promise.all([
+      const requests = [
         // pending requests created now
         generateRequests({ status: RequestStatus.PENDING }, streamLimit),
         // completed requests (created 2 months ago, completed 1 month ago)
@@ -210,7 +206,7 @@ describe('request repository test', () => {
           },
           2
         ),
-      ]).then((arr) => arr.flat())
+      ].flat()
 
       await requestRepository.createRequests(requests)
 
@@ -228,7 +224,7 @@ describe('request repository test', () => {
 
     test('Marks no requests as ready if there are not enough streams', async () => {
       const streamLimit = 5
-      const requests = await Promise.all([
+      const requests = [
         // pending requests created now
         generateRequests({ status: RequestStatus.PENDING }, streamLimit - 1),
         // failed requests (created 2 months ago, failed 1 month ago)
@@ -241,7 +237,7 @@ describe('request repository test', () => {
           },
           2
         ),
-      ]).then((arr) => arr.flat())
+      ].flat()
 
       await requestRepository.createRequests(requests)
 
@@ -255,7 +251,7 @@ describe('request repository test', () => {
       const creationDateOfExpiredRequest = new Date(
         Date.now() - config.maxAnchoringDelayMS - MS_IN_HOUR
       )
-      const requests = await Promise.all([
+      const requests = [
         // expired pending request
         generateRequests(
           {
@@ -267,7 +263,7 @@ describe('request repository test', () => {
         ),
         // pending request created now
         generateRequests({ status: RequestStatus.PENDING }, 1),
-      ]).then((arr) => arr.flat())
+      ].flat()
 
       await requestRepository.createRequests(requests)
 
@@ -284,7 +280,7 @@ describe('request repository test', () => {
       const streamLimit = 5
 
       // pending requests created now
-      const requests = await generateRequests({ status: RequestStatus.PENDING }, streamLimit + 2)
+      const requests = generateRequests({ status: RequestStatus.PENDING }, streamLimit + 2)
 
       await requestRepository.createRequests(requests)
 
@@ -304,7 +300,7 @@ describe('request repository test', () => {
       // 4h ago (timeout is 3h)
       const dateOfTimedOutProcessingRequest = new Date(Date.now() - PROCESSING_TIMEOUT - MS_IN_HOUR)
 
-      const expiredProcessing = await generateRequests(
+      const expiredProcessing = generateRequests(
         // processing request that needs to be retried
         {
           status: RequestStatus.PROCESSING,
@@ -313,7 +309,7 @@ describe('request repository test', () => {
         },
         1
       )
-      const requests = await Promise.all([
+      const requests = [
         expiredProcessing,
         // requests that are currently processing
         generateRequests(
@@ -326,7 +322,7 @@ describe('request repository test', () => {
         ),
         // pending requests created now
         generateRequests({ status: RequestStatus.PENDING }, streamLimit),
-      ]).then((arr) => arr.flat())
+      ].flat()
 
       await requestRepository.createRequests(requests)
 
@@ -350,8 +346,8 @@ describe('request repository test', () => {
 
     test('Marks requests for same streams as ready', async () => {
       const streamLimit = 5
-      const repeatedStreamId = new StreamID('tile', await randomCID()).toString()
-      const requests = await Promise.all([
+      const repeatedStreamId = randomStreamID().toString()
+      const requests = [
         // repeated request created an hour ago
         generateRequests(
           {
@@ -377,7 +373,7 @@ describe('request repository test', () => {
           },
           streamLimit
         ),
-      ]).then((arr) => arr.flat())
+      ].flat()
       const repeatedRequest1 = requests[0]
       const repeatedRequest2 = requests[1]
 
@@ -395,9 +391,9 @@ describe('request repository test', () => {
     })
 
     test('Does not mark irrelevant requests as READY if a new request comes in for a stream', async () => {
-      const repeatedStreamId = new StreamID('tile', await randomCID()).toString()
+      const repeatedStreamId = randomStreamID().toString()
 
-      const shouldBeIncluded = await Promise.all([
+      const shouldBeIncluded = [
         // PENDING created now
         generateRequests(
           {
@@ -406,13 +402,13 @@ describe('request repository test', () => {
           },
           1
         ),
-        // failed request updated 30 minutes ago
+        // failed request
         generateRequests(
           {
             status: RequestStatus.FAILED,
             streamId: repeatedStreamId,
-            createdAt: new Date(Date.now() - MS_IN_HOUR),
-            updatedAt: new Date(Date.now() - MS_IN_MINUTE * 30),
+            createdAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+            updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_MINUTE * 30),
           },
           1
         ),
@@ -426,9 +422,9 @@ describe('request repository test', () => {
           },
           1
         ),
-      ]).then((arr) => arr.flat())
+      ].flat()
 
-      const shouldNotBeIncluded = await Promise.all([
+      const shouldNotBeIncluded = [
         // completed request created two hours ago
         generateRequests(
           {
@@ -469,7 +465,7 @@ describe('request repository test', () => {
           },
           1
         ),
-      ]).then((arr) => arr.flat())
+      ].flat()
 
       const requests = shouldBeIncluded.concat(shouldNotBeIncluded)
       await requestRepository.createRequests(requests)
@@ -486,7 +482,7 @@ describe('request repository test', () => {
 
     test('Does not mark any requests as ready if an error occurs', async () => {
       const streamLimit = 5
-      const requests = await generateRequests(
+      const requests = generateRequests(
         {
           status: RequestStatus.PENDING,
         },
@@ -515,12 +511,12 @@ describe('request repository test', () => {
     test('Marks failed requests as ready', async () => {
       const streamLimit = 5
       const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
-      const requests = await Promise.all([
+      const requests = [
         generateRequests(
           {
             status: RequestStatus.FAILED,
             createdAt: dateDuringRetryPeriod,
-            updatedAt: new Date(Date.now() - MS_IN_HOUR),
+            updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
             message: 'random',
           },
           1
@@ -529,11 +525,11 @@ describe('request repository test', () => {
           {
             status: RequestStatus.FAILED,
             createdAt: dateDuringRetryPeriod,
-            updatedAt: new Date(Date.now() - MS_IN_HOUR),
+            updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
           },
           streamLimit - 1
         ),
-      ]).then((arr) => arr.flat())
+      ].flat()
 
       await requestRepository.createRequests(requests)
 
@@ -550,11 +546,11 @@ describe('request repository test', () => {
       const streamLimit = 5
       const dateBeforeRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW - MS_IN_HOUR)
 
-      const requests = await generateRequests(
+      const requests = generateRequests(
         {
           status: RequestStatus.FAILED,
           createdAt: dateBeforeRetryPeriod,
-          updatedAt: new Date(Date.now() - MS_IN_HOUR),
+          updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
         },
         streamLimit
       )
@@ -572,12 +568,34 @@ describe('request repository test', () => {
       const streamLimit = 5
       const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
 
-      const requests = await generateRequests(
+      const requests = generateRequests(
+        {
+          status: RequestStatus.FAILED,
+          createdAt: dateDuringRetryPeriod,
+          updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+          message: REQUEST_MESSAGES.conflictResolutionRejection,
+        },
+        streamLimit
+      )
+
+      await requestRepository.createRequests(requests)
+
+      const createdRequests = await getAllRequests(connection)
+      expect(requests.length).toEqual(createdRequests.length)
+
+      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+      expect(updatedRequests.length).toEqual(0)
+    })
+
+    test('Will not mark failed requests that were tried recently as ready', async () => {
+      const streamLimit = 5
+      const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+
+      const requests = generateRequests(
         {
           status: RequestStatus.FAILED,
           createdAt: dateDuringRetryPeriod,
           updatedAt: new Date(Date.now() - MS_IN_HOUR),
-          message: REQUEST_MESSAGES.conflictResolutionRejection,
         },
         streamLimit
       )
@@ -598,7 +616,7 @@ describe('request repository test', () => {
       const expiredReadyRequestsCount = 3
 
       // expired ready request
-      const requests = await generateRequests(
+      const requests = generateRequests(
         {
           status: RequestStatus.READY,
           createdAt: updatedTooLongAgo,
@@ -622,7 +640,7 @@ describe('request repository test', () => {
 
     test('Does not update any expired ready requests if there are none', async () => {
       // ready requests created now
-      const requests = await generateRequests({})
+      const requests = generateRequests({})
 
       await requestRepository.createRequests(requests)
 

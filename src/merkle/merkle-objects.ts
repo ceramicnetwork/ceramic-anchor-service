@@ -8,14 +8,17 @@ import { Request } from '../models/request.js'
 import { logger } from '../logger/index.js'
 import { IpfsService } from '../services/ipfs-service.js'
 
-import { BloomFilter } from 'bloom-filters'
+import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { StreamID } from '@ceramicnetwork/streamid'
 
 const packageJson = JSON.parse(
-  fs.readFileSync(new URL('../../node_modules/bloom-filters/package.json', import.meta.url), 'utf8')
+  fs.readFileSync(
+    new URL('../../node_modules/@ceramicnetwork/wasm-bloom-filter/package.json', import.meta.url),
+    'utf8'
+  )
 )
 
-const BLOOM_FILTER_TYPE = 'jsnpm_bloom-filters'
+const BLOOM_FILTER_TYPE = 'jsnpm_@ceramicnetwork/wasm-bloom-filter'
 const BLOOM_FILTER_FALSE_POSITIVE_RATE = 0.0001
 const bloomFilterVersion = packageJson['version']
 
@@ -234,6 +237,26 @@ export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
  */
 export class IpfsLeafCompare implements CompareFunction<Candidate> {
   compare(left: Node<Candidate>, right: Node<Candidate>): number {
+    // Sort by model first
+    const leftModel = left.data.metadata.model?.toString()
+    const rightModel = right.data.metadata.model?.toString()
+    if (leftModel !== rightModel) {
+      if (leftModel != null) {
+        return rightModel == null
+          ? -1 // null last
+          : leftModel.localeCompare(rightModel)
+      }
+      return 1 // null last
+    }
+
+    // Sort by controller
+    const leftController = left.data.metadata.controllers[0]
+    const rightController = right.data.metadata.controllers[0]
+    if (leftController !== rightController) {
+      return leftController.localeCompare(rightController)
+    }
+
+    // Sort by stream ID
     return left.data.streamId.toString().localeCompare(right.data.streamId.toString())
   }
 }
@@ -250,24 +273,20 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
       const candidate = node.data
       streamIds.push(candidate.streamId.toString())
       bloomFilterEntries.add(`streamid-${candidate.streamId.toString()}`)
-      if (candidate.metadata.schema) {
-        bloomFilterEntries.add(`schema-${candidate.metadata.schema}`)
-      }
-      if (candidate.metadata.family) {
-        bloomFilterEntries.add(`family-${candidate.metadata.family}`)
-      }
-      if (candidate.metadata.tags) {
-        for (const tag of candidate.metadata.tags) {
-          bloomFilterEntries.add(`tag-${tag}`)
-        }
+      if (candidate.metadata.model) {
+        bloomFilterEntries.add(`model-${candidate.metadata.model.toString()}`)
       }
       for (const controller of candidate.metadata.controllers) {
         bloomFilterEntries.add(`controller-${controller}`)
       }
     }
-    const bloomFilter = BloomFilter.from(bloomFilterEntries, BLOOM_FILTER_FALSE_POSITIVE_RATE)
-    // @ts-ignore
-    const serializedBloomFilter = bloomFilter.saveAsJSON()
+
+    const bloomFilter = new BloomFilter(BLOOM_FILTER_FALSE_POSITIVE_RATE, bloomFilterEntries.size)
+    for (const entry of bloomFilterEntries) {
+      bloomFilter.add(entry)
+    }
+
+    const serializedBloomFilter = bloomFilter.toString()
     return {
       numEntries: leaves.length,
       bloomFilter: {

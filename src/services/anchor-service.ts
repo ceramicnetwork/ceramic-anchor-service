@@ -293,12 +293,18 @@ export class AnchorService {
    * mark them as PROCESSING, and perform an anchor.
    */
   public async emitAnchorEventIfReady(): Promise<void> {
-    const updatedExpiredReadyRequestsCount =
-      await this.requestRepository.updateExpiringReadyRequests()
+    const readyRequests = await this.requestRepository.findByStatus(RS.READY)
 
-    // if ready requests have been updated because they have expired
-    // we will retry them by emitting an anchor event and not marking anymore requests as READY
-    if (updatedExpiredReadyRequestsCount > 0) {
+    if (readyRequests.length > 0) {
+      // if ready requests have been updated because they have expired
+      // we will retry them by emitting an anchor event and not marking anymore requests as READY
+      const updatedExpiredReadyRequestsCount =
+        await this.requestRepository.updateExpiringReadyRequests()
+
+      if (updatedExpiredReadyRequestsCount === 0) {
+        return
+      }
+
       logger.debug(
         `Emitting an anchor event beacuse ${updatedExpiredReadyRequestsCount} READY requests expired`
       )
@@ -475,9 +481,12 @@ export class AnchorService {
 
     const trx = await this.connection.transaction(null, { isolationLevel: 'repeatable read' })
     try {
-      const persistedAnchorCount = await this.anchorRepository.createAnchors(anchors, {
-        connection: trx,
-      })
+      const persistedAnchorCount =
+        anchors.length > 0
+          ? await this.anchorRepository.createAnchors(anchors, {
+              connection: trx,
+            })
+          : 0
 
       await this.requestRepository.updateRequests(
         {
