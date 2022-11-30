@@ -147,7 +147,7 @@ interface MinimalCASConfig {
 }
 
 async function makeCAS(
-  container: Injector<{}>,
+  container: Injector,
   dbConnection: Knex,
   minConfig: MinimalCASConfig
 ): Promise<CeramicAnchorApp> {
@@ -387,7 +387,7 @@ describe('Ceramic Integration Test', () => {
       ceramic2 = await makeCeramicCore(ipfs6, 'http://localhost:' + casPort2, ganacheURL)
 
       // The two user-facing ceramic nodes need to have the same DID Provider so that they can modify
-      // each others streams.
+      // each other stream.
       const did = makeDID()
       await did.authenticate()
       ceramic1.did = did
