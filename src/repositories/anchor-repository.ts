@@ -21,8 +21,9 @@ export class AnchorRepository {
    * Creates anchors
    * @param anchors - Anchors
    * @param options
+   * @returns A promise that resolve to the number of anchors created
    */
-  public async createAnchors(anchors: Array<Anchor>, options: Options = {}): Promise<void> {
+  public async createAnchors(anchors: Array<Anchor>, options: Options = {}): Promise<number> {
     const { connection = this.connection } = options
 
     const result = (await connection
@@ -31,12 +32,7 @@ export class AnchorRepository {
       .onConflict('requestId')
       .ignore()) as any
 
-    const notCreatedCount = anchors.length - result.rowCount
-
-    logger.debug(
-      `Not creating ${notCreatedCount} anchor commits as they have been already created for these requests`
-    )
-    Metrics.count(METRIC_NAMES.REANCHORED, notCreatedCount)
+    return result.rowCount
   }
 
   /**
