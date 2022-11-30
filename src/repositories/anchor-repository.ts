@@ -3,9 +3,6 @@ import { Request } from '../models/request.js'
 import { inject, singleton } from 'tsyringe'
 import type { Knex } from 'knex'
 import { Options } from './repository-types.js'
-import { ServiceMetrics as Metrics } from '../service-metrics.js'
-import { METRIC_NAMES } from '../settings.js'
-import { logger } from 'ethers'
 
 export const TABLE_NAME = 'anchor'
 
