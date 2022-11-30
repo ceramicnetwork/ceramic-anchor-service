@@ -1,13 +1,8 @@
 import { StatusCodes } from 'http-status-codes'
 import { Request as ExpReq, Response as ExpRes } from 'express'
-
-import { Config } from 'node-config-ts'
-
 import cors from 'cors'
 import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core'
-
 import { toCID } from '@ceramicnetwork/common'
-import { AnchorRepository } from '../repositories/anchor-repository.js'
 import { RequestRepository } from '../repositories/request-repository.js'
 import { Request, RequestStatus } from '../models/request.js'
 import { logger } from '../logger/index.js'
@@ -20,22 +15,13 @@ import { RequestPresentationService } from '../services/request-presentation-ser
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
 export class RequestController {
-  #requestPresentation: RequestPresentationService
-
-  static inject = ['config', 'anchorRepository', 'requestRepository', 'ceramicService'] as const
+  static inject = ['requestPresentationService', 'requestRepository', 'ceramicService'] as const
 
   constructor(
-    config: Config,
-    private anchorRepository: AnchorRepository,
-    private requestRepository: RequestRepository,
-    private ceramicService: CeramicService
-  ) {
-    const schedulerIntervalMS = config.schedulerIntervalMS
-    this.#requestPresentation = new RequestPresentationService(
-      schedulerIntervalMS,
-      anchorRepository
-    )
-  }
+    private readonly requestPresentationService: RequestPresentationService,
+    private readonly requestRepository: RequestRepository,
+    private readonly ceramicService: CeramicService
+  ) {}
 
   @Get(':cid')
   private async getStatusForCid(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
@@ -43,21 +29,19 @@ export class RequestController {
 
     try {
       const cid = toCID(req.params.cid)
-      if (cid) {
-        const request = await this.requestRepository.findByCid(cid)
-        if (request) {
-          const body = await this.#requestPresentation.body(request)
-          return res.status(StatusCodes.OK).json(body)
-        } else {
-          return res.status(StatusCodes.OK).send({
-            error: "Request doesn't exist",
-          })
-        }
-      } else {
+      if (!cid) {
         return res.status(StatusCodes.BAD_REQUEST).send({
           error: 'CID is empty',
         })
       }
+      const request = await this.requestRepository.findByCid(cid)
+      if (!request) {
+        return res.status(StatusCodes.OK).send({
+          error: "Request doesn't exist",
+        })
+      }
+      const body = await this.requestPresentationService.body(request)
+      return res.status(StatusCodes.OK).json(body)
     } catch (err) {
       const errmsg = `Loading request status for CID ${req.params.cid} failed: ${err.message}`
       logger.err(errmsg)
@@ -92,7 +76,7 @@ export class RequestController {
 
       let request = await this.requestRepository.findByCid(cid)
       if (request) {
-        const body = await this.#requestPresentation.body(request)
+        const body = await this.requestPresentationService.body(request)
         return res.status(StatusCodes.ACCEPTED).json(body)
       }
       // Intentionally don't await the pinStream promise, let it happen in the background.
@@ -112,7 +96,7 @@ export class RequestController {
 
       request = await this.requestRepository.createOrUpdate(request)
 
-      const body = await this.#requestPresentation.body(request)
+      const body = await this.requestPresentationService.body(request)
       return res.status(StatusCodes.CREATED).json(body)
     } catch (err) {
       const errmsg = `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed: ${err.message}`
