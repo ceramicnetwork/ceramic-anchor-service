@@ -25,15 +25,13 @@ export class RequestController {
   static inject = ['config', 'anchorRepository', 'requestRepository', 'ceramicService'] as const
 
   constructor(
-    private config: Config,
+    config: Config,
     private anchorRepository: AnchorRepository,
     private requestRepository: RequestRepository,
     private ceramicService: CeramicService
   ) {
-    this.#requestPresentation = new RequestPresentation(
-      config.schedulerIntervalMS,
-      anchorRepository
-    )
+    const schedulerIntervalMS = config.schedulerIntervalMS
+    this.#requestPresentation = new RequestPresentation(schedulerIntervalMS, anchorRepository)
   }
 
   @Get(':cid')
