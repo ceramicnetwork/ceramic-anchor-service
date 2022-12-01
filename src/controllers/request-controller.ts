@@ -1,16 +1,16 @@
 import { StatusCodes } from 'http-status-codes'
-import { Request as ExpReq, Response as ExpRes } from 'express'
+import type { Request as ExpReq, Response as ExpRes } from 'express'
 import cors from 'cors'
 import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core'
 import { toCID } from '@ceramicnetwork/common'
-import { RequestRepository } from '../repositories/request-repository.js'
+import type { RequestRepository } from '../repositories/request-repository.js'
 import { Request, RequestStatus } from '../models/request.js'
 import { logger } from '../logger/index.js'
 import { ServiceMetrics as Metrics } from '../service-metrics.js'
 import { METRIC_NAMES } from '../settings.js'
-import { CeramicService } from '../services/ceramic-service.js'
+import type { CeramicService } from '../services/ceramic-service.js'
 import { StreamID } from '@ceramicnetwork/streamid'
-import { RequestPresentationService } from '../services/request-presentation-service'
+import type { RequestPresentationService } from '../services/request-presentation-service'
 
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
@@ -52,24 +52,24 @@ export class RequestController {
   }
 
   @Post()
-  private async createRequest(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
+  async createRequest(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     try {
       logger.debug(`Create request ${JSON.stringify(req.body)}`)
 
       if (!req.body.cid) {
-        return res.status(StatusCodes.BAD_REQUEST).send({
+        return res.status(StatusCodes.BAD_REQUEST).json({
           error: 'CID is empty',
         })
       }
       const cid = toCID(req.body.cid)
       if (!req.body.streamId) {
-        return res.status(StatusCodes.BAD_REQUEST).send({
+        return res.status(StatusCodes.BAD_REQUEST).json({
           error: 'Stream ID is empty',
         })
       }
       const streamId = StreamID.fromString(req.body.streamId)
 
-      let timestamp = new Date()
+      let timestamp = undefined // PG translate to `now()`
       if (req.body.timestamp) {
         timestamp = new Date(req.body.timestamp)
       }

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { jest } from '@jest/globals'
+import { jest, describe, test, expect } from '@jest/globals'
 import type { Knex } from 'knex'
 import { createDbConnection, clearTables } from '../../db-connection.js'
 import { config } from 'node-config-ts'
@@ -14,6 +14,7 @@ import { AnchorRepository } from '../anchor-repository.js'
 import { Request, REQUEST_MESSAGES, RequestStatus } from '../../models/request.js'
 import { generateRequests, generateRequest, randomStreamID } from '../../__tests__/test-utils.js'
 import { createInjector } from 'typed-inject'
+import { DateTime } from 'luxon'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -72,16 +73,53 @@ describe('request repository test', () => {
     await connection2.destroy()
   })
 
-  test('createOrUpdate: can createOrUpdate simultaneously', async () => {
-    const request = generateRequest({
-      status: RequestStatus.READY,
+  describe('createOrUpdate', () => {
+    test('can createOrUpdate concurrently', async () => {
+      const request = generateRequest({
+        status: RequestStatus.READY,
+      })
+
+      const [result1, result2] = await Promise.all([
+        requestRepository.createOrUpdate(request),
+        requestRepository.createOrUpdate(request),
+      ])
+      expect(result1).toEqual(result2)
+    })
+    test('store request: no timestamps', async () => {
+      const now = new Date()
+      const request = generateRequest({
+        createdAt: undefined,
+        updatedAt: undefined,
+        timestamp: undefined,
+      })
+      const returned = await requestRepository.createOrUpdate(request)
+      expect(returned.status).toEqual(request.status)
+      expect(returned.pinned).toEqual(Boolean(request.pinned))
+      expect(returned.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12ms
+      expect(returned.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12ms
+      expect(returned.timestamp.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12ms
+      expect(returned.message).toBeNull()
+      expect(returned.origin).toBeNull()
     })
 
-    const [result1, result2] = await Promise.all([
-      requestRepository.createOrUpdate(request),
-      requestRepository.createOrUpdate(request),
-    ])
-    expect(result1).toEqual(result2)
+    test('store request: timestamps', async () => {
+      const createdAt = DateTime.now().minus({ days: 10 }).toJSDate()
+      const updatedAt = DateTime.now().plus({ days: 30 }).toJSDate()
+      const timestamp = DateTime.now().minus({ days: 20 }).toJSDate()
+      const request = generateRequest({
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        timestamp: timestamp,
+      })
+      const returned = await requestRepository.createOrUpdate(request)
+      expect(returned.status).toEqual(request.status)
+      expect(returned.pinned).toEqual(Boolean(request.pinned))
+      expect(returned.createdAt).toEqual(createdAt)
+      expect(returned.updatedAt).toEqual(updatedAt)
+      expect(returned.timestamp).toEqual(timestamp)
+      expect(returned.message).toBeNull()
+      expect(returned.origin).toBeNull()
+    })
   })
 
   test('countPendingRequests', async () => {
@@ -249,9 +287,10 @@ describe('request repository test', () => {
     test('Marks expired pending request as ready even if there are not enough streams', async () => {
       const streamLimit = 5
       // 13 hours ago (delay is 12 hours)
-      const creationDateOfExpiredRequest = new Date(
-        Date.now() - config.maxAnchoringDelayMS - MS_IN_HOUR
-      )
+      const creationDateOfExpiredRequest = DateTime.now()
+        .minus({ milliseconds: config.maxAnchoringDelayMS })
+        .minus({ hour: 1 })
+        .toJSDate()
       const requests = [
         // expired pending request
         generateRequests(
@@ -271,6 +310,7 @@ describe('request repository test', () => {
       const createdRequests = await getAllRequests(connection)
       expect(requests.length).toEqual(createdRequests.length)
 
+      console.log('before', await connection.table('request'))
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
       expect(updatedRequests.length).toEqual(createdRequests.length)
 

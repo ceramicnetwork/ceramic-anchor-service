@@ -8,6 +8,7 @@ import { logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
 import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '../service-metrics.js'
 import { METRIC_NAMES } from '../settings.js'
+import { DateTime } from 'luxon'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
 // AnchorCommit available to the network.
@@ -80,13 +81,13 @@ const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder =>
       .orWhere((subBuilder) =>
         subBuilder
           .where({ status: RequestStatus.PROCESSING })
-          .andWhere('updatedAt', '<', processingDeadline)
+          .andWhere('updatedAt', '<', processingDeadline.toISOString())
       )
       .orWhere((subBuilder) =>
         subBuilder
           .where({ status: RequestStatus.FAILED })
-          .andWhere('createdAt', '>=', earliestFailedCreatedAtToRetry)
-          .andWhere('updatedAt', '<=', latestFailedUpdatedAtToRetry)
+          .andWhere('createdAt', '>=', earliestFailedCreatedAtToRetry.toISOString())
+          .andWhere('updatedAt', '<=', latestFailedUpdatedAtToRetry.toISOString())
           .andWhere((subSubBuilder) =>
             subSubBuilder
               .whereNull('message')
@@ -170,7 +171,15 @@ export class RequestRepository {
     const keys = Object.keys(request).filter((key) => key !== 'id') // all keys except ID
     const [{ id }] = await connection
       .table(TABLE_NAME)
-      .insert(request, ['id'])
+      .insert(
+        {
+          ...request,
+          createdAt: request.createdAt?.toISOString(),
+          updatedAt: request.updatedAt?.toISOString(),
+          timestamp: request.timestamp?.toISOString(),
+        },
+        ['id']
+      )
       .onConflict('cid')
       .merge(keys)
 
@@ -294,7 +303,7 @@ export class RequestRepository {
    * @param options
    * @returns Promise for the associated request
    */
-  async findByCid(cid: CID, options: Options = {}): Promise<Request> {
+  async findByCid(cid: CID, options: Options = {}): Promise<Request | undefined> {
     const { connection = this.connection } = options
 
     return connection(TABLE_NAME).where({ cid: cid.toString() }).first()
@@ -344,8 +353,9 @@ export class RequestRepository {
     options: Options = {}
   ): Promise<Request[]> {
     const { connection = this.connection } = options
-    const now = new Date()
-    const anchoringDeadline = new Date(now.getTime() - this.config.maxAnchoringDelayMS)
+    // const now = new Date()
+    const now = DateTime.now()
+    const anchoringDeadline = now.minus({ milliseconds: this.config.maxAnchoringDelayMS })
 
     return connection
       .transaction(
@@ -354,8 +364,8 @@ export class RequestRepository {
             trx,
             maxStreamLimit,
             minStreamLimit,
-            anchoringDeadline,
-            now
+            anchoringDeadline.toJSDate(),
+            now.toJSDate()
           )
 
           if (streamIds.length === 0) {
@@ -363,7 +373,7 @@ export class RequestRepository {
             return []
           }
 
-          const requests = await findRequestsToAnchorForStreams(trx, streamIds, now)
+          const requests = await findRequestsToAnchorForStreams(trx, streamIds, now.toJSDate())
 
           const updatedCount = await this.updateRequests(
             { status: RequestStatus.READY },
@@ -382,7 +392,7 @@ export class RequestRepository {
 
           // Record statistics about the anchor requests
           // Note they will be updated to READY in the database but the request status will still be PENDING
-          recordAnchorRequestMetrics(requests, anchoringDeadline)
+          recordAnchorRequestMetrics(requests, anchoringDeadline.toJSDate())
 
           logger.debug(`Updated ${updatedCount} requests to READY for ${streamIds.length} streams`)
 

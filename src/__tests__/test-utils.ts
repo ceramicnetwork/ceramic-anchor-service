@@ -151,7 +151,7 @@ export class MockEventProducerService implements EventProducerService {
  * @param override request data to use. If some values are not provided, they will be generated.
  * @returns a promise for a request
  */
-export function generateRequest(override: Partial<Request>): Request {
+export function generateRequest(override: Partial<Request> = {}): Request {
   const request = new Request()
   const streamID = randomStreamID()
   request.cid = streamID.cid.toString()
