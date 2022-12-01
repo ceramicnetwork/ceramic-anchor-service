@@ -7,7 +7,7 @@ import { AnchorService } from '../anchor-service.js'
 import { clearTables, createDbConnection } from '../../db-connection.js'
 
 import { RequestRepository } from '../../repositories/request-repository.js'
-import { IpfsService } from '../ipfs-service.js'
+import { IpfsService, IpfsServiceImpl } from '../ipfs-service.js'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { config, Config } from 'node-config-ts'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
@@ -124,27 +124,6 @@ type Context = {
   anchorService: AnchorService
 }
 
-function buildInjector(connection: Knex, IpfsServiceImpl: { new (): IpfsService }) {
-  return createInjector()
-    .provideValue('dbConnection', connection)
-    .provideValue(
-      'config',
-      Object.assign({}, config, {
-        merkleDepthLimit: MERKLE_DEPTH_LIMIT,
-        minStreamCount: MIN_STREAM_COUNT,
-        readyRetryIntervalMS: READY_RETRY_INTERVAL_MS,
-      })
-    )
-    .provideClass('anchorRepository', AnchorRepository)
-    .provideClass('requestRepository', RequestRepository)
-    .provideClass('transactionRepository', TransactionRepository)
-    .provideClass('blockchainService', FakeEthereumBlockchainService)
-    .provideClass('ipfsService', IpfsServiceImpl)
-    .provideClass('ceramicService', MockCeramicService)
-    .provideClass('eventProducerService', MockEventProducerService)
-    .provideClass('anchorService', AnchorService)
-}
-
 describe('anchor service', () => {
   jest.setTimeout(10000)
   let ipfsService: IpfsService
@@ -159,7 +138,24 @@ describe('anchor service', () => {
     const { IpfsServiceImpl } = await import('../ipfs-service.js')
 
     connection = await createDbConnection()
-    injector = buildInjector(connection, IpfsServiceImpl)
+    injector = createInjector()
+      .provideValue('dbConnection', connection)
+      .provideValue(
+        'config',
+        Object.assign({}, config, {
+          merkleDepthLimit: MERKLE_DEPTH_LIMIT,
+          minStreamCount: MIN_STREAM_COUNT,
+          readyRetryIntervalMS: READY_RETRY_INTERVAL_MS,
+        })
+      )
+      .provideClass('anchorRepository', AnchorRepository)
+      .provideClass('requestRepository', RequestRepository)
+      .provideClass('transactionRepository', TransactionRepository)
+      .provideClass('blockchainService', FakeEthereumBlockchainService)
+      .provideClass('ipfsService', IpfsServiceImpl)
+      .provideClass('ceramicService', MockCeramicService)
+      .provideClass('eventProducerService', MockEventProducerService)
+      .provideClass('anchorService', AnchorService)
 
     ipfsService = injector.resolve('ipfsService')
     await ipfsService.init()
@@ -604,8 +600,8 @@ describe('anchor service', () => {
   })
 
   test('will not throw if no anchor commits were created', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    const anchorService = container.resolve<AnchorService>('anchorService')
+    const requestRepository = injector.resolve('requestRepository')
+    const anchorService = injector.resolve('anchorService')
 
     const anchorLimit = 2
     const numRequests = 2
