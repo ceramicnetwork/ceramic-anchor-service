@@ -61,7 +61,6 @@ const logAnchorSummary = async (
   results: Partial<AnchorSummary> = {}
 ) => {
   const pendingRequestsCount = await requestRepository.countPendingRequests()
-  Metrics.count(METRIC_NAMES.PENDING_REQUESTS, pendingRequestsCount)
 
   const anchorSummary: AnchorSummary = Object.assign(
     {
@@ -80,6 +79,11 @@ const logAnchorSummary = async (
     },
     results
   )
+
+  recordObjectFields('anchorBatch', anchorSummary)
+  recordRatio('anchorBatch_failureRatio',
+              anchorSummary.failedRequestsCount,
+              anchorSummary.anchoredRequestsCount)  
 
   logEvent.anchor({
     type: 'anchorRequests',
