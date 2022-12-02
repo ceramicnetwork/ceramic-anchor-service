@@ -2,7 +2,7 @@ import { Request as ExpReq, Response as ExpRes } from 'express'
 import morgan from 'morgan'
 import { config } from 'node-config-ts'
 import path from 'path'
-import { LoggerProvider, DiagnosticsLogger, LogLevel } from '@ceramicnetwork/common'
+import { LoggerProvider, LogLevel } from '@ceramicnetwork/common'
 import { RotatingFileStream } from '@ceramicnetwork/logger'
 
 const LOG_LEVEL = (config.logger.level && LogLevel[config.logger.level]) || LogLevel.important

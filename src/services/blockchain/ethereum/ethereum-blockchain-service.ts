@@ -117,6 +117,28 @@ function handleTimeoutError(transactionTimeoutSecs: number): void {
   logger.err(`Transaction timed out after ${transactionTimeoutSecs} seconds without being mined`)
 }
 
+function make(config: Config): EthereumBlockchainService {
+  const ethereum = config.blockchain.connectors.ethereum
+  const { host, port, url } = ethereum.rpc
+
+  let provider
+  if (url) {
+    logger.imp(`Connecting ethereum provider to url: ${url}`)
+    provider = new ethers.providers.JsonRpcProvider(url)
+  } else if (host && port) {
+    logger.imp(`Connecting ethereum provider to host: ${host} and port ${port}`)
+    provider = new ethers.providers.JsonRpcProvider(`${host}:${port}`)
+  } else {
+    logger.imp(`Connecting ethereum to default provider for network ${ethereum.network}`)
+    provider = ethers.getDefaultProvider(ethereum.network)
+  }
+
+  provider.pollingInterval = POLLING_INTERVAL
+  const wallet = new ethers.Wallet(ethereum.account.privateKey, provider)
+  return new EthereumBlockchainService(config, wallet)
+}
+make.inject = ['config'] as const
+
 /**
  * Ethereum blockchain service
  */
@@ -135,31 +157,12 @@ export class EthereumBlockchainService implements BlockchainService {
     )
   }
 
-  public static make(config: Config): EthereumBlockchainService {
-    const ethereum = config.blockchain.connectors.ethereum
-    const { host, port, url } = ethereum.rpc
-
-    let provider
-    if (url) {
-      logger.imp(`Connecting ethereum provider to url: ${url}`)
-      provider = new ethers.providers.JsonRpcProvider(url)
-    } else if (host && port) {
-      logger.imp(`Connecting ethereum provider to host: ${host} and port ${port}`)
-      provider = new ethers.providers.JsonRpcProvider(`${host}:${port}`)
-    } else {
-      logger.imp(`Connecting ethereum to default provider for network ${ethereum.network}`)
-      provider = ethers.getDefaultProvider(ethereum.network)
-    }
-
-    provider.pollingInterval = POLLING_INTERVAL
-    const wallet = new ethers.Wallet(ethereum.account.privateKey, provider)
-    return new EthereumBlockchainService(config, wallet)
-  }
+  static make = make
 
   /**
    * Connects to blockchain
    */
-  public async connect(): Promise<void> {
+  async connect(): Promise<void> {
     logger.imp(`Connecting to ${this._network} blockchain...`)
     await this._loadChainId()
     logger.imp(`Connected to ${this._network} blockchain with chain ID ${this.chainId}`)
@@ -274,7 +277,7 @@ export class EthereumBlockchainService implements BlockchainService {
    * Returns the cached 'chainId' representing the CAIP-2 ID of the configured blockchain.
    * Invalid to call before calling connect()
    */
-  public get chainId(): string {
+  get chainId(): string {
     return caipChainId(this._chainId)
   }
 
@@ -394,7 +397,7 @@ export class EthereumBlockchainService implements BlockchainService {
   /**
    * Sends transaction with root CID as data
    */
-  public async sendTransaction(rootCid: CID): Promise<Transaction> {
+  async sendTransaction(rootCid: CID): Promise<Transaction> {
     const txData = await this._buildTransactionRequest(rootCid)
     const txResponses: Array<TransactionResponse> = []
 

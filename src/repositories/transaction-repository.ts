@@ -1,6 +1,5 @@
-import { inject, singleton } from 'tsyringe'
-import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import type { Knex } from 'knex'
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { logger } from '../logger/index.js'
 import { METRIC_NAMES } from '../settings.js'
 import { Utils } from '../utils.js'
@@ -8,9 +7,10 @@ import { Options } from './repository-types.js'
 
 const TRANSACTION_MUTEX_ID = 4532
 
-@singleton()
 export class TransactionRepository {
-  constructor(@inject('dbConnection') private connection?: Knex) {}
+  static inject = ['dbConnection'] as const
+
+  constructor(private readonly connection: Knex) {}
 
   /**
    * Acquires the transaction mutex before performing the operation.
@@ -20,7 +20,7 @@ export class TransactionRepository {
    * @param delayMS The number of MS to wait between attempt (defaults to 5000 MS)
    * @returns
    */
-  public async withTransactionMutex<T>(
+  async withTransactionMutex<T>(
     operation: () => Promise<T>,
     maxAttempts = Infinity,
     delayMS = 5000,
