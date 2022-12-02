@@ -17,7 +17,6 @@ import getPort from 'get-port'
 import type { Knex } from 'knex'
 import { clearTables, createDbConnection } from '../db-connection.js'
 import { CeramicAnchorApp } from '../app.js'
-import { container } from 'tsyringe'
 import { config } from 'node-config-ts'
 import cloneDeep from 'lodash.clonedeep'
 import { TileDocument } from '@ceramicnetwork/stream-tile'
@@ -30,13 +29,14 @@ import * as uint8arrays from 'uint8arrays'
 import * as random from '@stablelib/random'
 import * as KeyDidResolver from 'key-did-resolver'
 import { Utils } from '../utils.js'
-import { DependencyContainer } from 'tsyringe'
 import { RequestRepository } from '../repositories/request-repository.js'
 import { Request, RequestStatus } from '../models/request.js'
 import { CID } from 'multiformats/cid'
 import { AnchorService } from '../services/anchor-service.js'
 import { METRIC_NAMES } from '../settings.js'
 import { Server } from 'http'
+import type { Injector } from 'typed-inject'
+import { createInjector } from 'typed-inject'
 
 process.env.NODE_ENV = 'test'
 
@@ -147,7 +147,7 @@ interface MinimalCASConfig {
 }
 
 async function makeCAS(
-  container: DependencyContainer,
+  container: Injector<{}>,
   dbConnection: Knex,
   minConfig: MinimalCASConfig
 ): Promise<CeramicAnchorApp> {
@@ -163,7 +163,9 @@ async function makeCAS(
   configCopy.blockchain.connectors.ethereum.network = 'ganache'
   configCopy.blockchain.connectors.ethereum.rpc.port = minConfig.ganachePort + ''
   configCopy.useSmartContractAnchors = minConfig.useSmartContractAnchors
-  return new CeramicAnchorApp(container, configCopy, dbConnection)
+  return new CeramicAnchorApp(
+    container.provideValue('config', configCopy).provideValue('dbConnection', dbConnection)
+  )
 }
 
 async function anchorUpdate(
@@ -264,10 +266,8 @@ describe('Ceramic Integration Test', () => {
   let dbConnection2: Knex
 
   let cas1: CeramicAnchorApp
-  let container1: DependencyContainer
   let anchorService1: AnchorService
   let cas2: CeramicAnchorApp
-  let container2: DependencyContainer
   let anchorService2: AnchorService
 
   const blockchainStartTime = new Date(1586784002000)
@@ -340,8 +340,7 @@ describe('Ceramic Integration Test', () => {
       dbConnection1 = await createDbConnection()
       const casPort1 = await getPort()
 
-      container1 = container.createChildContainer()
-      cas1 = await makeCAS(container1, dbConnection1, {
+      cas1 = await makeCAS(createInjector(), dbConnection1, {
         mode: 'server',
         ipfsPort: ipfsApiPort1,
         ceramicPort: daemonPort1,
@@ -350,12 +349,11 @@ describe('Ceramic Integration Test', () => {
         useSmartContractAnchors,
       })
       await cas1.start()
-      anchorService1 = container1.resolve<AnchorService>('anchorService')
+      anchorService1 = cas1.container.resolve('anchorService')
 
       dbConnection2 = await createDbConnection()
       const casPort2 = await getPort()
-      container2 = container.createChildContainer()
-      cas2 = await makeCAS(container2, dbConnection2, {
+      cas2 = await makeCAS(createInjector(), dbConnection2, {
         mode: 'server',
         ipfsPort: ipfsApiPort2,
         ceramicPort: daemonPort2,
@@ -364,7 +362,7 @@ describe('Ceramic Integration Test', () => {
         useSmartContractAnchors,
       })
       await cas2.start()
-      anchorService2 = container2.resolve<AnchorService>('anchorService')
+      anchorService2 = cas2.container.resolve('anchorService')
 
       const ganacheURL = 'http://localhost:' + ganachePort
 
@@ -492,7 +490,7 @@ describe('Ceramic Integration Test', () => {
           expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
 
           // Marks one of the requests as READY. This causes the first anchorUpdate to only anchor that one request.
-          const requestRepo1 = container1.resolve<RequestRepository>('requestRepository')
+          const requestRepo1 = cas1.container.resolve('requestRepository')
           await requestRepo1.findAndMarkReady(1)
 
           await Promise.all([
@@ -546,7 +544,7 @@ describe('Ceramic Integration Test', () => {
         // In ceramic the stream waits for a successful anchor by polling the request endpoint of the CAS.
         // We alter the CAS' returned request anchor status so that it is always pending.
         // The ceramic node will then have to hear about the successful anchor through pubsub
-        const requestRepo = container1.resolve<RequestRepository>('requestRepository')
+        const requestRepo = cas1.container.resolve('requestRepository')
         const original = requestRepo.findByCid
         requestRepo.findByCid = async (cid: CID): Promise<Request> => {
           const result: Request = await original.apply(requestRepo, [cid])

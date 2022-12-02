@@ -2,13 +2,11 @@ import 'reflect-metadata'
 import 'dotenv/config'
 
 import { Config } from 'node-config-ts'
-import { instanceCachingFactory, DependencyContainer } from 'tsyringe'
 import type { Knex } from 'knex'
-import cloneDeep from 'lodash.clonedeep'
-
 import { logger } from './logger/index.js'
 import { CeramicAnchorServer } from './server.js'
 import { IpfsServiceImpl } from './services/ipfs-service.js'
+import type { IpfsService } from './services/ipfs-service.js'
 import { AnchorService } from './services/anchor-service.js'
 import { SchedulerService } from './services/scheduler-service.js'
 import { BlockchainService } from './services/blockchain/blockchain-service.js'
@@ -17,108 +15,71 @@ import { AnchorRepository } from './repositories/anchor-repository.js'
 import { RequestRepository } from './repositories/request-repository.js'
 import { TransactionRepository } from './repositories/transaction-repository.js'
 import { CeramicServiceImpl } from './services/ceramic-service.js'
+import type { CeramicService } from './services/ceramic-service.js'
 import { HealthcheckController } from './controllers/healthcheck-controller.js'
 import { AnchorController } from './controllers/anchor-controller.js'
 import { RequestController } from './controllers/request-controller.js'
 import { ServiceInfoController } from './controllers/service-info-controller.js'
 import { EthereumBlockchainService } from './services/blockchain/ethereum/ethereum-blockchain-service.js'
 import { ServiceMetrics as Metrics } from './service-metrics.js'
+import { version } from './version.js'
+import { cleanupConfigForLogging, normalizeConfig } from './normalize-config.util.js'
+import type { Injector } from 'typed-inject'
+import type { EventProducerService } from './services/event-producer/event-producer-service.js'
 
-const version = process.env.npm_package_version
+type DependenciesContext = {
+  config: Config
+  dbConnection: Knex
+}
+
+type ProvidedContext = {
+  anchorService: AnchorService
+  requestRepository: RequestRepository
+  anchorRepository: AnchorRepository
+  transactionRepository: TransactionRepository
+  blockchainService: BlockchainService
+  eventProducerService: EventProducerService
+  ceramicService: CeramicService
+  ipfsService: IpfsService
+  schedulerService: SchedulerService
+} & DependenciesContext
+
 /**
  * Ceramic Anchor Service application
  */
 export class CeramicAnchorApp {
   private _schedulerService: SchedulerService
   private _server: CeramicAnchorServer
+  readonly container: Injector<ProvidedContext>
+  private readonly config: Config
 
-  constructor(
-    private readonly container: DependencyContainer,
-    private readonly config: Config,
-    dbConnection: Knex
-  ) {
-    CeramicAnchorApp._normalizeConfig(config)
+  constructor(container: Injector<DependenciesContext>) {
+    this.config = container.resolve('config')
+    normalizeConfig(this.config)
 
     // TODO: Selectively register only the global singletons needed based on the config
 
-    // register config
-    container.register('config', {
-      useFactory: instanceCachingFactory<Config>((c) => config),
-    })
-
-    // register database connection
-    container.register('dbConnection', {
-      useFactory: instanceCachingFactory<Knex>((c) => dbConnection),
-    })
-
-    // register repositories
-    container.registerSingleton('requestRepository', RequestRepository)
-    container.registerSingleton('anchorRepository', AnchorRepository)
-    container.registerSingleton('transactionRepository', TransactionRepository)
-
-    // register services
-    container.register('blockchainService', {
-      useFactory: instanceCachingFactory<EthereumBlockchainService>((c) =>
-        EthereumBlockchainService.make(config)
-      ),
-    })
-    container.registerSingleton('eventProducerService', HTTPEventProducerService)
-    container.registerSingleton('anchorService', AnchorService)
-    container.registerSingleton('ceramicService', CeramicServiceImpl)
-    container.registerSingleton('ipfsService', IpfsServiceImpl)
-    container.registerSingleton('schedulerService', SchedulerService)
-
-    // register controllers
-    container.registerSingleton('healthcheckController', HealthcheckController)
-    container.registerSingleton('requestController', RequestController)
-    container.registerSingleton('serviceInfoController', ServiceInfoController)
-
-    if (config.anchorControllerEnabled) {
-      container.registerSingleton('anchorController', AnchorController)
-    }
+    this.container = container
+      // register repositories
+      .provideClass('requestRepository', RequestRepository)
+      .provideClass('anchorRepository', AnchorRepository)
+      .provideClass('transactionRepository', TransactionRepository)
+      // register services
+      .provideFactory('blockchainService', EthereumBlockchainService.make)
+      .provideClass('eventProducerService', HTTPEventProducerService)
+      .provideClass('ipfsService', IpfsServiceImpl)
+      .provideClass('ceramicService', CeramicServiceImpl)
+      .provideClass('anchorService', AnchorService)
+      .provideClass('schedulerService', SchedulerService)
 
     try {
-      Metrics.start(config.metrics.collectorHost, 'cas-' + config.mode)
+      Metrics.start(this.config.metrics.collectorHost, 'cas-' + this.config.mode)
       Metrics.count('HELLO', 1)
       logger.imp('Metrics exporter started')
     } catch (e) {
       logger.err(e)
       // start anchor service even if metrics threw an error
     }
-  }
-
-  /**
-   * Handles normalizing the arguments passed via the config, for example turning string
-   * representations of booleans and numbers into the proper types
-   */
-  static _normalizeConfig(config: Config): void {
-    config.mode = config.mode.trim().toLowerCase()
-    if (typeof config.merkleDepthLimit == 'string') {
-      config.merkleDepthLimit = parseInt(config.merkleDepthLimit)
-    }
-
-    const replaceBools = function (o) {
-      for (const prop of Object.keys(o)) {
-        if (o[prop] === 'true' || o[prop] === 'false') {
-          o[prop] = o[prop] === 'true'
-        }
-        if (o[prop] !== null && typeof o[prop] === 'object') {
-          replaceBools(o[prop])
-        }
-      }
-    }
-    replaceBools(config)
-  }
-
-  /**
-   * Returns a copy of the config with any sensitive information removed so it is safe to log
-   * @param config
-   */
-  static _cleanupConfigForLogging(config): Record<string, any> {
-    const configCopy = cloneDeep(config)
-    delete configCopy?.blockchain?.connectors?.ethereum?.account?.privateKey
-    delete configCopy?.anchorLauncherUrl
-    return configCopy
   }
 
   /**
@@ -133,30 +94,25 @@ export class CeramicAnchorApp {
     )
   }
 
-  public async anchor(triggeredByAnchorEvent = false): Promise<void> {
-    const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService')
+  async anchor(triggeredByAnchorEvent = false): Promise<void> {
+    const anchorService = this.container.resolve('anchorService')
     return anchorService.anchorRequests(triggeredByAnchorEvent)
   }
 
   /**
    * Start application
    */
-  public async start(): Promise<void> {
-    const configLogString = JSON.stringify(
-      CeramicAnchorApp._cleanupConfigForLogging(this.config),
-      null,
-      2
-    )
+  async start(): Promise<void> {
+    const configLogString = JSON.stringify(cleanupConfigForLogging(this.config), null, 2)
     logger.imp(
       `Starting Ceramic Anchor Service at version ${version} with config:\n${configLogString}`
     )
 
-    const blockchainService: BlockchainService =
-      this.container.resolve<BlockchainService>('blockchainService')
+    const blockchainService = this.container.resolve('blockchainService')
     await blockchainService.connect()
 
     if (this._anchorsSupported()) {
-      const ipfsService: IpfsServiceImpl = this.container.resolve<IpfsServiceImpl>('ipfsService')
+      const ipfsService = this.container.resolve('ipfsService')
       await ipfsService.init()
     }
 
@@ -186,7 +142,7 @@ export class CeramicAnchorApp {
     logger.imp(`Ceramic Anchor Service initiated ${this.config.mode} mode`)
   }
 
-  public stop(): void {
+  stop(): void {
     if (this._schedulerService) {
       this._schedulerService.stop()
     }
@@ -204,8 +160,8 @@ export class CeramicAnchorApp {
    * @private
    */
   private async _startScheduler(): Promise<void> {
-    this._schedulerService = this.container.resolve<SchedulerService>('schedulerService')
-    const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService')
+    this._schedulerService = this.container.resolve('schedulerService')
+    const anchorService = this.container.resolve('anchorService')
     this._schedulerService.start(async () => await anchorService.emitAnchorEventIfReady())
   }
 
@@ -214,8 +170,8 @@ export class CeramicAnchorApp {
    * @private
    */
   private async _startBundled(): Promise<void> {
-    this._schedulerService = this.container.resolve<SchedulerService>('schedulerService')
-    const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService')
+    this._schedulerService = this.container.resolve('schedulerService')
+    const anchorService = this.container.resolve('anchorService')
     this._schedulerService.start(async () => {
       await anchorService.anchorRequests()
     })
@@ -227,7 +183,16 @@ export class CeramicAnchorApp {
    * @private
    */
   private async _startServer(): Promise<void> {
-    this._server = new CeramicAnchorServer(this.container)
+    const controllers: Array<any> = [
+      this.container.injectClass(HealthcheckController),
+      this.container.injectClass(ServiceInfoController),
+      this.container.injectClass(RequestController),
+    ]
+    if (this.config.anchorControllerEnabled) {
+      const anchorController = this.container.injectClass(AnchorController)
+      controllers.push(anchorController)
+    }
+    this._server = new CeramicAnchorServer(controllers)
     await this._server.start(this.config.port)
   }
 
@@ -240,7 +205,7 @@ export class CeramicAnchorApp {
    * @private
    */
   private async _startAnchorAndGarbageCollection(): Promise<void> {
-    const anchorService: AnchorService = this.container.resolve<AnchorService>('anchorService')
+    const anchorService: AnchorService = this.container.resolve('anchorService')
     await anchorService.anchorRequests().catch((error) => {
       logger.err(`Error when anchoring: ${error}`)
       logger.err('Exiting')

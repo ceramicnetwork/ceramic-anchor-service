@@ -4,6 +4,7 @@
   "anchorControllerEnabled": "@@ANCHOR_CONTROLLER_ENABLED",
   "anchorLauncherUrl": "@@ANCHOR_LAUNCHER_URL",
   "expirationPeriod": "@@ANCHOR_EXPIRATION_PERIOD",
+  "loadStreamTimeoutMs": "@@LOAD_STREAM_TIMEOUT_MS",
   "maxAnchoringDelayMS": "@@MAX_ANCHORING_DELAY_MS",
   "merkleDepthLimit": "@@MERKLE_DEPTH_LIMIT",
   "minStreamCount": "@@MIN_STREAM_COUNT",
