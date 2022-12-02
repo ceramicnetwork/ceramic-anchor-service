@@ -1,6 +1,5 @@
 import { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
-import { inject, singleton } from 'tsyringe'
 import { from, concatWith, timer, exhaustMap, catchError, repeat, retry, Subscription } from 'rxjs'
 import { ServiceMetrics as Metrics } from '../service-metrics.js'
 import { METRIC_NAMES } from '../settings.js'
@@ -8,17 +7,18 @@ import { METRIC_NAMES } from '../settings.js'
 /**
  * Repeatedly triggers a task to be run after a configured amount of ms
  */
-@singleton()
 export class SchedulerService {
   private _subscription: Subscription
 
-  constructor(@inject('config') private config?: Config) {}
+  static inject = ['config'] as const
+
+  constructor(private readonly config: Config) {}
 
   /**
    * Starts the scheduler which will run the provided task
    *
    */
-  public start(task: () => Promise<void>): void {
+  start(task: () => Promise<void>): void {
     const intervalMS = this.config.schedulerIntervalMS
 
     const repeatingTask$ = from(task()).pipe(
@@ -39,7 +39,7 @@ export class SchedulerService {
     this._subscription = repeatingTask$.subscribe()
   }
 
-  public stop(): void {
+  stop(): void {
     this._subscription.unsubscribe()
   }
 }

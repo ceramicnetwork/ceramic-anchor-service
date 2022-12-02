@@ -3,12 +3,10 @@ import { Request as ExpReq, Response as ExpRes } from 'express'
 import cors from 'cors'
 import { ClassMiddleware, Controller, Get } from '@overnightjs/core'
 import { cpuFree, freememPercentage } from 'os-utils'
-import { singleton } from 'tsyringe'
 import { logger } from '../logger/index.js'
 
 const { OK, SERVICE_UNAVAILABLE } = httpStatusCodes
 
-@singleton()
 @Controller('api/v0/healthcheck')
 @ClassMiddleware([cors()])
 export class HealthcheckController {

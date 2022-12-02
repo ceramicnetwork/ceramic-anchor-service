@@ -44,7 +44,7 @@ export class MerkleTree<N, L extends N, M> {
    * Initialize Merkle structure
    * @private
    */
-  public async build(leaves: L[] | undefined): Promise<void> {
+  async build(leaves: L[] | undefined): Promise<void> {
     if (!leaves || !leaves.length) {
       throw new Error('Cannot generate Merkle structure with no elements')
     }
@@ -109,21 +109,21 @@ export class MerkleTree<N, L extends N, M> {
    * Get root element
    * @returns Node corresponding to the root of the merkle tree
    */
-  public getRoot(): Node<N> {
+  getRoot(): Node<N> {
     return this.root
   }
 
   /**
    * Gets leaves
    */
-  public getLeaves(): L[] {
+  getLeaves(): L[] {
     return this.leaves.map((n) => n.data)
   }
 
   /**
    * Gets tree metadata
    */
-  public getMetadata(): M {
+  getMetadata(): M {
     return this.metadata
   }
 
@@ -131,7 +131,7 @@ export class MerkleTree<N, L extends N, M> {
    * Testing-only method to inspect the raw leaf nodes of the tree
    * @private
    */
-  public _getLeafNodes(): Node<L>[] {
+  _getLeafNodes(): Node<L>[] {
     return this.leaves
   }
 
@@ -143,7 +143,7 @@ export class MerkleTree<N, L extends N, M> {
    * @param elemIndex - Element index
    * @returns Array of proof Nodes.
    */
-  public async getProof(elemIndex: number): Promise<Node<N>[]> {
+  async getProof(elemIndex: number): Promise<Node<N>[]> {
     return (await this._getProofHelper(this.leaves[elemIndex])).reverse()
   }
 
@@ -168,7 +168,7 @@ export class MerkleTree<N, L extends N, M> {
    * @param element - Node element
    * @returns {Promise<boolean>}
    */
-  public async verifyProof(proof: Node<N>[], element: any): Promise<boolean> {
+  async verifyProof(proof: Node<N>[], element: any): Promise<boolean> {
     let current = new Node(element, null, null)
     for (const p of proof) {
       const left = p.parent.left == p
@@ -189,7 +189,7 @@ export class MerkleTree<N, L extends N, M> {
    * @returns Array of PathDirection objects representing the path from the root of the tree to
    * the element requested
    */
-  public async getDirectPathFromRoot(elemIndex: number): Promise<PathDirection[]> {
+  async getDirectPathFromRoot(elemIndex: number): Promise<PathDirection[]> {
     return await this._getDirectPathFromRootHelper(this.leaves[elemIndex])
   }
 

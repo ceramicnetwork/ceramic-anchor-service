@@ -3,15 +3,19 @@ import 'reflect-metadata'
 import { CeramicAnchorApp } from './app.js'
 import { logger } from './logger/index.js'
 import { config } from 'node-config-ts'
-import { container } from 'tsyringe'
 import { createDbConnection } from './db-connection.js'
+import { createInjector } from 'typed-inject'
 
 async function startApp() {
   logger.imp('Connecting to database...')
   const connection = await createDbConnection()
   logger.imp(`Connected to database: ${config.db.client}`)
 
-  const app = new CeramicAnchorApp(container, config, connection)
+  const container = createInjector()
+    .provideValue('dbConnection', connection)
+    .provideValue('config', config)
+
+  const app = new CeramicAnchorApp(container)
   await app.start()
 }
 

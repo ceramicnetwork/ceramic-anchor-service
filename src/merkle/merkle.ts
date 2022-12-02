@@ -29,11 +29,11 @@ interface MetadataFunction<L, M> {
  * Interface of one Merkle node
  */
 class Node<N> {
-  public parent?: Node<N>
+  parent?: Node<N>
 
-  constructor(public data: N, public left: Node<N>, public right: Node<N>) {}
+  constructor(readonly data: N, readonly left: Node<N>, readonly right: Node<N>) {}
 
-  public toString = (): string => {
+  toString = (): string => {
     return '' + this.data
   }
 }
