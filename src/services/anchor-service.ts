@@ -80,8 +80,8 @@ const logAnchorSummary = async (
     results
   )
 
-  recordObjectFields('anchorBatch', anchorSummary)
-  recordRatio('anchorBatch_failureRatio',
+  Metrics.recordObjectFields('anchorBatch', anchorSummary)
+  Metrics.recordRatio('anchorBatch_failureRatio',
               anchorSummary.failedRequestsCount,
               anchorSummary.anchoredRequestsCount)  
 
