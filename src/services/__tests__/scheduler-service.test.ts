@@ -1,19 +1,19 @@
 import 'reflect-metadata'
 import { SchedulerService } from '../scheduler-service.js'
 import { config } from 'node-config-ts'
-import { container } from 'tsyringe'
 import { jest } from '@jest/globals'
+import { createInjector } from 'typed-inject'
+
+const injector = createInjector()
+  .provideValue('config', Object.assign({}, config, { schedulerIntervalMS: 3000 }))
+  .provideClass('schedulerService', SchedulerService)
 
 describe('scheduler service', () => {
   jest.setTimeout(20000)
-  beforeAll(async () => {
-    container.registerInstance('config', Object.assign({}, config, { schedulerIntervalMS: 3000 }))
-    container.registerSingleton('schedulerService', SchedulerService)
-  })
 
   test('will run the task repeatedly', (done) => {
     const numberOfRunsBeforeDone = 3
-    const schedulerService = container.resolve<SchedulerService>('schedulerService')
+    const schedulerService = injector.resolve('schedulerService')
 
     const task = jest.fn()
 
@@ -40,7 +40,7 @@ describe('scheduler service', () => {
 
   test('will continue if the task fails', (done) => {
     const numberOfRunsBeforeDone = 5
-    const schedulerService = container.resolve<SchedulerService>('schedulerService')
+    const schedulerService = injector.resolve('schedulerService')
 
     const task = jest.fn()
     const runChecks = () => {

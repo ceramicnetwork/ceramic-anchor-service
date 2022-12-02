@@ -2,7 +2,6 @@ import 'reflect-metadata'
 import { jest } from '@jest/globals'
 import type { Knex } from 'knex'
 import { createDbConnection, clearTables } from '../../db-connection.js'
-import { container } from 'tsyringe'
 import { config } from 'node-config-ts'
 import {
   RequestRepository,
@@ -14,6 +13,7 @@ import {
 import { AnchorRepository } from '../anchor-repository.js'
 import { Request, REQUEST_MESSAGES, RequestStatus } from '../../models/request.js'
 import { generateRequests, generateRequest, randomStreamID } from '../../__tests__/test-utils.js'
+import { createInjector } from 'typed-inject'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -53,12 +53,13 @@ describe('request repository test', () => {
     connection = await createDbConnection()
     connection2 = await createDbConnection()
 
-    container.registerInstance('config', config)
-    container.registerInstance('dbConnection', connection)
-    container.registerSingleton('requestRepository', RequestRepository)
-    container.registerSingleton('anchorRepository', AnchorRepository)
+    const c = createInjector()
+      .provideValue('config', config)
+      .provideValue('dbConnection', connection)
+      .provideClass('requestRepository', RequestRepository)
+      .provideClass('anchorRepository', AnchorRepository)
 
-    requestRepository = container.resolve<RequestRepository>('requestRepository')
+    requestRepository = c.resolve('requestRepository')
   })
 
   beforeEach(async () => {
