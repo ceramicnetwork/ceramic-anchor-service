@@ -20,7 +20,7 @@ import { AnchorController } from './controllers/anchor-controller.js'
 import { RequestController } from './controllers/request-controller.js'
 import { ServiceInfoController } from './controllers/service-info-controller.js'
 import { EthereumBlockchainService } from './services/blockchain/ethereum/ethereum-blockchain-service.js'
-import { ServiceMetrics as Metrics } from './service-metrics.js'
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { version } from './version.js'
 import { cleanupConfigForLogging, normalizeConfig } from './normalize-config.util.js'
 
@@ -77,7 +77,7 @@ export class CeramicAnchorApp {
     }
 
     try {
-      Metrics.start(config.metrics.collectorHost, 'cas-' + config.mode)
+      Metrics.start(config.metrics.collectorHost, 'cas-' + config.mode, append_total_counters=false)
       Metrics.count('HELLO', 1)
       logger.imp('Metrics exporter started')
     } catch (e) {

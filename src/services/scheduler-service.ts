@@ -2,7 +2,7 @@ import { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
 import { inject, singleton } from 'tsyringe'
 import { from, concatWith, timer, exhaustMap, catchError, repeat, retry, Subscription } from 'rxjs'
-import { ServiceMetrics as Metrics } from '../service-metrics.js'
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 
 /**

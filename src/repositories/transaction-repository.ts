@@ -1,5 +1,5 @@
 import { inject, singleton } from 'tsyringe'
-import { ServiceMetrics as Metrics } from '../service-metrics.js'
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import type { Knex } from 'knex'
 import { logger } from '../logger/index.js'
 import { METRIC_NAMES } from '../settings.js'
