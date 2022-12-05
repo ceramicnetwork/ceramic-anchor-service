@@ -59,7 +59,7 @@
     "@opentelemetry/resources": "^1.7.0",
     "@opentelemetry/sdk-metrics": "^0.33.0",
     "@opentelemetry/sdk-trace-base": "^1.7.0",
-    "@opentelemetry/semantic-conventions": "^1.7.0",
+    "@opentelemetry/semantic-conventions": "^1.8.0",
     "@overnightjs/core": "^1.7.6",
     "@types/lodash.camelcase": "^4.3.7",
     "@types/lodash.snakecase": "^4.1.7",
