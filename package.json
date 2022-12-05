@@ -55,7 +55,7 @@
     "@ceramicnetwork/wasm-bloom-filter": "^0.1.0",
     "@opentelemetry/api": "^1.1.0",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.32.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.33.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.34.0",
     "@opentelemetry/resources": "^1.7.0",
     "@opentelemetry/sdk-metrics": "^0.33.0",
     "@opentelemetry/sdk-trace-base": "^1.7.0",
