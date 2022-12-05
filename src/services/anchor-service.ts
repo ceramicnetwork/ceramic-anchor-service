@@ -42,17 +42,28 @@ type RequestGroups = {
 }
 
 type AnchorSummary = {
+  // all requests included in this batch
   acceptedRequestsCount: number
+  // number of accepted requests that were anchored in a previous batch and were not included in the current batch.
   alreadyAnchoredRequestsCount: number
+  // requests that were successfully anchored in this batch
   anchoredRequestsCount: number
+  // requests whose CIDs were rejected by Ceramic's conflict resolution.
   conflictingRequestCount: number
+  // failed requests (possible reasons: loading, publishing anchor commits)
   failedRequestsCount: number
+  // streams included in the merkle tree, but whose anchor commits were not published
   failedToPublishAnchorCommitCount: number
+  // requests not included in this batch because the batch was already full
   unprocessedRequestCount: number
+  // streams considered in this batch
   candidateCount: number
+  // anchors created in this batch
   anchorCount: number
-  canRetryCount: number
+  // anchors that were created in this batch but were already created in a previous batch and therefore not persisted in our DB
   reanchoredCount: number
+  // requests that can be retried in a later batch
+  canRetryCount: number
 }
 
 const logAnchorSummary = async (
