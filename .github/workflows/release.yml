@@ -4,47 +4,47 @@ on:
   workflow_dispatch:
     inputs:
       type:
-        description: 'Type of publish (one of: rc, full, both, hotfix)'
+        description: 'Type of publish (one of: rc, main, both, hotfix)'
         required: true
         default: 'rc'
 
 jobs:
-  publish_full:
+  publish_main:
     runs-on: ubuntu-latest
     steps:
       -
         name: Setup environment
         id: set-vars
         run: |
-          if [[ "${{ github.event.inputs.type }}" == "both" || "${{ github.event.inputs.type }}" == "full" ]]; then
-            echo "::set-output name=full::true"
+          if [[ "${{ github.event.inputs.type }}" == "both" || "${{ github.event.inputs.type }}" == "main" ]]; then
+            echo "::set-output name=main::true"
           elif [[ "${{ github.event.inputs.type }}" == "hotfix" ]]; then
-            echo "::set-output name=full::true"
+            echo "::set-output name=main::true"
             echo "::set-output name=hotfix::true"
           fi
       -
         name: Setup Node
-        if: ${{ steps.set-vars.outputs.full == 'true' }}
+        if: ${{ steps.set-vars.outputs.main == 'true' }}
         uses: actions/setup-node@v1
         with:
           node-version: 16
       -
         name: Checkout `main` branch
-        if: ${{ steps.set-vars.outputs.full == 'true' }}
-        uses: actions/checkout@v2
+        if: ${{ steps.set-vars.outputs.main == 'true' }}
+        uses: actions/checkout@v3
         with:
           token: ${{ secrets.GH_TOKEN }}
           ref: main
       -
         name: Configure git
-        if: ${{ steps.set-vars.outputs.full == 'true' }}
+        if: ${{ steps.set-vars.outputs.main == 'true' }}
         run: |
           git config user.email "${{ github.actor }}@users.noreply.github.com"
           git config user.name ${{ github.actor }}
           git fetch --all
       -
         name: Merge down from `main` -> `rc` -> `develop`
-        if: ${{ steps.set-vars.outputs.full == 'true' }}
+        if: ${{ steps.set-vars.outputs.main == 'true' }}
         run: |
           git checkout -B release-candidate origin/release-candidate
           git merge main
@@ -53,23 +53,23 @@ jobs:
           git checkout main
       -
         name: Merge `release-candidate` -> `main`
-        if: ${{ steps.set-vars.outputs.full == 'true' && steps.set-vars.outputs.hotfix != 'true' }}
+        if: ${{ steps.set-vars.outputs.main == 'true' && steps.set-vars.outputs.hotfix != 'true' }}
         run: git merge release-candidate
       -
         name: Initialize and build code
-        if: ${{ steps.set-vars.outputs.full == 'true' }}
+        if: ${{ steps.set-vars.outputs.main == 'true' }}
         run: |
           npm set unsafe-perm true
           npm ci && npm run build
       -
         name: Publish release
-        if: ${{ steps.set-vars.outputs.full == 'true' }}
+        if: ${{ steps.set-vars.outputs.main == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: npm run release -- --ci --github.release --no-npm-publish
       -
         name: Update and push code to `release-candidate` and `develop`
-        if: ${{ steps.set-vars.outputs.full == 'true' }}
+        if: ${{ steps.set-vars.outputs.main == 'true' }}
         run: |
           git checkout release-candidate
           git merge main
@@ -79,7 +79,7 @@ jobs:
           git push
       -
         name: Send Discord notification
-        if: ${{ steps.set-vars.outputs.full == 'true' }}
+        if: ${{ steps.set-vars.outputs.main == 'true' }}
         run: |
           # Prepare notification body
           echo '{"embeds":[{"title":"**Release Published**","description":"```' > embed.json
@@ -92,7 +92,7 @@ jobs:
 
   publish_rc:
     runs-on: ubuntu-latest
-    needs: publish_full
+    needs: publish_main
     steps:
       -
         name: Setup environment
@@ -110,7 +110,7 @@ jobs:
       -
         name: Checkout `release-candidate` branch
         if: ${{ steps.set-vars.outputs.rc == 'true' }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           token: ${{ secrets.GH_TOKEN }}
           ref: release-candidate
