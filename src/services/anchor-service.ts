@@ -17,7 +17,7 @@ import { TransactionRepository } from '../repositories/transaction-repository.js
 import { IpfsService } from './ipfs-service.js'
 import { EventProducerService } from './event-producer/event-producer-service.js'
 import { CeramicService } from './ceramic-service.js'
-import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '../service-metrics.js'
+import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 import { BlockchainService } from './blockchain/blockchain-service.js'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
@@ -62,7 +62,6 @@ const logAnchorSummary = async (
   results: Partial<AnchorSummary> = {}
 ) => {
   const pendingRequestsCount = await requestRepository.countPendingRequests()
-  Metrics.count(METRIC_NAMES.PENDING_REQUESTS, pendingRequestsCount)
 
   const anchorSummary: AnchorSummary = Object.assign(
     {
@@ -81,6 +80,11 @@ const logAnchorSummary = async (
     },
     results
   )
+
+  Metrics.recordObjectFields('anchorBatch', anchorSummary)
+  Metrics.recordRatio('anchorBatch_failureRatio',
+              anchorSummary.failedRequestsCount,
+              anchorSummary.anchoredRequestsCount)  
 
   logEvent.anchor({
     type: 'anchorRequests',

@@ -3,7 +3,7 @@ import { CeramicApi, MultiQuery, Stream, SyncOptions } from '@ceramicnetwork/com
 
 import type { Config } from 'node-config-ts'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
-import { ServiceMetrics as Metrics } from '../service-metrics.js'
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 import { logger } from '../logger/index.js'
 
