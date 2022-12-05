@@ -72,7 +72,7 @@
     "lodash.snakecase": "^4.1.1",
     "lru-cache": "^7.14.1",
     "morgan": "^1.10.0",
-    "multiformats": "^9.9.0",
+    "multiformats": "^10.0.2",
     "os-utils": "^0.0.14",
     "pg": "^8.8.0",
     "reflect-metadata": "^0.1.13",
