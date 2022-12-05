@@ -32,6 +32,8 @@ import {
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
 
+const CONTRACT_TX_TYPE = 'f(bytes32)'
+
 type RequestGroups = {
   alreadyAnchoredRequests: Request[]
   conflictingRequests: Request[]
@@ -368,7 +370,7 @@ export class AnchorService {
       txHash: txHashCid,
     } as any
 
-    if (this.config.useSmartContractAnchors) ipfsAnchorProof.version = 1
+    if (this.config.useSmartContractAnchors) ipfsAnchorProof.txType = CONTRACT_TX_TYPE
 
     logger.debug('Anchor proof: ' + JSON.stringify(ipfsAnchorProof))
     const ipfsProofCid = await this.ipfsService.storeRecord(ipfsAnchorProof)
