@@ -1,15 +1,17 @@
-import { CID } from 'multiformats/cid'
-import { create } from 'multiformats/hashes/digest'
+import { jest } from '@jest/globals'
 
-import { CeramicService } from '../services/ceramic-service.js'
-import { EventProducerService } from '../services/event-producer/event-producer-service.js'
+import { CID } from 'multiformats/cid'
+
+import { create } from 'multiformats/hashes/digest'
+import type { CeramicService } from '../services/ceramic-service.js'
+import type { EventProducerService } from '../services/event-producer/event-producer-service.js'
 import type { IIpfsService } from '../services/ipfs-service.type.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
 import { randomBytes } from '@stablelib/random'
-import { jest } from '@jest/globals'
 import { Request, RequestStatus } from '../models/request.js'
 import type { AbortOptions } from '../services/abort-options.type.js'
+import { Utils } from '../utils.js'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -76,8 +78,11 @@ export class MockIpfsService implements IIpfsService {
     // Do Nothing
   }
 
-  async retrieveRecord(cid: CID | string): Promise<any> {
-    return this._streams[cid.toString()]
+  async retrieveRecord(cid: CID | string, options: AbortOptions = {}): Promise<any> {
+    const found = this._streams[cid.toString()]
+    if (found) return found
+    await Utils.delay(30000, options.signal) // Wait for 30s
+    throw new Error(`MockIpfsService:retrieveRecord:timeout`)
   }
 
   async storeRecord(record: Record<string, unknown>): Promise<CID> {
