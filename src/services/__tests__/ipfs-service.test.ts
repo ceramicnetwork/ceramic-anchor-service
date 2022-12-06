@@ -1,8 +1,9 @@
 import { jest, describe, test, expect } from '@jest/globals'
 import type { Config } from 'node-config-ts'
-import { AbortOptions, IpfsService } from '../ipfs-service.js'
+import { IpfsService } from '../ipfs-service.js'
 import { delay, MockIpfsClient } from '../../__tests__/test-utils.js'
 import type { IPFS } from 'ipfs-core-types'
+import type { AbortOptions } from '../abort-options.type.js'
 
 const FAUX_CONFIG = {
   ipfsConfig: {
