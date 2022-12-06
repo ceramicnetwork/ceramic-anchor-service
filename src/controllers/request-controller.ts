@@ -102,6 +102,12 @@ export class RequestController {
       }
       const streamId = StreamID.fromString(req.body.streamId)
 
+      const found = await this.requestRepository.findByCid(cid)
+      if (found) {
+        const body = await this.requestPresentationService.body(found)
+        return res.status(StatusCodes.ACCEPTED).json(body)
+      }
+
       let timestamp = new Date()
       if (req.body.timestamp) {
         timestamp = new Date(req.body.timestamp)
