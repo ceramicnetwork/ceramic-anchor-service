@@ -36,6 +36,7 @@ export enum METRIC_NAMES {
 
   TIME_ANCHOR_COMMITS_MS = 'time_anchor_commits_ms',
   TIME_TREE_COMMIT_MS = 'time_tree_commit_ms',
+  REANCHORED = 'reanchored',
 
   ACCEPTED_REQUESTS = 'accepted_requests',
   ALREADY_ANCHORED_REQUESTS = 'already_anchored_requests',
