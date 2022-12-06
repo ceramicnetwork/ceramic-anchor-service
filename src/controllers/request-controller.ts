@@ -85,6 +85,11 @@ export class RequestController {
       }
       const streamId = StreamID.fromString(req.body.streamId)
 
+      let timestamp = new Date()
+      if (req.body.timestamp) {
+        timestamp = new Date(req.body.timestamp)
+      }
+
       let request = await this.requestRepository.findByCid(cid)
       if (request) {
         const body = await this.requestPresentationService.body(request)
@@ -104,6 +109,7 @@ export class RequestController {
       // call above can fail and swallows errors, but marking it as pinned incorrectly is harmless,
       // and this way we ensure the request is picked up by garbage collection.
       request.pinned = true
+      request.timestamp = timestamp
 
       request = await this.requestRepository.createOrUpdate(request)
 

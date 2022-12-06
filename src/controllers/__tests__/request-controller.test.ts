@@ -140,8 +140,8 @@ describe('createRequest', () => {
       expect(createdRequest.message).toEqual('Request is pending.')
       // FIXME Timezones
       // expect(createdRequest.timestamp.valueOf()).toEqual(timestamp.valueOf())
-      // expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      // expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
+      expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
+      expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
       expect(createdRequest.origin).toBeNull()
     })
 
@@ -168,8 +168,8 @@ describe('createRequest', () => {
       expect(createdRequest.message).toEqual('Request is pending.')
       // FIXME Timezones
       // expect(createdRequest.timestamp.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      // expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      // expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
+      expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
+      expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
       expect(createdRequest.origin).toBeNull()
     })
   })
