@@ -12,16 +12,23 @@ import { METRIC_NAMES } from '../settings.js'
 import type { RequestPresentationService } from '../services/request-presentation-service.js'
 import type { CeramicService } from '../services/ceramic-service.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
+import type { IIpfsService } from '../services/ipfs-service.type.js'
 
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
 export class RequestController {
-  static inject = ['requestRepository', 'ceramicService', 'requestPresentationService'] as const
+  static inject = [
+    'requestRepository',
+    'ceramicService',
+    'requestPresentationService',
+    'ipfsService',
+  ] as const
 
   constructor(
     private readonly requestRepository: RequestRepository,
     private readonly ceramicService: CeramicService,
-    private readonly requestPresentationService: RequestPresentationService
+    private readonly requestPresentationService: RequestPresentationService,
+    private readonly ipfsService: IIpfsService
   ) {}
 
   @Get(':cid')
@@ -72,6 +79,8 @@ export class RequestController {
         })
       }
       const streamId = StreamID.fromString(req.body.streamId)
+
+      const genesis = await this.ipfsService.retrieveRecord(streamId.cid) // TODO store metadata
 
       let timestamp = new Date()
       if (req.body.timestamp) {

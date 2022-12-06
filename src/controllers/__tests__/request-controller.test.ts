@@ -16,6 +16,8 @@ import {
 import type { Knex } from 'knex'
 import merge from 'merge-options'
 import { RequestStatus } from '../../models/request.js'
+import type { IIpfsService } from '../../services/ipfs-service.type.js'
+import { StreamID } from '@ceramicnetwork/streamid'
 
 function mockResponse(): ExpRes {
   const res: any = {}
@@ -35,6 +37,7 @@ function mockRequest(input: any = {}): ExpReq {
 type Tokens = {
   requestController: RequestController
   requestRepository: RequestRepository
+  ipfsService: IIpfsService
 }
 
 describe('createRequest', () => {
@@ -117,7 +120,10 @@ describe('createRequest', () => {
 
     test('create request', async () => {
       const cid = randomCID()
-      const streamId = randomStreamID()
+      const ipfsService = container.resolve('ipfsService')
+      const record = { hello: `world-${Math.random()}` }
+      const genesisCid = await ipfsService.storeRecord(record)
+      const streamId = new StreamID('tile', genesisCid)
       const timestamp = new Date()
       const req = mockRequest({
         body: {
@@ -146,7 +152,10 @@ describe('createRequest', () => {
 
     test('timestamp is empty', async () => {
       const cid = randomCID()
-      const streamId = randomStreamID()
+      const ipfsService = container.resolve('ipfsService')
+      const record = { hello: `world-${Math.random()}` }
+      const genesisCid = await ipfsService.storeRecord(record)
+      const streamId = new StreamID('tile', genesisCid)
       const now = new Date()
       const req = mockRequest({
         body: {
@@ -170,13 +179,33 @@ describe('createRequest', () => {
       expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
       expect(createdRequest.origin).toBeNull()
     })
+
+    test('fill metadata', async () => {
+      const cid = randomCID()
+      const ipfsService = container.resolve('ipfsService')
+      const record = { hello: `world-${Math.random()}` }
+      const genesisCid = await ipfsService.storeRecord(record)
+      const streamId = new StreamID('tile', genesisCid)
+      const req = mockRequest({
+        body: {
+          cid: cid.toString(),
+          streamId: streamId.toString(),
+        },
+      })
+      const retrieveRecordSpy = jest.spyOn(ipfsService, 'retrieveRecord')
+      await controller.createRequest(req, mockResponse())
+      expect(retrieveRecordSpy).toBeCalledWith(streamId.cid)
+    })
   })
 
   describe('existing request', () => {
     test('return representation', async () => {
       // 0. Prepare
       const cid = randomCID()
-      const streamId = randomStreamID()
+      const ipfsService = container.resolve('ipfsService')
+      const record = { hello: `world-${Math.random()}` }
+      const genesisCid = await ipfsService.storeRecord(record)
+      const streamId = new StreamID('tile', genesisCid)
       const now = new Date()
       const req = mockRequest({
         body: {
