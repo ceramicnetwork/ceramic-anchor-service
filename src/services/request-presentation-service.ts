@@ -1,14 +1,19 @@
-import { AnchorRepository } from '../repositories/anchor-repository.js'
-import { Request, InvalidRequestStatusError, RequestStatus } from './request.js'
+import type { AnchorRepository } from '../repositories/anchor-repository.js'
+import type { Request } from '../models/request.js'
+import { InvalidRequestStatusError, RequestStatus } from '../models/request.js'
+import type { Config } from 'node-config-ts'
 
 /**
  * Render anchoring Request as JSON for a client to consume.
  */
-export class RequestPresentation {
-  constructor(
-    private readonly schedulerIntervalMS: number,
-    private readonly anchorRepository: AnchorRepository
-  ) {}
+export class RequestPresentationService {
+  private readonly schedulerIntervalMS: number
+
+  static inject = ['config', 'anchorRepository'] as const
+
+  constructor(config: Config, private readonly anchorRepository: AnchorRepository) {
+    this.schedulerIntervalMS = config.schedulerIntervalMS
+  }
 
   /**
    * Rich JSON of a request.

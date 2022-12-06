@@ -1,38 +1,30 @@
 import { StatusCodes } from 'http-status-codes'
 import { Request as ExpReq, Response as ExpRes } from 'express'
-
-import { Config } from 'node-config-ts'
-
 import cors from 'cors'
 import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core'
 
 import { toCID } from '@ceramicnetwork/common'
-import { AnchorRepository } from '../repositories/anchor-repository.js'
-import { RequestRepository } from '../repositories/request-repository.js'
+import type { RequestRepository } from '../repositories/request-repository.js'
 import { Request, RequestStatus } from '../models/request.js'
 import { logger } from '../logger/index.js'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
-import { RequestPresentation } from '../models/request-presentation.js'
-import { CeramicService } from '../services/ceramic-service.js'
+import type { RequestPresentationService } from '../services/request-presentation-service.js'
+import type { CeramicService } from '../services/ceramic-service.js'
 
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
 export class RequestController {
-  #requestPresentation: RequestPresentation
+  #requestPresentation: RequestPresentationService
 
-  static inject = ['config', 'anchorRepository', 'requestRepository', 'ceramicService'] as const
+  static inject = ['requestRepository', 'ceramicService', 'requestPresentationService'] as const
 
   constructor(
-    private config: Config,
-    private anchorRepository: AnchorRepository,
-    private requestRepository: RequestRepository,
-    private ceramicService: CeramicService
+    private readonly requestRepository: RequestRepository,
+    private readonly ceramicService: CeramicService,
+    private readonly requestPresentationService: RequestPresentationService
   ) {
-    this.#requestPresentation = new RequestPresentation(
-      config.schedulerIntervalMS,
-      anchorRepository
-    )
+    this.#requestPresentation = requestPresentationService
   }
 
   @Get(':cid')
