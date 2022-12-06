@@ -4,7 +4,7 @@ import cloneDeep from 'lodash.clonedeep'
 function replaceBools(o: object): void {
   for (const prop of Object.keys(o)) {
     if (o[prop] === 'true' || o[prop] === 'false') {
-      o[prop] = (o[prop] === 'true')
+      o[prop] = o[prop] === 'true'
     }
     if (o[prop] !== null && typeof o[prop] === 'object') {
       replaceBools(o[prop])
@@ -19,7 +19,7 @@ function replaceBools(o: object): void {
 export function normalizeConfig(config: Config): void {
   config.mode = config.mode.trim().toLowerCase()
   if (typeof config.merkleDepthLimit == 'string') {
-    config.merkleDepthLimit = parseInt(config.merkleDepthLimit)
+    config.merkleDepthLimit = parseInt(config.merkleDepthLimit, 10)
   }
   replaceBools(config)
 }

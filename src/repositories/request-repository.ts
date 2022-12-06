@@ -84,13 +84,13 @@ const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder =>
       .orWhere((subBuilder) =>
         subBuilder
           .where({ status: RequestStatus.PROCESSING })
-          .andWhere('updatedAt', '<', processingDeadline)
+          .andWhere('updatedAt', '<', processingDeadline.toISOString())
       )
       .orWhere((subBuilder) =>
         subBuilder
           .where({ status: RequestStatus.FAILED })
-          .andWhere('createdAt', '>=', earliestFailedCreatedAtToRetry)
-          .andWhere('updatedAt', '<=', latestFailedUpdatedAtToRetry)
+          .andWhere('createdAt', '>=', earliestFailedCreatedAtToRetry.toISOString())
+          .andWhere('updatedAt', '<=', latestFailedUpdatedAtToRetry.toISOString())
           .andWhere((subSubBuilder) =>
             subSubBuilder
               .whereNull('message')
@@ -164,7 +164,7 @@ export class RequestRepository {
 
   static inject = ['config', 'dbConnection'] as const
 
-  constructor(config: Config, private connection: Knex) {
+  constructor(private readonly config: Config, private connection: Knex) {
     this.maxAnchoringDelayMS = config.maxAnchoringDelayMS
     this.readyRetryIntervalMS = config.readyRetryIntervalMS
   }
@@ -222,7 +222,7 @@ export class RequestRepository {
     options: Options = {}
   ): Promise<number> {
     const { connection = this.connection } = options
-    const updatedAt = new Date(Date.now())
+    const updatedAt = new Date()
     const ids = requests.map((r) => r.id)
     const result = await connection(TABLE_NAME)
       .update({
@@ -329,7 +329,7 @@ export class RequestRepository {
       .where('updatedAt', '>=', deadlineDate)
 
     // expired requests with streams that have not been recently updated
-    return await connection(TABLE_NAME)
+    return connection(TABLE_NAME)
       .orderBy('updatedAt', 'desc')
       .whereIn('status', [RequestStatus.COMPLETED, RequestStatus.FAILED])
       .andWhere('pinned', true)
@@ -441,7 +441,7 @@ export class RequestRepository {
       .count('id')
       .where({ status: RequestStatus.PENDING })
       .first()
-    return parseInt(res.count as string)
+    return parseInt(res.count as string, 10)
   }
 
   /**
