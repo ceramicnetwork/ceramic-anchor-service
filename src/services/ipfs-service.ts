@@ -46,13 +46,19 @@ function buildIpfsClient(config: Config): IPFS {
 export class IpfsService implements IIpfsService {
   private readonly cache: LRUCache<string, any>
   private readonly pubsubTopic: string
+  private readonly ipfsPutTimeout: number // in ms
   private readonly ipfs: IPFS
 
   static inject = ['config'] as const
 
-  constructor(config: Config, ipfs: IPFS = buildIpfsClient(config)) {
+  constructor(
+    config: Config,
+    ipfs: IPFS = buildIpfsClient(config),
+    ipfsPutTimeout = IPFS_PUT_TIMEOUT
+  ) {
     this.cache = new LRUCache<string, any>({ max: MAX_CACHE_ENTRIES })
     this.ipfs = ipfs
+    this.ipfsPutTimeout = ipfsPutTimeout
     this.pubsubTopic = config.ipfsConfig.pubsubTopic
   }
 
@@ -107,7 +113,7 @@ export class IpfsService implements IIpfsService {
     })
 
     const timeoutPromise = new Promise((resolve) => {
-      timeout = setTimeout(resolve, IPFS_PUT_TIMEOUT)
+      timeout = setTimeout(resolve, this.ipfsPutTimeout)
     })
 
     return await Promise.race([
