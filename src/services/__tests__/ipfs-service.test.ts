@@ -3,8 +3,6 @@ import type { Config } from 'node-config-ts'
 import { IpfsService } from '../ipfs-service.js'
 import { MockIpfsClient } from '../../__tests__/test-utils.js'
 import type { IPFS } from 'ipfs-core-types'
-import type { AbortOptions } from '../abort-options.type.js'
-import { Utils } from '../../utils.js'
 
 const FAUX_CONFIG = {
   ipfsConfig: {
@@ -22,40 +20,13 @@ describe('storeRecord', () => {
     await service.storeRecord(RECORD)
     expect(dagPutSpy.mock.lastCall[0]).toEqual(RECORD)
   })
-  test('throw on timeout', async () => {
+  test('pass timeout and AbortSignal', async () => {
     const mockIpfsClient = new MockIpfsClient()
-    const ipfsPutTimeout = 10
-    const service = new IpfsService(FAUX_CONFIG, mockIpfsClient as unknown as IPFS, ipfsPutTimeout)
+    const timeout = 10
+    const service = new IpfsService(FAUX_CONFIG, mockIpfsClient as unknown as IPFS, timeout)
     const dagPutSpy = jest.spyOn(mockIpfsClient.dag, 'put')
-    dagPutSpy.mockImplementation(async (record: any, options: AbortOptions) => {
-      await Utils.delay(ipfsPutTimeout * 2, options.signal)
-      throw new Error(`Original IPFS error`)
-    })
-    await expect(service.storeRecord(RECORD)).rejects.toThrow(/Timed out storing record in IPFS/)
-  })
-  test('throw original error', async () => {
-    const mockIpfsClient = new MockIpfsClient()
-    const service = new IpfsService(FAUX_CONFIG, mockIpfsClient as unknown as IPFS)
-    const dagPutSpy = jest.spyOn(mockIpfsClient.dag, 'put')
-    dagPutSpy.mockImplementation(async () => {
-      throw new Error(`Original IPFS error`)
-    })
-    await expect(service.storeRecord(RECORD)).rejects.toThrow(/Original IPFS error/)
-  })
-  test('accept abort signal', async () => {
-    const mockIpfsClient = new MockIpfsClient()
-    const service = new IpfsService(FAUX_CONFIG, mockIpfsClient as unknown as IPFS)
-    const dagPutSpy = jest.spyOn(mockIpfsClient.dag, 'put')
-    dagPutSpy.mockImplementation((_, options: AbortOptions) => {
-      return new Promise((_, reject) => {
-        const done = () => reject(new Error(`From abort signal`))
-        if (options.signal?.aborted) done()
-        options.signal?.addEventListener('abort', done)
-      })
-    })
     const abortController = new AbortController()
-    const storeRecordP = service.storeRecord(RECORD, { signal: abortController.signal })
-    abortController.abort()
-    await expect(storeRecordP).rejects.toThrow('From abort signal')
+    await service.storeRecord(RECORD, { signal: abortController.signal })
+    expect(dagPutSpy).toBeCalledWith(RECORD, { signal: abortController.signal, timeout: timeout })
   })
 })
