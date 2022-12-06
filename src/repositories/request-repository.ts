@@ -176,7 +176,7 @@ export class RequestRepository {
 
   static inject = ['config', 'dbConnection'] as const
 
-  constructor(config: Config, private connection: Knex) {
+  constructor(private readonly config: Config, private connection: Knex) {
     this.maxAnchoringDelayMS = config.maxAnchoringDelayMS
     this.readyRetryIntervalMS = config.readyRetryIntervalMS
   }
