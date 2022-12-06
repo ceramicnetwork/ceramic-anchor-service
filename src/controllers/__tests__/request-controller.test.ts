@@ -171,5 +171,31 @@ describe('createRequest', () => {
       expect(createdRequest.origin).toBeNull()
     })
   })
-  test.todo('existing request')
+
+  describe('existing request', () => {
+    test('return representation', async () => {
+      // 0. Prepare
+      const cid = randomCID()
+      const streamId = randomStreamID()
+      const now = new Date()
+      const req = mockRequest({
+        body: {
+          cid: cid.toString(),
+          streamId: streamId.toString(),
+          timestamp: now.toISOString(),
+        },
+      })
+      const res = mockResponse()
+      await controller.createRequest(req, res)
+      const jsonFn = jest.spyOn(res, 'json')
+      const presentation0 = jsonFn.mock.lastCall[0]
+
+      // 1. Request existing request
+      const res1 = mockResponse()
+      await controller.createRequest(req, res1)
+      const jsonFn1 = jest.spyOn(res1, 'json')
+      const presentation1 = jsonFn1.mock.lastCall[0]
+      expect(presentation1).toEqual(presentation0)
+    })
+  })
 })
