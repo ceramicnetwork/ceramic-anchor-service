@@ -177,7 +177,7 @@ export function generateRequests(
   count = 1,
   varianceMS = 1000
 ): Array<Request> {
-  return Array.from({ length: count }).map((_, i) => {
+  return times(count).map((i) => {
     if (varianceMS > 0) {
       const createdAt = override.createdAt || new Date(Date.now())
       const updatedAt = override.updatedAt || new Date(createdAt.getTime())
@@ -191,4 +191,12 @@ export function generateRequests(
 
     return generateRequest(override)
   })
+}
+
+export function times(n: number): Array<number> {
+  return Array.from({ length: n }).map((_, i) => i)
+}
+
+export function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
