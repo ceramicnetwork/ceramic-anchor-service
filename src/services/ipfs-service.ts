@@ -20,16 +20,27 @@ const MAX_CACHE_ENTRIES = 100
 const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
 const PUBSUB_DELAY = 100
 
-function ipfsHttpAgent(ipfsEndpoint: string): http.Agent {
+function buildHttpAgent(endpoint: string): http.Agent {
   const agentOptions = {
     keepAlive: false,
     maxSockets: Infinity,
   }
-  if (ipfsEndpoint.startsWith('https')) {
+  if (endpoint.startsWith('https')) {
     return new https.Agent(agentOptions)
   } else {
     return new http.Agent(agentOptions)
   }
+}
+
+function buildIpfsClient(config: Config): IPFS {
+  return createIpfsClient({
+    url: config.ipfsConfig.url,
+    timeout: config.ipfsConfig.timeout,
+    ipld: {
+      codecs: [dagJose],
+    },
+    agent: buildHttpAgent(config.ipfsConfig.url),
+  })
 }
 
 export class IpfsService implements IIpfsService {
@@ -39,16 +50,9 @@ export class IpfsService implements IIpfsService {
 
   static inject = ['config'] as const
 
-  constructor(config: Config) {
+  constructor(config: Config, ipfs: IPFS = buildIpfsClient(config)) {
     this.cache = new LRUCache<string, any>({ max: MAX_CACHE_ENTRIES })
-    this.ipfs = createIpfsClient({
-      url: config.ipfsConfig.url,
-      timeout: config.ipfsConfig.timeout,
-      ipld: {
-        codecs: [dagJose],
-      },
-      agent: ipfsHttpAgent(config.ipfsConfig.url),
-    })
+    this.ipfs = ipfs
     this.pubsubTopic = config.ipfsConfig.pubsubTopic
   }
 
