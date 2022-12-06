@@ -1,6 +1,5 @@
 import 'reflect-metadata'
 import { jest } from '@jest/globals'
-import { container } from 'tsyringe'
 
 import { Request, RequestStatus } from '../../models/request.js'
 import { AnchorService } from '../anchor-service.js'
@@ -29,13 +28,20 @@ import { Utils } from '../../utils.js'
 import { PubsubMessage } from '@ceramicnetwork/core'
 import { validate as validateUUID } from 'uuid'
 import { TransactionRepository } from '../../repositories/transaction-repository.js'
+import type { BlockchainService } from '../blockchain/blockchain-service'
+import type { Transaction } from '../../models/transaction.js'
+import { createInjector, Injector } from 'typed-inject'
 
 process.env.NODE_ENV = 'test'
 
-class FakeEthereumBlockchainService {
-  constructor() {}
+class FakeEthereumBlockchainService implements BlockchainService {
+  chainId = 'impossible'
 
-  public sendTransaction() {
+  connect(): Promise<void> {
+    throw new Error(`Failed to connect`)
+  }
+
+  sendTransaction(): Promise<Transaction> {
     throw new Error('Failed to send transaction!')
   }
 }
@@ -92,7 +98,7 @@ function createStream(
 }
 
 const mockIpfsClient = new MockIpfsClient()
-jest.mock('ipfs-http-client', () => {
+jest.unstable_mockModule('ipfs-http-client', () => {
   const originalModule = jest.requireActual('ipfs-http-client') as any
 
   return {
@@ -104,46 +110,66 @@ jest.mock('ipfs-http-client', () => {
   }
 })
 
+const MERKLE_DEPTH_LIMIT = 3
+const READY_RETRY_INTERVAL_MS = 1000
+const STREAM_LIMIT = Math.pow(2, MERKLE_DEPTH_LIMIT)
+const MIN_STREAM_COUNT = Math.floor(STREAM_LIMIT / 2)
+
+type Context = {
+  config: Config
+  ipfsService: IpfsService
+  ceramicService: MockCeramicService
+  eventProducerService: MockEventProducerService
+  requestRepository: RequestRepository
+  anchorService: AnchorService
+}
+
 describe('anchor service', () => {
   jest.setTimeout(10000)
   let ipfsService: IpfsService
   let ceramicService: MockCeramicService
   let connection: Knex
-  const merkleDepthLimit = 3
-  const readyRetryIntervalMS = 1000
-  const streamLimit = Math.pow(2, merkleDepthLimit)
-  const minStreamCount = Math.floor(streamLimit / 2)
+  let injector: Injector<Context>
+  let requestRepository: RequestRepository
+  let anchorService: AnchorService
+  let eventProducerService: MockEventProducerService
 
   beforeAll(async () => {
     const { IpfsServiceImpl } = await import('../ipfs-service.js')
 
     connection = await createDbConnection()
+    injector = createInjector()
+      .provideValue('dbConnection', connection)
+      .provideValue(
+        'config',
+        Object.assign({}, config, {
+          merkleDepthLimit: MERKLE_DEPTH_LIMIT,
+          minStreamCount: MIN_STREAM_COUNT,
+          readyRetryIntervalMS: READY_RETRY_INTERVAL_MS,
+        })
+      )
+      .provideClass('anchorRepository', AnchorRepository)
+      .provideClass('requestRepository', RequestRepository)
+      .provideClass('transactionRepository', TransactionRepository)
+      .provideClass('blockchainService', FakeEthereumBlockchainService)
+      .provideClass('ipfsService', IpfsServiceImpl)
+      .provideClass('ceramicService', MockCeramicService)
+      .provideClass('eventProducerService', MockEventProducerService)
+      .provideClass('anchorService', AnchorService)
 
-    container.registerInstance(
-      'config',
-      Object.assign({}, config, { merkleDepthLimit, minStreamCount, readyRetryIntervalMS })
-    )
-    container.registerInstance('dbConnection', connection)
-    container.registerSingleton('anchorRepository', AnchorRepository)
-    container.registerSingleton('requestRepository', RequestRepository)
-    container.registerSingleton('transactionRepository', TransactionRepository)
-    container.registerSingleton('blockchainService', FakeEthereumBlockchainService)
-    container.registerSingleton('ipfsService', IpfsServiceImpl)
-    ipfsService = container.resolve<IpfsService>('ipfsService')
+    ipfsService = injector.resolve('ipfsService')
     await ipfsService.init()
-    ceramicService = new MockCeramicService(ipfsService)
-    container.register('ceramicService', {
-      useValue: ceramicService,
-    })
-    container.registerSingleton('eventProducerService', MockEventProducerService)
-    container.registerSingleton('anchorService', AnchorService)
+    ceramicService = injector.resolve('ceramicService')
+    requestRepository = injector.resolve('requestRepository')
+    anchorService = injector.resolve('anchorService')
+    eventProducerService = injector.resolve('eventProducerService')
   })
 
   beforeEach(async () => {
     await clearTables(connection)
     mockIpfsClient.reset()
     ceramicService.reset()
-    container.resolve<MockEventProducerService>('eventProducerService').reset()
+    eventProducerService.reset()
   })
 
   afterAll(async () => {
@@ -152,7 +178,7 @@ describe('anchor service', () => {
 
   test('check state on tx fail', async () => {
     const requests: Request[] = []
-    for (let i = 0; i < minStreamCount; i++) {
+    for (let i = 0; i < MIN_STREAM_COUNT; i++) {
       const streamId = await randomStreamID()
       const cid = await ipfsService.storeRecord({})
       const streamCommitId = CommitID.make(streamId, cid)
@@ -169,10 +195,8 @@ describe('anchor service', () => {
       requests.push(request)
     }
 
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
     await requestRepository.createRequests(requests)
 
-    const anchorService = container.resolve<AnchorService>('anchorService')
     await expect(anchorService.anchorRequests()).rejects.toEqual(
       new Error('Failed to send transaction!')
     )
@@ -184,10 +208,7 @@ describe('anchor service', () => {
   })
 
   test('Too few anchor requests', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    const anchorService = container.resolve<AnchorService>('anchorService')
-
-    const numRequests = minStreamCount - 1
+    const numRequests = MIN_STREAM_COUNT - 1
     // Create pending requests
     for (let i = 0; i < numRequests; i++) {
       const streamId = await randomStreamID()
@@ -208,9 +229,6 @@ describe('anchor service', () => {
   })
 
   test('create anchor records', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    const anchorService = container.resolve<AnchorService>('anchorService')
-
     // Create pending requests
     const requests: Request[] = []
     const numRequests = 4
@@ -239,7 +257,7 @@ describe('anchor service', () => {
     expect(anchors.length).toEqual(candidates.length)
 
     expect(mockIpfsClient.pubsub.publish.mock.calls.length).toEqual(anchors.length)
-    const config = container.resolve<Config>('config')
+    const config = injector.resolve('config')
 
     for (const i in anchors) {
       const anchor = anchors[i]
@@ -261,9 +279,6 @@ describe('anchor service', () => {
   })
 
   test('Too many anchor requests', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    const anchorService = container.resolve<AnchorService>('anchorService')
-
     const anchorLimit = 4
     const numRequests = anchorLimit * 2 // twice as many requests as can fit
 
@@ -304,9 +319,6 @@ describe('anchor service', () => {
   })
 
   test('Anchors in request order', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    const anchorService = container.resolve<AnchorService>('anchorService')
-
     const anchorLimit = 4
     const numStreams = anchorLimit * 2 // twice as many streams as can fit in a batch
 
@@ -404,9 +416,6 @@ describe('anchor service', () => {
   }, 30000)
 
   test('Unlimited anchor requests', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    const anchorService = container.resolve<AnchorService>('anchorService')
-
     const anchorLimit = 0 // 0 means infinity
     const numRequests = 5
 
@@ -434,9 +443,6 @@ describe('anchor service', () => {
   })
 
   test('filters invalid requests', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    const anchorService = container.resolve<AnchorService>('anchorService')
-
     const makeRequest = async function (valid: boolean) {
       const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
@@ -475,9 +481,6 @@ describe('anchor service', () => {
   })
 
   test('sends multiquery for missing commits', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    const anchorService = container.resolve<AnchorService>('anchorService')
-
     const makeRequest = async function (streamId: StreamID, includeInBaseStream: boolean) {
       const request = await createRequest(
         streamId.toString(),
@@ -548,9 +551,6 @@ describe('anchor service', () => {
   })
 
   test('filters anchors that fail to publish AnchorCommit', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    const anchorService = container.resolve<AnchorService>('anchorService')
-
     // Create pending requests
     const numRequests = 4
     for (let i = 0; i < numRequests; i++) {
@@ -600,8 +600,8 @@ describe('anchor service', () => {
   })
 
   test('will not throw if no anchor commits were created', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    const anchorService = container.resolve<AnchorService>('anchorService')
+    const requestRepository = injector.resolve('requestRepository')
+    const anchorService = injector.resolve('anchorService')
 
     const anchorLimit = 2
     const numRequests = 2
@@ -636,8 +636,8 @@ describe('anchor service', () => {
   })
 
   test('Does not create anchor commits if stream has already been anchored for those requests', async () => {
-    const requestRepository = container.resolve<RequestRepository>('requestRepository')
-    const anchorService = container.resolve<AnchorService>('anchorService')
+    const requestRepository = injector.resolve<RequestRepository>('requestRepository')
+    const anchorService = injector.resolve<AnchorService>('anchorService')
 
     const anchorLimit = 0 // 0 means infinity
     const numRequests = 5
@@ -676,9 +676,6 @@ describe('anchor service', () => {
 
   describe('Picks proper commit to anchor', () => {
     test('Anchor more recent of two commits', async () => {
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
-      const anchorService = container.resolve<AnchorService>('anchorService')
-
       // 1 stream with 2 pending requests, one request is newer and inclusive of the other.
       const streamId = await randomStreamID()
       const request0 = await createRequest(streamId.toString(), ipfsService, requestRepository)
@@ -719,9 +716,6 @@ describe('anchor service', () => {
     })
 
     test('Anchors commit more recent than any requests', async () => {
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
-      const anchorService = container.resolve<AnchorService>('anchorService')
-
       const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
@@ -753,9 +747,6 @@ describe('anchor service', () => {
     })
 
     test('No anchor performed if no valid requests', async () => {
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
-      const anchorService = container.resolve<AnchorService>('anchorService')
-
       const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
@@ -773,9 +764,6 @@ describe('anchor service', () => {
     })
 
     test('Request succeeds without anchor for already anchored CIDs', async () => {
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
-      const anchorService = container.resolve<AnchorService>('anchorService')
-
       const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
@@ -798,9 +786,6 @@ describe('anchor service', () => {
     })
 
     test('Request succeeds without anchor if subsequent CIDs are already anchored', async () => {
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
-      const anchorService = container.resolve<AnchorService>('anchorService')
-
       const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       await requestRepository.createOrUpdate(request)
@@ -862,9 +847,6 @@ describe('anchor service', () => {
     })
 
     test('Request succeeds for anchor requests that have been anchored but not updated to COMPLETE', async () => {
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
-      const anchorService = container.resolve<AnchorService>('anchorService')
-
       const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       await requestRepository.createOrUpdate(request)
@@ -890,9 +872,6 @@ describe('anchor service', () => {
 
   describe('Request pinning', () => {
     async function anchorRequests(numRequests: number): Promise<Request[]> {
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
-      const anchorService = container.resolve<AnchorService>('anchorService')
-
       // Create Requests
       const streamIds = Array.from({ length: numRequests }).map(() => randomStreamID())
       const requests = await Promise.all(
@@ -920,8 +899,6 @@ describe('anchor service', () => {
     }
 
     test('Successful anchor pins request', async () => {
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
-
       const [request0] = await anchorRequests(1)
 
       // Request should be marked as completed and pinned
@@ -935,9 +912,6 @@ describe('anchor service', () => {
     })
 
     test('Request garbage collection', async () => {
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
-      const anchorService = container.resolve<AnchorService>('anchorService')
-
       const requestCIDs = (await anchorRequests(3)).map((request) => request.cid)
       const requests = await Promise.all(
         requestCIDs.map((cid) => requestRepository.findByCid(toCID(cid)))
@@ -1001,19 +975,13 @@ describe('anchor service', () => {
         ),
       ].flat()
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const requestRepositoryUpdateSpy = jest.spyOn(requestRepository, 'updateRequests')
 
       try {
         await requestRepository.createRequests(originalRequests)
-
-        const anchorService = container.resolve<AnchorService>('anchorService')
         await anchorService.emitAnchorEventIfReady()
 
         expect(requestRepositoryUpdateSpy).toHaveBeenCalledTimes(0)
-
-        const eventProducerService =
-          container.resolve<MockEventProducerService>('eventProducerService')
         expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(0)
       } finally {
         requestRepositoryUpdateSpy.mockRestore()
@@ -1021,7 +989,7 @@ describe('anchor service', () => {
     })
 
     test('Emits an event if ready requests exist but they have timed out', async () => {
-      const config = container.resolve<Config>('config')
+      const config = injector.resolve('config')
       const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
       // Ready requests that have timed out (created too long ago)
       const originalRequests = generateRequests(
@@ -1034,30 +1002,21 @@ describe('anchor service', () => {
         0
       )
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       const requestRepositoryUpdateSpy = jest.spyOn(requestRepository, 'updateRequests')
 
-      try {
-        await requestRepository.createRequests(originalRequests)
+      await requestRepository.createRequests(originalRequests)
 
-        const anchorService = container.resolve<AnchorService>('anchorService')
-        await anchorService.emitAnchorEventIfReady()
+      await anchorService.emitAnchorEventIfReady()
 
-        expect(requestRepositoryUpdateSpy).toHaveBeenCalledTimes(1)
+      expect(requestRepositoryUpdateSpy).toHaveBeenCalledTimes(1)
 
-        const updatedRequests = await requestRepository.findByStatus(RequestStatus.COMPLETED)
+      const updatedRequests = await requestRepository.findByStatus(RequestStatus.COMPLETED)
 
-        expect(updatedRequests.every(({ updatedAt }) => updatedAt > updatedTooLongAgo)).toEqual(
-          true
-        )
+      expect(updatedRequests.every(({ updatedAt }) => updatedAt > updatedTooLongAgo)).toEqual(true)
 
-        const eventProducerService =
-          container.resolve<MockEventProducerService>('eventProducerService')
-        expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(1)
-        expect(validateUUID(eventProducerService.emitAnchorEvent.mock.calls[0][0])).toEqual(true)
-      } finally {
-        requestRepositoryUpdateSpy.mockRestore()
-      }
+      expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(1)
+      expect(validateUUID(eventProducerService.emitAnchorEvent.mock.calls[0][0])).toEqual(true)
+      requestRepositoryUpdateSpy.mockRestore()
     })
 
     test('does not emit if no requests were updated to ready', async () => {
@@ -1066,17 +1025,11 @@ describe('anchor service', () => {
         {
           status: RequestStatus.PENDING,
         },
-        minStreamCount - 1
+        MIN_STREAM_COUNT - 1
       )
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(originalRequests)
-
-      const anchorService = container.resolve<AnchorService>('anchorService')
       await anchorService.emitAnchorEventIfReady()
-
-      const eventProducerService =
-        container.resolve<MockEventProducerService>('eventProducerService')
       expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(0)
     })
 
@@ -1085,17 +1038,12 @@ describe('anchor service', () => {
         {
           status: RequestStatus.PENDING,
         },
-        streamLimit
+        STREAM_LIMIT
       )
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(originalRequests)
-
-      const anchorService = container.resolve<AnchorService>('anchorService')
       await anchorService.emitAnchorEventIfReady()
 
-      const eventProducerService =
-        container.resolve<MockEventProducerService>('eventProducerService')
       expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(1)
       expect(validateUUID(eventProducerService.emitAnchorEvent.mock.calls[0][0])).toEqual(true)
 
@@ -1110,24 +1058,19 @@ describe('anchor service', () => {
         {
           status: RequestStatus.PENDING,
         },
-        streamLimit
+        STREAM_LIMIT
       )
 
-      const eventProducerService =
-        container.resolve<MockEventProducerService>('eventProducerService')
       eventProducerService.emitAnchorEvent = jest.fn(() => {
         return Promise.reject('test error')
       })
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(originalRequests)
-
-      const anchorService = container.resolve<AnchorService>('anchorService')
       await anchorService.emitAnchorEventIfReady()
     })
 
     test('Does not retry requests that are being updated simultaneously', async () => {
-      const config = container.resolve<Config>('config')
+      const config = injector.resolve('config')
       const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
 
       // Ready requests that have timed out (created too long ago)
@@ -1141,11 +1084,8 @@ describe('anchor service', () => {
         0
       )
 
-      const requestRepository = container.resolve<RequestRepository>('requestRepository')
       await requestRepository.createRequests(requests)
       const createdRequests = await requestRepository.findByStatus(RequestStatus.READY)
-
-      const anchorService = container.resolve<AnchorService>('anchorService')
 
       await Promise.all([
         requestRepository.updateRequests(
@@ -1165,9 +1105,6 @@ describe('anchor service', () => {
 
       const updatedRequests = await requestRepository.findByStatus(RequestStatus.READY)
       expect(updatedRequests.length).toEqual(0)
-
-      const eventProducerService =
-        container.resolve<MockEventProducerService>('eventProducerService')
       expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(0)
     })
   })

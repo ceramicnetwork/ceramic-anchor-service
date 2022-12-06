@@ -33,8 +33,6 @@ export interface CIDHolder {
  * track of which CID should actually be anchored for this stream.
  */
 export class Candidate implements CIDHolder {
-  public readonly streamId: StreamID
-  private readonly _requests: Request[] = []
   private readonly _earliestRequestDate: Date
 
   private _cid: CID = null
@@ -45,10 +43,7 @@ export class Candidate implements CIDHolder {
   private _newestAcceptedRequest: Request
   private _alreadyAnchored = false
 
-  constructor(streamId: StreamID, requests: Request[]) {
-    this.streamId = streamId
-    this._requests = requests
-
+  constructor(readonly streamId: StreamID, readonly requests: Request[]) {
     let minDate = requests[0].createdAt
     for (const req of requests.slice(1)) {
       if (req.createdAt < minDate) {
@@ -58,37 +53,30 @@ export class Candidate implements CIDHolder {
     this._earliestRequestDate = minDate
   }
 
-  public get cid(): CID {
+  get cid(): CID {
     return this._cid
   }
 
-  public get metadata(): StreamMetadata {
+  get metadata(): StreamMetadata {
     return this._metadata
   }
 
-  public get earliestRequestDate(): Date {
+  get earliestRequestDate(): Date {
     return this._earliestRequestDate
-  }
-
-  /**
-   * All requests being considered in this batch that are on this Stream
-   */
-  public get requests(): Request[] {
-    return this._requests
   }
 
   /**
    * All requests that are included in the current version of the Stream. Only available after
    * calling 'setTipToAnchor'.
    */
-  public get acceptedRequests(): Request[] {
+  get acceptedRequests(): Request[] {
     return this._acceptedRequests
   }
 
   /**
    * All requests that failed to be loaded from the Ceramic node.
    */
-  public get failedRequests(): Request[] {
+  get failedRequests(): Request[] {
     return this._failedRequests
   }
 
@@ -96,7 +84,7 @@ export class Candidate implements CIDHolder {
    * All requests that were rejected by Ceramic's conflict resolution. Only available after
    * calling 'setTipToAnchor'.
    */
-  public get rejectedRequests(): Request[] {
+  get rejectedRequests(): Request[] {
     return this._rejectedRequests
   }
 
@@ -108,7 +96,7 @@ export class Candidate implements CIDHolder {
    * it the Request whose CID is latest in the log of all the Requests that were successfully
    * anchored for this stream.
    */
-  public get newestAcceptedRequest(): Request {
+  get newestAcceptedRequest(): Request {
     return this._newestAcceptedRequest
   }
 
@@ -117,7 +105,7 @@ export class Candidate implements CIDHolder {
    * anchoring process (most likely by another anchoring service after the creation of the original
    * Request(s)).
    */
-  public get alreadyAnchored(): boolean {
+  get alreadyAnchored(): boolean {
     return this._alreadyAnchored
   }
 
@@ -134,12 +122,12 @@ export class Candidate implements CIDHolder {
    * fail all pending requests on this Stream.
    */
   failAllRequests(): void {
-    this._failedRequests = this._requests
+    this._failedRequests = this.requests
     this._acceptedRequests = []
   }
 
   allRequestsFailed(): boolean {
-    return this._failedRequests.length == this._requests.length
+    return this._failedRequests.length == this.requests.length
   }
 
   shouldAnchor(): boolean {
@@ -167,14 +155,14 @@ export class Candidate implements CIDHolder {
 
     // Check the log of the Stream that was loaded from Ceramic to see which of the pending requests
     // are for CIDs that are included in the current version of the Stream's log.
-    const includedRequests = this._requests.filter((req) => {
+    const includedRequests = this.requests.filter((req) => {
       return stream.state.log.find((logEntry) => {
         return logEntry.cid.toString() == req.cid
       })
     })
     // Any requests whose CIDs don't show up in the Stream's log must have been rejected by Ceramic's
     // conflict resolution.
-    const rejectedRequests = this._requests.filter((req) => {
+    const rejectedRequests = this.requests.filter((req) => {
       return !includedRequests.includes(req)
     })
 
@@ -208,11 +196,7 @@ export class Candidate implements CIDHolder {
  * Implements IPFS merge CIDs
  */
 export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
-  private ipfsService: IpfsService
-
-  constructor(ipfsService: IpfsService) {
-    this.ipfsService = ipfsService
-  }
+  constructor(private readonly ipfsService: IpfsService) {}
 
   async merge(
     left: Node<CIDHolder>,

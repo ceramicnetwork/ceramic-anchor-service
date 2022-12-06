@@ -88,6 +88,8 @@ export class MockIpfsService implements IpfsService {
 }
 
 export class MockCeramicService implements CeramicService {
+  static inject = ['ipfsService'] as const
+
   constructor(
     private _ipfsService: IpfsService,
     private _streams: Record<string, any> = {},
@@ -131,7 +133,7 @@ export class MockCeramicService implements CeramicService {
 }
 
 export class MockEventProducerService implements EventProducerService {
-  public emitAnchorEvent
+  emitAnchorEvent
 
   constructor() {
     this.reset()

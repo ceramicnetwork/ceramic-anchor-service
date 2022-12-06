@@ -1,9 +1,7 @@
 import { CeramicClient } from '@ceramicnetwork/http-client'
 import { CeramicApi, MultiQuery, Stream, SyncOptions } from '@ceramicnetwork/common'
 
-import { Config } from 'node-config-ts'
-import { inject, singleton } from 'tsyringe'
-import { IpfsService } from './ipfs-service.js'
+import type { Config } from 'node-config-ts'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import { ServiceMetrics as Metrics } from '../service-metrics.js'
 import { METRIC_NAMES } from '../settings.js'
@@ -24,17 +22,15 @@ const MULTIQUERY_SERVER_TIMEOUT = 1000 * 60 // 1 minute
 const MULTIQUERY_CLIENT_TIMEOUT = 1000 * 70 // 1 minute and 10 seconds
 const PIN_TIMEOUT = 1000 * 60 * 2 // 2 minutes
 
-@singleton()
 export class CeramicServiceImpl implements CeramicService {
   private readonly _client: CeramicApi
+
+  static inject = ['config'] as const
 
   /**
    * Sets dependencies
    */
-  constructor(
-    @inject('config') private config?: Config,
-    @inject('ipfsService') private ipfsService?: IpfsService
-  ) {
+  constructor(private config: Config) {
     this._client = new CeramicClient(config.ceramic.apiUrl)
   }
 

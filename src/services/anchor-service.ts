@@ -20,7 +20,6 @@ import { CeramicService } from './ceramic-service.js'
 import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '../service-metrics.js'
 import { METRIC_NAMES } from '../settings.js'
 import { BlockchainService } from './blockchain/blockchain-service.js'
-import { inject, singleton } from 'tsyringe'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 
 import {
@@ -32,6 +31,8 @@ import {
 } from '../merkle/merkle-objects.js'
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
+
+const CONTRACT_TX_TYPE = 'f(bytes32)'
 
 type RequestGroups = {
   alreadyAnchoredRequests: Request[]
@@ -102,22 +103,33 @@ const logAnchorSummary = async (
 /**
  * Anchors CIDs to blockchain
  */
-@singleton()
 export class AnchorService {
   private readonly ipfsMerge: IpfsMerge
   private readonly ipfsCompare: IpfsLeafCompare
   private readonly bloomMetadata: BloomMetadata
 
+  static inject = [
+    'blockchainService',
+    'config',
+    'ipfsService',
+    'requestRepository',
+    'transactionRepository',
+    'ceramicService',
+    'anchorRepository',
+    'dbConnection',
+    'eventProducerService',
+  ] as const
+
   constructor(
-    @inject('blockchainService') private blockchainService?: BlockchainService,
-    @inject('config') private config?: Config,
-    @inject('ipfsService') private ipfsService?: IpfsService,
-    @inject('requestRepository') private requestRepository?: RequestRepository,
-    @inject('transactionRepository') private transactionRepository?: TransactionRepository,
-    @inject('ceramicService') private ceramicService?: CeramicService,
-    @inject('anchorRepository') private anchorRepository?: AnchorRepository,
-    @inject('dbConnection') private connection?: Knex,
-    @inject('eventProducerService') private eventProducerService?: EventProducerService
+    private readonly blockchainService: BlockchainService,
+    private readonly config: Config,
+    private readonly ipfsService: IpfsService,
+    private readonly requestRepository: RequestRepository,
+    private readonly transactionRepository: TransactionRepository,
+    private readonly ceramicService: CeramicService,
+    private readonly anchorRepository: AnchorRepository,
+    private readonly connection: Knex,
+    private readonly eventProducerService: EventProducerService
   ) {
     this.ipfsMerge = new IpfsMerge(this.ipfsService)
     this.ipfsCompare = new IpfsLeafCompare()
@@ -128,7 +140,7 @@ export class AnchorService {
    * Creates anchors for pending client requests
    */
   // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
-  public async anchorRequests(triggeredByAnchorEvent = false): Promise<void> {
+  async anchorRequests(triggeredByAnchorEvent = false): Promise<void> {
     const readyRequests = await this.requestRepository.findByStatus(RS.READY)
 
     if (!triggeredByAnchorEvent && readyRequests.length === 0) {
@@ -145,7 +157,7 @@ export class AnchorService {
   /**
    * Creates anchors for client requests that have been marked as READY
    */
-  public async anchorReadyRequests(): Promise<void> {
+  async anchorReadyRequests(): Promise<void> {
     // TODO: Remove this after restart loop removed as part of switching to go-ipfs
     // Skip sleep for unit tests
     if (process.env.NODE_ENV != 'test') {
@@ -162,7 +174,7 @@ export class AnchorService {
     await Utils.delay(5000)
   }
 
-  public async garbageCollectPinnedStreams(): Promise<void> {
+  async garbageCollectPinnedStreams(): Promise<void> {
     const requests: Request[] = await this.requestRepository.findRequestsToGarbageCollect()
     await this._garbageCollect(requests)
   }
@@ -303,7 +315,8 @@ export class AnchorService {
    * An anchor event indicates that a batch of requests are ready to be anchored. An anchor worker will retrieve these READY requests,
    * mark them as PROCESSING, and perform an anchor.
    */
-  public async emitAnchorEventIfReady(): Promise<void> {
+  async emitAnchorEventIfReady(): Promise<void> {
+    // FIXME Use countByStatus
     const readyRequests = await this.requestRepository.findByStatus(RS.READY)
 
     if (readyRequests.length > 0) {
@@ -382,7 +395,7 @@ export class AnchorService {
       txHash: txHashCid,
     } as any
 
-    if (this.config.useSmartContractAnchors) ipfsAnchorProof.version = 1
+    if (this.config.useSmartContractAnchors) ipfsAnchorProof.txType = CONTRACT_TX_TYPE
 
     logger.debug('Anchor proof: ' + JSON.stringify(ipfsAnchorProof))
     const ipfsProofCid = await this.ipfsService.storeRecord(ipfsAnchorProof)

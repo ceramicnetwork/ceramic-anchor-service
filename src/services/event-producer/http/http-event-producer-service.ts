@@ -1,17 +1,17 @@
 import { fetchJson } from '@ceramicnetwork/common'
 import 'reflect-metadata'
-import { Config } from 'node-config-ts'
-import { inject, singleton } from 'tsyringe'
-import { EventProducerService } from '../event-producer-service.js'
+import type { Config } from 'node-config-ts'
+import type { EventProducerService } from '../event-producer-service.js'
 
-@singleton()
 export class HTTPEventProducerService implements EventProducerService {
-  constructor(@inject('config') private config?: Config) {}
+  static inject = ['config'] as const
+
+  constructor(private readonly config: Config) {}
 
   /**
    * Emits an anchor event by sending a message to the configured HTTP anchorLauncherUrl
    */
-  public async emitAnchorEvent(body: string): Promise<void> {
+  async emitAnchorEvent(body: string): Promise<void> {
     const payload = {
       type: 'anchor',
       data: body,
@@ -25,5 +25,5 @@ export class HTTPEventProducerService implements EventProducerService {
   /**
    * Destroy underlying resources
    */
-  public destroy(): void {}
+  destroy(): void {}
 }
