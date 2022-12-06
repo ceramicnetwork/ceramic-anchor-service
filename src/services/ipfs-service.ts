@@ -11,7 +11,7 @@ import { Utils } from '../utils.js'
 import * as http from 'http'
 import * as https from 'https'
 import { PubsubMessage } from '@ceramicnetwork/core'
-import type { IpfsService } from './ipfs-service.type.js'
+import type { IIpfsService } from './ipfs-service.type.js'
 
 const { serialize, MsgType } = PubsubMessage
 
@@ -20,7 +20,7 @@ const MAX_CACHE_ENTRIES = 100
 const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
 const PUBSUB_DELAY = 100
 
-const ipfsHttpAgent = (ipfsEndpoint: string) => {
+function ipfsHttpAgent(ipfsEndpoint: string): http.Agent {
   const agentOptions = {
     keepAlive: false,
     maxSockets: Infinity,
@@ -32,32 +32,33 @@ const ipfsHttpAgent = (ipfsEndpoint: string) => {
   }
 }
 
-export class IpfsServiceImpl implements IpfsService {
+export class IpfsService implements IIpfsService {
   private readonly cache: LRUCache<string, any>
-  private _ipfs: IPFS
+  private readonly pubsubTopic: string
+  private readonly ipfs: IPFS
 
   static inject = ['config'] as const
 
-  constructor(private readonly config: Config) {
+  constructor(config: Config) {
     this.cache = new LRUCache<string, any>({ max: MAX_CACHE_ENTRIES })
+    this.ipfs = createIpfsClient({
+      url: config.ipfsConfig.url,
+      timeout: config.ipfsConfig.timeout,
+      ipld: {
+        codecs: [dagJose],
+      },
+      agent: ipfsHttpAgent(config.ipfsConfig.url),
+    })
+    this.pubsubTopic = config.ipfsConfig.pubsubTopic
   }
 
   /**
    * Initialize the service
    */
   async init(): Promise<void> {
-    this._ipfs = createIpfsClient({
-      url: this.config.ipfsConfig.url,
-      timeout: this.config.ipfsConfig.timeout,
-      ipld: {
-        codecs: [dagJose],
-      },
-      agent: ipfsHttpAgent(this.config.ipfsConfig.url),
-    })
-
     // We have to subscribe to pubsub to keep ipfs connections alive.
     // TODO Remove this when the underlying ipfs issue is fixed
-    await this._ipfs.pubsub.subscribe(this.config.ipfsConfig.pubsubTopic, () => {
+    await this.ipfs.pubsub.subscribe(this.pubsubTopic, () => {
       /* do nothing */
     })
   }
@@ -74,7 +75,7 @@ export class IpfsServiceImpl implements IpfsService {
         if (value != null) {
           return value
         }
-        const record = await this._ipfs.dag.get(toCID(cid), {
+        const record = await this.ipfs.dag.get(toCID(cid), {
           timeout: DEFAULT_GET_TIMEOUT,
         })
         logger.debug('Successfully retrieved ' + cid)
@@ -97,7 +98,7 @@ export class IpfsServiceImpl implements IpfsService {
   async storeRecord(record: Record<string, unknown>): Promise<CID> {
     let timeout: any
 
-    const putPromise = this._ipfs.dag.put(record).finally(() => {
+    const putPromise = this.ipfs.dag.put(record).finally(() => {
       clearTimeout(timeout)
     })
 
@@ -127,7 +128,7 @@ export class IpfsServiceImpl implements IpfsService {
       tip: anchorCid,
     })
 
-    await this._ipfs.pubsub.publish(this.config.ipfsConfig.pubsubTopic, serializedMessage)
+    await this.ipfs.pubsub.publish(this.pubsubTopic, serializedMessage)
 
     // wait so that we don't flood the pubsub
     await Utils.delay(PUBSUB_DELAY)

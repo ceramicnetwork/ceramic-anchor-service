@@ -3,7 +3,7 @@ import { create } from 'multiformats/hashes/digest'
 
 import { CeramicService } from '../services/ceramic-service.js'
 import { EventProducerService } from '../services/event-producer/event-producer-service.js'
-import type { IpfsService } from '../services/ipfs-service.type.js'
+import type { IIpfsService } from '../services/ipfs-service.type.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
 import { randomBytes } from '@stablelib/random'
@@ -59,13 +59,13 @@ export class MockIpfsClient {
   }
 }
 
-export class MockIpfsService implements IpfsService {
+export class MockIpfsService implements IIpfsService {
   private _streams: Record<string, any> = {}
 
   constructor() {}
 
   async init(): Promise<void> {
-    return null
+    // Do Nothing
   }
 
   async retrieveRecord(cid: CID | string): Promise<any> {
@@ -91,7 +91,7 @@ export class MockCeramicService implements CeramicService {
   static inject = ['ipfsService'] as const
 
   constructor(
-    private _ipfsService: IpfsService,
+    private _ipfsService: IIpfsService,
     private _streams: Record<string, any> = {},
     private _cidIndex = 0
   ) {}
