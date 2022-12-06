@@ -6,7 +6,7 @@ import { CompareFunction, MergeFunction, MetadataFunction, Node, TreeMetadata } 
 import { Request } from '../models/request.js'
 
 import { logger } from '../logger/index.js'
-import type { IpfsService } from '../services/ipfs-service.type.js'
+import type { IIpfsService } from '../services/ipfs-service.type.js'
 
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { StreamID } from '@ceramicnetwork/streamid'
@@ -196,7 +196,7 @@ export class Candidate implements CIDHolder {
  * Implements IPFS merge CIDs
  */
 export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
-  constructor(private readonly ipfsService: IpfsService) {}
+  constructor(private readonly ipfsService: IIpfsService) {}
 
   async merge(
     left: Node<CIDHolder>,

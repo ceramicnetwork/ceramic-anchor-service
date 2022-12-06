@@ -14,7 +14,7 @@ import type { AnchorRepository } from '../repositories/anchor-repository.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
 import type { TransactionRepository } from '../repositories/transaction-repository.js'
 
-import type { IpfsService } from './ipfs-service.type.js'
+import type { IIpfsService } from './ipfs-service.type.js'
 import type { EventProducerService } from './event-producer/event-producer-service.js'
 import type { CeramicService } from './ceramic-service.js'
 import {
@@ -124,7 +124,7 @@ export class AnchorService {
   constructor(
     private readonly blockchainService: BlockchainService,
     config: Config,
-    private readonly ipfsService: IpfsService,
+    private readonly ipfsService: IIpfsService,
     private readonly requestRepository: RequestRepository,
     private readonly transactionRepository: TransactionRepository,
     private readonly ceramicService: CeramicService,

@@ -2,7 +2,7 @@ import type { AnchorCommit } from '@ceramicnetwork/common'
 import type { StreamID } from '@ceramicnetwork/streamid'
 import type { CID } from 'multiformats/cid'
 
-export interface IpfsService {
+export interface IIpfsService {
   /**
    * Initialize the service
    */
