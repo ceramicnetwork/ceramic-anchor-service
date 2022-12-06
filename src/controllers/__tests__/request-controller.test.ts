@@ -142,7 +142,7 @@ describe('createRequest', () => {
       // expect(createdRequest.timestamp.valueOf()).toEqual(timestamp.valueOf())
       // expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
       // expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      // expect(createdRequest.origin).toBeNull()
+      expect(createdRequest.origin).toBeNull()
     })
 
     test('timestamp is empty', async () => {
@@ -170,7 +170,7 @@ describe('createRequest', () => {
       // expect(createdRequest.timestamp.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
       // expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
       // expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      // expect(createdRequest.origin).toBeNull()
+      expect(createdRequest.origin).toBeNull()
     })
   })
   test.todo('existing request')
