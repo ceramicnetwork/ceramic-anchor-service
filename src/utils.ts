@@ -4,6 +4,12 @@ import { create as createMultihash } from 'multiformats/hashes/digest'
 const KECCAK_256_CODE = 0x1b
 const ETH_TX_CODE = 0x93
 
+export class DelayAbortedError extends Error {
+  constructor() {
+    super(`Delay aborted`)
+  }
+}
+
 export class Utils {
   /**
    * "sleeps" for the given number of milliseconds
@@ -14,7 +20,7 @@ export class Utils {
       if (abortSignal) {
         const done = () => {
           clearTimeout(timeout)
-          reject(new Error(`Delay aborted`))
+          reject(new DelayAbortedError())
         }
         if (abortSignal.aborted) done()
         abortSignal.addEventListener('abort', done)
