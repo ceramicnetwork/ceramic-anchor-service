@@ -171,9 +171,15 @@ const findRequestsToAnchorForStreams = (
     .limit(POSTGRES_PARAMETERIZED_QUERY_LIMIT)
 
 export class RequestRepository {
+  private readonly maxAnchoringDelayMS: number
+  private readonly readyRetryIntervalMS: number
+
   static inject = ['config', 'dbConnection'] as const
 
-  constructor(private config: Config, private connection: Knex) {}
+  constructor(config: Config, private connection: Knex) {
+    this.maxAnchoringDelayMS = config.maxAnchoringDelayMS
+    this.readyRetryIntervalMS = config.readyRetryIntervalMS
+  }
 
   /**
    * Create/updates client request
@@ -362,7 +368,7 @@ export class RequestRepository {
   ): Promise<Request[]> {
     const { connection = this.connection } = options
     const now = new Date()
-    const anchoringDeadline = new Date(now.getTime() - this.config.maxAnchoringDelayMS)
+    const anchoringDeadline = new Date(now.getTime() - this.maxAnchoringDelayMS)
 
     return connection
       .transaction(
@@ -463,7 +469,7 @@ export class RequestRepository {
       .transaction(
         async (trx) => {
           const readyRequests = await this.findByStatus(RequestStatus.READY, { connection: trx })
-          const readyDeadline = Date.now() - this.config.readyRetryIntervalMS
+          const readyDeadline = Date.now() - this.readyRetryIntervalMS
 
           if (readyRequests.length === 0) {
             return 0
