@@ -12,6 +12,7 @@ import * as http from 'http'
 import * as https from 'https'
 import { PubsubMessage } from '@ceramicnetwork/core'
 import type { IIpfsService } from './ipfs-service.type.js'
+import { timeAbortable } from './time-abortable.util'
 
 const { serialize, MsgType } = PubsubMessage
 
@@ -41,6 +42,10 @@ function buildIpfsClient(config: Config): IPFS {
     },
     agent: buildHttpAgent(config.ipfsConfig.url),
   })
+}
+
+export type AbortOptions = {
+  signal?: AbortSignal
 }
 
 export class IpfsService implements IIpfsService {
@@ -102,26 +107,12 @@ export class IpfsService implements IIpfsService {
   }
 
   /**
-   * Sets the record and returns its CID
-   * @param record - Record value
+   * Sets the record and returns its CID.
    */
-  async storeRecord(record: Record<string, unknown>): Promise<CID> {
-    let timeout: any
-
-    const putPromise = this.ipfs.dag.put(record).finally(() => {
-      clearTimeout(timeout)
+  storeRecord(record: Record<string, unknown>, options: AbortOptions = {}): Promise<CID> {
+    return timeAbortable(this.ipfsPutTimeout, options.signal, (signal) => {
+      return this.ipfs.dag.put(record, { signal: signal })
     })
-
-    const timeoutPromise = new Promise((resolve) => {
-      timeout = setTimeout(resolve, this.ipfsPutTimeout)
-    })
-
-    return await Promise.race([
-      putPromise,
-      timeoutPromise.then(() => {
-        throw new Error(`Timed out storing record in IPFS`)
-      }),
-    ])
   }
 
   /**
