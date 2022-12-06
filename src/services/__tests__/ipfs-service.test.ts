@@ -1,9 +1,10 @@
 import { jest, describe, test, expect } from '@jest/globals'
 import type { Config } from 'node-config-ts'
 import { IpfsService } from '../ipfs-service.js'
-import { delay, MockIpfsClient } from '../../__tests__/test-utils.js'
+import { MockIpfsClient } from '../../__tests__/test-utils.js'
 import type { IPFS } from 'ipfs-core-types'
 import type { AbortOptions } from '../abort-options.type.js'
+import { Utils } from '../../utils.js'
 
 const FAUX_CONFIG = {
   ipfsConfig: {
@@ -27,7 +28,7 @@ describe('storeRecord', () => {
     const service = new IpfsService(FAUX_CONFIG, mockIpfsClient as unknown as IPFS, ipfsPutTimeout)
     const dagPutSpy = jest.spyOn(mockIpfsClient.dag, 'put')
     dagPutSpy.mockImplementation(async (record: any, options: AbortOptions) => {
-      await delay(ipfsPutTimeout * 2, options.signal)
+      await Utils.delay(ipfsPutTimeout * 2, options.signal)
       throw new Error(`Original IPFS error`)
     })
     await expect(service.storeRecord(RECORD)).rejects.toThrow(/Timed out storing record in IPFS/)

@@ -204,17 +204,3 @@ export function generateRequests(
 export function times(n: number): Array<number> {
   return Array.from({ length: n }).map((_, i) => i)
 }
-
-export function delay(ms: number, abortSignal?: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(resolve, ms)
-    if (abortSignal) {
-      const done = () => {
-        clearTimeout(timeout)
-        reject(new Error(`Delay aborted`))
-      }
-      if (abortSignal.aborted) done()
-      abortSignal.addEventListener('abort', done)
-    }
-  })
-}
