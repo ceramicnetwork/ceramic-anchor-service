@@ -6,7 +6,7 @@ import { CompareFunction, MergeFunction, MetadataFunction, Node, TreeMetadata } 
 import { Request } from '../models/request.js'
 
 import { logger } from '../logger/index.js'
-import { IpfsService } from '../services/ipfs-service.js'
+import type { IpfsService } from '../services/ipfs-service.type.js'
 
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { StreamID } from '@ceramicnetwork/streamid'

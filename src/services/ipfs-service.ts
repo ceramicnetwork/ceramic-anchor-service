@@ -11,38 +11,14 @@ import { Utils } from '../utils.js'
 import * as http from 'http'
 import * as https from 'https'
 import { PubsubMessage } from '@ceramicnetwork/core'
+import type { IpfsService } from './ipfs-service.type.js'
+
 const { serialize, MsgType } = PubsubMessage
 
 const DEFAULT_GET_TIMEOUT = 30000 // 30 seconds
 const MAX_CACHE_ENTRIES = 100
 const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
 const PUBSUB_DELAY = 100
-
-export interface IpfsService {
-  /**
-   * Initialize the service
-   */
-  init(): Promise<void>
-
-  /**
-   * Gets the record by its CID value
-   * @param cid - CID value
-   */
-  retrieveRecord(cid: CID | string): Promise<any>
-
-  /**
-   * Sets the record and returns its CID
-   * @param record - Record value
-   */
-  storeRecord(record: any): Promise<CID>
-
-  /**
-   * Stores the anchor commit to ipfs and publishes an update pubsub message to the Ceramic pubsub topic
-   * @param anchorCommit - anchor commit
-   * @param streamId
-   */
-  publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID>
-}
 
 const ipfsHttpAgent = (ipfsEndpoint: string) => {
   const agentOptions = {
@@ -57,12 +33,14 @@ const ipfsHttpAgent = (ipfsEndpoint: string) => {
 }
 
 export class IpfsServiceImpl implements IpfsService {
+  private readonly cache: LRUCache<string, any>
   private _ipfs: IPFS
-  private _cache: LRUCache<string, any>
 
   static inject = ['config'] as const
 
-  constructor(private readonly config: Config) {}
+  constructor(private readonly config: Config) {
+    this.cache = new LRUCache<string, any>({ max: MAX_CACHE_ENTRIES })
+  }
 
   /**
    * Initialize the service
@@ -82,8 +60,6 @@ export class IpfsServiceImpl implements IpfsService {
     await this._ipfs.pubsub.subscribe(this.config.ipfsConfig.pubsubTopic, () => {
       /* do nothing */
     })
-
-    this._cache = new LRUCache<string, any>({ max: MAX_CACHE_ENTRIES })
   }
 
   /**
@@ -94,7 +70,7 @@ export class IpfsServiceImpl implements IpfsService {
     let retryTimes = 2
     while (retryTimes > 0) {
       try {
-        let value = this._cache.get(cid.toString())
+        let value = this.cache.get(cid.toString())
         if (value != null) {
           return value
         }
@@ -104,7 +80,7 @@ export class IpfsServiceImpl implements IpfsService {
         logger.debug('Successfully retrieved ' + cid)
 
         value = record.value
-        this._cache.set(cid.toString(), value)
+        this.cache.set(cid.toString(), value)
         return value
       } catch (e) {
         logger.err('Cannot retrieve IPFS record for CID ' + cid.toString())
@@ -145,12 +121,11 @@ export class IpfsServiceImpl implements IpfsService {
   async publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID> {
     const anchorCid = await this.storeRecord(anchorCommit as any)
 
-    const updateMessage = {
+    const serializedMessage = serialize({
       typ: MsgType.UPDATE,
       stream: streamId,
       tip: anchorCid,
-    }
-    const serializedMessage = serialize(updateMessage as any)
+    })
 
     await this._ipfs.pubsub.publish(this.config.ipfsConfig.pubsubTopic, serializedMessage)
 

@@ -3,7 +3,7 @@ import { create } from 'multiformats/hashes/digest'
 
 import { CeramicService } from '../services/ceramic-service.js'
 import { EventProducerService } from '../services/event-producer/event-producer-service.js'
-import { IpfsService } from '../services/ipfs-service.js'
+import type { IpfsService } from '../services/ipfs-service.type.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
 import { randomBytes } from '@stablelib/random'
