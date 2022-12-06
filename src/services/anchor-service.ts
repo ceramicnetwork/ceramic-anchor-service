@@ -363,8 +363,6 @@ export class AnchorService {
       // An event will emit the next time this is run and the ready requests have expired (in READY_TIMEOUT)
       logger.err(`Error when emitting an anchor event: ${err}`)
     })
-
-    return
   }
 
   /**
