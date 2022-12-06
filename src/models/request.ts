@@ -31,6 +31,20 @@ export class Request {
   timestamp: Date
   origin?: string
 
+  constructor(params: Partial<Request> = {}) {
+    // TODO Proper input types
+    this.id = params.id
+    this.status = params.status
+    this.cid = params.cid
+    this.streamId = params.streamId
+    this.message = params.message
+    this.pinned = params.pinned
+    this.createdAt = params.createdAt
+    this.updatedAt = params.updatedAt
+    this.timestamp = params.timestamp
+    this.origin = params.origin
+  }
+
   toDB(): IDBRequest {
     return {
       id: this.id,

@@ -6,7 +6,11 @@ import { logEvent } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
-import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '@ceramicnetwork/observability'
+import {
+  ServiceMetrics as Metrics,
+  TimeableMetric,
+  SinceField,
+} from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
@@ -184,7 +188,7 @@ export class RequestRepository {
       updatedAt: created.updatedAt.getTime(),
     })
 
-    return created
+    return new Request(created)
   }
 
   /**
@@ -196,7 +200,7 @@ export class RequestRepository {
   async createRequests(requests: Array<Request>, options: Options = {}): Promise<void> {
     const { connection = this.connection } = options
 
-    await connection.table(TABLE_NAME).insert(requests)
+    await connection.table(TABLE_NAME).insert(requests.map((request) => request.toDB()))
   }
 
   /**
@@ -294,10 +298,11 @@ export class RequestRepository {
    * @param options
    * @returns Promise for the associated request
    */
-  async findByCid(cid: CID, options: Options = {}): Promise<Request> {
+  async findByCid(cid: CID, options: Options = {}): Promise<Request | undefined> {
     const { connection = this.connection } = options
 
-    return connection(TABLE_NAME).where({ cid: cid.toString() }).first()
+    const found = await connection(TABLE_NAME).where({ cid: cid.toString() }).first()
+    if (found) return new Request(found)
   }
 
   /**
