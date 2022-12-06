@@ -117,6 +117,10 @@ export class AnchorService {
   private readonly ipfsMerge: IpfsMerge
   private readonly ipfsCompare: IpfsLeafCompare
   private readonly bloomMetadata: BloomMetadata
+  private readonly merkleDepthLimit: number
+  private readonly useSmartContractAnchors: boolean
+  private readonly maxStreamLimit: number
+  private readonly minStreamLimit: number
 
   static inject = [
     'blockchainService',
@@ -144,6 +148,12 @@ export class AnchorService {
     this.ipfsMerge = new IpfsMerge(this.ipfsService)
     this.ipfsCompare = new IpfsLeafCompare()
     this.bloomMetadata = new BloomMetadata()
+
+    this.merkleDepthLimit = config.merkleDepthLimit
+    this.useSmartContractAnchors = config.useSmartContractAnchors
+
+    this.maxStreamLimit = this.merkleDepthLimit > 0 ? Math.pow(2, this.merkleDepthLimit) : 0
+    this.minStreamLimit = config.minStreamCount || Math.floor(this.maxStreamLimit / 2)
   }
 
   /**
@@ -154,11 +164,8 @@ export class AnchorService {
     const readyRequests = await this.requestRepository.findByStatus(RS.READY)
 
     if (!triggeredByAnchorEvent && readyRequests.length === 0) {
-      const maxStreamLimit =
-        this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0
-      const minStreamLimit = this.config.minStreamCount || Math.floor(maxStreamLimit / 2)
       // Pull in twice as many streams as we want to anchor, since some of those streams may fail to load.
-      await this.requestRepository.findAndMarkReady(maxStreamLimit * 2, minStreamLimit)
+      await this.requestRepository.findAndMarkReady(this.maxStreamLimit * 2, this.minStreamLimit)
     }
 
     return this.anchorReadyRequests()
@@ -196,10 +203,10 @@ export class AnchorService {
     }
 
     let streamCountLimit = 0 // 0 means no limit
-    if (this.config.merkleDepthLimit > 0) {
+    if (this.merkleDepthLimit > 0) {
       // The number of streams we are able to include in a single anchor batch is limited by the
       // max depth of the merkle tree.
-      streamCountLimit = Math.pow(2, this.config.merkleDepthLimit)
+      streamCountLimit = Math.pow(2, this.merkleDepthLimit)
     }
     const [candidates, groupedRequests] = await this._findCandidates(requests, streamCountLimit)
 
@@ -344,13 +351,9 @@ export class AnchorService {
       )
       Metrics.count(METRIC_NAMES.RETRY_EMIT_ANCHOR_EVENT, updatedExpiredReadyRequestsCount)
     } else {
-      const maxStreamLimit =
-        this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0
-      const minStreamLimit = this.config.minStreamCount || Math.floor(maxStreamLimit / 2)
-
       const updatedRequests = await this.requestRepository.findAndMarkReady(
-        maxStreamLimit,
-        minStreamLimit
+        this.maxStreamLimit,
+        this.minStreamLimit
       )
 
       if (updatedRequests.length === 0) {
@@ -378,7 +381,7 @@ export class AnchorService {
         this.ipfsMerge,
         this.ipfsCompare,
         this.bloomMetadata,
-        this.config.merkleDepthLimit
+        this.merkleDepthLimit
       )
       await merkleTree.build(candidates)
       return merkleTree
@@ -409,7 +412,7 @@ export class AnchorService {
       }
     }
 
-    if (this.config.useSmartContractAnchors) ipfsAnchorProof.txType = CONTRACT_TX_TYPE
+    if (this.useSmartContractAnchors) ipfsAnchorProof.txType = CONTRACT_TX_TYPE
 
     logger.debug('Anchor proof: ' + JSON.stringify(ipfsAnchorProof))
     const ipfsProofCid = await this.ipfsService.storeRecord(ipfsAnchorProof)
