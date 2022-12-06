@@ -16,9 +16,10 @@ import type { AbortOptions } from './abort-options.type.js'
 
 const { serialize, MsgType } = PubsubMessage
 
-const DEFAULT_GET_TIMEOUT = 30000 // 30 seconds
+export const IPFS_GET_RETRIES = 2
+export const IPFS_GET_TIMEOUT = 30000 // 30 seconds
 const MAX_CACHE_ENTRIES = 100
-const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
+export const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
 const PUBSUB_DELAY = 100
 
 function buildHttpAgent(endpoint: string): http.Agent {
@@ -47,19 +48,13 @@ function buildIpfsClient(config: Config): IPFS {
 export class IpfsService implements IIpfsService {
   private readonly cache: LRUCache<string, any>
   private readonly pubsubTopic: string
-  private readonly ipfsPutTimeout: number // in ms
   private readonly ipfs: IPFS
 
   static inject = ['config'] as const
 
-  constructor(
-    config: Config,
-    ipfs: IPFS = buildIpfsClient(config),
-    ipfsPutTimeout = IPFS_PUT_TIMEOUT
-  ) {
+  constructor(config: Config, ipfs: IPFS = buildIpfsClient(config)) {
     this.cache = new LRUCache<string, any>({ max: MAX_CACHE_ENTRIES })
     this.ipfs = ipfs
-    this.ipfsPutTimeout = ipfsPutTimeout
     this.pubsubTopic = config.ipfsConfig.pubsubTopic
   }
 
@@ -77,36 +72,38 @@ export class IpfsService implements IIpfsService {
   /**
    * Gets the record by its CID value
    * @param cid - CID value
+   * @param options - May contain AbortSignal
    */
-  async retrieveRecord(cid: CID | string): Promise<any> {
-    let retryTimes = 2
+  async retrieveRecord(cid: CID | string, options: AbortOptions = {}): Promise<any> {
+    let retryTimes = IPFS_GET_RETRIES
     while (retryTimes > 0) {
       try {
-        let value = this.cache.get(cid.toString())
-        if (value != null) {
-          return value
+        const found = this.cache.get(cid.toString())
+        if (found) {
+          return found
         }
         const record = await this.ipfs.dag.get(toCID(cid), {
-          timeout: DEFAULT_GET_TIMEOUT,
+          timeout: IPFS_GET_TIMEOUT,
+          signal: options.signal,
         })
-        logger.debug('Successfully retrieved ' + cid)
-
-        value = record.value
+        const value = record.value
+        logger.debug(`Successfully retrieved ${cid}`)
         this.cache.set(cid.toString(), value)
         return value
       } catch (e) {
-        logger.err('Cannot retrieve IPFS record for CID ' + cid.toString())
+        if (options.signal?.aborted) throw e
+        logger.err(`Cannot retrieve IPFS record for CID ${cid}`)
         retryTimes--
       }
     }
-    throw new Error('Failed to retrieve IPFS record for CID ' + cid.toString())
+    throw new Error(`Failed to retrieve IPFS record for CID ${cid}`)
   }
 
   /**
    * Sets the record and returns its CID.
    */
   storeRecord(record: Record<string, unknown>, options: AbortOptions = {}): Promise<CID> {
-    return this.ipfs.dag.put(record, { signal: options.signal, timeout: this.ipfsPutTimeout })
+    return this.ipfs.dag.put(record, { signal: options.signal, timeout: IPFS_PUT_TIMEOUT })
   }
 
   /**
