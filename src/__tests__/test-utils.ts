@@ -9,6 +9,7 @@ import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
 import { randomBytes } from '@stablelib/random'
 import { jest } from '@jest/globals'
 import { Request, RequestStatus } from '../models/request.js'
+import type { AbortOptions } from '../services/ipfs-service.js'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -48,10 +49,17 @@ export class MockIpfsClient {
       get: jest.fn((cid: CID) => {
         return Promise.resolve({ value: this._streams[cid.toString()] })
       }),
-      put: jest.fn(async (record: Record<string, unknown>) => {
-        const cid = randomCID()
-        this._streams[cid.toString()] = record
-        return cid
+      put: jest.fn((record: Record<string, unknown>, abortOptions: AbortOptions) => {
+        return new Promise<CID>((resolve, reject) => {
+          if (abortOptions.signal) {
+            const done = () => reject(new Error(`MockIpfsClient: Thrown on abort signal`))
+            if (abortOptions.signal?.aborted) return done()
+            abortOptions.signal?.addEventListener('abort', done)
+          }
+          const cid = randomCID()
+          this._streams[cid.toString()] = record
+          resolve(cid)
+        })
       }),
     }
 
@@ -140,7 +148,7 @@ export class MockEventProducerService implements EventProducerService {
   }
 
   reset() {
-    this.emitAnchorEvent = jest.fn((body: string) => Promise.resolve())
+    this.emitAnchorEvent = jest.fn(() => Promise.resolve())
   }
 
   destroy(): void {}
@@ -197,6 +205,16 @@ export function times(n: number): Array<number> {
   return Array.from({ length: n }).map((_, i) => i)
 }
 
-export function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+export function delay(ms: number, abortSignal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(resolve, ms)
+    if (abortSignal) {
+      const done = () => {
+        clearTimeout(timeout)
+        reject(new Error(`Delay aborted`))
+      }
+      if (abortSignal.aborted) done()
+      abortSignal.addEventListener('abort', done)
+    }
+  })
 }
