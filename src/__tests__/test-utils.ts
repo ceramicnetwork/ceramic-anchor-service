@@ -9,7 +9,7 @@ import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
 import { randomBytes } from '@stablelib/random'
 import { jest } from '@jest/globals'
 import { Request, RequestStatus } from '../models/request.js'
-import type { AbortOptions } from '../services/ipfs-service.js'
+import type { AbortOptions } from '../services/abort-options.type.js'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60

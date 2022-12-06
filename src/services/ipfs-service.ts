@@ -1,18 +1,19 @@
 import type { CID } from 'multiformats/cid'
 import LRUCache from 'lru-cache'
 import { create as createIpfsClient } from 'ipfs-http-client'
-import { Config } from 'node-config-ts'
+import type { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
 import * as dagJose from 'dag-jose'
 import type { IPFS } from 'ipfs-core-types'
 import { AnchorCommit, toCID } from '@ceramicnetwork/common'
-import { StreamID } from '@ceramicnetwork/streamid'
+import type { StreamID } from '@ceramicnetwork/streamid'
 import { Utils } from '../utils.js'
 import * as http from 'http'
 import * as https from 'https'
 import { PubsubMessage } from '@ceramicnetwork/core'
 import type { IIpfsService } from './ipfs-service.type.js'
-import { timeAbortable } from './time-abortable.util'
+import { timeAbortable } from './time-abortable.util.js'
+import type { AbortOptions } from './abort-options.type.js'
 
 const { serialize, MsgType } = PubsubMessage
 
@@ -42,10 +43,6 @@ function buildIpfsClient(config: Config): IPFS {
     },
     agent: buildHttpAgent(config.ipfsConfig.url),
   })
-}
-
-export type AbortOptions = {
-  signal?: AbortSignal
 }
 
 export class IpfsService implements IIpfsService {
