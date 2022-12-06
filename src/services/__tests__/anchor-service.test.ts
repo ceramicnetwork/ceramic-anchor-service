@@ -284,7 +284,7 @@ describe('anchor service', () => {
 
     // Create pending requests
     for (let i = 0; i < numRequests; i++) {
-      const streamId = await randomStreamID()
+      const streamId = randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
       const stream = createStream(streamId, [toCID(request.cid)])
