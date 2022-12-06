@@ -15,6 +15,8 @@ export class Request {
   pinned: boolean
   createdAt: Date
   updatedAt: Date
+  timestamp: Date
+  origin?: string
 }
 
 export interface RequestUpdateFields {
