@@ -29,7 +29,7 @@ import { version } from './version.js'
 import { cleanupConfigForLogging, normalizeConfig } from './normalize-config.util.js'
 import type { Injector } from 'typed-inject'
 import type { EventProducerService } from './services/event-producer/event-producer-service.js'
-import { RequestPresentationService } from './services/request-presentation-service'
+import { RequestPresentationService } from './services/request-presentation-service.js'
 
 type DependenciesContext = {
   config: Config
