@@ -170,7 +170,7 @@ export class RequestRepository {
     const keys = Object.keys(request).filter((key) => key !== 'id') // all keys except ID
     const [{ id }] = await connection
       .table(TABLE_NAME)
-      .insert(request, ['id'])
+      .insert(request.toDB(), ['id'])
       .onConflict('cid')
       .merge(keys)
 
