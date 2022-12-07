@@ -235,8 +235,10 @@ export class IpfsLeafCompare implements CompareFunction<Candidate> {
       }
 
       // Sort by controller
-      const leftController = left.data.metadata.controllers[0]
-      const rightController = right.data.metadata.controllers[0]
+      // If either value is an object for whatever reason it will
+      // be sorted last because "[" < "d" ("[object Object]" vs "did:...")
+      const leftController = String(left.data.metadata.controllers[0])
+      const rightController = String(right.data.metadata.controllers[0])
       if (leftController !== rightController) {
         return leftController.localeCompare(rightController)
       }
