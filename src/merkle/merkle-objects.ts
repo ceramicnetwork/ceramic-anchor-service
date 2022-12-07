@@ -249,6 +249,7 @@ export class IpfsLeafCompare implements CompareFunction<Candidate> {
           left.data.metadata.controllers[0]
         }, Right's controller: ${right.data.metadata.controllers[0]}. Error: ${err}`
       )
+      throw err
     }
   }
 }
