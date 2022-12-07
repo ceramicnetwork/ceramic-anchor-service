@@ -528,10 +528,12 @@ export class AnchorService {
 
       await trx.commit()
 
+      // record some metrics about the timing and count of anchors
       const completed = new TimeableMetric(SinceField.CREATED_AT)
       completed.recordAll(acceptedRequests)
-
+      completed.publishStats(METRIC_NAMES.CREATED_SUCCESS_MS)
       Metrics.count(METRIC_NAMES.ACCEPTED_REQUESTS, acceptedRequests.length)
+
       return persistedAnchorsCount
     } catch (err) {
       await trx.rollback()

@@ -270,7 +270,7 @@ export class RequestRepository {
           // Record the requests we are processing, along with the time since they were marked as ready.
           const processing = new TimeableMetric(SinceField.UPDATED_AT)
           processing.recordAll(requests)
-          processing.publishStats(METRIC_NAMES.READY_PROCESSING)
+          processing.publishStats(METRIC_NAMES.READY_PROCESSING_MS)
           return requests
         },
         {
