@@ -18,6 +18,7 @@ import merge from 'merge-options'
 import { RequestStatus } from '../../models/request.js'
 import type { IIpfsService } from '../../services/ipfs-service.type.js'
 import { StreamID } from '@ceramicnetwork/streamid'
+import { IMetadataService, MetadataService } from '../../services/metadata-service'
 
 function mockResponse(): ExpRes {
   const res: any = {}
@@ -55,6 +56,7 @@ describe('createRequest', () => {
       .provideClass('ipfsService', MockIpfsService)
       .provideClass('ceramicService', MockCeramicService)
       .provideClass('requestPresentationService', RequestPresentationService)
+      .provideClass('metadataService', MetadataService)
       .provideClass('requestController', RequestController)
     controller = container.resolve('requestController')
   })

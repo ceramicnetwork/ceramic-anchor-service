@@ -13,6 +13,7 @@ import type { RequestPresentationService } from '../services/request-presentatio
 import type { CeramicService } from '../services/ceramic-service.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
 import type { IIpfsService } from '../services/ipfs-service.type.js'
+import type { IMetadataService } from '../services/metadata-service.js'
 
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
@@ -22,13 +23,15 @@ export class RequestController {
     'ceramicService',
     'requestPresentationService',
     'ipfsService',
+    'metadataService',
   ] as const
 
   constructor(
     private readonly requestRepository: RequestRepository,
     private readonly ceramicService: CeramicService,
     private readonly requestPresentationService: RequestPresentationService,
-    private readonly ipfsService: IIpfsService
+    private readonly ipfsService: IIpfsService,
+    private readonly metadataService: IMetadataService
   ) {}
 
   @Get(':cid')
@@ -87,9 +90,9 @@ export class RequestController {
         timestamp = new Date(req.body.timestamp)
       }
 
-      let request = await this.requestRepository.findByCid(cid)
-      if (request) {
-        const body = await this.requestPresentationService.body(request)
+      const found = await this.requestRepository.findByCid(cid)
+      if (found) {
+        const body = await this.requestPresentationService.body(found)
         return res.status(StatusCodes.ACCEPTED).json(body)
       }
 
@@ -97,7 +100,7 @@ export class RequestController {
       this.ceramicService.pinStream(streamId)
       Metrics.count(METRIC_NAMES.ANCHOR_REQUESTED, 1, { ip_addr: req.ip })
 
-      request = new Request()
+      const request = new Request()
       request.cid = cid.toString()
       request.streamId = streamId.toString()
       request.status = RequestStatus.PENDING
@@ -108,9 +111,9 @@ export class RequestController {
       request.pinned = true
       request.timestamp = timestamp
 
-      request = await this.requestRepository.createOrUpdate(request)
+      const storedRequest = await this.requestRepository.createOrUpdate(request)
 
-      const body = await this.requestPresentationService.body(request)
+      const body = await this.requestPresentationService.body(storedRequest)
       return res.status(StatusCodes.CREATED).json(body)
     } catch (err) {
       const errmsg = `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed: ${err.message}`

@@ -30,6 +30,7 @@ import { cleanupConfigForLogging, normalizeConfig } from './normalize-config.uti
 import type { Injector } from 'typed-inject'
 import type { EventProducerService } from './services/event-producer/event-producer-service.js'
 import { RequestPresentationService } from './services/request-presentation-service.js'
+import { IMetadataService, MetadataService } from './services/metadata-service.js'
 
 type DependenciesContext = {
   config: Config
@@ -47,6 +48,7 @@ type ProvidedContext = {
   ipfsService: IIpfsService
   schedulerService: SchedulerService
   requestPresentationService: RequestPresentationService
+  metadataService: IMetadataService
 } & DependenciesContext
 
 /**
@@ -77,6 +79,7 @@ export class CeramicAnchorApp {
       .provideClass('anchorService', AnchorService)
       .provideClass('schedulerService', SchedulerService)
       .provideClass('requestPresentationService', RequestPresentationService)
+      .provideClass('metadataService', MetadataService)
 
     try {
       Metrics.start(
