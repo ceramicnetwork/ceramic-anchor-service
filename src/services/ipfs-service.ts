@@ -74,7 +74,7 @@ export class IpfsService implements IIpfsService {
    * @param cid - CID value
    * @param options - May contain AbortSignal
    */
-  async retrieveRecord(cid: CID | string, options: AbortOptions = {}): Promise<any> {
+  async retrieveRecord<T = any>(cid: CID | string, options: AbortOptions = {}): Promise<T> {
     let retryTimes = IPFS_GET_RETRIES
     while (retryTimes > 0) {
       try {
@@ -89,7 +89,7 @@ export class IpfsService implements IIpfsService {
         const value = record.value
         logger.debug(`Successfully retrieved ${cid}`)
         this.cache.set(cid.toString(), value)
-        return value
+        return value as T
       } catch (e) {
         if (options.signal?.aborted) throw e
         logger.err(`Cannot retrieve IPFS record for CID ${cid}`)
