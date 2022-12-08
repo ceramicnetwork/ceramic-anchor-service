@@ -142,14 +142,13 @@ describe('createRequest', () => {
       const createdRequest = await requestRepository.findByCid(cid)
       expect(createdRequest).toBeDefined()
       expect(createdRequest.cid).toEqual(cid.toString())
-      expect(createdRequest.origin).toEqual(origin)
       expect(createdRequest.status).toEqual(RequestStatus.PENDING)
       expect(createdRequest.streamId).toEqual(streamId.toString())
       expect(createdRequest.message).toEqual('Request is pending.')
       expect(createdRequest.timestamp.valueOf()).toEqual(timestamp.valueOf())
       expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
       expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      expect(createdRequest.origin).toBeNull()
+      expect(createdRequest.origin).toEqual(origin)
     })
 
     test('timestamp is empty', async () => {
