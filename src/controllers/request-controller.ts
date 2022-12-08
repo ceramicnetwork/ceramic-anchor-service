@@ -98,7 +98,7 @@ export class RequestController {
       } else {
         addresses = req.headers['X-Forwarded-For']
       }
-      request.origin = addresses[0]
+      request.origin = addresses[0]?.trim()
       request.streamId = streamId.toString()
       request.status = RequestStatus.PENDING
       request.message = 'Request is pending.'

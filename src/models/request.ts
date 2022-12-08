@@ -21,7 +21,6 @@ export type IDBRequest = {
 
 export class Request {
   id: number
-  origin: string
   status: RequestStatus
   cid: string
   streamId: string

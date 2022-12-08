@@ -119,7 +119,14 @@ describe('createRequest', () => {
       const cid = randomCID()
       const streamId = randomStreamID()
       const timestamp = new Date()
+      const origin = '203.0.113.195'
       const req = mockRequest({
+        headers: {
+          'X-Forwarded-For': [
+            ` ${origin}`,
+            `${origin}, 2001:db8:85a3:8d3:1319:8a2e:370:7348`
+          ]
+        },
         body: {
           cid: cid.toString(),
           streamId: streamId.toString(),
@@ -135,6 +142,7 @@ describe('createRequest', () => {
       const createdRequest = await requestRepository.findByCid(cid)
       expect(createdRequest).toBeDefined()
       expect(createdRequest.cid).toEqual(cid.toString())
+      expect(createdRequest.origin).toEqual(origin)
       expect(createdRequest.status).toEqual(RequestStatus.PENDING)
       expect(createdRequest.streamId).toEqual(streamId.toString())
       expect(createdRequest.message).toEqual('Request is pending.')
