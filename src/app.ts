@@ -31,6 +31,7 @@ import type { Injector } from 'typed-inject'
 import type { EventProducerService } from './services/event-producer/event-producer-service.js'
 import { RequestPresentationService } from './services/request-presentation-service.js'
 import { IMetadataService, MetadataService } from './services/metadata-service.js'
+import { MetadataRepository } from './repositories/metadata-repository'
 
 type DependenciesContext = {
   config: Config
@@ -79,6 +80,7 @@ export class CeramicAnchorApp {
       .provideClass('anchorService', AnchorService)
       .provideClass('schedulerService', SchedulerService)
       .provideClass('requestPresentationService', RequestPresentationService)
+      .provideClass('metadataRepository', MetadataRepository)
       .provideClass('metadataService', MetadataService)
 
     try {

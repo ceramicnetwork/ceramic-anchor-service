@@ -56,6 +56,19 @@ describe('retrieveRecord', () => {
     await service.retrieveRecord(cid) // Use cached value. Do not use ipfs.dag.get
     expect(dagGetSpy).toBeCalledTimes(0)
   })
+  test('cache record if path provided', async () => {
+    const cid = await service.storeRecord(RECORD)
+    const dagGetSpy = jest.spyOn(mockIpfsClient.dag, 'get')
+    expect(dagGetSpy).toBeCalledTimes(0)
+    await service.retrieveRecord(cid, { path: '/link' }) // Call ipfs.dag.get
+    expect(dagGetSpy).toBeCalledTimes(1)
+    dagGetSpy.mockClear()
+    await service.retrieveRecord(cid, { path: '/link' }) // Use cached value. Do not use ipfs.dag.get
+    expect(dagGetSpy).toBeCalledTimes(0)
+    dagGetSpy.mockClear()
+    await service.retrieveRecord(cid) // Without `path` it is a different value. Retrieve from ipfs.dag.get.
+    expect(dagGetSpy).toBeCalledTimes(1)
+  })
   test('retry', async () => {
     const cid = await service.storeRecord(RECORD)
     const dagGetSpy = jest.spyOn(mockIpfsClient.dag, 'get')
