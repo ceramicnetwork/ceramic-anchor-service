@@ -23,7 +23,10 @@ export enum METRIC_NAMES {
   PIN_FAILED = 'pin_failed',
 
   // request that moves from ready -> processing
-  READY_PROCESSING = 'ready_processing',
+  READY_PROCESSING_MS = 'ready_processing_ms',
+
+  // request that moves from created -> success
+  CREATED_SUCCESS_MS = 'created_success_ms',
 
   // when a request is created, expired or completes
   REQUEST_CREATED = 'request_created',
