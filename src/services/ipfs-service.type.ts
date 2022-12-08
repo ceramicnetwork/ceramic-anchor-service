@@ -12,7 +12,7 @@ export interface IIpfsService {
    * Gets the record by its CID value
    * @param cid - CID value
    */
-  retrieveRecord(cid: CID | string): Promise<any>
+  retrieveRecord<T = any>(cid: CID | string): Promise<T>
 
   /**
    * Sets the record and returns its CID

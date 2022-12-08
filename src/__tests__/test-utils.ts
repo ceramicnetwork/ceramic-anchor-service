@@ -78,7 +78,7 @@ export class MockIpfsService implements IIpfsService {
     // Do Nothing
   }
 
-  async retrieveRecord(cid: CID | string, options: AbortOptions = {}): Promise<any> {
+  async retrieveRecord<T = any>(cid: CID | string, options: AbortOptions = {}): Promise<T> {
     const found = this._streams[cid.toString()]
     if (found) return found
     await Utils.delay(30000, options.signal) // Wait for 30s
