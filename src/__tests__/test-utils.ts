@@ -51,7 +51,7 @@ export class MockIpfsClient {
       get: jest.fn((cid: CID) => {
         return Promise.resolve({ value: this._streams[cid.toString()] })
       }),
-      put: jest.fn((record: Record<string, unknown>, abortOptions: AbortOptions) => {
+      put: jest.fn((record: Record<string, unknown>, abortOptions: AbortOptions = {}) => {
         return new Promise<CID>((resolve, reject) => {
           if (abortOptions.signal) {
             const done = () => reject(new Error(`MockIpfsClient: Thrown on abort signal`))
