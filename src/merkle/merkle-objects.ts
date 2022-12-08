@@ -247,9 +247,7 @@ export class IpfsLeafCompare implements CompareFunction<Candidate> {
       return left.data.streamId.toString().localeCompare(right.data.streamId.toString())
     } catch (err) {
       logger.err(
-        `Error while comparing stream ${left.data.streamId.toString()} to stream ${right.data.streamId.toString()}. Left's controller: ${
-          left.data.metadata.controllers[0]
-        }, Right's controller: ${right.data.metadata.controllers[0]}. Error: ${err}`
+        `Error while comparing stream ${left.data.streamId.toString()} to stream ${right.data.streamId.toString()}. Error: ${err}`
       )
       throw err
     }
