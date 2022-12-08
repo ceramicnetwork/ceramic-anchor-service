@@ -1,6 +1,11 @@
 import type { AnchorCommit } from '@ceramicnetwork/common'
 import type { StreamID } from '@ceramicnetwork/streamid'
 import type { CID } from 'multiformats/cid'
+import type { AbortOptions } from './abort-options.type.js'
+
+export type RetrieveRecordOptions = {
+  path?: string
+} & AbortOptions
 
 export interface IIpfsService {
   /**
@@ -11,19 +16,26 @@ export interface IIpfsService {
   /**
    * Gets the record by its CID value
    * @param cid - CID value
+   * @param options - Can pass AbortSignal or IPLD `path`.
    */
-  retrieveRecord<T = any>(cid: CID | string): Promise<T>
+  retrieveRecord<T = any>(cid: CID | string, options?: RetrieveRecordOptions): Promise<T>
 
   /**
    * Sets the record and returns its CID
    * @param record - Record value
+   * @param options - Can pass AbortSignal
    */
-  storeRecord(record: any): Promise<CID>
+  storeRecord(record: any, options?: AbortOptions): Promise<CID>
 
   /**
    * Stores the anchor commit to ipfs and publishes an update pubsub message to the Ceramic pubsub topic
    * @param anchorCommit - anchor commit
    * @param streamId
+   * @param options - Can pass AbortSignal
    */
-  publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID>
+  publishAnchorCommit(
+    anchorCommit: AnchorCommit,
+    streamId: StreamID,
+    options?: AbortOptions
+  ): Promise<CID>
 }

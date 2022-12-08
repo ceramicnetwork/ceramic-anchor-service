@@ -11,7 +11,7 @@ import { Utils } from '../utils.js'
 import * as http from 'http'
 import * as https from 'https'
 import { PubsubMessage } from '@ceramicnetwork/core'
-import type { IIpfsService } from './ipfs-service.type.js'
+import type { IIpfsService, RetrieveRecordOptions } from './ipfs-service.type.js'
 import type { AbortOptions } from './abort-options.type.js'
 
 const { serialize, MsgType } = PubsubMessage
@@ -45,6 +45,13 @@ function buildIpfsClient(config: Config): IPFS {
   })
 }
 
+/**
+ * Key used for LRU cache of IPFS records.
+ */
+function makeCacheKey(cid: CID | string, path?: string): string {
+  return path ? `${cid}${path}` : cid.toString()
+}
+
 export class IpfsService implements IIpfsService {
   private readonly cache: LRUCache<string, any>
   private readonly pubsubTopic: string
@@ -74,21 +81,26 @@ export class IpfsService implements IIpfsService {
    * @param cid - CID value
    * @param options - May contain AbortSignal
    */
-  async retrieveRecord<T = any>(cid: CID | string, options: AbortOptions = {}): Promise<T> {
+  async retrieveRecord<T = any>(
+    cid: CID | string,
+    options: RetrieveRecordOptions = {}
+  ): Promise<T> {
+    const cacheKey = makeCacheKey(cid, options.path)
     let retryTimes = IPFS_GET_RETRIES
     while (retryTimes > 0) {
       try {
-        const found = this.cache.get(cid.toString())
+        const found = this.cache.get(cacheKey)
         if (found) {
           return found
         }
         const record = await this.ipfs.dag.get(toCID(cid), {
+          path: options.path,
           timeout: IPFS_GET_TIMEOUT,
           signal: options.signal,
         })
         const value = record.value
         logger.debug(`Successfully retrieved ${cid}`)
-        this.cache.set(cid.toString(), value)
+        this.cache.set(cacheKey, value)
         return value as T
       } catch (e) {
         if (options.signal?.aborted) throw e
@@ -110,9 +122,14 @@ export class IpfsService implements IIpfsService {
    * Stores the anchor commit to ipfs and publishes an update pubsub message to the Ceramic pubsub topic
    * @param anchorCommit - anchor commit
    * @param streamId
+   * @param options
    */
-  async publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID> {
-    const anchorCid = await this.storeRecord(anchorCommit as any)
+  async publishAnchorCommit(
+    anchorCommit: AnchorCommit,
+    streamId: StreamID,
+    options: AbortOptions = {}
+  ): Promise<CID> {
+    const anchorCid = await this.storeRecord(anchorCommit as any, { signal: options.signal })
 
     const serializedMessage = serialize({
       typ: MsgType.UPDATE,
@@ -120,7 +137,7 @@ export class IpfsService implements IIpfsService {
       tip: anchorCid,
     })
 
-    await this.ipfs.pubsub.publish(this.pubsubTopic, serializedMessage)
+    await this.ipfs.pubsub.publish(this.pubsubTopic, serializedMessage, { signal: options.signal })
 
     // wait so that we don't flood the pubsub
     await Utils.delay(PUBSUB_DELAY)

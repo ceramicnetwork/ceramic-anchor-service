@@ -64,7 +64,9 @@
     "dotenv": "^16.0.3",
     "ethers": "~5.7.2",
     "express": "^4.18.1",
+    "fp-ts": "^2.13.1",
     "http-status-codes": "^2.2.0",
+    "io-ts": "^2.2.20",
     "ipfs-http-client": "^55.0.0",
     "knex": "^2.2.0",
     "lodash.camelcase": "^4.3.0",
@@ -77,6 +79,7 @@
     "pg": "^8.8.0",
     "reflect-metadata": "^0.1.13",
     "sqlite3": "^5.1.2",
+    "ts-essentials": "^9.3.0",
     "tsm": "^2.2.2",
     "typed-inject": "^3.0.1",
     "uuid": "^9.0.0"
