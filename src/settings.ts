@@ -49,7 +49,7 @@ export enum METRIC_NAMES {
 
   // *******************************************************************//
   // Scheduler Service
-  SCHEDULER_TASK_UNCAUGHT_ERROR = 'scheduler_task_uncaught_error'
+  SCHEDULER_TASK_UNCAUGHT_ERROR = 'scheduler_task_uncaught_error',
 
   // *******************************************************************//
   // Ceramic Service
@@ -57,6 +57,5 @@ export enum METRIC_NAMES {
   PIN_FAILED = 'pin_failed',
 
   // Request Controller
-  ANCHOR_REQUESTED = 'anchor_requested',
-
+  ANCHOR_REQUESTED = 'anchor_requested'
 }
