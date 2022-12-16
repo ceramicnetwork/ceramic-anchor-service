@@ -1,53 +1,61 @@
 export enum METRIC_NAMES {
 
-  ANCHOR_REQUESTED = 'anchor_requested',
-  ANCHOR_REQUESTS_BATCH_TIME = 'anchor_requests_batch_time',
-  ANCHOR_REQUESTS_BATCH_FAILURE_TIME = 'anchor_requests_batch_failure_time',
+  // *******************************************************************//
+  // Anchor Service (counts)
 
+  // Happy path
+  ACCEPTED_REQUESTS = 'accepted_requests',
   ANCHOR_SUCCESS = 'anchor_success',
-  ANCHOR_TIMEOUT = 'anchor_timeout',
-  ERROR_ETH = 'error_eth',
+
+  // Errors and warnings
+  ALREADY_ANCHORED_REQUESTS = 'already_anchored_requests',
+  CONFLICTING_REQUESTS = 'conflicting_requests',
   ERROR_IPFS = 'error_ipfs',
   ERROR_MULTIQUERY = 'error_multiquery',
-
-  FAILED_TIP = 'failed_load_tip',
+  FAILED_REQUESTS = 'failed_requests',
   FAILED_STREAM = 'failed_load_stream',
-
+  FAILED_TIP = 'failed_load_tip',
+  REANCHORED = 'reanchored',
   RETRY_EMIT_ANCHOR_EVENT = 'retry_emit_anchor_event',
   REVERT_TO_PENDING = 'revert_to_pending',
+  UNPROCESSED_REQUESTS = 'unprocessed_requests',
 
+  // Transaction repository
+  MANY_ATTEMPTS_TO_ACQUIRE_MUTEX = 'many_attempts_to_acquire_mutex',
+
+  // Request repository
   DB_SERIALIZATION_ERROR = 'db_serialization_error',
-
-  PIN_REQUESTED = 'pin_requested',
-  PIN_SUCCEEDED = 'pin_succeeded',
-  PIN_FAILED = 'pin_failed',
-
-  // request that moves from ready -> processing
-  READY_PROCESSING_MS = 'ready_processing_ms',
-
-  // request that moves from created -> success
-  CREATED_SUCCESS_MS = 'created_success_ms',
-
+  
   // when a request is created, expired or completes
   REQUEST_CREATED = 'request_created',
   REQUEST_EXPIRED = 'request_expired',
-  REQUEST_COMPLETED = 'request_completed',
 
   // retries that move to processing or failed
   RETRY_PROCESSING = 'retry_processing',
   RETRY_FAILED = 'retry_failed',
 
-  TIME_ANCHOR_COMMITS_MS = 'time_anchor_commits_ms',
-  TIME_TREE_COMMIT_MS = 'time_tree_commit_ms',
-  REANCHORED = 'reanchored',
+  // *******************************************************************//
+  // Anchor Service (histograms)
 
-  ACCEPTED_REQUESTS = 'accepted_requests',
-  ALREADY_ANCHORED_REQUESTS = 'already_anchored_requests',
-  CONFLICTING_REQUESTS = 'conflicting_requests',
-  FAILED_REQUESTS = 'failed_requests',
-  UNPROCESSED_REQUESTS = 'unprocessed_requests',
-  PENDING_REQUESTS = 'pending_requests',
+  // request that moves from ready -> processing
+  READY_PROCESSING_MS = "ready_processing_ms",
 
+  // request that moves from created -> success
+  CREATED_SUCCESS_MS = 'created_success_ms',
+
+  // Anchor Controller 
+  ANCHOR_REQUESTS_BATCH_TIME = 'anchor_requests_batch_time',
+  ANCHOR_REQUESTS_BATCH_FAILURE_TIME = 'anchor_requests_batch_failure_time',
+
+  // *******************************************************************//
+  // Scheduler Service
   SCHEDULER_TASK_UNCAUGHT_ERROR = 'scheduler_task_uncaught_error',
-  MANY_ATTEMPTS_TO_ACQUIRE_MUTEX = 'many_attempts_to_acquire_mutex',
+
+  // *******************************************************************//
+  // Ceramic Service
+  PIN_SUCCEEDED = 'pin_succeeded',
+  PIN_FAILED = 'pin_failed',
+
+  // Request Controller
+  ANCHOR_REQUESTED = 'anchor_requested'
 }
