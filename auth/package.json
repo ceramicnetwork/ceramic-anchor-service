@@ -1,0 +1,40 @@
+{
+  "name": "did-auth",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "./node_modules/.bin/serverless deploy"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.102",
+    "@types/node": "^18.7.1",
+    "esbuild": "~0.14.x",
+    "esbuild-node-externals": "^1.4.1",
+    "prettier": "^2.7.1",
+    "serverless": "^3.21.0",
+    "serverless-esbuild": "^1.32.5",
+    "serverless-lift": "^1.20.2"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.216.0",
+    "@aws-sdk/util-dynamodb": "^3.216.0",
+    "@ceramicnetwork/3id-did-resolver": "^2.1.4",
+    "@ceramicnetwork/http-client": "^2.3.1",
+    "@ceramicnetwork/stream-tile": "^2.4.0",
+    "@stablelib/random": "^1.0.1",
+    "aws-sdk": "^2.1192.0",
+    "body-parser": "^1.20.1",
+    "did-resolver": "^4.0.0",
+    "dids": "^3.2.0",
+    "express": "^4.18.2",
+    "express-asyncify": "^1.0.1",
+    "key-did-provider-ed25519": "^2.0.1",
+    "key-did-resolver": "^2.0.6",
+    "serverless-http": "^3.1.0",
+    "serverless-offline": "^11.5.0",
+    "uint8arrays": "^3.1.0"
+  }
+}
