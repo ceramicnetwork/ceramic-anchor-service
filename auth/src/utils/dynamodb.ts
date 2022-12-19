@@ -48,7 +48,7 @@ export class DynamoDB implements Database {
     }
 
     private _createTableIfNotExists = async (): Promise<void> => {
-        this._checkTableExists()
+        if (await this._checkTableExists()) return
 
         const inputCreate: CreateTableCommandInput = {
             TableName: this.name,
