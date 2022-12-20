@@ -1,0 +1,20 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-casauth-dev-210226-authRole",
+      "UnauthRoleArn": "arn:aws:iam::967314784947:role/amplify-casauth-dev-210226-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::967314784947:role/amplify-casauth-dev-210226-authRole",
+      "Region": "us-east-2",
+      "DeploymentBucketName": "amplify-casauth-dev-210226-deployment",
+      "UnauthRoleName": "amplify-casauth-dev-210226-unauthRole",
+      "StackName": "amplify-casauth-dev-210226",
+      "StackId": "arn:aws:cloudformation:us-east-2:967314784947:stack/amplify-casauth-dev-210226/5a78d510-800a-11ed-a6a4-024c9d845068",
+      "AmplifyAppId": "ds5jrgztvs927"
+    },
+    "categories": {
+      "auth": {
+        "casauth449f6ba5": {}
+      }
+    }
+  }
+}
