@@ -516,7 +516,7 @@ describe('request repository test', () => {
         generateRequests(
           {
             status: RequestStatus.FAILED,
-            createdAt: dateDuringRetryPeriod,
+            createdAt: new Date(dateDuringRetryPeriod.getTime() + MS_IN_MINUTE),
             updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
             message: 'random',
           },

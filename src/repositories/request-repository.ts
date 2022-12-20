@@ -25,6 +25,7 @@ export const FAILURE_RETRY_INTERVAL = 1000 * 60 * 60 * 6 // 6H
 // application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
 export const TABLE_NAME = 'request'
+const POSTGRES_PARAMETERIZED_QUERY_LIMIT = 65000
 
 /**
  * Records statistics about the set of requests
@@ -156,7 +157,14 @@ const findRequestsToAnchorForStreams = (
   streamIds: string[],
   now: Date
 ): Promise<Array<Request>> =>
-  findRequestsToAnchor(connection, now).whereIn('streamId', streamIds).orderBy('createdAt', 'asc')
+  findRequestsToAnchor(connection, now)
+    .whereIn('streamId', streamIds)
+    .orderByRaw(
+      `array_position(ARRAY[${streamIds.map(
+        (streamId) => `'${streamId}'`
+      )}], stream_id), created_at ASC`
+    )
+    .limit(POSTGRES_PARAMETERIZED_QUERY_LIMIT)
 
 export class RequestRepository {
   static inject = ['config', 'dbConnection'] as const
@@ -225,7 +233,7 @@ export class RequestRepository {
         pinned: fields.pinned,
         updatedAt: updatedAt,
       })
-      .where('id', 'in', connection.raw('SELECT * FROM UNNEST (?::uuid[])', [ids]))
+      .whereIn('id', ids)
 
     requests.map((request) => {
       logEvent.db({
