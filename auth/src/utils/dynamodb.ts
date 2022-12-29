@@ -1,4 +1,5 @@
 import {
+    AttributeValue,
     DynamoDBClient,
     GetItemCommand,
     GetItemCommandInput,
@@ -12,55 +13,71 @@ import {
     ProjectionType,
     ConditionalCheckFailedException,
     UpdateItemCommand,
-    UpdateItemCommandInput
+    UpdateItemCommandInput,
+    QueryCommand,
+    QueryCommandInput,
+    QueryOutput,
 } from "@aws-sdk/client-dynamodb"
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb"
-import { Database, DIDStatus } from "./db"
+import { DateTime } from 'luxon'
+
+import { createEmailVerificationCode, Database, DIDStatus, OTPStatus } from "./db"
 
 const AWS_REGION = process.env.AWS_REGION ?? ''
-const DB_TABLE_NAME = process.env.IS_OFFLINE ? `did-auth-${Date.now()}` : process.env.DB_TABLE_NAME
 
-class ItemNotFoundError extends Error {}
+const now = (): number => { return DateTime.now().toUnixInteger() }
+
+const OTP_TABLE_NAME = process.env.IS_OFFLINE ? `cas-auth-otp-${now()}` : (process.env.DB_OTP_TABLE_NAME ?? '')
+const DID_TABLE_NAME = process.env.IS_OFFLINE ? `cas-auth-did-${now()}` : (process.env.DB_DID_TABLE_NAME ?? '')
+
+class ItemNotFoundError extends Error { }
+
+export type Item = Record<string, AttributeValue>
+type ExpressionAttributeValues = Item
 
 export class DynamoDB implements Database {
     name: string
-    readonly client: any
+    readonly client: DynamoDBClient
     private readonly _shouldCreateTableIfNotExists: boolean
 
     constructor(createTableIfNotExists: boolean) {
         this._shouldCreateTableIfNotExists = createTableIfNotExists
-        if (DB_TABLE_NAME == '') {
-            throw Error('Failed to create database instance: Missing DB_TABLE_NAME')
+        if (DID_TABLE_NAME == '') {
+            throw Error('Missing DB_DID_TABLE_NAME')
         }
-        this.name = String(DB_TABLE_NAME)
+        if (OTP_TABLE_NAME == '') {
+            throw Error('Missing DB_OTP_TABLE_NAME')
+        }
         this.client = process.env.IS_OFFLINE
-          ? new DynamoDBClient({ endpoint: 'http://localhost:8000' })
-          : new DynamoDBClient({ region: AWS_REGION })
+            ? new DynamoDBClient({ endpoint: 'http://localhost:8000' })
+            : new DynamoDBClient({ region: AWS_REGION })
     }
 
     async init() {
-        if (this._shouldCreateTableIfNotExists) {
-            await this._createTableIfNotExists()
-        } else {
-            const shouldThrow = true
-            await this._checkTableExists(shouldThrow)
+        for (let tableName of [OTP_TABLE_NAME, DID_TABLE_NAME]) {
+            if (this._shouldCreateTableIfNotExists) {
+                await this._createTableIfNotExists(tableName)
+            } else {
+                const shouldThrow = true
+                await this._checkTableExists(tableName, shouldThrow)
+            }
         }
     }
 
-    private _createTableIfNotExists = async (): Promise<void> => {
-        if (await this._checkTableExists()) return
+    private async _createTableIfNotExists(tableName: string): Promise<void> {
+        if (await this._checkTableExists(tableName)) return
 
-        const inputCreate: CreateTableCommandInput = {
-            TableName: this.name,
-            KeySchema: [       
+        const input: CreateTableCommandInput = {
+            TableName: tableName,
+            KeySchema: [
                 { AttributeName: 'PK', KeyType: 'HASH' },
                 { AttributeName: 'SK', KeyType: 'RANGE' }
             ],
-            AttributeDefinitions: [       
+            AttributeDefinitions: [
                 { AttributeName: 'PK', AttributeType: 'S' },
                 { AttributeName: 'SK', AttributeType: 'S' },
-                { AttributeName: 'GSI-1-PK', AttributeType: 'S'},
-                { AttributeName: 'GSI-1-SK', AttributeType: 'S'},
+                { AttributeName: 'GSI-1-PK', AttributeType: 'S' },
+                { AttributeName: 'GSI-1-SK', AttributeType: 'S' },
             ],
             BillingMode: BillingMode.PAY_PER_REQUEST,
             GlobalSecondaryIndexes: [
@@ -75,19 +92,19 @@ export class DynamoDB implements Database {
             ]
         }
         try {
-            await this.client.send(new CreateTableCommand(inputCreate))
+            await this.client.send(new CreateTableCommand(input))
         } catch (error) {
             console.error(error)
             throw error
         }
     }
 
-    _checkTableExists = async (shouldThrow: boolean = false): Promise<boolean> =>  {
-        const inputDescribe: DescribeTableCommandInput = {
-            TableName: this.name
+    private async _checkTableExists(tableName: string, shouldThrow: boolean = false): Promise<boolean> {
+        const input: DescribeTableCommandInput = {
+            TableName: tableName
         }
         try {
-            await this.client.send(new DescribeTableCommand(inputDescribe))
+            await this.client.send(new DescribeTableCommand(input))
             return true
         } catch (error) {
             if (shouldThrow) {
@@ -98,10 +115,10 @@ export class DynamoDB implements Database {
         }
     }
 
-    getEmail = async (did: string): Promise<string | undefined> => {
+    async getEmail(did: string): Promise<string | undefined> {
         try {
-            return await this._getItemAttribute(did, 'email')
-        } catch(err) {
+            return await this._getItemAttribute(DID_TABLE_NAME, did, did, 'email')
+        } catch (err) {
             if (err instanceof ItemNotFoundError) {
                 console.error('Item not found.')
             } else {
@@ -111,10 +128,10 @@ export class DynamoDB implements Database {
         }
     }
 
-    getNonce = async (did: string): Promise<number | undefined> => {
+    async getNonce(did: string): Promise<number | undefined> {
         try {
-            return Number(await this._getItemAttribute(did, 'nonce'))
-        } catch(err) {
+            return Number(await this._getItemAttribute(DID_TABLE_NAME, did, did, 'nonce'))
+        } catch (err) {
             if (err instanceof ItemNotFoundError) {
                 console.error('Nonce not found. DID may not be registered.')
             } else {
@@ -124,22 +141,121 @@ export class DynamoDB implements Database {
         }
     }
 
-    async registerDID(email: string, did: string): Promise<any> {
+    async createEmailVerificationCode(email: string): Promise<string> {
+        return await createEmailVerificationCode(email, this)
+    }
+
+    async _getRevokedOTPs(email: string): Promise<Item[]> {
+        const expressionAttributeValues = marshall({
+            ':PK': email,
+            ':revoked': OTPStatus.Revoked
+        })
+        const filterExpression = 'contains (curr_status, :revoked)'
+        return await this._queryItems(OTP_TABLE_NAME, expressionAttributeValues, filterExpression)
+    }
+
+    async _getActiveOTPs(email: string): Promise<Item[]> {
+        const expressionAttributeValues = marshall({
+            'PK': email,
+            'active': OTPStatus.Active
+        })
+        const filterExpression = 'contains (curr_status, :active)'
+        return await this._queryItems(OTP_TABLE_NAME, expressionAttributeValues, filterExpression)
+    }
+
+    _checkOTPExpired(item: Item): boolean {
+        const data = unmarshall(item)
+        return (data.expires_at_unix < now())
+    }
+
+    async _expireOTP(item: Item): Promise<void> {
+        this._updateOTP(item, OTPStatus.Expired)
+    }
+
+    async _revokeOTP(item: Item): Promise<void> {
+        this._updateOTP(item, OTPStatus.Revoked)
+    }
+
+    private async _updateOTP(item: Item, next_status: OTPStatus): Promise<void> {
+        const data = unmarshall(item)
+        const input: UpdateItemCommandInput = {
+            TableName: OTP_TABLE_NAME,
+            Key: marshall({
+                'PK': data.PK,
+                'SK': data.SK
+            }),
+            UpdateExpression: `SET curr_status=:next_status, updated_at_unix=:updated_at_unix`,
+            ConditionExpression: '(attribute_exists(PK)) AND NOT (curr_status IN :next_status)',
+            ExpressionAttributeValues: marshall({
+                'next_status': next_status,
+                'updated_at_unix': now(),
+            })
+        }
+        try {
+            await this.client.send(new UpdateItemCommand(input))
+        } catch (err) {
+            if (err instanceof ConditionalCheckFailedException) {
+                console.error('OTP was not found or is already expired.')
+            } else {
+                console.error(err)
+            }
+        }
+    }
+
+    async _addOTP(email: string, otp: string): Promise<void> {
+        const params: PutItemCommandInput = {
+            TableName: OTP_TABLE_NAME,
+            Item: marshall({
+                'PK': email,
+                'SK': otp,
+                'attempts': 0,
+                'curr_status': OTPStatus.Active,
+                'created_at_unix': now(),
+                'updated_at_unix': now(),
+                'expires_at_unix': DateTime.now().plus({ minutes: 30 }).toUnixInteger()
+            })
+        }
+        try {
+            await this.client.send(new PutItemCommand(params))
+        } catch(err) {
+            console.error(err)
+            return
+        }
+    }
+
+    async registerDIDs(email: string, otp: string, dids: Array<string>): Promise<Array<any> | undefined> {
+        if(!await this._checkCorrectOTP(email, otp)) return
+        const shouldCheckOTPAgain = false
+
+        const results: any[] = []
+        for (let did in dids) {
+            let result = await this.registerDID(email, otp, did, shouldCheckOTPAgain)
+            results.push(result)
+        }
+        return results
+    }
+
+    async registerDID(email: string, otp: string, did: string, checkOTP: boolean = true): Promise<any | undefined> {
+        if (checkOTP) {
+            if(!await this._checkCorrectOTP(email, otp)) return
+        }
+
         const nonce = 0
         const status = DIDStatus.Active
         const params: PutItemCommandInput = {
-            TableName: this.name,
+            TableName: DID_TABLE_NAME,
             Item: marshall({
                 'PK':  did,
                 'SK': did,
                 'email': email,
                 'nonce': nonce,
-                'status': status,
-                'created_at': Date.now(),
-                'updated_at': Date.now(),
+                'curr_status': status,
+                'created_at_unix': now(),
+                'updated_at_unix': now(),
             }),
             ConditionExpression: 'attribute_not_exists(PK)'
         }
+
         try {
             await this.client.send(new PutItemCommand(params))
             return { email, did, nonce, status }
@@ -153,25 +269,27 @@ export class DynamoDB implements Database {
         }
     }
 
-    async revokeDID(email: string, did: string, nonce: number): Promise<boolean> {
+    async revokeDID(email: string, otp: string, did: string): Promise<boolean> {
+        if(!await this._checkCorrectOTP(email, otp)) return false
+
         const input: UpdateItemCommandInput = {
-            TableName: this.name,
+            TableName: DID_TABLE_NAME,
             Key: marshall({
                 'PK': did,
                 'SK': did
             }),
-            UpdateExpression: `SET status=:status, nonce=${nonce}, updated_at=:updated_at`,
-            ConditionExpression: '(attribute_exists(PK)) AND (email IN :email) AND NOT (status IN :status)',
+            UpdateExpression: `SET curr_status=:status, updated_at_unix=:updated_at_unix`,
+            ConditionExpression: '(attribute_exists(PK)) AND (email IN :email) AND NOT (curr_status IN :status)',
             ExpressionAttributeValues: marshall({
                 'email': email,
-                'status': DIDStatus.Revoked,
-                'updated_at': Date.now(),
+                'curr_status': DIDStatus.Revoked,
+                'updated_at_unix': now(),
             })
         }
         try {
             await this.client.send(new UpdateItemCommand(input))
             return true
-        } catch(err) {
+        } catch (err) {
             if (err instanceof ConditionalCheckFailedException) {
                 console.error('DID was not found or is already revoked.')
             } else {
@@ -181,12 +299,55 @@ export class DynamoDB implements Database {
         }
     }
 
-    _getItemAttribute = async (did: string, attribute: string): Promise<any> => {
-        const params: GetItemCommandInput = {
-            TableName: this.name,
+    private async _checkCorrectOTP(email: string, otp: string): Promise<boolean> {
+        const input: UpdateItemCommandInput = {
+            TableName: OTP_TABLE_NAME,
             Key: marshall({
-                'PK': did,
-                'SK': did
+                'PK': email,
+                'SK': otp
+            }),
+            UpdateExpression: `SET curr_status=:next_status, updated_at_unix=:updated_at_unix`,
+            ConditionExpression: '(attribute_exists(PK)) AND (attribute_exists(SK)) AND contains(curr_status, :prev_status)',
+            ExpressionAttributeValues: marshall({
+                ':next_status': OTPStatus.Used,
+                ':prev_status': OTPStatus.Active,
+                ':updated_at_unix': now(),
+            })
+        }
+
+        try {
+            const output = await this.client.send(new UpdateItemCommand(input))
+            if (output) {
+                if (output.Attributes) {
+                    const attributes = unmarshall(output.Attributes)
+                    if (attributes.expirationTimeMs > now()) {
+                        return true
+                    }
+                }
+            }
+            console.log(`Bad OTP for email ${email}`)
+            return false
+        } catch (err) {
+            if (err instanceof ConditionalCheckFailedException) {
+                console.error('OTP not found or not active.')
+            } else {
+                console.error(err)
+            }
+            return false
+        }
+    }
+
+    private async _getItemAttribute(tableName: string, pk: string, sk: string, attribute: string): Promise<any> {
+        const data = await this._getItem(tableName, pk, sk)
+        return data[attribute]
+    }
+
+    private async _getItem(tableName: string, pk: string, sk: string): Promise<any> {
+        const params: GetItemCommandInput = {
+            TableName: tableName,
+            Key: marshall({
+                'PK': pk,
+                'SK': sk
             }),
         }
         const results = await this.client.send(new GetItemCommand(params));
@@ -194,6 +355,24 @@ export class DynamoDB implements Database {
             throw new ItemNotFoundError('Item not found')
         }
         const data = unmarshall(results.Item || {})
-        return data[attribute]
+        return data
+    }
+
+    private async _queryItems(
+        tableName: string,
+        expressionAttributeValues: ExpressionAttributeValues,
+        filterExpression?: string
+    ): Promise<Item[]> {
+        const input: QueryCommandInput = {
+            TableName: tableName,
+            KeyConditionExpression: 'PK=:PK',
+            FilterExpression: filterExpression,
+            ExpressionAttributeValues: expressionAttributeValues
+        }
+        const results = await this.client.send(new QueryCommand(input));
+        if (!results.Items) {
+            throw new ItemNotFoundError('Items not found')
+        }
+        return results.Items
     }
 }
