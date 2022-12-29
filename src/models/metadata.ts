@@ -49,11 +49,3 @@ export type StoredMetadata = t.TypeOf<typeof StoredMetadata>
  */
 export const MetadataInput = t.union([FreshMetadata, t.partial(StoredMetadataFields.props)])
 export type MetadataInput = t.TypeOf<typeof MetadataInput>
-
-/**
- * Keys contained in a database.
- */
-export const METADATA_DATABASE_KEYS = StoredMetadata.types.reduce<Array<string>>(
-  (acc, t) => acc.concat(Object.keys(t.props)),
-  []
-)

@@ -45,13 +45,6 @@ function buildIpfsClient(config: Config): IPFS {
   })
 }
 
-/**
- * Key used for LRU cache of IPFS records.
- */
-function makeCacheKey(cid: CID | string, path?: string): string {
-  return path ? `${cid}${path}` : cid.toString()
-}
-
 export class IpfsService implements IIpfsService {
   private readonly cache: LRUCache<string, any>
   private readonly pubsubTopic: string
@@ -85,7 +78,7 @@ export class IpfsService implements IIpfsService {
     cid: CID | string,
     options: RetrieveRecordOptions = {}
   ): Promise<T> {
-    const cacheKey = makeCacheKey(cid, options.path)
+    const cacheKey = `${cid}${options.path || ''}`
     let retryTimes = IPFS_GET_RETRIES
     while (retryTimes > 0) {
       try {
@@ -99,16 +92,16 @@ export class IpfsService implements IIpfsService {
           signal: options.signal,
         })
         const value = record.value
-        logger.debug(`Successfully retrieved ${cid}`)
+        logger.debug(`Successfully retrieved ${cacheKey}`)
         this.cache.set(cacheKey, value)
         return value as T
       } catch (e) {
         if (options.signal?.aborted) throw e
-        logger.err(`Cannot retrieve IPFS record for CID ${cid}`)
+        logger.err(`Cannot retrieve IPFS record for CID ${cacheKey}`)
         retryTimes--
       }
     }
-    throw new Error(`Failed to retrieve IPFS record for CID ${cid}`)
+    throw new Error(`Failed to retrieve IPFS record for CID ${cacheKey}`)
   }
 
   /**

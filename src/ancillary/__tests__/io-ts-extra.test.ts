@@ -62,3 +62,24 @@ describe('commitId', () => {
     expect(te.commitIdAsString.encode(commitId)).toEqual(COMMIT_ID_STRING)
   })
 })
+
+describe('dateAsISOString', () => {
+  const isoString = '2022-12-13T14:15:16.789Z'
+  const now = new Date(isoString)
+
+  describe('decode', () => {
+    test('from ISO string', () => {
+      const decoded = te.date.decode(isoString)
+      expect(isRight(decoded)).toBeTruthy()
+      expect((decoded as Right<Date>).right).toEqual(now)
+    })
+    test('from JS Date', () => {
+      const decoded = te.date.decode(now)
+      expect(isRight(decoded)).toBeTruthy()
+      expect((decoded as Right<Date>).right).toEqual(now)
+    })
+  })
+  test('encode', () => {
+    expect(te.date.encode(now)).toEqual(isoString)
+  })
+})

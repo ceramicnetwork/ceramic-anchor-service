@@ -5,7 +5,7 @@ import { CID } from 'multiformats/cid'
 import { create } from 'multiformats/hashes/digest'
 import type { CeramicService } from '../services/ceramic-service.js'
 import type { EventProducerService } from '../services/event-producer/event-producer-service.js'
-import type { IIpfsService } from '../services/ipfs-service.type.js'
+import type { IIpfsService, RetrieveRecordOptions } from '../services/ipfs-service.type.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
 import { randomBytes } from '@stablelib/random'
@@ -78,7 +78,10 @@ export class MockIpfsService implements IIpfsService {
     // Do Nothing
   }
 
-  async retrieveRecord<T = any>(cid: CID | string, options: AbortOptions = {}): Promise<T> {
+  async retrieveRecord<T = any>(
+    cid: CID | string,
+    options: RetrieveRecordOptions = {}
+  ): Promise<T> {
     const found = this._streams[cid.toString()]
     if (found) return found
     await Utils.delay(30000, options.signal) // Wait for 30s

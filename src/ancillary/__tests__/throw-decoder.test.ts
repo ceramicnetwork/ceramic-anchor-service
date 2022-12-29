@@ -20,5 +20,5 @@ test('decode: failure', () => {
   )
   expect(() => {
     ThrowDecoder.decode(te.streamIdAsString, 'garbage')
-  }).toThrow(/Validation error: Can not decode garbage as StreamID/)
+  }).toThrow('Validation error: Invalid value "garbage" supplied to : StreamID-as-string')
 })

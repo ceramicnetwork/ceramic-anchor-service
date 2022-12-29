@@ -31,6 +31,12 @@ beforeAll(async () => {
   metadataService = new MetadataService(metadataRepository, ipfsService)
 })
 
+afterEach(async () => {
+  ipfsService.reset()
+  await metadataRepository.table().delete()
+  jest.clearAllMocks()
+})
+
 afterAll(async () => {
   await dbConnection.destroy()
 })
@@ -43,16 +49,33 @@ async function putGenesisHeader(payload: object): Promise<StreamID> {
 }
 
 describe('retrieveFromGenesis', () => {
-  test('get genesis from IPFS', async () => {
+  test('get DAG-CBOR genesis from IPFS', async () => {
     const streamId = await putGenesisHeader(HEADER_RECORD)
     const retrieveRecordSpy = jest.spyOn(ipfsService, 'retrieveRecord')
     const genesisFields = await metadataService.retrieveFromGenesis(streamId)
-    expect(retrieveRecordSpy).toBeCalledWith(streamId.cid)
-    expect(genesisFields.controllers).toEqual(GENESIS_FIELDS.controllers)
-    expect(genesisFields.family).toEqual(GENESIS_FIELDS.family)
-    expect(genesisFields.model).toEqual(GENESIS_FIELDS.model)
-    expect(genesisFields.schema).toEqual(GENESIS_FIELDS.schema)
-    expect(genesisFields.tags).toEqual(GENESIS_FIELDS.tags)
+    expect(retrieveRecordSpy).toBeCalledWith(streamId.cid, { signal: undefined })
+    expect(genesisFields).toEqual(GENESIS_FIELDS)
+    retrieveRecordSpy.mockRestore()
+  })
+
+  test('get DAG-JWS genesis from IPFS', async () => {
+    // Genesis CID is in DAG-JWS
+    const streamId = StreamID.fromString(
+      'kjzl6cwe1jw146wg7fp48nuict3spcxna1h3p6zipzn4yl74d0m00jioeetw4p0'
+    )
+    const retrieveRecordSpy = jest.spyOn(ipfsService, 'retrieveRecord')
+    // We expect that IpfsService#retrieveRecord is called once with CID and `path`.
+    // Let's return the actual genesis as if IPFS traversed through `path`.
+    retrieveRecordSpy.mockImplementation(async (cid, options) => {
+      return { header: HEADER_RECORD }
+    })
+    const genesisFields = await metadataService.retrieveFromGenesis(streamId)
+    expect(retrieveRecordSpy).toBeCalledTimes(1)
+    // If DAG-JWS, then retrieve /link
+    expect(retrieveRecordSpy).toBeCalledWith(streamId.cid, { path: '/link' })
+    retrieveRecordSpy.mockRestore()
+    // We are not really interested in `genesisFields` _here_, but let's keep it anyway.
+    expect(genesisFields).toEqual(GENESIS_FIELDS)
   })
 
   describe('invalid genesis', () => {
@@ -150,14 +173,52 @@ describe('storeMetadata', () => {
 })
 
 describe('fill', () => {
+  let streamId: StreamID
+
+  beforeEach(async () => {
+    streamId = await putGenesisHeader(HEADER_RECORD)
+  })
+
   test('store metadata from genesis commit', async () => {
-    const streamId = await putGenesisHeader(HEADER_RECORD)
     const retrieveSpy = jest.spyOn(metadataService, 'retrieveFromGenesis')
     const saveSpy = jest.spyOn(metadataService, 'storeMetadata')
     await metadataService.fill(streamId)
     expect(retrieveSpy).toBeCalledTimes(1)
-    expect(retrieveSpy).toBeCalledWith(streamId)
+    expect(retrieveSpy).toBeCalledWith(streamId, {})
     expect(saveSpy).toBeCalledTimes(1)
     expect(saveSpy).toBeCalledWith(streamId, GENESIS_FIELDS)
+  })
+
+  describe('if an entry is already in the database', () => {
+    test('do not retrieve genesis', async () => {
+      const retrieveSpy = jest.spyOn(metadataService, 'retrieveFromGenesis')
+      const saveSpy = jest.spyOn(metadataService, 'storeMetadata')
+      await metadataService.fill(streamId)
+      expect(retrieveSpy).toBeCalledTimes(1) // Retrieve from IPFS
+      expect(saveSpy).toBeCalledTimes(1) // Store to the database
+      retrieveSpy.mockClear()
+      saveSpy.mockClear()
+      await metadataService.fill(streamId)
+      expect(retrieveSpy).toBeCalledTimes(0) // Do not retrieve from IPFS
+      expect(saveSpy).toBeCalledTimes(0) // Do not store to the database.
+    })
+
+    test('touch the entry', async () => {
+      const now0 = new Date()
+      await metadataService.fill(streamId)
+      const retrieved0 = await metadataRepository.retrieve(streamId)
+      expect(retrieved0.usedAt.valueOf()).toBeCloseTo(now0.valueOf(), -2)
+      // Manually update `usedAt` to some time ago
+      const someTimeAgo = new Date()
+      someTimeAgo.setHours(someTimeAgo.getHours() - 15) // For example, 15 hours ago
+      await metadataRepository.touch(streamId, someTimeAgo)
+      const retrieved1 = await metadataRepository.retrieve(streamId)
+      expect(retrieved1.usedAt).toEqual(someTimeAgo)
+      // `MetadataService#fill` should update `usedAt` to _now_
+      const now1 = new Date()
+      await metadataService.fill(streamId)
+      const retrieved2 = await metadataRepository.retrieve(streamId)
+      expect(retrieved2.usedAt.valueOf()).toBeCloseTo(now1.valueOf(), -2)
+    })
   })
 })
