@@ -18,7 +18,7 @@ import merge from 'merge-options'
 import { RequestStatus } from '../../models/request.js'
 import type { IIpfsService } from '../../services/ipfs-service.type.js'
 import { StreamID } from '@ceramicnetwork/streamid'
-import { IMetadataService, MetadataService } from '../../services/metadata-service'
+import type { IMetadataService } from '../../services/metadata-service.js'
 
 function mockResponse(): ExpRes {
   const res: any = {}
@@ -39,6 +39,13 @@ type Tokens = {
   requestController: RequestController
   requestRepository: RequestRepository
   ipfsService: IIpfsService
+  metadataService: IMetadataService
+}
+
+class MockMetadataService implements IMetadataService {
+  async fill(streamId: StreamID): Promise<void> {
+    return
+  }
 }
 
 describe('createRequest', () => {
@@ -56,7 +63,7 @@ describe('createRequest', () => {
       .provideClass('ipfsService', MockIpfsService)
       .provideClass('ceramicService', MockCeramicService)
       .provideClass('requestPresentationService', RequestPresentationService)
-      .provideClass('metadataService', MetadataService)
+      .provideClass('metadataService', MockMetadataService)
       .provideClass('requestController', RequestController)
     controller = container.resolve('requestController')
   })
@@ -194,9 +201,10 @@ describe('createRequest', () => {
           streamId: streamId.toString(),
         },
       })
-      const retrieveRecordSpy = jest.spyOn(ipfsService, 'retrieveRecord')
+      const metadataService = container.resolve('metadataService')
+      const fillSpy = jest.spyOn(metadataService, 'fill')
       await controller.createRequest(req, mockResponse())
-      expect(retrieveRecordSpy).toBeCalledWith(streamId.cid)
+      expect(fillSpy).toBeCalledWith(streamId)
     })
   })
 

@@ -83,7 +83,8 @@ export class RequestController {
       }
       const streamId = StreamID.fromString(req.body.streamId)
 
-      const genesis = await this.ipfsService.retrieveRecord(streamId.cid) // TODO store metadata
+      // Store metadata from genesis to the database
+      await this.metadataService.fill(streamId)
 
       let timestamp = new Date()
       if (req.body.timestamp) {
