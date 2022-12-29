@@ -161,8 +161,8 @@ export class DynamoDB implements Database {
 
     async _getActiveOTPs(email: string): Promise<Item[]> {
         const expressionAttributeValues = marshall({
-            'PK': email,
-            'active': OTPStatus.Active
+            ':PK': email,
+            ':active': OTPStatus.Active
         })
         const filterExpression = 'contains (curr_status, :active)'
         return await this._queryItems(OTP_TABLE_NAME, expressionAttributeValues, filterExpression)
@@ -190,10 +190,10 @@ export class DynamoDB implements Database {
                 'SK': data.SK
             }),
             UpdateExpression: `SET curr_status=:next_status, updated_at_unix=:updated_at_unix`,
-            ConditionExpression: '(attribute_exists(PK)) AND NOT (curr_status IN :next_status)',
+            ConditionExpression: '(attribute_exists(PK)) AND NOT contains(curr_status, :next_status)',
             ExpressionAttributeValues: marshall({
-                'next_status': next_status,
-                'updated_at_unix': now(),
+                ':next_status': next_status,
+                ':updated_at_unix': now(),
             })
         }
         await this.client.send(new UpdateItemCommand(input))
@@ -312,7 +312,7 @@ export class DynamoDB implements Database {
             if (output) {
                 if (output.Attributes) {
                     const attributes = unmarshall(output.Attributes)
-                    if (attributes.expirationTimeMs > now()) {
+                    if (attributes.expires_at_unix > now()) {
                         return true
                     }
                 }
