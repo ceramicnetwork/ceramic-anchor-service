@@ -1,5 +1,7 @@
 import express from 'express'
 import asyncify from 'express-asyncify'
+import { ClientFacingError } from '../utils/errorHandling'
+import { Database } from '../utils/db'
 
 const router = asyncify(express.Router())
 
@@ -11,14 +13,16 @@ router.post('/', async (req, res) => {
     if (!body) throw Error('Missing body')
     // TODO: verify email
     const validEmail = body.email ?? undefined
-    const validDID = body.did ?? undefined
-    if (validEmail && validDID) {
-        const data = await req.customContext.db.registerDID(validEmail, validDID)
+    const dids = body.dids ?? undefined
+    const validDIDs = dids.map((did) => did)
+    const otp = body.otp ?? undefined
+    if (validEmail && validDIDs && otp) {
+        const data = await (req.customContext.db as Database).registerDIDs(validEmail, otp, validDIDs)
         if (data) {
           return res.send(data)
         }
     }
-    throw Error('Could not register DID')
+    throw new ClientFacingError('Could not register DID')
 })
 
 /**
@@ -33,7 +37,7 @@ router.get('/:did/nonce', async (req, res) => {
       return res.send({ nonce })
     }
   }
-  throw Error('Could not retrieve nonce')
+  throw new ClientFacingError('Could not retrieve nonce')
 })
 
 /**
@@ -51,7 +55,7 @@ router.delete('/:did', async (req, res) => {
       return res.send({ message: 'Revoked DID' })
     }
   }
-  throw Error('Could not revoke DID')
+  throw new ClientFacingError('Could not revoke DID')
 })
 
 export const did = router

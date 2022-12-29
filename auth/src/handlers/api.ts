@@ -3,6 +3,7 @@ import express from 'express'
 import serverless from 'serverless-http'
 import * as routes from '../routes/index.js'
 import { DynamoDB } from "../utils/dynamodb.js"
+import { ClientFacingError } from '../utils/errorHandling.js'
 
 export const API_ENDPOINT = '/api/v0/auth'
 
@@ -41,7 +42,13 @@ function errorHandler (err, req, res, next) {
   if (res.headersSent) {
     return next(err)
   }
-  res.send({ error: err.message })
+  let error = 'Error'
+  if (err instanceof ClientFacingError) {
+    error = err.message
+  } else {
+    console.error(err)
+  }
+  res.send({ error })
 }
  
 export const handler = async (event, context) => {
