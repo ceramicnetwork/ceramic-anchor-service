@@ -141,8 +141,13 @@ export class DynamoDB implements Database {
         }
     }
 
-    async createEmailVerificationCode(email: string): Promise<string> {
-        return await createEmailVerificationCode(email, this)
+    async createEmailVerificationCode(email: string): Promise<string | undefined> {
+        try {
+            return await createEmailVerificationCode(email, this)
+        } catch (err) {
+            console.error(err)
+        }
+        return
     }
 
     async _getRevokedOTPs(email: string): Promise<Item[]> {
@@ -169,11 +174,11 @@ export class DynamoDB implements Database {
     }
 
     async _expireOTP(item: Item): Promise<void> {
-        this._updateOTP(item, OTPStatus.Expired)
+        await this._updateOTP(item, OTPStatus.Expired)
     }
 
     async _revokeOTP(item: Item): Promise<void> {
-        this._updateOTP(item, OTPStatus.Revoked)
+        await this._updateOTP(item, OTPStatus.Revoked)
     }
 
     private async _updateOTP(item: Item, next_status: OTPStatus): Promise<void> {
@@ -191,15 +196,7 @@ export class DynamoDB implements Database {
                 'updated_at_unix': now(),
             })
         }
-        try {
-            await this.client.send(new UpdateItemCommand(input))
-        } catch (err) {
-            if (err instanceof ConditionalCheckFailedException) {
-                console.error('OTP was not found or is already expired.')
-            } else {
-                console.error(err)
-            }
-        }
+        await this.client.send(new UpdateItemCommand(input))
     }
 
     async _addOTP(email: string, otp: string): Promise<void> {
@@ -215,12 +212,7 @@ export class DynamoDB implements Database {
                 'expires_at_unix': DateTime.now().plus({ minutes: 30 }).toUnixInteger()
             })
         }
-        try {
-            await this.client.send(new PutItemCommand(params))
-        } catch(err) {
-            console.error(err)
-            return
-        }
+        await this.client.send(new PutItemCommand(params))
     }
 
     async registerDIDs(email: string, otp: string, dids: Array<string>): Promise<Array<any> | undefined> {
@@ -330,10 +322,8 @@ export class DynamoDB implements Database {
         } catch (err) {
             if (err instanceof ConditionalCheckFailedException) {
                 console.error('OTP not found or not active.')
-            } else {
-                console.error(err)
             }
-            return false
+            throw err
         }
     }
 

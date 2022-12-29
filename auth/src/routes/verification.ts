@@ -1,6 +1,7 @@
 import express from 'express'
 import asyncify from 'express-asyncify'
 import { Database } from '../utils/db'
+import { ClientFacingError } from '../utils/errorHandling'
 
 const router = asyncify(express.Router())
 
@@ -13,11 +14,12 @@ router.post('/', async (req, res) => {
     const validEmail = body.email ?? undefined
     if (validEmail) {
         const data = await (req.customContext.db as Database).createEmailVerificationCode(validEmail)
-        if (data) {
-          return res.send(data)
+        const success = data && true
+        if (success) {
+          return res.send({success})
         }
     }
-    throw Error('Could not register DID')
+    throw new ClientFacingError('Unavailable. Try again later.')
 })
 
 export const verification = router

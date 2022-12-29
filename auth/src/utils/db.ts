@@ -17,7 +17,7 @@ export interface Database {
     name: string
     client: any
     init: () => Promise<void>
-    createEmailVerificationCode: (email: string) => Promise<string>
+    createEmailVerificationCode: (email: string) => Promise<string | undefined>
     getEmail: (did: string) => Promise<string | undefined>
     getNonce: (did: string) => Promise<number | undefined>
     registerDID: (email: string, otp: string, did: string) => Promise<any>
