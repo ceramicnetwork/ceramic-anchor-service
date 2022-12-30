@@ -1,9 +1,10 @@
 import express from 'express'
 import asyncify from 'express-asyncify'
 import { validate } from 'express-validation'
-import { getNonceValidation, registerValidation } from '../validators/did.js'
+import { getNonceValidation, registerValidation, revokeValidation } from '../validators/did.js'
 import { ClientFacingError } from '../utils/errorHandling.js'
-import { Req, Res } from '../utils/reqres.js'
+import { authBearerOnlyRegex, Req, Res } from '../utils/reqres.js'
+import { checkValidSignature } from '../utils/did.js'
 
 const router = asyncify(express.Router())
 
@@ -11,18 +12,20 @@ const router = asyncify(express.Router())
  * Register DID
  */
 router.post('/', validate(registerValidation), async (req: Req, res: Res) => {
-    const data = await req.customContext.db.registerDIDs(req.body.email, req.body.otp, req.body.dids)
-    if (data) {
-      return res.send(data)
-    }
-    throw new ClientFacingError('Could not register DID')
+  const data = await req.customContext.db.registerDIDs(req.body.email, req.body.otp, req.body.dids)
+  if (data) {
+    return res.send(data)
+  }
+  throw new ClientFacingError('Could not register DID')
 })
 
 /**
  * Get last recorded nonce
  */
 router.get('/:did/nonce', validate(getNonceValidation), async (req: Req, res: Res) => {
-  // TODO: validate the did in the signature matches here
+  const jws = req.headers.authorization?.replace(authBearerOnlyRegex, '')
+  const valid = await checkValidSignature(req.params.did, jws || '')
+  if (!valid) throw new ClientFacingError('Invalid signature')
   const nonce = await req.customContext.db.getNonce(req.params.did) ?? -1
   if (nonce >= 0) {
     return res.send({ nonce })

@@ -10,8 +10,16 @@ export function checkValidDID(did: string): boolean {
 export async function checkValidSignature(did: string, jws: string): Promise<boolean> {
     if (did && jws) {
         if (did != '' && jws != '') {
-            const result = await parseSignature(jws)
-            return did == result.didResolutionResult.didDocument?.id
+            try {
+                const result = await parseSignature(jws)
+                return did == result.didResolutionResult.didDocument?.id
+            } catch (err) {
+                if (err instanceof SyntaxError) {
+                    console.error('Invalid jws:', jws)
+                } else {
+                    console.error(err)
+                }
+            }
         }
     }
     return false

@@ -1,10 +1,13 @@
 import { Joi } from 'express-validation'
 import { didRegex } from '../utils/did.js'
+import { authBearerRegex } from '../utils/reqres.js'
 
 export const registerValidation = {
   body: Joi.object({
     email: Joi.string()
       .email()
+      .required(),
+    otp: Joi.string()
       .required(),
     dids: Joi.array()
       .unique()
@@ -13,18 +16,31 @@ export const registerValidation = {
         .regex(didRegex)
       )
       .required(),
-    otp: Joi.string()
-      .required(),
   }),
 }
 
 export const getNonceValidation = {
     headers: Joi.object({
-        Authorization: Joi.string()
-    }),
+        authorization: Joi.string()
+          .regex(authBearerRegex)
+          .required(),
+    }).unknown(true),
     params: Joi.object({
         did: Joi.string()
           .regex(didRegex)
           .required()
     }),
+}
+
+export const revokeValidation = {
+  body: Joi.object({
+    email: Joi.string()
+      .email()
+      .required(),
+    otp: Joi.string()
+      .required(),
+    did: Joi.string()
+      .regex(didRegex)
+      .required(),
+  }),
 }

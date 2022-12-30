@@ -20,3 +20,6 @@ export interface Req extends Request {
 }
 
 export interface Res extends Response {}
+
+export const authBearerRegex = new RegExp(/Bearer .*/)
+export const authBearerOnlyRegex = new RegExp(/Bearer /)
