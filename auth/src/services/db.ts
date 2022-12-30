@@ -1,5 +1,5 @@
-import { VerificationUnavailableError } from "./errorHandling"
-import { generateOTP } from "./otp"
+import { VerificationUnavailableError } from "../utils/errorHandling"
+import { generateOTP } from "../utils/otp"
 
 export enum DIDStatus {
     Active = 'Active',

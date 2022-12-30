@@ -1,23 +1,24 @@
 import express from 'express'
 import asyncify from 'express-asyncify'
-import { Database } from '../utils/db'
+import { Database } from '../services/db'
+import { checkValidEmail, EmailService } from '../services/email'
 import { ClientFacingError } from '../utils/errorHandling'
+import { Req, Res } from '../utils/reqres'
 
 const router = asyncify(express.Router())
 
 /**
  * Get an OTP sent to email
  */
-router.post('/', async (req, res) => {
+router.post('/', async (req: Req, res: Res) => {
     const body = req.body
-    if (!body) throw Error('Missing body')
-    const validEmail = body.email ?? undefined
-    if (validEmail) {
-        const data = await (req.customContext.db as Database).createEmailVerificationCode(validEmail)
-        const success = data && true
-        if (success) {
-          return res.send({success})
-        }
+    if (!body) throw new ClientFacingError('Missing body')
+    if (!checkValidEmail(body.email)) throw new ClientFacingError('Invalid email')
+    const validEmail = body.email
+    const code = await req.customContext.db.createEmailVerificationCode(validEmail)
+    if (code) {
+      await req.customContext.email.sendVerificationCode(validEmail, code)
+      return res.send({message: 'Please check your email for your verification code.'})
     }
     throw new ClientFacingError('Unavailable. Try again later.')
 })

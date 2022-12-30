@@ -21,7 +21,7 @@ import {
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb"
 import { DateTime } from 'luxon'
 
-import { createEmailVerificationCode, Database, DIDStatus, OTPStatus } from "./db"
+import { createEmailVerificationCode, Database, DIDStatus, OTPStatus } from "../db"
 
 const AWS_REGION = process.env.AWS_REGION ?? ''
 

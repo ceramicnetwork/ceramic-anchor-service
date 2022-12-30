@@ -2,14 +2,17 @@ import bodyParser from 'body-parser'
 import express from 'express'
 import serverless from 'serverless-http'
 import * as routes from '../routes/index.js'
-import { DynamoDB } from "../utils/dynamodb.js"
+import { DynamoDB } from "../services/aws/dynamodb.js"
+import { SESService } from "../services/aws/ses.js"
 import { ClientFacingError } from '../utils/errorHandling.js'
+import { CustomContext } from '../utils/reqres.js'
 
 export const API_ENDPOINT = '/api/v0/auth'
 
 const app = express()
 const createTableIfNotExists = true
 const db = new DynamoDB(createTableIfNotExists)
+const email = new SESService()
 
 app.use(bodyParser.json())
 app.use(parseAsJson)
@@ -23,7 +26,11 @@ function parseAsJson(req, res, next) {
 }
 app.use(customContext)
 function customContext(req, res, next) {
-  req.customContext = { db }
+  const context: CustomContext = {
+    db,
+    email
+  }
+  req.customContext = context
   next()
 }
 
@@ -54,5 +61,6 @@ function errorHandler (err, req, res, next) {
  
 export const handler = async (event, context) => {
   await db.init()
+  await email.init()
   return serverless(app)(event, context)
 }
