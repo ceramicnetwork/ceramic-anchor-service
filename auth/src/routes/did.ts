@@ -36,17 +36,10 @@ router.get('/:did/nonce', validate(getNonceValidation), async (req: Req, res: Re
 /**
  * Revoke DID
  */
-router.delete('/:did', async (req: Req, res: Res) => {
-  const validDID = req.params.did ?? undefined
-  const otp = req.params.code ?? undefined
-  if (validDID) {
-    const email = await req.customContext.db.getEmail(validDID)
-    if (email) {
-      const success = await req.customContext.db.revokeDID(email, otp, validDID)
-      if (success) {
-        return res.send({ message: 'Revoked DID' })
-      }
-    }
+router.put('/:did', validate(revokeValidation), async (req: Req, res: Res) => {
+  const success = await req.customContext.db.revokeDID(req.body.email, req.body.otp, req.body.did)
+  if (success) {
+    return res.send({ message: 'Revoked DID' })
   }
   throw new ClientFacingError('Could not revoke DID')
 })
