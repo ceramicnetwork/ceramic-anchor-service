@@ -73,11 +73,8 @@ export const date = new t.Type<Date, string, Date | string>(
     if (this.is(input)) return t.success(input)
     if (typeof input === 'string') {
       const parsed = new Date(input)
-      if (isNaN(parsed.valueOf())) {
-        // Can not parse input
-        return t.failure(input, context)
-      }
-      return t.success(parsed)
+      const isParsingSuccessful = !isNaN(parsed.valueOf())
+      if (isParsingSuccessful) return t.success(parsed)
     }
     return t.failure(input, context)
   },
