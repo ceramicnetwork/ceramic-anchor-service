@@ -129,10 +129,7 @@ describe('createRequest', () => {
 
     test('create request', async () => {
       const cid = randomCID()
-      const ipfsService = container.resolve('ipfsService')
-      const record = { hello: `world-${Math.random()}` }
-      const genesisCid = await ipfsService.storeRecord(record)
-      const streamId = new StreamID('tile', genesisCid)
+      const streamId = randomStreamID()
       const timestamp = new Date()
       const req = mockRequest({
         body: {
@@ -161,10 +158,7 @@ describe('createRequest', () => {
 
     test('timestamp is empty', async () => {
       const cid = randomCID()
-      const ipfsService = container.resolve('ipfsService')
-      const record = { hello: `world-${Math.random()}` }
-      const genesisCid = await ipfsService.storeRecord(record)
-      const streamId = new StreamID('tile', genesisCid)
+      const streamId = randomStreamID()
       const now = new Date()
       const req = mockRequest({
         body: {
@@ -191,10 +185,7 @@ describe('createRequest', () => {
 
     test('fill metadata', async () => {
       const cid = randomCID()
-      const ipfsService = container.resolve('ipfsService')
-      const record = { hello: `world-${Math.random()}` }
-      const genesisCid = await ipfsService.storeRecord(record)
-      const streamId = new StreamID('tile', genesisCid)
+      const streamId = randomStreamID()
       const req = mockRequest({
         body: {
           cid: cid.toString(),
@@ -212,10 +203,7 @@ describe('createRequest', () => {
     test('return representation', async () => {
       // 0. Prepare
       const cid = randomCID()
-      const ipfsService = container.resolve('ipfsService')
-      const record = { hello: `world-${Math.random()}` }
-      const genesisCid = await ipfsService.storeRecord(record)
-      const streamId = new StreamID('tile', genesisCid)
+      const streamId = randomStreamID()
       const now = new Date()
       const req = mockRequest({
         body: {
