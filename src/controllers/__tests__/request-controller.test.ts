@@ -17,7 +17,7 @@ import type { Knex } from 'knex'
 import merge from 'merge-options'
 import { RequestStatus } from '../../models/request.js'
 import type { IIpfsService } from '../../services/ipfs-service.type.js'
-import { StreamID } from '@ceramicnetwork/streamid'
+import type { StreamID } from '@ceramicnetwork/streamid'
 import type { IMetadataService } from '../../services/metadata-service.js'
 
 function mockResponse(): ExpRes {
