@@ -58,8 +58,8 @@ describe('retrieveFromGenesis', () => {
     retrieveRecordSpy.mockRestore()
   })
 
-  test('get DAG-JWS genesis from IPFS', async () => {
-    // Genesis CID is in DAG-JWS
+  test('get DAG-JOSE genesis from IPFS', async () => {
+    // Genesis CID is in DAG-JOSE
     const streamId = StreamID.fromString(
       'kjzl6cwe1jw146wg7fp48nuict3spcxna1h3p6zipzn4yl74d0m00jioeetw4p0'
     )
@@ -71,7 +71,7 @@ describe('retrieveFromGenesis', () => {
     })
     const genesisFields = await metadataService.retrieveFromGenesis(streamId)
     expect(retrieveRecordSpy).toBeCalledTimes(1)
-    // If DAG-JWS, then retrieve /link
+    // If DAG-JOSE, then retrieve /link
     expect(retrieveRecordSpy).toBeCalledWith(streamId.cid, { path: '/link' })
     retrieveRecordSpy.mockRestore()
     // We are not really interested in `genesisFields` _here_, but let's keep it anyway.

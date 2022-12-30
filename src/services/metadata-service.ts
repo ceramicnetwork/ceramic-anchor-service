@@ -37,7 +37,7 @@ const IpfsGenesisHeader = t.intersection([
 type ExactGenesisFields = Assert<IsExact<GenesisFields, t.TypeOf<typeof IpfsGenesisHeader>>, true>
 
 /**
- * Identifier of DAG-JWS codec.
+ * Identifier of DAG-JOSE codec.
  */
 const DAG_JOSE_CODEC = 133
 
