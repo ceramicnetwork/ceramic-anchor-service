@@ -1,7 +1,7 @@
 import * as t from 'io-ts'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import * as uint8arrays from 'uint8arrays'
-import { isDIDString, DIDString } from './did-string.js'
+import { isDIDString } from './did-string.js'
 
 /**
  * io-ts codec for JS `Uint8Array`.
@@ -84,8 +84,13 @@ export const date = new t.Type<Date, string, Date | string>(
 /**
  * io-ts codec for a vanilla DID string, i.e. `did:method:id`.
  */
-export const didString: t.RefinementC<t.StringC, DIDString> = t.refinement(
-  t.string,
-  isDIDString,
-  'did-string'
+export const didString = t.refinement(t.string, isDIDString, 'did-string')
+
+/**
+ * io-ts codec for controllers array: `[DIDString]`.
+ */
+export const controllers = t.refinement(
+  t.array(didString),
+  (array) => array.length === 1,
+  '[DIDString]'
 )

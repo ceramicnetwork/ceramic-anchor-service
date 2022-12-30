@@ -1,4 +1,4 @@
-import type { Opaque } from 'ts-essentials'
+import type { Opaque } from './opaque.type.js'
 
 export type DIDString = Opaque<string, 'DIDString'>
 

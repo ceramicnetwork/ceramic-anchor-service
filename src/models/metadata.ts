@@ -7,7 +7,7 @@ import * as te from '../ancillary/io-ts-extra.js'
 export const GenesisFields = t.intersection(
   [
     t.type({
-      controllers: t.array(t.string),
+      controllers: te.controllers,
     }),
     t.partial({
       schema: t.string.pipe(te.commitIdAsString),

@@ -2,12 +2,12 @@ import type { StreamID } from '@ceramicnetwork/streamid'
 import type { IIpfsService, RetrieveRecordOptions } from './ipfs-service.type.js'
 import type { GenesisFields } from '../models/metadata.js'
 import type { GenesisCommit } from '@ceramicnetwork/common'
-import { isExact } from 'ts-essentials'
 import * as t from 'io-ts'
 import * as te from '../ancillary/io-ts-extra.js'
 import type { IMetadataRepository } from '../repositories/metadata-repository.js'
 import { ThrowDecoder } from '../ancillary/throw-decoder.js'
 import type { AbortOptions } from './abort-options.type.js'
+import type { Assert, IsExact } from 'conditional-type-checks'
 
 /**
  * Public interface for MetadataService.
@@ -21,11 +21,7 @@ export interface IMetadataService {
  */
 const IpfsGenesisHeader = t.intersection([
   t.type({
-    controllers: t.refinement(
-      t.array(te.didString),
-      (array) => array.length === 1,
-      'single element array'
-    ),
+    controllers: te.controllers,
   }),
   t.partial({
     schema: t.string.pipe(te.commitIdAsString),
@@ -38,7 +34,7 @@ const IpfsGenesisHeader = t.intersection([
 /**
  * Fails on compile time if there is any divergence between `GenesisFields` and `IpfsGenesisHeader` shapes.
  */
-const exactGenesisFields = isExact<GenesisFields>()
+type ExactGenesisFields = Assert<IsExact<GenesisFields, t.TypeOf<typeof IpfsGenesisHeader>>, true>
 
 /**
  * Identifier of DAG-JWS codec.
@@ -82,7 +78,7 @@ export class MetadataService implements IMetadataService {
       retrieveRecordOptions
     )
     const header = genesisRecord.header
-    return exactGenesisFields(ThrowDecoder.decode(IpfsGenesisHeader, header))
+    return ThrowDecoder.decode(IpfsGenesisHeader, header)
   }
 
   /**
