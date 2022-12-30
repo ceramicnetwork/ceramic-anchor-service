@@ -63,7 +63,7 @@ describe('commitId', () => {
   })
 })
 
-describe('dateAsISOString', () => {
+describe('date', () => {
   const isoString = '2022-12-13T14:15:16.789Z'
   const now = new Date(isoString)
 
