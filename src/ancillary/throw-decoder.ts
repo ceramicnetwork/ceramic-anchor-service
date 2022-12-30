@@ -1,3 +1,6 @@
+// Mostly copied from PathReporter of io-ts.
+// The difference is our ThrowDecoder returns a value if decoding succeeds.
+
 import * as t from 'io-ts'
 import { isLeft } from 'fp-ts/Either'
 
@@ -30,6 +33,9 @@ export class ValidationError extends Error {
   }
 }
 
+/**
+ * If decoding fails, throw an error.
+ */
 export const ThrowDecoder = {
   decode<A, O, I>(type: t.Type<A, O, I>, input: I): A {
     const validation = type.decode(input)
