@@ -73,7 +73,7 @@ export const date = new t.Type<Date, string, Date | string>(
     if (this.is(input)) return t.success(input)
     if (typeof input === 'string') {
       const parsed = new Date(input)
-      const isParsingSuccessful = !isNaN(parsed.valueOf())
+      const isParsingSuccessful = Number.isFinite(parsed.valueOf())
       if (isParsingSuccessful) return t.success(parsed)
     }
     return t.failure(input, context)
