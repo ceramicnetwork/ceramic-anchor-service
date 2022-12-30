@@ -26,6 +26,7 @@ specifiers:
   key-did-provider-ed25519: ^2.0.1
   key-did-resolver: ^2.0.6
   luxon: ^3.1.1
+  node-fetch: ^3.3.0
   prettier: ^2.7.1
   serverless: ^3.21.0
   serverless-esbuild: ^1.32.5
@@ -54,6 +55,7 @@ dependencies:
   key-did-provider-ed25519: 2.0.1
   key-did-resolver: 2.0.6
   luxon: 3.1.1
+  node-fetch: 3.3.0
   serverless-http: 3.1.0
   serverless-offline: 11.5.0_serverless@3.21.0
   uint8arrays: 3.1.0
