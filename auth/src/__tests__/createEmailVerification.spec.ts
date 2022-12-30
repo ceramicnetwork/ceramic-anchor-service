@@ -1,4 +1,4 @@
-import { createEmailVerificationCode, DatabaseEmailVerification } from '../utils/db'
+import { createEmailVerificationCode, Database, DatabaseEmailVerification } from '../services/db'
 
 test('createEmailVerification', async () => {
     const activeOTPs: any[] = []
