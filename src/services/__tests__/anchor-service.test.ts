@@ -636,45 +636,6 @@ describe('anchor service', () => {
     }
   })
 
-  test('Does not create anchor commits if stream has already been anchored for those requests', async () => {
-    const requestRepository = injector.resolve('requestRepository')
-    const anchorService = injector.resolve('anchorService')
-
-    const anchorLimit = 0 // 0 means infinity
-    const numRequests = 5
-
-    // Create pending requests
-    for (let i = 0; i < numRequests; i++) {
-      const streamId = await randomStreamID()
-      const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
-      const commitId = CommitID.make(streamId, request.cid)
-      const stream = createStream(streamId, [toCID(request.cid)])
-      ceramicService.putStream(streamId, stream)
-      ceramicService.putStream(commitId, stream)
-    }
-
-    await requestRepository.findAndMarkReady(anchorLimit)
-
-    let requests = await requestRepository.findByStatus(RequestStatus.READY)
-    expect(requests.length).toEqual(numRequests)
-    const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
-    expect(candidates.length).toEqual(numRequests)
-    await anchorCandidates(candidates, anchorService, ipfsService)
-
-    requests = await requestRepository.findByStatus(RequestStatus.READY)
-    expect(requests.length).toEqual(0)
-
-    let anchors = await connection.select().from(TABLE_NAME)
-    expect(anchors.length).toEqual(numRequests)
-
-    // reanchor the same candidates
-    await anchorCandidates(candidates, anchorService, ipfsService)
-
-    // no new anchor should have been created
-    anchors = await connection.select().from(TABLE_NAME)
-    expect(anchors.length).toEqual(numRequests)
-  })
-
   describe('Picks proper commit to anchor', () => {
     test('Anchor more recent of two commits', async () => {
       // 1 stream with 2 pending requests, one request is newer and inclusive of the other.
