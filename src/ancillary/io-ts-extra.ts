@@ -8,9 +8,7 @@ import { isDIDString, DIDString } from './did-string.js'
  */
 export const uint8array = new t.Type<Uint8Array, Uint8Array, unknown>(
   'Uint8Array',
-  function (input: unknown): input is Uint8Array {
-    return input instanceof Uint8Array
-  },
+  (input: unknown): input is Uint8Array => input instanceof Uint8Array,
   function (this: t.Type<Uint8Array, Uint8Array, unknown>, input: unknown, context: t.Context) {
     return this.is(input) ? t.success(input) : t.failure(input, context)
   },
@@ -38,19 +36,15 @@ export const uint8ArrayAsBase64 = new t.Type<Uint8Array, string, string>(
  */
 export const streamIdAsString = new t.Type<StreamID, string, string>(
   'StreamID-as-string',
-  function (input: unknown): input is StreamID {
-    return StreamID.isInstance(input)
-  },
-  function (this: t.Type<StreamID, string, string>, input: string, context: t.Context) {
+  (input: unknown): input is StreamID => StreamID.isInstance(input),
+  (input: string, context: t.Context) => {
     try {
       return t.success(StreamID.fromString(input))
     } catch {
       return t.failure(input, context)
     }
   },
-  function (streamId) {
-    return streamId.toString()
-  }
+  (streamId) => streamId.toString()
 )
 
 /**
@@ -58,19 +52,15 @@ export const streamIdAsString = new t.Type<StreamID, string, string>(
  */
 export const commitIdAsString = new t.Type<CommitID, string, string>(
   'CommitID-as-string',
-  function (input: unknown): input is CommitID {
-    return CommitID.isInstance(input)
-  },
-  function (this: t.Type<CommitID, string, string>, input: string, context: t.Context) {
+  (input: unknown): input is CommitID => CommitID.isInstance(input),
+  (input: string, context: t.Context) => {
     try {
       return t.success(CommitID.fromString(input))
     } catch {
       return t.failure(input, context)
     }
   },
-  function (commitId) {
-    return commitId.toString()
-  }
+  (commitId) => commitId.toString()
 )
 
 /**
@@ -78,9 +68,7 @@ export const commitIdAsString = new t.Type<CommitID, string, string>(
  */
 export const date = new t.Type<Date, string, Date | string>(
   'Date-as-ISOString',
-  function (input: unknown): input is Date {
-    return input instanceof Date
-  },
+  (input: unknown): input is Date => input instanceof Date,
   function (this: t.Type<Date>, input: Date | string, context: t.Context) {
     if (this.is(input)) return t.success(input)
     if (typeof input === 'string') {
@@ -93,9 +81,7 @@ export const date = new t.Type<Date, string, Date | string>(
     }
     return t.failure(input, context)
   },
-  function (input: Date) {
-    return input.toISOString()
-  }
+  (input: Date) => input.toISOString()
 )
 
 /**
