@@ -25,10 +25,8 @@ sls offline
 ## Running
 
 ```shell
-curl --request GET \
+curl --request POST \
   --url <<endpoint>> \
   --header 'Content-Type: application/json' \
-  --data '{
-        "did": <any_did>
-  }'
+  --data '{}'
 ```
