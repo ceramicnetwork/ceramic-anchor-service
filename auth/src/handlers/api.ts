@@ -1,9 +1,11 @@
 import bodyParser from 'body-parser'
 import express from 'express'
+import { ValidationError } from 'express-validation'
 import serverless from 'serverless-http'
+
 import * as routes from '../routes/index.js'
-import { DynamoDB } from "../services/aws/dynamodb.js"
-import { SESService } from "../services/aws/ses.js"
+import { DynamoDB } from '../services/aws/dynamodb.js'
+import { SESService } from '../services/aws/ses.js'
 import { ClientFacingError } from '../utils/errorHandling.js'
 import { CustomContext } from '../utils/reqres.js'
 
@@ -49,6 +51,9 @@ app.use(errorHandler)
 function errorHandler (err, req, res, next) {
   if (res.headersSent) {
     return next(err)
+  }
+  if (err instanceof ValidationError) {
+    return res.status(err.statusCode).json(err)
   }
   let error = 'Error'
   if (err instanceof ClientFacingError) {

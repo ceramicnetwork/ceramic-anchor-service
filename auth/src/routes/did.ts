@@ -1,27 +1,19 @@
 import express from 'express'
 import asyncify from 'express-asyncify'
-import { ClientFacingError } from '../utils/errorHandling'
-import { Req, Res } from '../utils/reqres'
-import { Database } from '../services/db'
+import { validate } from 'express-validation'
+import { getNonceValidation, registerValidation } from '../validators/did.js'
+import { ClientFacingError } from '../utils/errorHandling.js'
+import { Req, Res } from '../utils/reqres.js'
 
 const router = asyncify(express.Router())
 
 /**
  * Register DID
  */
-router.post('/', async (req: Req, res: Res) => {
-    const body = req.body
-    if (!body) throw Error('Missing body')
-    // TODO: verify email
-    const validEmail = body.email ?? undefined
-    const dids = body.dids ?? undefined
-    const validDIDs = dids.map((did) => did)
-    const otp = body.otp ?? undefined
-    if (validEmail && validDIDs && otp) {
-        const data = await req.customContext.db.registerDIDs(validEmail, otp, validDIDs)
-        if (data) {
-          return res.send(data)
-        }
+router.post('/', validate(registerValidation), async (req: Req, res: Res) => {
+    const data = await req.customContext.db.registerDIDs(req.body.email, req.body.otp, req.body.dids)
+    if (data) {
+      return res.send(data)
     }
     throw new ClientFacingError('Could not register DID')
 })
@@ -29,14 +21,11 @@ router.post('/', async (req: Req, res: Res) => {
 /**
  * Get last recorded nonce
  */
-router.get('/:did/nonce', async (req: Req, res: Res) => {
+router.get('/:did/nonce', validate(getNonceValidation), async (req: Req, res: Res) => {
   // TODO: validate the did in the signature matches here
-  const validDID = req.params.did ?? undefined
-  if (validDID) {
-    const nonce = await req.customContext.db.getNonce(validDID) ?? -1
-    if (nonce >= 0) {
-      return res.send({ nonce })
-    }
+  const nonce = await req.customContext.db.getNonce(req.params.did) ?? -1
+  if (nonce >= 0) {
+    return res.send({ nonce })
   }
   throw new ClientFacingError('Could not retrieve nonce')
 })
