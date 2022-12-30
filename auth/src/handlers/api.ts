@@ -52,11 +52,11 @@ function errorHandler (err, req, res, next) {
   if (res.headersSent) {
     return next(err)
   }
-  if (err instanceof ValidationError) {
-    return res.status(err.statusCode).json(err)
-  }
   let error = 'Error'
-  if (err instanceof ClientFacingError) {
+  if (err instanceof ValidationError) {
+    console.log(err)
+    error = err.message
+  } else if (err instanceof ClientFacingError) {
     error = err.message
   } else {
     console.error(err)
