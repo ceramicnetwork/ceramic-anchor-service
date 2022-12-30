@@ -54,7 +54,6 @@ describe('commitId', () => {
     expect(isRight(te.commitIdAsString.decode(''))).toBeFalsy()
     expect(isRight(te.commitIdAsString.decode('garbage'))).toBeFalsy()
     // StreamID
-
     expect(isRight(te.commitIdAsString.decode(STREAM_ID_STRING))).toBeFalsy()
   })
   test('encode', () => {
