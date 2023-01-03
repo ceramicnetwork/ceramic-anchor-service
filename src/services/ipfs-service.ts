@@ -22,12 +22,12 @@ const MAX_CACHE_ENTRIES = 100
 export const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
 const PUBSUB_DELAY = 100
 
-function buildHttpAgent(endpoint: string): http.Agent {
+function buildHttpAgent(endpoint: string | undefined): http.Agent {
   const agentOptions = {
     keepAlive: false,
     maxSockets: Infinity,
   }
-  if (endpoint.startsWith('https')) {
+  if (endpoint?.startsWith('https')) {
     return new https.Agent(agentOptions)
   } else {
     return new http.Agent(agentOptions)
