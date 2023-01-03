@@ -38,7 +38,6 @@ jobs:
       - image: cimg/rust:1.62.0-node
         environment:
           DATABASE_URL: 'postgres://test-user@localhost:5432/test-db'
-          TZ: "America/Los_Angeles"
       - image: cimg/postgres:14.2
         environment:
           POSTGRES_USER: test-user
