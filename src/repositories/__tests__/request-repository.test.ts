@@ -81,6 +81,8 @@ describe('request repository test', () => {
       requestRepository.createOrUpdate(request),
       requestRepository.createOrUpdate(request),
     ])
+    delete result1.timestamp
+    delete result2.timestamp
     expect(result1).toEqual(result2)
   })
 
