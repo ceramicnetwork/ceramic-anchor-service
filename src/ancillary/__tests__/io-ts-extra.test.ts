@@ -1,6 +1,6 @@
 import { describe, test, expect } from '@jest/globals'
 import * as te from '../io-ts-extra.js'
-import { isRight, Right } from 'fp-ts/Either'
+import { isRight, Right } from 'fp-ts/lib/Either.js'
 import { randomStreamID } from '../../__tests__/test-utils.js'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 

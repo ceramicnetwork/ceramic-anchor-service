@@ -2,7 +2,7 @@
 // The difference is our ThrowDecoder returns a value if decoding succeeds.
 
 import * as t from 'io-ts'
-import { isLeft } from 'fp-ts/Either'
+import { isLeft } from 'fp-ts/lib/Either.js'
 
 function stringify(v: any): string {
   if (typeof v === 'function') {
