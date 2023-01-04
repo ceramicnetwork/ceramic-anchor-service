@@ -10,6 +10,7 @@
   "minStreamCount": "@@MIN_STREAM_COUNT",
   "readyRetryIntervalMS": "@@READY_RETRY_INTERVAL_MS",
   "schedulerIntervalMS": "@@SCHEDULER_INTERVAL_MS",
+  "useSmartContractAnchors": "@@USE_SMART_CONTRACT_ANCHORS",
   "ipfsConfig": {
     "url": "@@IPFS_API_URL",
     "pubsubTopic": "@@IPFS_PUBSUB_TOPIC",
@@ -34,7 +35,8 @@
         "transactionTimeoutSecs": "@@ETH_TXN_TIMEOUT",
         "account": {
           "privateKey": "@@ETH_WALLET_PK"
-        }
+        },
+        "contractAddress": "@@ETH_CONTRACT_ADDRESS"
       }
     }
   },
