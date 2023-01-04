@@ -50,3 +50,19 @@ functions:
       DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
   authorizer:
     handler: src/authorizers/default.handler
+    environment:
+      PERMISSIONED_SECURITY_GROUP_IDS: ${env:PERMISSIONED_SECURITY_GROUP_IDS}
+resources:
+  Resources:
+    apiGatewayLambdaPermissions:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName:
+          Fn::GetAtt: [ AuthorizerLambdaFunction, Arn]
+        Action: lambda:InvokeFunction
+        Principal:
+          Fn::Join: [ "",
+          [
+            "apigateway.",
+            Ref: AWS::URLSuffix
+          ]]
