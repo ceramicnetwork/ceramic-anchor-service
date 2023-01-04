@@ -39,7 +39,7 @@ constructs:
     gsiCount: 1
 
 functions:
-  api:
+  authApi:
     handler: src/handlers/api.handler
     events:
       - http:
@@ -48,38 +48,5 @@ functions:
     environment:
       DB_DID_TABLE_NAME: ${construct:didDb.tableName}
       DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
-  apiAuthorizer:
-    handler: src/authorizers/api.handler
-
-resources:
-  Resources:
-    Authorizer:
-      Type: AWS::ApiGateway::Authorizer
-      Properties:
-        Name: DIDAuth
-        RestApiId: ${env:REST_API_ID}
-        Type: REQUEST
-        IdentitySource: method.request.header.Authorization
-        AuthorizerResultTtlInSeconds: 0
-        AuthorizerUri:
-          Fn::Join: [ "",
-            [
-              "arn:aws:apigateway:",
-              "${self:custom.region}",
-              ":lambda:path/",
-              "2015-03-31/functions/",
-              Fn::GetAtt: ["ApiAuthorizerLambdaFunction", "Arn" ],
-              "/invocations"
-            ]]
-    apiGatewayLambdaPermissions:
-      Type: AWS::Lambda::Permission
-      Properties:
-        FunctionName:
-          Fn::GetAtt: [ ApiAuthorizerLambdaFunction, Arn]
-        Action: lambda:InvokeFunction
-        Principal:
-          Fn::Join: [ "",
-          [
-            "apigateway.",
-            Ref: AWS::URLSuffix
-          ]]
+  authorizer:
+    handler: src/authorizers/default.handler
