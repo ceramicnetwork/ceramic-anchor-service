@@ -17,7 +17,7 @@ import { TransactionRepository } from '../repositories/transaction-repository.js
 import { IpfsService } from './ipfs-service.js'
 import { EventProducerService } from './event-producer/event-producer-service.js'
 import { CeramicService } from './ceramic-service.js'
-import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '../service-metrics.js'
+import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 import { BlockchainService } from './blockchain/blockchain-service.js'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
@@ -43,15 +43,27 @@ type RequestGroups = {
 }
 
 type AnchorSummary = {
+  // all requests included in this batch
   acceptedRequestsCount: number
+  // number of accepted requests that were anchored in a previous batch and were not included in the current batch.
   alreadyAnchoredRequestsCount: number
+  // requests that were successfully anchored in this batch
   anchoredRequestsCount: number
+  // requests whose CIDs were rejected by Ceramic's conflict resolution.
   conflictingRequestCount: number
+  // failed requests (possible reasons: loading, publishing anchor commits)
   failedRequestsCount: number
+  // streams included in the merkle tree, but whose anchor commits were not published
   failedToPublishAnchorCommitCount: number
+  // requests not included in this batch because the batch was already full
   unprocessedRequestCount: number
+  // streams considered in this batch
   candidateCount: number
+  // anchors created in this batch
   anchorCount: number
+  // anchors that were created in this batch but were already created in a previous batch and therefore not persisted in our DB
+  reanchoredCount: number
+  // requests that can be retried in a later batch
   canRetryCount: number
 }
 
@@ -62,7 +74,6 @@ const logAnchorSummary = async (
   results: Partial<AnchorSummary> = {}
 ) => {
   const pendingRequestsCount = await requestRepository.countPendingRequests()
-  Metrics.count(METRIC_NAMES.PENDING_REQUESTS, pendingRequestsCount)
 
   const anchorSummary: AnchorSummary = Object.assign(
     {
@@ -78,9 +89,15 @@ const logAnchorSummary = async (
       anchorCount: 0,
       canRetryCount:
         groupedRequests.failedRequests.length - groupedRequests.conflictingRequests.length,
+      reanchoredCount: 0,
     },
     results
   )
+
+  Metrics.recordObjectFields('anchorBatch', anchorSummary)
+  Metrics.recordRatio('anchorBatch_failureRatio',
+              anchorSummary.failedRequestsCount,
+              anchorSummary.anchoredRequestsCount)  
 
   logEvent.anchor({
     type: 'anchorRequests',
@@ -237,17 +254,29 @@ export class AnchorService {
 
     // Update the database to record the successful anchors
     logger.debug('Persisting results to local database')
-    const numAnchoredRequests = await this._persistAnchorResult(anchors, candidates)
+    const persistedAnchorsCount = await this._persistAnchorResult(anchors, candidates)
+
+    const anchoredRequests = []
+    for (const candidate of candidates) {
+      anchoredRequests.push(...candidate.acceptedRequests)
+    }
 
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
     Metrics.count(METRIC_NAMES.ANCHOR_SUCCESS, anchors.length)
 
+    const reAnchoredCount = anchors.length - persistedAnchorsCount
+    logger.debug(
+      `Did not persist ${reAnchoredCount} anchor commits as they have been already created for these requests`
+    )
+    Metrics.count(METRIC_NAMES.REANCHORED, reAnchoredCount)
+
     span.end()
 
     return {
-      anchoredRequestsCount: numAnchoredRequests,
+      anchoredRequestsCount: anchoredRequests.length,
       failedToPublishAnchorCommitCount: merkleTree.getLeaves().length - anchors.length,
       anchorCount: anchors.length,
+      reanchoredCount: reAnchoredCount,
     }
   }
 
@@ -468,7 +497,7 @@ export class AnchorService {
    * @param anchors - Anchor objects to be persisted
    * @param candidates - Candidate objects for the Streams that had anchor attempts. Note that some
    *   of them may have encountered failures during the anchor attempt.
-   * @returns The number of successfully anchored requests
+   * @returns The number of anchors persisted
    * @private
    */
   async _persistAnchorResult(anchors: Anchor[], candidates: Candidate[]): Promise<number> {
@@ -480,9 +509,12 @@ export class AnchorService {
 
     const trx = await this.connection.transaction(null, { isolationLevel: 'repeatable read' })
     try {
-      if (anchors.length > 0) {
-        await this.anchorRepository.createAnchors(anchors, { connection: trx })
-      }
+      const persistedAnchorsCount =
+        anchors.length > 0
+          ? await this.anchorRepository.createAnchors(anchors, {
+              connection: trx,
+            })
+          : 0
 
       await this.requestRepository.updateRequests(
         {
@@ -495,15 +527,18 @@ export class AnchorService {
       )
 
       await trx.commit()
+
+      // record some metrics about the timing and count of anchors
+      const completed = new TimeableMetric(SinceField.CREATED_AT)
+      completed.recordAll(acceptedRequests)
+      completed.publishStats(METRIC_NAMES.CREATED_SUCCESS_MS)
+      Metrics.count(METRIC_NAMES.ACCEPTED_REQUESTS, acceptedRequests.length)
+
+      return persistedAnchorsCount
     } catch (err) {
       await trx.rollback()
       throw err
     }
-    const completed = new TimeableMetric(SinceField.CREATED_AT)
-    completed.recordAll(acceptedRequests)
-
-    Metrics.count(METRIC_NAMES.ACCEPTED_REQUESTS, acceptedRequests.length)
-    return acceptedRequests.length
   }
 
   /**

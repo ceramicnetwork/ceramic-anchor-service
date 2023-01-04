@@ -21,7 +21,7 @@ import { AnchorController } from './controllers/anchor-controller.js'
 import { RequestController } from './controllers/request-controller.js'
 import { ServiceInfoController } from './controllers/service-info-controller.js'
 import { EthereumBlockchainService } from './services/blockchain/ethereum/ethereum-blockchain-service.js'
-import { ServiceMetrics as Metrics } from './service-metrics.js'
+import { ServiceMetrics as Metrics, DEFAULT_TRACE_SAMPLE_RATIO } from '@ceramicnetwork/observability'
 import { version } from './version.js'
 import { cleanupConfigForLogging, normalizeConfig } from './normalize-config.util.js'
 import type { Injector } from 'typed-inject'
@@ -73,7 +73,7 @@ export class CeramicAnchorApp {
       .provideClass('schedulerService', SchedulerService)
 
     try {
-      Metrics.start(this.config.metrics.collectorHost, 'cas-' + this.config.mode)
+      Metrics.start(this.config.metrics.collectorHost, 'cas-' + this.config.mode, DEFAULT_TRACE_SAMPLE_RATIO, null, false)
       Metrics.count('HELLO', 1)
       logger.imp('Metrics exporter started')
     } catch (e) {

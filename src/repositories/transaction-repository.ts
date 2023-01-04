@@ -1,5 +1,5 @@
-import { ServiceMetrics as Metrics } from '../service-metrics.js'
 import type { Knex } from 'knex'
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { logger } from '../logger/index.js'
 import { METRIC_NAMES } from '../settings.js'
 import { Utils } from '../utils.js'

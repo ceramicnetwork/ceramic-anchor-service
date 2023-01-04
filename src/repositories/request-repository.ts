@@ -6,7 +6,7 @@ import { logEvent } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
-import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '../service-metrics.js'
+import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
@@ -270,7 +270,7 @@ export class RequestRepository {
           // Record the requests we are processing, along with the time since they were marked as ready.
           const processing = new TimeableMetric(SinceField.UPDATED_AT)
           processing.recordAll(requests)
-          processing.publishStats(METRIC_NAMES.READY_PROCESSING)
+          processing.publishStats(METRIC_NAMES.READY_PROCESSING_MS)
           return requests
         },
         {

@@ -18,10 +18,18 @@ export class AnchorRepository {
    * Creates anchors
    * @param anchors - Anchors
    * @param options
+   * @returns A promise that resolve to the number of anchors created
    */
-  async createAnchors(anchors: Array<Anchor>, options: Options = {}): Promise<void> {
+  async createAnchors(anchors: Array<Anchor>, options: Options = {}): Promise<number> {
     const { connection = this.connection } = options
-    await connection(TABLE_NAME).insert(anchors)
+
+    const result = (await connection
+      .table(TABLE_NAME)
+      .insert(anchors)
+      .onConflict('requestId')
+      .ignore()) as any
+
+    return result.rowCount
   }
 
   /**

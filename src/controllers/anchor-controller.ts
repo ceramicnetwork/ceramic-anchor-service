@@ -6,7 +6,7 @@ import cors from 'cors'
 import { Controller, Get, ClassMiddleware, Post } from '@overnightjs/core'
 
 import { AnchorService } from '../services/anchor-service.js'
-import { ServiceMetrics as Metrics } from '../service-metrics.js'
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 
 import type { Response } from 'express-serve-static-core'
