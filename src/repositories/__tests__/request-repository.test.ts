@@ -81,8 +81,6 @@ describe('request repository test', () => {
       requestRepository.createOrUpdate(request),
       requestRepository.createOrUpdate(request),
     ])
-    delete result1.timestamp
-    delete result2.timestamp
     expect(result1).toEqual(result2)
   })
 
@@ -495,7 +493,7 @@ describe('request repository test', () => {
       await requestRepository.createRequests(requests)
 
       const originaUpdateRequest = requestRepository.updateRequests
-      requestRepository.updateRequests = (fields, requests, manager) => {
+      requestRepository.updateRequests = () => {
         throw new Error('test error')
       }
 

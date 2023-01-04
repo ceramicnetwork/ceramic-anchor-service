@@ -175,6 +175,7 @@ export function generateRequest(override: Partial<Request>): Request {
   request.status = RequestStatus.PENDING
   request.createdAt = new Date(Date.now() - Math.random() * MS_IN_HOUR)
   request.updatedAt = new Date(request.createdAt.getTime())
+  request.timestamp = new Date(request.createdAt.getTime())
 
   Object.assign(request, override)
 
