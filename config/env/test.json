@@ -22,7 +22,8 @@
         "transactionTimeoutSecs": 600,
         "account": {
           "privateKey": "0x06dd0990d19001c57eeea6d32e8fdeee40d3945962caf18c18c3930baa5a6ec9"
-        }
+        },
+        "contractAddress": "0xD3f84Cf6Be3DD0EB16dC89c972f7a27B441A39f2"
       }
     }
   },
