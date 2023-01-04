@@ -29,6 +29,12 @@ provider:
     restApiId: ${env:REST_API_ID}
     restApiRootResourceId: ${env:REST_API_ROOT_RESOURCE_ID}
     description: 'Provisioned in Terraform'
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: 'ec2:DescribeSecurityGroups'
+          Resource: '*'
 
 constructs:
   didDb:
