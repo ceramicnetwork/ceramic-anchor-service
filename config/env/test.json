@@ -4,6 +4,7 @@
   "loadStreamTimeoutMs": 1000,
   "readyRetryIntervalMS": 10000,
   "schedulerIntervalMS": 10000,
+  "useSmartContractAnchors": true,
   "ceramic": {
     "validateRecords": false
   },
