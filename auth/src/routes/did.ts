@@ -13,6 +13,7 @@ const router = asyncify(express.Router())
  */
 router.post('/', validate(registerValidation), async (req: Req, res: Res) => {
   const data = await req.customContext.db.registerDIDs(req.body.email, req.body.otp, req.body.dids)
+  // TODO: create api key for did and email address
   if (data) {
     return res.send(data)
   }
