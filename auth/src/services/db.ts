@@ -18,8 +18,10 @@ export interface Database {
     client: any
     init: () => Promise<void>
     createEmailVerificationCode: (email: string) => Promise<string | undefined>
+    getDIDRegistration: (did: string) => Promise<any>
     getEmail: (did: string) => Promise<string | undefined>
     getNonce: (did: string) => Promise<number | undefined>
+    updateNonce: (did: string, nonce: number) => Promise<boolean>
     registerDID: (email: string, otp: string, did: string) => Promise<any>
     registerDIDs: (email: string, otp: string, dids: Array<string>) => Promise<any>
     revokeDID: (email: string, otp: string, did: string) => Promise<boolean>

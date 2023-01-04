@@ -115,6 +115,11 @@ export class DynamoDB implements Database {
         }
     }
 
+    /**
+     * Get email address from registered DID
+     * @param did DID
+     * @returns email address
+     */
     async getEmail(did: string): Promise<string | undefined> {
         try {
             return await this._getItemAttribute(DID_TABLE_NAME, did, did, 'email')
@@ -139,6 +144,46 @@ export class DynamoDB implements Database {
             }
             return
         }
+    }
+
+    async updateNonce(did: string, nonce: number): Promise<boolean> {
+        const input: UpdateItemCommandInput = {
+            TableName: DID_TABLE_NAME,
+            Key: marshall({
+                'PK': did,
+                'SK': did
+            }),
+            UpdateExpression: `SET nonce=:nonce, updated_at_unix=:updated_at_unix`,
+            ConditionExpression: '(attribute_exists(PK)) AND (nonce < :nonce)',
+            ExpressionAttributeValues: marshall({
+                'nonce': nonce,
+                'updated_at_unix': now(),
+            })
+        }
+        try {
+            await this.client.send(new UpdateItemCommand(input))
+            return true
+        } catch (err) {
+            if (err instanceof ConditionalCheckFailedException) {
+                console.error('DID was not found or nonce is too small.')
+            } else {
+                console.error(err)
+            }
+            return false
+        }
+    }
+
+    async getDIDRegistration(did: string, status?: DIDStatus): Promise<any> {
+        try {
+            const data = await this._getItem(DID_TABLE_NAME, did, did)
+            if (data.status != status) {
+                throw new Error(`Item found but status is not ${status}`)
+            }
+            return data
+        } catch (err) {
+            console.error(err)
+        }
+        return
     }
 
     async createEmailVerificationCode(email: string): Promise<string | undefined> {

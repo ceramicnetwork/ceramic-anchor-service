@@ -2,6 +2,8 @@ import { APIGatewayAuthorizerEvent, APIGatewayEvent, APIGatewayRequestAuthorizer
 import { EC2 } from 'aws-sdk'
 import { VerifyJWSResult } from 'dids'
 import { Joi } from 'express-validation'
+import { DynamoDB } from '../services/aws/dynamodb.js'
+import { DIDStatus } from '../services/db.js'
 import { parseSignature } from '../utils/did.js'
 import { generatePolicy } from '../utils/iam.js'
 import { authBearerValidation } from '../validators/did.js'
@@ -36,12 +38,14 @@ async function allowPermissionedIPAddress(event: APIGatewayRequestAuthorizerEven
   const ec2 = new EC2({apiVersion: '2016-11-15'})
     const permissionedSecurityGroupIds = process.env.PERMISSIONED_SECURITY_GROUP_IDS?.split(' ') || []
     const ip = event.requestContext.identity.sourceIp
+    console.log('ip', ip)
     const request = ec2.describeSecurityGroups({
       Filters: [{Name: 'ip-permission.cidr', Values: [`${ip}/32`] }],
       GroupIds: permissionedSecurityGroupIds
     })
     try {
       const data = await request.promise()
+      console.log(data)
       if (!data.SecurityGroups) throw new Error('No security groups found with this IP')
       if (data.SecurityGroups.length < 1) throw new Error('No security groups found with this IP')
       return callback(null, generatePolicy(ip, {effect: 'Allow', resource: event.methodArn}, ip))
@@ -62,11 +66,28 @@ async function allowRegisteredDID(event: APIGatewayRequestAuthorizerEvent, callb
 
   if (result) {
     const did = result.didResolutionResult.didDocument?.id
-    if (did) {
-    // TODO: check did is registered
-    // if so, check nonce is greater than prev
-    // if so update nonce and proceed
-      return callback(null, generatePolicy(did, {effect: 'Allow', resource: event.methodArn}, did))
+    if (!did) {
+      console.error('Missing did')
+    } else {
+      const createTableIfNotExists = false
+      const db = new DynamoDB(createTableIfNotExists)
+      const data = await db.getDIDRegistration(did, DIDStatus.Active)
+      if (data && result.payload) {
+        if (result.payload.nonce > data.nonce) {
+          const success = await db.updateNonce(did, data.nonce)
+          if (!success) {
+            console.error('Failed to update nonce')
+          } else {
+            return callback(null, generatePolicy(did, {effect: 'Allow', resource: event.methodArn}, did))
+          }
+        } else {
+          console.error(`Nonce (${result.payload.nonce}) is too small`)
+        }
+      } else {
+        console.error('Incorrect data or payload')
+        console.log('data', data)
+        console.log('payload', result.payload)
+      }
     }
   }
 }
