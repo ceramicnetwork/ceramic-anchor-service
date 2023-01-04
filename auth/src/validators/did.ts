@@ -2,9 +2,7 @@ import { Joi } from 'express-validation'
 import { didRegex } from '../utils/did.js'
 import { authBearerRegex } from '../utils/reqres.js'
 
-export const authBearerValidation = Joi.string()
-  .regex(authBearerRegex)
-  .required()
+export const authBearerValidation = Joi.string().regex(authBearerRegex)
 
 export const registerValidation = {
   body: Joi.object({
@@ -25,7 +23,7 @@ export const registerValidation = {
 
 export const getNonceValidation = {
     headers: Joi.object({
-        authorization: authBearerValidation,
+        authorization: authBearerValidation.required(),
     }).unknown(true),
     params: Joi.object({
         did: Joi.string()
