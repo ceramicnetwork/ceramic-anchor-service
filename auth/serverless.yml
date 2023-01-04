@@ -51,6 +51,8 @@ functions:
   authorizer:
     handler: src/authorizers/default.handler
     environment:
+      DB_DID_TABLE_NAME: ${construct:didDb.tableName}
+      DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
       PERMISSIONED_SECURITY_GROUP_IDS: ${env:PERMISSIONED_SECURITY_GROUP_IDS}
 resources:
   Resources:
