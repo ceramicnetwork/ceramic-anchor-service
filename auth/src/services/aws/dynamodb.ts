@@ -158,7 +158,8 @@ export class DynamoDB implements Database {
             ExpressionAttributeValues: marshall({
                 'nonce': nonce,
                 'updated_at_unix': now(),
-            })
+            }),
+            ReturnValues: 'ALL_NEW'
         }
         try {
             await this.client.send(new UpdateItemCommand(input))
@@ -239,7 +240,8 @@ export class DynamoDB implements Database {
             ExpressionAttributeValues: marshall({
                 ':next_status': next_status,
                 ':updated_at_unix': now(),
-            })
+            }),
+            ReturnValues: 'ALL_NEW'
         }
         await this.client.send(new UpdateItemCommand(input))
     }
@@ -321,7 +323,8 @@ export class DynamoDB implements Database {
                 'email': email,
                 'curr_status': DIDStatus.Revoked,
                 'updated_at_unix': now(),
-            })
+            }),
+            ReturnValues: 'ALL_NEW'
         }
         try {
             await this.client.send(new UpdateItemCommand(input))
@@ -349,7 +352,8 @@ export class DynamoDB implements Database {
                 ':next_status': OTPStatus.Used,
                 ':prev_status': OTPStatus.Active,
                 ':updated_at_unix': now(),
-            })
+            }),
+            ReturnValues: 'ALL_NEW'
         }
 
         try {
