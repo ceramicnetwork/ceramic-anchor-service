@@ -84,6 +84,7 @@ export class RequestController {
       const streamId = StreamID.fromString(req.body.streamId)
 
       // Store metadata from genesis to the database
+      // TODO CDB-2151 This should be moved out of RequestController
       await this.metadataService.fill(streamId)
 
       let timestamp = new Date()
