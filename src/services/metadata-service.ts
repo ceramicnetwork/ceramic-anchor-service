@@ -19,17 +19,19 @@ export interface IMetadataService {
 /**
  * Validation for genesis header retrieved from IPFS.
  */
-const IpfsGenesisHeader = t.intersection([
-  t.type({
-    controllers: te.controllers,
-  }),
-  t.partial({
-    schema: t.string.pipe(te.commitIdAsString),
-    family: t.string,
-    tags: t.array(t.string),
-    model: te.uint8array,
-  }),
-])
+export const IpfsGenesisHeader = t.exact(
+  t.intersection([
+    t.type({
+      controllers: te.controllers,
+    }),
+    t.partial({
+      schema: t.string.pipe(te.commitIdAsString),
+      family: t.string,
+      tags: t.array(t.string),
+      model: te.uint8array,
+    }),
+  ])
+)
 
 /**
  * Fails on compile time if there is any divergence between `GenesisFields` and `IpfsGenesisHeader` shapes.

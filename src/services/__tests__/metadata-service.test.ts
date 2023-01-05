@@ -2,11 +2,12 @@ import { jest, test, describe, expect, beforeAll, afterAll } from '@jest/globals
 import type { Knex } from 'knex'
 import { createDbConnection } from '../../db-connection.js'
 import { MockIpfsService } from '../../__tests__/test-utils.js'
-import { MetadataService } from '../metadata-service.js'
+import { IpfsGenesisHeader, MetadataService } from '../metadata-service.js'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import { randomBytes } from '@stablelib/random'
 import { MetadataRepository } from '../../repositories/metadata-repository.js'
 import cloneDeep from 'lodash.clonedeep'
+import { ThrowDecoder } from '../../ancillary/throw-decoder.js'
 
 const SCHEMA_COMMIT_ID = CommitID.fromString(
   'k1dpgaqe3i64kjqcp801r3sn7ysi5i0k7nxvs7j351s7kewfzr3l7mdxnj7szwo4kr9mn2qki5nnj0cv836ythy1t1gya9s25cn1nexst3jxi5o3h6qprfyju'
@@ -47,6 +48,13 @@ async function putGenesisHeader(payload: object): Promise<StreamID> {
   })
   return new StreamID(1, cid)
 }
+
+test('strip extra fields when decoding IPFS record', () => {
+  const record = cloneDeep({ ...HEADER_RECORD, extra: 33 })
+  expect(record.extra).toBeDefined() // Original record has `extra`
+  const decoded = ThrowDecoder.decode(IpfsGenesisHeader, record)
+  expect('extra' in decoded).toBeFalsy() // No `extra` after decoding
+})
 
 describe('retrieveFromGenesis', () => {
   test('get DAG-CBOR genesis from IPFS', async () => {
