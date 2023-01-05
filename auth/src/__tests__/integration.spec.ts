@@ -9,7 +9,7 @@ describe('api', () => {
             body: JSON.stringify({email: 'val@3box.io'})
         })
         console.log(resp.status)
-        console.log(resp.body)
+        console.log(await resp.json())
     })
 
     test.skip('register did', async () => {
@@ -23,5 +23,26 @@ describe('api', () => {
         })
         console.log(resp.status)
         console.log(await resp.json())
+    })
+
+    test.skip('verify email', async () => {
+        const resp = await fetch(endpoint('/verification'), {
+            method: httpMethods.POST,
+            body: JSON.stringify({email: 'val@3box.io'})
+        })
+        console.log(resp.status)
+        console.log(resp.body)
+    })
+
+    test.skip('revoke did', async () => {
+        const did = 'did:key:z6MktCFRcwLRFQA9WbeDRM7W7kbBdZTHQ2xnPgyxZLq1gCpK'
+        const resp = await fetch(endpoint(`/did/${did}`), {
+            method: httpMethods.PATCH,
+            body: JSON.stringify({
+                email: 'val@3box.io',
+                did,
+                otp: ''
+            })
+        })
     })
 })
