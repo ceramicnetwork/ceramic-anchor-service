@@ -84,10 +84,10 @@ async function allowRegisteredDID(event: APIGatewayRequestAuthorizerEvent, callb
           console.error(`Nonce (${result.payload.nonce}) is too small`)
         }
       } else {
-        console.error('Incorrect data or payload')
-        console.log('data', data)
-        console.log('payload', result.payload)
+        console.error('Missing data or payload')
       }
     }
   }
+
+  return callback('Unauthorized')
 }
