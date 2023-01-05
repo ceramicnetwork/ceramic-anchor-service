@@ -492,7 +492,7 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const originaUpdateRequest = requestRepository.updateRequests
+      const originalUpdateRequest = requestRepository.updateRequests
       requestRepository.updateRequests = () => {
         throw new Error('test error')
       }
@@ -505,7 +505,7 @@ describe('request repository test', () => {
           true
         )
       } finally {
-        requestRepository.updateRequests = originaUpdateRequest
+        requestRepository.updateRequests = originalUpdateRequest
       }
     })
 
