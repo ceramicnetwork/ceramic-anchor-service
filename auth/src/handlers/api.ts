@@ -39,8 +39,6 @@ function customContext(req, res, next) {
 app.use(API_ENDPOINT + '/did', routes.did)
 app.use(API_ENDPOINT + '/verification', routes.verification)
 
-// VAL: Proxy all other routes and store nonce
-
 // Handle 404s under all other routes
 app.use((req, res, next) => {
   res.status(404).send({error: 'Not found'})
@@ -61,7 +59,7 @@ function errorHandler (err, req, res, next) {
   } else {
     console.error(err)
   }
-  res.send({ error })
+  res.status(400).send({ error })
 }
  
 export const handler = async (event, context) => {
