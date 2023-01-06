@@ -3,15 +3,13 @@ import 'dotenv/config'
 import { jest } from '@jest/globals'
 import { CeramicDaemon, DaemonConfig } from '@ceramicnetwork/cli'
 import { Ceramic } from '@ceramicnetwork/core'
-import { AnchorStatus, IpfsApi, Stream, SyncOptions } from '@ceramicnetwork/common'
+import { AnchorStatus, IpfsApi, SyncOptions } from '@ceramicnetwork/common'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 
 import { create } from 'ipfs-core'
 import { HttpApi } from 'ipfs-http-server'
 import * as dagJose from 'dag-jose'
 
-import express from 'express'
-import Ganache from 'ganache-core'
 import tmp from 'tmp-promise'
 import getPort from 'get-port'
 import type { Knex } from 'knex'
@@ -20,23 +18,22 @@ import { CeramicAnchorApp } from '../app.js'
 import { config } from 'node-config-ts'
 import cloneDeep from 'lodash.clonedeep'
 import { TileDocument } from '@ceramicnetwork/stream-tile'
-import { filter } from 'rxjs/operators'
-import { firstValueFrom, timeout, throwError, interval, concatMap } from 'rxjs'
-import { DID } from 'dids'
-import { Ed25519Provider } from 'key-did-provider-ed25519'
-import * as sha256 from '@stablelib/sha256'
-import * as uint8arrays from 'uint8arrays'
-import * as random from '@stablelib/random'
-import * as KeyDidResolver from 'key-did-resolver'
-import { Utils } from '../utils.js'
-import { RequestRepository } from '../repositories/request-repository.js'
-import { Request, RequestStatus } from '../models/request.js'
+import { Request } from '../models/request.js'
 import { CID } from 'multiformats/cid'
 import { AnchorService } from '../services/anchor-service.js'
 import { METRIC_NAMES } from '../settings.js'
-import { Server } from 'http'
 import type { Injector } from 'typed-inject'
 import { createInjector } from 'typed-inject'
+import { makeDID } from './make-did.util.js'
+import { GanacheServer, makeGanache } from './make-ganache.util.js'
+import {
+  FauxAnchorLauncher,
+  waitForAnchor,
+  waitForNoReadyRequests,
+  waitForTip,
+  anchorUpdate,
+} from './test-utils.js'
+import { swarmConnect } from './ipts-utils.js'
 
 process.env.NODE_ENV = 'test'
 
@@ -67,15 +64,10 @@ async function createIPFS(apiPort?: number): Promise<IpfsApi> {
   return create(config)
 }
 
-async function swarmConnect(a: IpfsApi, b: IpfsApi) {
-  const addressB = (await b.id()).addresses[0]
-  await a.swarm.connect(addressB)
-}
-
 async function makeCeramicCore(
   ipfs: IpfsApi,
   anchorServiceUrl: string,
-  ethereumRpcUrl: string | undefined
+  ethereumRpcUrl: URL
 ): Promise<Ceramic> {
   const tmpFolder = await tmp.dir({ unsafeCleanup: true })
   const ceramic = await Ceramic.create(ipfs, {
@@ -83,58 +75,10 @@ async function makeCeramicCore(
     pubsubTopic: TOPIC,
     stateStoreDirectory: tmpFolder.path,
     anchorServiceUrl,
-    ethereumRpcUrl,
+    ethereumRpcUrl: ethereumRpcUrl.href,
   })
-  ceramic.did = makeDID()
-  await ceramic.did.authenticate()
+  ceramic.did = await makeDID()
   return ceramic
-}
-
-function makeDID(): DID {
-  const seed = random.randomString(32)
-  const digest = sha256.hash(uint8arrays.fromString(seed))
-  const provider = new Ed25519Provider(digest)
-  const resolver = KeyDidResolver.getResolver()
-  return new DID({ provider, resolver })
-}
-
-async function makeGanache(startTime: Date, port: number): Promise<Ganache.Server> {
-  const ganacheServer = Ganache.server({
-    gasLimit: 7000000,
-    time: startTime,
-    mnemonic: 'move sense much taxi wave hurry recall stairs thank brother nut woman',
-    default_balance_ether: 100,
-    debug: true,
-    blockTime: 2,
-    network_id: 1337,
-    networkId: 1337,
-  })
-
-  await ganacheServer.listen(port)
-  return ganacheServer
-}
-
-class FauxAnchorLauncher {
-  port: number
-  server: Server
-  start(port: number) {
-    const app = express()
-    app.all('/', (req, res) => {
-      res.send({ status: 'success' })
-    })
-    this.server = app.listen(port, () => {
-      console.log(`Listening on port ${port}`)
-    })
-  }
-  stop() {
-    return new Promise((resolve) => this.server.close(resolve))
-  }
-}
-
-function makeAnchorLauncher(port: number): FauxAnchorLauncher {
-  const launcher = new FauxAnchorLauncher()
-  launcher.start(port)
-  return launcher
 }
 
 interface MinimalCASConfig {
@@ -147,7 +91,7 @@ interface MinimalCASConfig {
 }
 
 async function makeCAS(
-  container: Injector<{}>,
+  container: Injector,
   dbConnection: Knex,
   minConfig: MinimalCASConfig
 ): Promise<CeramicAnchorApp> {
@@ -165,76 +109,6 @@ async function makeCAS(
   configCopy.useSmartContractAnchors = minConfig.useSmartContractAnchors
   return new CeramicAnchorApp(
     container.provideValue('config', configCopy).provideValue('dbConnection', dbConnection)
-  )
-}
-
-async function anchorUpdate(
-  stream: Stream,
-  anchorApp: CeramicAnchorApp,
-  anchorService: AnchorService
-): Promise<void> {
-  // The anchor request is not guaranteed to already have been sent to the CAS when the create/update
-  // promise resolves, so we wait a bit to give the ceramic node time to actually send the request
-  // before triggering the anchor.
-  // TODO(js-ceramic #1919): Remove this once Ceramic won't return from a request that makes an
-  // anchor without having already made the anchor request against the CAS.
-  await Utils.delay(5000)
-  await anchorService.emitAnchorEventIfReady()
-  await anchorApp.anchor()
-  await waitForAnchor(stream)
-}
-
-async function waitForAnchor(stream: Stream, timeoutMS = 30 * 1000): Promise<void> {
-  await firstValueFrom(
-    stream.pipe(
-      filter((state) => [AnchorStatus.ANCHORED, AnchorStatus.FAILED].includes(state.anchorStatus)),
-      timeout({
-        each: timeoutMS,
-        with: () =>
-          throwError(
-            () => new Error(`Timeout waiting for stream ${stream.id.toString()} to become anchored`)
-          ),
-      })
-    )
-  )
-}
-
-async function waitForTip(stream: Stream, tip: CID, timeoutMS = 30 * 1000): Promise<void> {
-  await firstValueFrom(
-    stream.pipe(
-      filter((state) => {
-        return state.log[state.log.length - 1].cid.toString() === tip.toString()
-      }),
-      timeout({
-        each: timeoutMS,
-        with: () =>
-          throwError(
-            () =>
-              new Error(
-                `Timeout waiting for ceramic to receive cid ${tip.toString()} for stream ${stream.id.toString()}`
-              )
-          ),
-      })
-    )
-  )
-}
-
-async function waitForNoReadyRequests(
-  requestRepo: RequestRepository,
-  timeoutMS = 30 * 1000
-): Promise<void> {
-  await firstValueFrom(
-    interval(1000).pipe(
-      concatMap(() => requestRepo.findByStatus(RequestStatus.READY)),
-      filter((requests) => requests.length == 0),
-      timeout({
-        each: timeoutMS,
-        with: () =>
-          throwError(
-            () => new Error(`Timeout waiting for requests to move from READY to PROCESSING`)
-          ),
-      })
-    )
   )
 }
 
@@ -270,9 +144,7 @@ describe('Ceramic Integration Test', () => {
   let cas2: CeramicAnchorApp
   let anchorService2: AnchorService
 
-  const blockchainStartTime = new Date(1586784002000)
-  let ganachePort
-  let ganacheServer: Ganache.Server
+  let ganacheServer: GanacheServer
   let anchorLauncher: FauxAnchorLauncher
 
   beforeAll(async () => {
@@ -293,22 +165,13 @@ describe('Ceramic Integration Test', () => {
     await ipfsServer2.start()
 
     // Now make sure all ipfs nodes are connected to all other ipfs nodes
-    const ipfsNodes = [ipfs1, ipfs2, ipfs3, ipfs4, ipfs5, ipfs6]
-    for (const [i, _] of ipfsNodes.entries()) {
-      for (const [j, _] of ipfsNodes.entries()) {
-        if (i == j) {
-          continue
-        }
-        await swarmConnect(ipfsNodes[i], ipfsNodes[j])
-      }
-    }
+    await swarmConnect(ipfs1, ipfs2, ipfs3, ipfs4, ipfs5, ipfs6)
 
     // Start up Ganache
-    ganachePort = await getPort()
-    ganacheServer = await makeGanache(blockchainStartTime, ganachePort)
+    ganacheServer = await makeGanache()
 
     // Start faux anchor launcher
-    anchorLauncher = makeAnchorLauncher(8001)
+    anchorLauncher = await FauxAnchorLauncher.create(8001)
   })
 
   beforeEach(async () => {
@@ -344,7 +207,7 @@ describe('Ceramic Integration Test', () => {
         mode: 'server',
         ipfsPort: ipfsApiPort1,
         ceramicPort: daemonPort1,
-        ganachePort,
+        ganachePort: ganacheServer.port,
         port: casPort1,
         useSmartContractAnchors,
       })
@@ -357,19 +220,17 @@ describe('Ceramic Integration Test', () => {
         mode: 'server',
         ipfsPort: ipfsApiPort2,
         ceramicPort: daemonPort2,
-        ganachePort,
+        ganachePort: ganacheServer.port,
         port: casPort2,
         useSmartContractAnchors,
       })
       await cas2.start()
       anchorService2 = cas2.container.resolve('anchorService')
 
-      const ganacheURL = 'http://localhost:' + ganachePort
-
       // Make the Ceramic nodes that will be used by the CAS.
       ;[casCeramic1, casCeramic2] = await Promise.all([
-        makeCeramicCore(ipfs3, 'http://localhost:' + casPort1, ganacheURL),
-        makeCeramicCore(ipfs4, 'http://localhost:' + casPort2, ganacheURL),
+        makeCeramicCore(ipfs3, `http://localhost:${casPort1}`, ganacheServer.url),
+        makeCeramicCore(ipfs4, `http://localhost:${casPort2}`, ganacheServer.url),
       ])
       daemon1 = new CeramicDaemon(
         casCeramic1,
@@ -383,13 +244,12 @@ describe('Ceramic Integration Test', () => {
       await daemon2.listen()
 
       // Finally make the Ceramic nodes that will be used in the tests.
-      ceramic1 = await makeCeramicCore(ipfs5, 'http://localhost:' + casPort1, ganacheURL)
-      ceramic2 = await makeCeramicCore(ipfs6, 'http://localhost:' + casPort2, ganacheURL)
+      ceramic1 = await makeCeramicCore(ipfs5, `http://localhost:${casPort1}`, ganacheServer.url)
+      ceramic2 = await makeCeramicCore(ipfs6, `http://localhost:${casPort2}`, ganacheServer.url)
 
       // The two user-facing ceramic nodes need to have the same DID Provider so that they can modify
       // each others streams.
-      const did = makeDID()
-      await did.authenticate()
+      const did = await makeDID()
       ceramic1.did = did
       ceramic2.did = did
     })

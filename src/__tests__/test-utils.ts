@@ -1,17 +1,22 @@
 import { jest } from '@jest/globals'
-
 import { CID } from 'multiformats/cid'
-
 import { create } from 'multiformats/hashes/digest'
 import type { CeramicService } from '../services/ceramic-service.js'
 import type { EventProducerService } from '../services/event-producer/event-producer-service.js'
 import type { IIpfsService, RetrieveRecordOptions } from '../services/ipfs-service.type.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
-import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
+import { AnchorCommit, AnchorStatus, MultiQuery, Stream } from '@ceramicnetwork/common'
 import { randomBytes } from '@stablelib/random'
 import { Request, RequestStatus } from '../models/request.js'
 import type { AbortOptions } from '../services/abort-options.type.js'
 import { Utils } from '../utils.js'
+import type { Server } from 'http'
+import express from 'express'
+import { RequestRepository } from '../repositories/request-repository.js'
+import { concatMap, firstValueFrom, interval, throwError, timeout } from 'rxjs'
+import { filter } from 'rxjs/operators'
+import { CeramicAnchorApp } from '../app'
+import { AnchorService } from '../services/anchor-service'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -212,4 +217,110 @@ export function generateRequests(
 
 export function times(n: number): Array<number> {
   return Array.from({ length: n }).map((_, i) => i)
+}
+
+export class FauxAnchorLauncher {
+  private server: Server | undefined = undefined
+
+  static async create(port: number): Promise<FauxAnchorLauncher> {
+    const launcher = new FauxAnchorLauncher(port)
+    await launcher.start()
+    return launcher
+  }
+
+  constructor(private readonly port: number) {}
+
+  async start() {
+    const app = express()
+    app.all('/', (req, res) => {
+      res.send({ status: 'success' })
+    })
+    this.server = await new Promise((resolve, reject) => {
+      const server = app
+        .listen(this.port, () => {
+          console.log(`Listening on port ${this.port}`)
+          resolve(server)
+        })
+        .on('error', (error) => {
+          reject(error)
+        })
+    })
+  }
+
+  stop(): Promise<void> {
+    return new Promise((resolve, reject) =>
+      this.server.close((error) => {
+        error ? reject(error) : resolve()
+      })
+    )
+  }
+}
+
+/**
+ * Resolves when no requests are in +RequestStatus.READY+ status.
+ */
+export async function waitForNoReadyRequests(
+  requestRepo: RequestRepository,
+  timeoutMS = 30 * 1000
+): Promise<void> {
+  await firstValueFrom(
+    interval(1000).pipe(
+      concatMap(() => requestRepo.findByStatus(RequestStatus.READY)),
+      filter((requests) => requests.length == 0),
+      timeout({
+        each: timeoutMS,
+        with: () =>
+          throwError(
+            () => new Error(`Timeout waiting for requests to move from READY to PROCESSING`)
+          ),
+      })
+    )
+  )
+}
+
+export async function waitForAnchor(stream: Stream, timeoutMS = 30 * 1000): Promise<void> {
+  await firstValueFrom(
+    stream.pipe(
+      filter((state) => [AnchorStatus.ANCHORED, AnchorStatus.FAILED].includes(state.anchorStatus)),
+      timeout({
+        each: timeoutMS,
+        with: () =>
+          throwError(
+            () => new Error(`Timeout waiting for stream ${stream.id.toString()} to become anchored`)
+          ),
+      })
+    )
+  )
+}
+
+export async function waitForTip(stream: Stream, tip: CID, timeoutMS = 30 * 1000): Promise<void> {
+  await firstValueFrom(
+    stream.pipe(
+      filter((state) => state.log[state.log.length - 1].cid.equals(tip)),
+      timeout({
+        each: timeoutMS,
+        with: () =>
+          throwError(
+            () =>
+              new Error(`Timeout waiting for ceramic to receive cid ${tip} for stream ${stream}`)
+          ),
+      })
+    )
+  )
+}
+
+export async function anchorUpdate(
+  stream: Stream,
+  anchorApp: CeramicAnchorApp,
+  anchorService: AnchorService
+): Promise<void> {
+  // The anchor request is not guaranteed to already have been sent to the CAS when the create/update
+  // promise resolves, so we wait a bit to give the ceramic node time to actually send the request
+  // before triggering the anchor.
+  // TODO(js-ceramic #1919): Remove this once Ceramic won't return from a request that makes an
+  // anchor without having already made the anchor request against the CAS.
+  await Utils.delay(5000)
+  await anchorService.emitAnchorEventIfReady()
+  await anchorApp.anchor()
+  await waitForAnchor(stream)
 }
