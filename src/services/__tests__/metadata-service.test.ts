@@ -72,7 +72,7 @@ describe('retrieveFromGenesis', () => {
       'kjzl6cwe1jw146wg7fp48nuict3spcxna1h3p6zipzn4yl74d0m00jioeetw4p0'
     )
     const retrieveRecordSpy = jest.spyOn(ipfsService, 'retrieveRecord')
-    // We expect that IpfsService#retrieveRecord is called once with CID and `path`.
+    // We expect that IpfsService::retrieveRecord is called once with CID and `path`.
     // Let's return the actual genesis as if IPFS traversed through `path`.
     retrieveRecordSpy.mockImplementation(async () => {
       return { header: HEADER_RECORD }
@@ -230,7 +230,7 @@ describe('fill', () => {
     //   await metadataRepository.touch(streamId, someTimeAgo)
     //   const retrieved1 = await metadataRepository.retrieve(streamId)
     //   expect(retrieved1.usedAt).toEqual(someTimeAgo)
-    //   // `MetadataService#fill` should update `usedAt` to _now_
+    //   // `MetadataService::fill` should update `usedAt` to _now_
     //   const now1 = new Date()
     //   await metadataService.fill(streamId)
     //   const retrieved2 = await metadataRepository.retrieve(streamId)

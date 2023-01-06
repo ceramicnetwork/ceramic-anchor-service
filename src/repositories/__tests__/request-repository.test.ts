@@ -14,18 +14,13 @@ import { AnchorRepository } from '../anchor-repository.js'
 import { Request, REQUEST_MESSAGES, RequestStatus } from '../../models/request.js'
 import { generateRequests, generateRequest, randomStreamID } from '../../__tests__/test-utils.js'
 import { createInjector } from 'typed-inject'
-import { DateTime } from 'luxon'
-
-const MS_IN_MINUTE = 1000 * 60
-const MS_IN_HOUR = MS_IN_MINUTE * 60
-const MS_IN_DAY = MS_IN_HOUR * 24
-const MS_IN_MONTH = MS_IN_DAY * 30
+import { DateTime, Duration } from 'luxon'
 
 function generateCompletedRequest(expired: boolean, failed: boolean, varianceMS = 0): Request {
-  const now = new Date()
-  const threeMonthsAgo = new Date(now.getTime() - MS_IN_MONTH * 3 + varianceMS)
-  const fiveDaysAgo = new Date(now.getTime() - MS_IN_DAY * 5 + varianceMS)
-  const moreThanMonthAgo = new Date(now.getTime() - MS_IN_DAY * 31 + varianceMS)
+  const now = DateTime.now().plus({ milliseconds: varianceMS })
+  const threeMonthsAgo = now.minus({ months: 3 }).toJSDate()
+  const fiveDaysAgo = now.minus({ days: 5 }).toJSDate()
+  const moreThanMonthAgo = now.minus({ months: 1, day: 1 }).toJSDate()
 
   return generateRequest({
     status: failed ? RequestStatus.FAILED : RequestStatus.COMPLETED,
@@ -37,10 +32,11 @@ function generateCompletedRequest(expired: boolean, failed: boolean, varianceMS 
 }
 
 function generateReadyRequests(count: number): Array<Request> {
-  return generateRequests({ status: RequestStatus.READY }, count, MS_IN_HOUR)
+  const oneHour = Duration.fromObject({ hours: 1 }).toMillis()
+  return generateRequests({ status: RequestStatus.READY }, count, oneHour)
 }
 
-async function getAllRequests(connection: Knex): Promise<Array<Request>> {
+function getAllRequests(connection: Knex): Promise<Array<Request>> {
   return connection.table(TABLE_NAME).orderBy('createdAt', 'asc')
 }
 
@@ -202,8 +198,8 @@ describe('request repository test', () => {
         generateRequests(
           {
             status: RequestStatus.COMPLETED,
-            createdAt: new Date(Date.now() - 2 * MS_IN_MONTH),
-            updatedAt: new Date(Date.now() - MS_IN_MONTH),
+            createdAt: DateTime.now().minus({ months: 2 }).toJSDate(),
+            updatedAt: DateTime.now().minus({ months: 1 }).toJSDate(),
             pinned: true,
           },
           2
@@ -233,8 +229,8 @@ describe('request repository test', () => {
         generateRequests(
           {
             status: RequestStatus.FAILED,
-            createdAt: new Date(Date.now() - 2 * MS_IN_MONTH),
-            updatedAt: new Date(Date.now() - MS_IN_MONTH),
+            createdAt: DateTime.now().minus({ months: 2 }).toJSDate(),
+            updatedAt: DateTime.now().minus({ months: 1 }).toJSDate(),
             pinned: true,
           },
           2
@@ -250,9 +246,9 @@ describe('request repository test', () => {
     test('Marks expired pending request as ready even if there are not enough streams', async () => {
       const streamLimit = 5
       // 13 hours ago (delay is 12 hours)
-      const creationDateOfExpiredRequest = new Date(
-        Date.now() - config.maxAnchoringDelayMS - MS_IN_HOUR
-      )
+      const creationDateOfExpiredRequest = DateTime.now()
+        .minus({ milliseconds: config.maxAnchoringDelayMS, hours: 1 })
+        .toJSDate()
       const requests = [
         // expired pending request
         generateRequests(
@@ -309,7 +305,7 @@ describe('request repository test', () => {
         // processing request that needs to be retried
         {
           status: RequestStatus.PROCESSING,
-          createdAt: new Date(Date.now() - MS_IN_HOUR * 24),
+          createdAt: DateTime.now().minus({ days: 1 }).toJSDate(),
           updatedAt: dateOfTimedOutProcessingRequest,
         },
         1
@@ -320,8 +316,8 @@ describe('request repository test', () => {
         generateRequests(
           {
             status: RequestStatus.PROCESSING,
-            createdAt: new Date(Date.now() - MS_IN_MINUTE * 45),
-            updatedAt: new Date(Date.now() - MS_IN_MINUTE * 30),
+            createdAt: DateTime.now().minus({ minutes: 45 }).toJSDate(),
+            updatedAt: DateTime.now().minus({ minutes: 30 }).toJSDate(),
           },
           4
         ),
@@ -352,13 +348,14 @@ describe('request repository test', () => {
     test('Marks requests for same streams as ready', async () => {
       const streamLimit = 5
       const repeatedStreamId = randomStreamID().toString()
+      const oneHourAgo = DateTime.now().minus({ hours: 1 }).toJSDate()
       const requests = [
         // repeated request created an hour ago
         generateRequests(
           {
             status: RequestStatus.PENDING,
-            createdAt: new Date(Date.now() - MS_IN_HOUR),
-            updatedAt: new Date(Date.now() - MS_IN_HOUR),
+            createdAt: oneHourAgo,
+            updatedAt: oneHourAgo,
             streamId: repeatedStreamId,
           },
           1
@@ -425,8 +422,8 @@ describe('request repository test', () => {
           {
             status: RequestStatus.PROCESSING,
             streamId: repeatedStreamId,
-            createdAt: new Date(Date.now() - MS_IN_HOUR * 5),
-            updatedAt: new Date(Date.now() - MS_IN_HOUR * 4),
+            createdAt: DateTime.now().minus({ hours: 5 }).toJSDate(),
+            updatedAt: DateTime.now().minus({ hours: 4 }).toJSDate(),
           },
           1
         ),
@@ -438,8 +435,8 @@ describe('request repository test', () => {
           {
             status: RequestStatus.COMPLETED,
             streamId: repeatedStreamId,
-            createdAt: new Date(Date.now() - MS_IN_HOUR * 2),
-            updatedAt: new Date(Date.now() - MS_IN_HOUR),
+            createdAt: DateTime.now().minus({ hours: 2 }).toJSDate(),
+            updatedAt: DateTime.now().minus({ hours: 1 }).toJSDate(),
           },
           1
         ),
@@ -448,8 +445,8 @@ describe('request repository test', () => {
           {
             status: RequestStatus.FAILED,
             streamId: repeatedStreamId,
-            createdAt: new Date(Date.now() - MS_IN_HOUR * 72),
-            updatedAt: new Date(Date.now() - MS_IN_HOUR),
+            createdAt: DateTime.now().minus({ hours: 72 }).toJSDate(),
+            updatedAt: DateTime.now().minus({ hours: 1 }).toJSDate(),
           },
           1
         ),
@@ -458,8 +455,8 @@ describe('request repository test', () => {
           {
             status: RequestStatus.PROCESSING,
             streamId: repeatedStreamId,
-            createdAt: new Date(Date.now() - MS_IN_HOUR * 2),
-            updatedAt: new Date(Date.now() - MS_IN_HOUR),
+            createdAt: DateTime.now().minus({ hours: 2 }).toJSDate(),
+            updatedAt: DateTime.now().minus({ hours: 1 }).toJSDate(),
           },
           1
         ),
@@ -468,8 +465,8 @@ describe('request repository test', () => {
           {
             status: RequestStatus.READY,
             streamId: repeatedStreamId,
-            createdAt: new Date(Date.now() - MS_IN_HOUR),
-            updatedAt: new Date(Date.now() - MS_IN_MINUTE * 5),
+            createdAt: DateTime.now().minus({ hours: 1 }).toJSDate(),
+            updatedAt: DateTime.now().minus({ minutes: 5 }).toJSDate(),
           },
           1
         ),
@@ -615,7 +612,7 @@ describe('request repository test', () => {
         {
           status: RequestStatus.FAILED,
           createdAt: dateDuringRetryPeriod,
-          updatedAt: new Date(Date.now() - MS_IN_HOUR),
+          updatedAt: DateTime.now().minus({ hours: 1 }).toJSDate(),
         },
         streamLimit
       )
@@ -632,7 +629,9 @@ describe('request repository test', () => {
 
   describe('updateExpiringReadyRequests', () => {
     test('Updates expiring ready requests if they exist', async () => {
-      const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
+      const updatedTooLongAgo = DateTime.now()
+        .minus({ milliseconds: config.readyRetryIntervalMS, seconds: 1 })
+        .toJSDate()
       const expiredReadyRequestsCount = 3
 
       // expired ready request

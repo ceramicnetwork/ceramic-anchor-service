@@ -206,8 +206,7 @@ export class CeramicAnchorApp {
       this.container.injectClass(RequestController),
     ]
     if (this.config.anchorControllerEnabled) {
-      const anchorController = this.container.injectClass(AnchorController)
-      controllers.push(anchorController)
+      controllers.push(this.container.injectClass(AnchorController))
     }
     this._server = new CeramicAnchorServer(controllers)
     await this._server.start(this.config.port)
@@ -222,12 +221,14 @@ export class CeramicAnchorApp {
    * @private
    */
   private async _startAnchorAndGarbageCollection(): Promise<void> {
-    const anchorService: AnchorService = this.container.resolve('anchorService')
-    await anchorService.anchorRequests().catch((error) => {
+    const anchorService = this.container.resolve('anchorService')
+    try {
+      await anchorService.anchorRequests()
+    } catch (error) {
       logger.err(`Error when anchoring: ${error}`)
       logger.err('Exiting')
       process.exit(1)
-    })
+    }
     logger.imp(
       `Temporarily skipping stream garbage collection to avoid unpinning important streams from private node`
     )
