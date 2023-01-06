@@ -6,7 +6,11 @@ import { logEvent } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
-import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '@ceramicnetwork/observability'
+import {
+  ServiceMetrics as Metrics,
+  TimeableMetric,
+  SinceField,
+} from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
@@ -21,6 +25,7 @@ export const FAILURE_RETRY_INTERVAL = 1000 * 60 * 60 * 6 // 6H
 // application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
 export const TABLE_NAME = 'request'
+const POSTGRES_PARAMETERIZED_QUERY_LIMIT = 65000
 
 /**
  * Records statistics about the set of requests
@@ -152,7 +157,18 @@ const findRequestsToAnchorForStreams = (
   streamIds: string[],
   now: Date
 ): Promise<Array<Request>> =>
-  findRequestsToAnchor(connection, now).whereIn('streamId', streamIds).orderBy('createdAt', 'asc')
+  findRequestsToAnchor(connection, now)
+    .whereIn('streamId', streamIds)
+    // We order the requests according to it's streamId's position in the provided array.
+    // We do this because we assume the given streamIds array is sorted according to priority.
+    // In this file the streamIds array is sorted based on the earliest request for each streamId (ascending).
+    // This results in us prioritizing requests that are older and possibly expiring.
+    .orderByRaw(
+      `array_position(ARRAY[${streamIds.map(
+        (streamId) => `'${streamId}'`
+      )}], stream_id), created_at ASC`
+    )
+    .limit(POSTGRES_PARAMETERIZED_QUERY_LIMIT)
 
 export class RequestRepository {
   static inject = ['config', 'dbConnection'] as const

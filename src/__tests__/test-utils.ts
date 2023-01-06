@@ -181,12 +181,12 @@ export function generateRequests(
     if (varianceMS > 0) {
       const createdAt = override.createdAt || new Date(Date.now())
       const updatedAt = override.updatedAt || new Date(createdAt.getTime())
-
-      return generateRequest({
-        createdAt: new Date(createdAt.getTime() + i * varianceMS),
-        updatedAt: new Date(updatedAt.getTime() + i * varianceMS),
-        ...override,
-      })
+      return generateRequest(
+        Object.assign({}, override, {
+          createdAt: new Date(createdAt.getTime() + i * varianceMS),
+          updatedAt: new Date(updatedAt.getTime() + i * varianceMS),
+        })
+      )
     }
 
     return generateRequest(override)
