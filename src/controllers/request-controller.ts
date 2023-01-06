@@ -90,6 +90,15 @@ export class RequestController {
 
       request = new Request()
       request.cid = cid.toString()
+
+      // Parsing according to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#parsing
+      let addresses: string
+      if (Array.isArray(req.headers['X-Forwarded-For'])) {
+        addresses = req.headers['X-Forwarded-For'].join(',')
+      } else {
+        addresses = req.headers['X-Forwarded-For']
+      }
+      request.origin = addresses.split(',')[0]?.trim()
       request.streamId = streamId.toString()
       request.status = RequestStatus.PENDING
       request.message = 'Request is pending.'
