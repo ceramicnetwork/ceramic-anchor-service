@@ -159,6 +159,10 @@ const findRequestsToAnchorForStreams = (
 ): Promise<Array<Request>> =>
   findRequestsToAnchor(connection, now)
     .whereIn('streamId', streamIds)
+    // We order the requests according to it's streamId's position in the provided array.
+    // We do this because we assume the given streamIds array is sorted according to priority.
+    // In this file the streamIds array is sorted based on the earliest request for each streamId (ascending).
+    // This results in us prioritizing requests that are older and possibly expiring.
     .orderByRaw(
       `array_position(ARRAY[${streamIds.map(
         (streamId) => `'${streamId}'`
