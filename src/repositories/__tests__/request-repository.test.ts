@@ -14,6 +14,7 @@ import { AnchorRepository } from '../anchor-repository.js'
 import { Request, REQUEST_MESSAGES, RequestStatus } from '../../models/request.js'
 import { generateRequests, generateRequest, randomStreamID } from '../../__tests__/test-utils.js'
 import { createInjector } from 'typed-inject'
+import { DateTime } from 'luxon'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -299,7 +300,10 @@ describe('request repository test', () => {
     test('Marks processing requests as ready if they need to be retried', async () => {
       const streamLimit = 5
       // 4h ago (timeout is 3h)
-      const dateOfTimedOutProcessingRequest = new Date(Date.now() - PROCESSING_TIMEOUT - MS_IN_HOUR)
+      const dateOfTimedOutProcessingRequest = DateTime.now()
+        .minus(PROCESSING_TIMEOUT)
+        .minus({ hours: 1 })
+        .toJSDate()
 
       const expiredProcessing = generateRequests(
         // processing request that needs to be retried
@@ -408,8 +412,11 @@ describe('request repository test', () => {
           {
             status: RequestStatus.FAILED,
             streamId: repeatedStreamId,
-            createdAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
-            updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_MINUTE * 30),
+            createdAt: DateTime.now().minus(FAILURE_RETRY_INTERVAL).minus({ hours: 1 }).toJSDate(),
+            updatedAt: DateTime.now()
+              .minus(FAILURE_RETRY_INTERVAL)
+              .minus({ minutes: 30 })
+              .toJSDate(),
           },
           1
         ),
@@ -511,13 +518,16 @@ describe('request repository test', () => {
 
     test('Marks failed requests as ready', async () => {
       const streamLimit = 5
-      const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+      const dateDuringRetryPeriod = DateTime.now()
+        .minus(FAILURE_RETRY_WINDOW)
+        .plus({ hours: 1 })
+        .toJSDate()
       const requests = [
         generateRequests(
           {
             status: RequestStatus.FAILED,
             createdAt: dateDuringRetryPeriod,
-            updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+            updatedAt: DateTime.now().minus(FAILURE_RETRY_INTERVAL).minus({ hours: 1 }).toJSDate(),
             message: 'random',
           },
           1
@@ -526,7 +536,7 @@ describe('request repository test', () => {
           {
             status: RequestStatus.FAILED,
             createdAt: dateDuringRetryPeriod,
-            updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+            updatedAt: DateTime.now().minus(FAILURE_RETRY_INTERVAL).minus({ hours: 1 }).toJSDate(),
           },
           streamLimit - 1
         ),
@@ -545,13 +555,16 @@ describe('request repository test', () => {
 
     test('Will not mark expired failed requests as ready', async () => {
       const streamLimit = 5
-      const dateBeforeRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW - MS_IN_HOUR)
+      const dateBeforeRetryPeriod = DateTime.now()
+        .minus(FAILURE_RETRY_WINDOW)
+        .minus({ hours: 1 })
+        .toJSDate()
 
       const requests = generateRequests(
         {
           status: RequestStatus.FAILED,
           createdAt: dateBeforeRetryPeriod,
-          updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+          updatedAt: DateTime.now().minus(FAILURE_RETRY_INTERVAL).minus({ hours: 1 }).toJSDate(),
         },
         streamLimit
       )
@@ -567,13 +580,16 @@ describe('request repository test', () => {
 
     test('Will not mark failed requests that were rejected because of conflict resolution as ready', async () => {
       const streamLimit = 5
-      const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+      const dateDuringRetryPeriod = DateTime.now()
+        .minus(FAILURE_RETRY_WINDOW)
+        .plus({ hours: 1 })
+        .toJSDate()
 
       const requests = generateRequests(
         {
           status: RequestStatus.FAILED,
           createdAt: dateDuringRetryPeriod,
-          updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+          updatedAt: DateTime.now().minus(FAILURE_RETRY_INTERVAL).minus({ hours: 1 }).toJSDate(),
           message: REQUEST_MESSAGES.conflictResolutionRejection,
         },
         streamLimit
@@ -590,7 +606,10 @@ describe('request repository test', () => {
 
     test('Will not mark failed requests that were tried recently as ready', async () => {
       const streamLimit = 5
-      const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+      const dateDuringRetryPeriod = DateTime.now()
+        .minus(FAILURE_RETRY_WINDOW)
+        .plus({ hours: 1 })
+        .toJSDate()
 
       const requests = generateRequests(
         {

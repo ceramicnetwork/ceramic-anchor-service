@@ -2,9 +2,8 @@ import { CID } from 'multiformats/cid'
 import type { Knex } from 'knex'
 import { RequestStatus, Request, RequestUpdateFields, REQUEST_MESSAGES } from '../models/request.js'
 import { LimitOptions, Options } from './repository-types.js'
-import { logEvent } from '../logger/index.js'
+import { logEvent, logger } from '../logger/index.js'
 import { Config } from 'node-config-ts'
-import { logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
 import {
   ServiceMetrics as Metrics,
@@ -12,16 +11,17 @@ import {
   SinceField,
 } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
+import { DateTime, Duration } from 'luxon'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
 // AnchorCommit available to the network.
-export const ANCHOR_DATA_RETENTION_WINDOW = 1000 * 60 * 60 * 24 * 30 // 30 days
+export const ANCHOR_DATA_RETENTION_WINDOW = Duration.fromObject({ days: 30 })
 // Amount of time a request can remain processing before being retried
-export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 3 //3H
+export const PROCESSING_TIMEOUT = Duration.fromObject({ hours: 3 })
 // If a request fails during this window, retry
-export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
+export const FAILURE_RETRY_WINDOW = Duration.fromObject({ hours: 48 })
 // only retry failed requests if it hasn't been tried within the last 6 hours
-export const FAILURE_RETRY_INTERVAL = 1000 * 60 * 60 * 6 // 6H
+export const FAILURE_RETRY_INTERVAL = Duration.fromObject({ hours: 6 })
 // application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
 export const TABLE_NAME = 'request'
@@ -74,9 +74,13 @@ const recordAnchorRequestMetrics = (requests: Request[], anchoringDeadline: Date
  * @returns
  */
 const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder => {
-  const earliestFailedCreatedAtToRetry = new Date(now.getTime() - FAILURE_RETRY_WINDOW)
-  const processingDeadline = new Date(now.getTime() - PROCESSING_TIMEOUT)
-  const latestFailedUpdatedAtToRetry = new Date(now.getTime() - FAILURE_RETRY_INTERVAL)
+  const earliestFailedCreatedAtToRetry = DateTime.fromJSDate(now)
+    .minus(FAILURE_RETRY_WINDOW)
+    .toJSDate()
+  const processingDeadline = DateTime.fromJSDate(now).minus(PROCESSING_TIMEOUT).toJSDate()
+  const latestFailedUpdatedAtToRetry = DateTime.fromJSDate(now)
+    .minus(FAILURE_RETRY_INTERVAL)
+    .toJSDate()
 
   return connection(TABLE_NAME).where((builder) => {
     builder
@@ -104,6 +108,8 @@ const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder =>
  * Finds a batch of streams to anchor based on whether a stream's associated requests need to be anchored.
  * @param connection
  * @param maxStreamLimit max size of the batch
+ * @param minStreamLimit
+ * @param anchoringDeadline
  * @param now
  * @returns Promise for the stream ids to anchor
  */
@@ -320,20 +326,19 @@ export class RequestRepository {
   async findRequestsToGarbageCollect(options: Options = {}): Promise<Request[]> {
     const { connection = this.connection } = options
 
-    const now: number = new Date().getTime()
-    const deadlineDate = new Date(now - ANCHOR_DATA_RETENTION_WINDOW)
+    const deadlineDate = DateTime.now().minus(ANCHOR_DATA_RETENTION_WINDOW).toJSDate()
 
     const requestsOnRecentlyUpdatedStreams = connection(TABLE_NAME)
       .orderBy('updatedAt', 'desc')
       .select('streamId')
-      .where('updatedAt', '>=', deadlineDate)
+      .where('updatedAt', '>=', deadlineDate.toISOString())
 
     // expired requests with streams that have not been recently updated
     return connection(TABLE_NAME)
       .orderBy('updatedAt', 'desc')
       .whereIn('status', [RequestStatus.COMPLETED, RequestStatus.FAILED])
       .andWhere('pinned', true)
-      .andWhere('updatedAt', '<', deadlineDate)
+      .andWhere('updatedAt', '<', deadlineDate.toISOString())
       .whereNotIn('streamId', requestsOnRecentlyUpdatedStreams)
   }
 
