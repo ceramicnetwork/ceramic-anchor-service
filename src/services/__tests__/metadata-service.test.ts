@@ -211,22 +211,23 @@ describe('fill', () => {
       expect(saveSpy).toBeCalledTimes(0) // Do not store to the database.
     })
 
-    test('touch the entry', async () => {
-      const now0 = new Date()
-      await metadataService.fill(streamId)
-      const retrieved0 = await metadataRepository.retrieve(streamId)
-      expect(retrieved0.usedAt.valueOf()).toBeCloseTo(now0.valueOf(), -2)
-      // Manually update `usedAt` to some time ago
-      const someTimeAgo = new Date()
-      someTimeAgo.setHours(someTimeAgo.getHours() - 15) // For example, 15 hours ago
-      await metadataRepository.touch(streamId, someTimeAgo)
-      const retrieved1 = await metadataRepository.retrieve(streamId)
-      expect(retrieved1.usedAt).toEqual(someTimeAgo)
-      // `MetadataService#fill` should update `usedAt` to _now_
-      const now1 = new Date()
-      await metadataService.fill(streamId)
-      const retrieved2 = await metadataRepository.retrieve(streamId)
-      expect(retrieved2.usedAt.valueOf()).toBeCloseTo(now1.valueOf(), -2)
-    })
+    // TODO CDB-2170 Do the test when approaching garbage collection
+    // test('touch the entry', async () => {
+    //   const now0 = new Date()
+    //   await metadataService.fill(streamId)
+    //   const retrieved0 = await metadataRepository.retrieve(streamId)
+    //   expect(retrieved0.usedAt.valueOf()).toBeCloseTo(now0.valueOf(), -2)
+    //   // Manually update `usedAt` to some time ago
+    //   const someTimeAgo = new Date()
+    //   someTimeAgo.setHours(someTimeAgo.getHours() - 15) // For example, 15 hours ago
+    //   await metadataRepository.touch(streamId, someTimeAgo)
+    //   const retrieved1 = await metadataRepository.retrieve(streamId)
+    //   expect(retrieved1.usedAt).toEqual(someTimeAgo)
+    //   // `MetadataService#fill` should update `usedAt` to _now_
+    //   const now1 = new Date()
+    //   await metadataService.fill(streamId)
+    //   const retrieved2 = await metadataRepository.retrieve(streamId)
+    //   expect(retrieved2.usedAt.valueOf()).toBeCloseTo(now1.valueOf(), -2)
+    // })
   })
 })

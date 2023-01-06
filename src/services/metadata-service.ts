@@ -55,7 +55,7 @@ export class MetadataService implements IMetadataService {
    * Retrieve genesis header fields from IPFS, store to the database.
    */
   async fill(streamId: StreamID, options: AbortOptions = {}): Promise<void> {
-    const isPresent = await this.metadataRepository.touch(streamId)
+    const isPresent = await this.metadataRepository.isPresent(streamId)
     if (isPresent) return // Do not perform same work of retrieving from IPFS twice
     const genesisFields = await this.retrieveFromGenesis(streamId, options)
     await this.storeMetadata(streamId, genesisFields)
