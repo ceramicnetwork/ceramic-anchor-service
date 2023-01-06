@@ -74,7 +74,7 @@ describe('retrieveFromGenesis', () => {
     const retrieveRecordSpy = jest.spyOn(ipfsService, 'retrieveRecord')
     // We expect that IpfsService#retrieveRecord is called once with CID and `path`.
     // Let's return the actual genesis as if IPFS traversed through `path`.
-    retrieveRecordSpy.mockImplementation(async (cid, options) => {
+    retrieveRecordSpy.mockImplementation(async () => {
       return { header: HEADER_RECORD }
     })
     const genesisFields = await metadataService.retrieveFromGenesis(streamId)
@@ -100,6 +100,7 @@ describe('retrieveFromGenesis', () => {
         /Validation error:.*\/controllers/
       )
     })
+
     test('empty controllers array', async () => {
       const streamId = await putGenesisHeader({
         ...header,
@@ -109,6 +110,7 @@ describe('retrieveFromGenesis', () => {
         /Validation error:.*\/controllers/
       )
     })
+
     test('multiple controllers', async () => {
       const streamId = await putGenesisHeader({
         ...header,
@@ -118,6 +120,7 @@ describe('retrieveFromGenesis', () => {
         /Validation error:.*\/controllers/
       )
     })
+
     test('invalid controller', async () => {
       const streamId = await putGenesisHeader({
         ...header,
@@ -127,6 +130,7 @@ describe('retrieveFromGenesis', () => {
         /Validation error:.*\/controllers/
       )
     })
+
     test('family is not string', async () => {
       const streamId = await putGenesisHeader({
         ...header,
@@ -136,6 +140,7 @@ describe('retrieveFromGenesis', () => {
         /Validation error:.*\/family/
       )
     })
+
     test('model is not Uint8Array', async () => {
       const streamId = await putGenesisHeader({
         ...header,
@@ -145,6 +150,7 @@ describe('retrieveFromGenesis', () => {
         /Validation error:.*\/model/
       )
     })
+
     test('schema is invalid', async () => {
       const streamId = await putGenesisHeader({
         ...header,
@@ -154,6 +160,7 @@ describe('retrieveFromGenesis', () => {
         /Validation error:.*\/schema/
       )
     })
+
     test('tags are not Array<string>', async () => {
       const streamId = await putGenesisHeader({
         ...header,
