@@ -24,7 +24,7 @@ export interface Database {
     updateNonce: (did: string, nonce: number) => Promise<boolean>
     registerDID: (email: string, otp: string, did: string) => Promise<any>
     registerDIDs: (email: string, otp: string, dids: Array<string>) => Promise<any>
-    revokeDID: (email: string, otp: string, did: string) => Promise<boolean>
+    revokeDID: (email: string, otp: string, did: string) => Promise<any>
 }
 
 export interface DatabaseEmailVerification {

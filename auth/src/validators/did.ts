@@ -38,10 +38,7 @@ export const revokeValidation = {
       .email()
       .required(),
     otp: Joi.string()
-      .required(),
-    did: Joi.string()
-      .regex(didRegex)
-      .required(),
+      .required()
   }),
 }
 

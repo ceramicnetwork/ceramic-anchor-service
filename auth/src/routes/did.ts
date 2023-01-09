@@ -38,9 +38,9 @@ router.get('/:did/nonce', validate(getNonceValidation), async (req: Req, res: Re
  * Revoke DID
  */
 router.patch('/:did', validate(revokeValidation), async (req: Req, res: Res) => {
-  const success = await req.customContext.db.revokeDID(req.body.email, req.body.otp, req.params.did)
-  if (success) {
-    return res.send({ message: 'Revoked DID' })
+  const data = await req.customContext.db.revokeDID(req.body.email, req.body.otp, req.params.did)
+  if (data) {
+    return res.send(data)
   }
   throw new ClientFacingError('Could not revoke DID')
 })

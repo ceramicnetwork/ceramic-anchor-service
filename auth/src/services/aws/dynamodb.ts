@@ -20,11 +20,16 @@ import {
 } from "@aws-sdk/client-dynamodb"
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb"
 import { DateTime } from 'luxon'
+import { didRegex } from "../../utils/did"
 
 import { createEmailVerificationCode, Database, DIDStatus, OTPStatus } from "../db"
 
 const AWS_REGION = process.env.AWS_REGION ?? ''
 
+/**
+ * Returns current timestamp as unix integer
+ * @returns Unix timestamp
+ */
 const now = (): number => { return DateTime.now().toUnixInteger() }
 
 const OTP_TABLE_NAME = process.env.IS_OFFLINE ? `cas-auth-otp-${now()}` : (process.env.DB_OTP_TABLE_NAME ?? '')
@@ -54,7 +59,7 @@ export class DynamoDB implements Database {
     }
 
     async init() {
-        for (let tableName of [OTP_TABLE_NAME, DID_TABLE_NAME]) {
+        for (const tableName of [OTP_TABLE_NAME, DID_TABLE_NAME]) {
             if (this._shouldCreateTableIfNotExists) {
                 await this._createTableIfNotExists(tableName)
             } else {
@@ -263,13 +268,15 @@ export class DynamoDB implements Database {
     }
 
     async registerDIDs(email: string, otp: string, dids: Array<string>): Promise<Array<any> | undefined> {
-        if(!await this._checkCorrectOTP(email, otp)) return
+        if (!await this._checkCorrectOTP(email, otp)) return
         const shouldCheckOTPAgain = false
 
         const results: any[] = []
-        for (let did in dids) {
-            let result = await this.registerDID(email, otp, did, shouldCheckOTPAgain)
-            results.push(result)
+        for (const did of dids) {
+            if (didRegex.test(did)) {
+                let result = await this.registerDID(email, otp, did, shouldCheckOTPAgain)
+                results.push(result)
+            }
         }
         return results
     }
@@ -308,7 +315,7 @@ export class DynamoDB implements Database {
         }
     }
 
-    async revokeDID(email: string, otp: string, did: string): Promise<boolean> {
+    async revokeDID(email: string, otp: string, did: string): Promise<any> {
         if(!await this._checkCorrectOTP(email, otp)) return false
 
         const input: UpdateItemCommandInput = {
@@ -317,25 +324,37 @@ export class DynamoDB implements Database {
                 'PK': did,
                 'SK': did
             }),
-            UpdateExpression: `SET curr_status=:status, updated_at_unix=:updated_at_unix`,
-            ConditionExpression: '(attribute_exists(PK)) AND (email IN :email) AND NOT (curr_status IN :status)',
+            UpdateExpression: `SET curr_status=:curr_status, updated_at_unix=:updated_at_unix`,
+            ConditionExpression: '(attribute_exists(PK)) AND contains(email, :email) AND NOT contains(curr_status, :curr_status)',
             ExpressionAttributeValues: marshall({
-                'email': email,
-                'curr_status': DIDStatus.Revoked,
-                'updated_at_unix': now(),
+                ':email': email,
+                ':curr_status': DIDStatus.Revoked,
+                ':updated_at_unix': now(),
             }),
             ReturnValues: 'ALL_NEW'
         }
         try {
-            await this.client.send(new UpdateItemCommand(input))
-            return true
+            const output = await this.client.send(new UpdateItemCommand(input))
+            if (output) {
+                if (output.Attributes) {
+                    const attributes = unmarshall(output.Attributes)
+                    return {
+                        email: attributes.email,
+                        did: attributes.PK,
+                        status: attributes.curr_status
+                    }
+                }
+            } else {
+                console.warn('Command succeeded without return values')
+                return { email, did, status: DIDStatus.Revoked }
+            }
         } catch (err) {
             if (err instanceof ConditionalCheckFailedException) {
                 console.error('DID was not found or is already revoked.')
             } else {
                 console.error(err)
             }
-            return false
+            return
         }
     }
 
@@ -371,6 +390,7 @@ export class DynamoDB implements Database {
         } catch (err) {
             if (err instanceof ConditionalCheckFailedException) {
                 console.error('OTP not found or not active.')
+                return false
             }
             throw err
         }

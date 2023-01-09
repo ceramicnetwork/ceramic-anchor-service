@@ -33,6 +33,7 @@ export class SESService implements EmailService {
     }
 
     private async _sendEmail(recipients: Array<string>, message: SES.Message, sender: string): Promise<void> {
+        if (process.env.TESTING == 'true') return
         const params: SES.SendEmailRequest = {
             Destination: { ToAddresses: recipients },
             Message: message,

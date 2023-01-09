@@ -21,6 +21,15 @@ docker run -p 8000:8000 amazon/dynamodb-local
 sls offline
 ```
 
+## Testing
+
+Add the testing env var to run integration tests
+```sh
+TESTING=true sls offline
+# in another terminal
+npm run test -- integration
+```
+
 
 ## Running
 

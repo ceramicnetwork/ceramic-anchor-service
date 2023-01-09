@@ -7,7 +7,7 @@ import * as routes from '../routes/index.js'
 import { DynamoDB } from '../services/aws/dynamodb.js'
 import { SESService } from '../services/aws/ses.js'
 import { ClientFacingError } from '../utils/errorHandling.js'
-import { CustomContext } from '../utils/reqres.js'
+import { CustomContext, httpMethods } from '../utils/reqres.js'
 
 export const API_ENDPOINT = '/api/v0/auth'
 
@@ -19,10 +19,16 @@ const email = new SESService()
 app.use(bodyParser.json())
 app.use(parseAsJson)
 function parseAsJson(req, res, next) {
-  if (req.method == 'POST') {
-    if (req.body) {
-      req.body = JSON.parse(req.apiGateway.event.body)
-    }
+  switch (req.method) {
+    case httpMethods.POST:
+    case httpMethods.PUT:
+    case httpMethods.PATCH:
+      if (req.body) {
+        req.body = JSON.parse(req.apiGateway.event.body)
+      }
+      break
+    default:
+      break
   }
   next()
 }
@@ -52,7 +58,7 @@ function errorHandler (err, req, res, next) {
   }
   let error = 'Error'
   if (err instanceof ValidationError) {
-    console.log(err)
+    console.error(err.details)
     error = err.message
   } else if (err instanceof ClientFacingError) {
     error = err.message
