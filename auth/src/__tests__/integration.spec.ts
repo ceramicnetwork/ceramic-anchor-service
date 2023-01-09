@@ -119,6 +119,7 @@ describe('/did', () => {
 
     test('revoke did', async () => {
         const dids = [
+            randomDID(),
             randomDID()
         ]
         await fetch(endpoint('/did'), {
@@ -170,6 +171,23 @@ describe('/did', () => {
 
         expect(resp.status).toBe(400)
         await expect(resp.json()).resolves.toEqual({ error: 'Could not revoke DID' })
+
+        // did owned by email
+        await resetOTP()
+        resp = await fetch(endpoint(`/did/${dids[1]}`), {
+            method: httpMethods.PATCH,
+            body: JSON.stringify({
+                email: EMAIL_ADDRESS,
+                otp: OTP
+            })
+        })
+
+        expect(resp.status).toBe(200)
+        await expect(resp.json()).resolves.toEqual({
+            email: EMAIL_ADDRESS,
+            did: dids[1],
+            status: DIDStatus.Revoked
+        })
 
         // did owned by email
         await resetOTP()
