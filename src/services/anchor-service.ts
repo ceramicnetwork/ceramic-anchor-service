@@ -3,19 +3,19 @@ import { CID } from 'multiformats/cid'
 import { MerkleTree } from '../merkle/merkle-tree.js'
 import { PathDirection, TreeMetadata } from '../merkle/merkle.js'
 
-import { Config } from 'node-config-ts'
+import type { Config } from 'node-config-ts'
 
 import { logger, logEvent } from '../logger/index.js'
 import { Utils } from '../utils.js'
 import { Anchor } from '../models/anchor.js'
 import { Request, REQUEST_MESSAGES, RequestStatus as RS } from '../models/request.js'
-import { Transaction } from '../models/transaction.js'
-import { AnchorRepository } from '../repositories/anchor-repository.js'
-import { RequestRepository } from '../repositories/request-repository.js'
-import { TransactionRepository } from '../repositories/transaction-repository.js'
+import type { Transaction } from '../models/transaction.js'
+import type { AnchorRepository } from '../repositories/anchor-repository.js'
+import type { RequestRepository } from '../repositories/request-repository.js'
+import type { TransactionRepository } from '../repositories/transaction-repository.js'
 
-import { EventProducerService } from './event-producer/event-producer-service.js'
-import { CeramicService } from './ceramic-service.js'
+import type { EventProducerService } from './event-producer/event-producer-service.js'
+import type { CeramicService } from './ceramic-service.js'
 import {
   ServiceMetrics as Metrics,
   TimeableMetric,

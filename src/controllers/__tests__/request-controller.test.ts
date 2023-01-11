@@ -16,6 +16,9 @@ import {
 import type { Knex } from 'knex'
 import merge from 'merge-options'
 import { RequestStatus } from '../../models/request.js'
+import type { IIpfsService } from '../../services/ipfs-service.type.js'
+import type { StreamID } from '@ceramicnetwork/streamid'
+import type { IMetadataService } from '../../services/metadata-service.js'
 
 function mockResponse(): ExpRes {
   const res: any = {}
@@ -35,6 +38,14 @@ function mockRequest(input: any = {}): ExpReq {
 type Tokens = {
   requestController: RequestController
   requestRepository: RequestRepository
+  ipfsService: IIpfsService
+  metadataService: IMetadataService
+}
+
+class MockMetadataService implements IMetadataService {
+  async fill(streamId: StreamID): Promise<void> {
+    return
+  }
 }
 
 describe('createRequest', () => {
@@ -52,6 +63,7 @@ describe('createRequest', () => {
       .provideClass('ipfsService', MockIpfsService)
       .provideClass('ceramicService', MockCeramicService)
       .provideClass('requestPresentationService', RequestPresentationService)
+      .provideClass('metadataService', MockMetadataService)
       .provideClass('requestController', RequestController)
     controller = container.resolve('requestController')
   })
@@ -176,6 +188,21 @@ describe('createRequest', () => {
       expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
       expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
       expect(createdRequest.origin).toBeNull()
+    })
+
+    test('fill metadata', async () => {
+      const cid = randomCID()
+      const streamId = randomStreamID()
+      const req = mockRequest({
+        body: {
+          cid: cid.toString(),
+          streamId: streamId.toString(),
+        },
+      })
+      const metadataService = container.resolve('metadataService')
+      const fillSpy = jest.spyOn(metadataService, 'fill')
+      await controller.createRequest(req, mockResponse())
+      expect(fillSpy).toBeCalledWith(streamId)
     })
   })
 

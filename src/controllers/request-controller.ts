@@ -16,6 +16,8 @@ import { METRIC_NAMES } from '../settings.js'
 import { CeramicService } from '../services/ceramic-service.js'
 import type { IRequestPresentationService } from '../services/request-presentation-service.type.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
+import type { IIpfsService } from '../services/ipfs-service.type.js'
+import type { IMetadataService } from '../services/metadata-service.js'
 
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
@@ -26,6 +28,8 @@ export class RequestController {
     'requestRepository',
     'ceramicService',
     'requestPresentationService',
+    'ipfsService',
+    'metadataService',
   ] as const
 
   constructor(
@@ -33,7 +37,9 @@ export class RequestController {
     private anchorRepository: AnchorRepository,
     private requestRepository: RequestRepository,
     private ceramicService: CeramicService,
-    private readonly requestPresentationService: IRequestPresentationService
+    private readonly requestPresentationService: IRequestPresentationService,
+    private readonly ipfsService: IIpfsService,
+    private readonly metadataService: IMetadataService
   ) {}
 
   @Get(':cid')
@@ -85,14 +91,18 @@ export class RequestController {
       }
       const streamId = StreamID.fromString(req.body.streamId)
 
+      // Store metadata from genesis to the database
+      // TODO CDB-2151 This should be moved out of RequestController
+      await this.metadataService.fill(streamId)
+
       let timestamp = new Date()
       if (req.body.timestamp) {
         timestamp = new Date(req.body.timestamp)
       }
 
-      let request = await this.requestRepository.findByCid(cid)
-      if (request) {
-        const body = await this.requestPresentationService.body(request)
+      const found = await this.requestRepository.findByCid(cid)
+      if (found) {
+        const body = await this.requestPresentationService.body(found)
         return res.status(StatusCodes.ACCEPTED).json(body)
       }
 
@@ -100,7 +110,7 @@ export class RequestController {
       this.ceramicService.pinStream(streamId)
       Metrics.count(METRIC_NAMES.ANCHOR_REQUESTED, 1, { ip_addr: req.ip })
 
-      request = new Request()
+      const request = new Request()
       request.cid = cid.toString()
 
       // Parsing according to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#parsing
@@ -120,9 +130,9 @@ export class RequestController {
       request.pinned = true
       request.timestamp = timestamp
 
-      request = await this.requestRepository.createOrUpdate(request)
+      const storedRequest = await this.requestRepository.createOrUpdate(request)
 
-      const body = await this.requestPresentationService.body(request)
+      const body = await this.requestPresentationService.body(storedRequest)
       return res.status(StatusCodes.CREATED).json(body)
     } catch (err) {
       const errmsg = `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed: ${err.message}`
