@@ -7,8 +7,9 @@ import { AnchorService } from '../anchor-service.js'
 import { clearTables, createDbConnection } from '../../db-connection.js'
 
 import { RequestRepository } from '../../repositories/request-repository.js'
-import { IpfsService, IpfsServiceImpl } from '../ipfs-service.js'
-import { AnchorRepository } from '../../repositories/anchor-repository.js'
+import { IpfsService } from '../ipfs-service.js'
+import type { IIpfsService } from '../ipfs-service.type.js'
+import { AnchorRepository, TABLE_NAME } from '../../repositories/anchor-repository.js'
 import { config, Config } from 'node-config-ts'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import {
@@ -48,7 +49,7 @@ class FakeEthereumBlockchainService implements BlockchainService {
 
 async function createRequest(
   streamId: string,
-  ipfsService: IpfsService,
+  ipfsService: IIpfsService,
   requestRepository: RequestRepository,
   status: RequestStatus = RequestStatus.PENDING
 ): Promise<Request> {
@@ -117,7 +118,7 @@ const MIN_STREAM_COUNT = Math.floor(STREAM_LIMIT / 2)
 
 type Context = {
   config: Config
-  ipfsService: IpfsService
+  ipfsService: IIpfsService
   ceramicService: MockCeramicService
   eventProducerService: MockEventProducerService
   requestRepository: RequestRepository
@@ -126,7 +127,7 @@ type Context = {
 
 describe('anchor service', () => {
   jest.setTimeout(10000)
-  let ipfsService: IpfsService
+  let ipfsService: IIpfsService
   let ceramicService: MockCeramicService
   let connection: Knex
   let injector: Injector<Context>
@@ -135,7 +136,7 @@ describe('anchor service', () => {
   let eventProducerService: MockEventProducerService
 
   beforeAll(async () => {
-    const { IpfsServiceImpl } = await import('../ipfs-service.js')
+    const { IpfsService } = await import('../ipfs-service.js')
 
     connection = await createDbConnection()
     injector = createInjector()
@@ -152,7 +153,7 @@ describe('anchor service', () => {
       .provideClass('requestRepository', RequestRepository)
       .provideClass('transactionRepository', TransactionRepository)
       .provideClass('blockchainService', FakeEthereumBlockchainService)
-      .provideClass('ipfsService', IpfsServiceImpl)
+      .provideClass('ipfsService', IpfsService)
       .provideClass('ceramicService', MockCeramicService)
       .provideClass('eventProducerService', MockEventProducerService)
       .provideClass('anchorService', AnchorService)
