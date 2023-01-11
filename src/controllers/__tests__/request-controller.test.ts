@@ -13,7 +13,6 @@ import {
   randomStreamID,
   times,
   isClose,
-  seconds,
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { RequestStatus } from '../../models/request.js'
@@ -141,9 +140,8 @@ describe('createRequest', () => {
       expect(createdRequest.streamId).toEqual(streamId.toString())
       expect(createdRequest.message).toEqual('Request is pending.')
       expect(createdRequest.timestamp.valueOf()).toEqual(timestamp.valueOf())
-      const nowSeconds = seconds(now)
-      expect(isClose(seconds(createdRequest.createdAt), nowSeconds)).toBeTruthy()
-      expect(isClose(seconds(createdRequest.updatedAt), nowSeconds)).toBeTruthy()
+      expect(isClose(createdRequest.createdAt.getTime(), now.getTime())).toBeTruthy()
+      expect(isClose(createdRequest.updatedAt.getTime(), now.getTime())).toBeTruthy()
       expect(createdRequest.origin).toEqual(origin)
     })
 
@@ -168,10 +166,9 @@ describe('createRequest', () => {
       expect(createdRequest.status).toEqual(RequestStatus.PENDING)
       expect(createdRequest.streamId).toEqual(streamId.toString())
       expect(createdRequest.message).toEqual('Request is pending.')
-      const nowSeconds = seconds(now)
-      expect(isClose(seconds(createdRequest.timestamp), nowSeconds)).toBeTruthy()
-      expect(isClose(seconds(createdRequest.createdAt), nowSeconds)).toBeTruthy()
-      expect(isClose(seconds(createdRequest.updatedAt), nowSeconds)).toBeTruthy()
+      expect(isClose(createdRequest.timestamp.getTime(), now.getTime())).toBeTruthy()
+      expect(isClose(createdRequest.createdAt.getTime(), now.getTime())).toBeTruthy()
+      expect(isClose(createdRequest.updatedAt.getTime(), now.getTime())).toBeTruthy()
       expect(createdRequest.origin).not.toBeNull()
     })
 
