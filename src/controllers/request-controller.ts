@@ -15,6 +15,27 @@ import type { RequestRepository } from '../repositories/request-repository.js'
 import type { IIpfsService } from '../services/ipfs-service.type.js'
 import type { IMetadataService } from '../services/metadata-service.js'
 
+/**
+ * Get origin from a request from X-Forwarded-For.
+ * Parsing according to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#parsing
+ *
+ * If no header found, use IP address of the requester.
+ *
+ * TODO CDB-2185 Get it from DID signer first.
+ */
+function parseOrigin(req: ExpReq): string {
+  let addresses: string = req.ip
+  const xForwardedForHeader = req.get('X-Forwarded-For')
+  if (xForwardedForHeader) {
+    if (Array.isArray(xForwardedForHeader)) {
+      addresses = xForwardedForHeader.join(',')
+    } else {
+      addresses = xForwardedForHeader
+    }
+  }
+  return addresses.split(',')[0].trim()
+}
+
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
 export class RequestController {
@@ -105,14 +126,7 @@ export class RequestController {
       const request = new Request()
       request.cid = cid.toString()
 
-      // Parsing according to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#parsing
-      let addresses: string
-      if (Array.isArray(req.headers['X-Forwarded-For'])) {
-        addresses = req.headers['X-Forwarded-For'].join(',')
-      } else {
-        addresses = req.headers['X-Forwarded-For']
-      }
-      request.origin = addresses.split(',')[0]?.trim()
+      request.origin = parseOrigin(req)
       request.streamId = streamId.toString()
       request.status = RequestStatus.PENDING
       request.message = 'Request is pending.'

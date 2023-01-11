@@ -5,7 +5,6 @@ import { config } from 'node-config-ts'
 import { RequestController } from '../request-controller.js'
 import { RequestPresentationService } from '../../services/request-presentation-service.js'
 import { RequestRepository } from '../../repositories/request-repository.js'
-import type { Request as ExpReq, Response as ExpRes } from 'express'
 import { StatusCodes } from 'http-status-codes'
 import {
   MockCeramicService,
@@ -13,29 +12,16 @@ import {
   randomCID,
   randomStreamID,
   times,
+  isClose,
+  seconds,
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
-import merge from 'merge-options'
 import { RequestStatus } from '../../models/request.js'
 import type { IIpfsService } from '../../services/ipfs-service.type.js'
 import type { StreamID } from '@ceramicnetwork/streamid'
 import type { IMetadataService } from '../../services/metadata-service.js'
 import { DateTime } from 'luxon'
-
-function mockResponse(): ExpRes {
-  const res: any = {}
-  res.status = jest.fn(() => res)
-  res.json = jest.fn(() => res)
-  res.send = jest.fn(() => res)
-  return res as ExpRes
-}
-
-function mockRequest(input: any = {}): ExpReq {
-  const defaults = {
-    body: {},
-  }
-  return merge(defaults, input) as ExpReq
-}
+import { mockRequest, mockResponse } from './mock-request.util.js'
 
 type Tokens = {
   requestController: RequestController
@@ -136,10 +122,7 @@ describe('createRequest', () => {
       const origin = '203.0.113.195'
       const req = mockRequest({
         headers: {
-          'X-Forwarded-For': [
-            ` ${origin}`,
-            `${origin}, 2001:db8:85a3:8d3:1319:8a2e:370:7348`
-          ]
+          'X-Forwarded-For': [` ${origin}`, `${origin}, 2001:db8:85a3:8d3:1319:8a2e:370:7348`],
         },
         body: {
           cid: cid.toString(),
@@ -160,8 +143,9 @@ describe('createRequest', () => {
       expect(createdRequest.streamId).toEqual(streamId.toString())
       expect(createdRequest.message).toEqual('Request is pending.')
       expect(createdRequest.timestamp.valueOf()).toEqual(timestamp.valueOf())
-      expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
+      const nowSeconds = seconds(now)
+      expect(isClose(seconds(createdRequest.createdAt), nowSeconds)).toBeTruthy()
+      expect(isClose(seconds(createdRequest.updatedAt), nowSeconds)).toBeTruthy()
       expect(createdRequest.origin).toEqual(origin)
     })
 
@@ -186,10 +170,11 @@ describe('createRequest', () => {
       expect(createdRequest.status).toEqual(RequestStatus.PENDING)
       expect(createdRequest.streamId).toEqual(streamId.toString())
       expect(createdRequest.message).toEqual('Request is pending.')
-      expect(createdRequest.timestamp.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      expect(createdRequest.origin).toBeNull()
+      const nowSeconds = seconds(now)
+      expect(isClose(seconds(createdRequest.timestamp), nowSeconds)).toBeTruthy()
+      expect(isClose(seconds(createdRequest.createdAt), nowSeconds)).toBeTruthy()
+      expect(isClose(seconds(createdRequest.updatedAt), nowSeconds)).toBeTruthy()
+      expect(createdRequest.origin).toEqual('127.0.0.1')
     })
 
     test('fill metadata', async () => {
@@ -257,6 +242,7 @@ describe('createRequest', () => {
         const res = mockResponse()
         await controller.createRequest(req, res)
         const jsonSpy = jest.spyOn(res, 'json')
+        expect(jsonSpy).toBeCalledTimes(1)
         const presentation = jsonSpy.mock.lastCall[0]
         expect(presentation.cid).toEqual(request.cid.toString())
         expect(presentation.streamId).toEqual(request.streamId.toString())
