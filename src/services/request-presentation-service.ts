@@ -52,40 +52,9 @@ export class RequestPresentationService {
           },
         }
       }
-      case RequestStatus.PENDING: {
-        return {
-          id: request.id,
-          status: RequestStatus[request.status],
-          cid: request.cid,
-          docId: request.streamId, // TODO remove
-          streamId: request.streamId,
-          message: request.message,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.updatedAt.getTime(),
-        }
-      }
+      case RequestStatus.PENDING:
       case RequestStatus.PROCESSING:
-        return {
-          id: request.id,
-          status: RequestStatus[request.status],
-          cid: request.cid,
-          docId: request.streamId, // TODO remove
-          streamId: request.streamId,
-          message: request.message,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.updatedAt.getTime(),
-        }
       case RequestStatus.FAILED:
-        return {
-          id: request.id,
-          status: RequestStatus[request.status],
-          cid: request.cid,
-          docId: request.streamId, // TODO remove
-          streamId: request.streamId,
-          message: request.message,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.updatedAt.getTime(),
-        }
       case RequestStatus.READY:
         return {
           id: request.id,

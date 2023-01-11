@@ -1,0 +1,82 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`present by RequestStatus COMPLETED 1`] = `
+{
+  "anchorCommit": {
+    "cid": "anchor-cid",
+    "content": {
+      "path": "/some/path",
+      "prev": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
+      "proof": "anchor-proof-cid",
+    },
+  },
+  "anchorRecord": {
+    "cid": "anchor-cid",
+    "content": {
+      "path": "/some/path",
+      "prev": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
+      "proof": "anchor-proof-cid",
+    },
+  },
+  "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
+  "createdAt": 1577934240000,
+  "docId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
+  "id": 889483296,
+  "message": "Fresh request",
+  "status": "COMPLETED",
+  "streamId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
+  "updatedAt": 1612325100000,
+}
+`;
+
+exports[`present by RequestStatus not COMPLETED 1`] = `
+{
+  "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
+  "createdAt": 1577934240000,
+  "docId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
+  "id": 889483296,
+  "message": "Fresh request",
+  "status": "PENDING",
+  "streamId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
+  "updatedAt": 1612325100000,
+}
+`;
+
+exports[`present by RequestStatus not COMPLETED 2`] = `
+{
+  "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
+  "createdAt": 1577934240000,
+  "docId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
+  "id": 889483296,
+  "message": "Fresh request",
+  "status": "PROCESSING",
+  "streamId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
+  "updatedAt": 1612325100000,
+}
+`;
+
+exports[`present by RequestStatus not COMPLETED 3`] = `
+{
+  "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
+  "createdAt": 1577934240000,
+  "docId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
+  "id": 889483296,
+  "message": "Fresh request",
+  "status": "FAILED",
+  "streamId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
+  "updatedAt": 1612325100000,
+}
+`;
+
+exports[`present by RequestStatus not COMPLETED 4`] = `
+{
+  "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
+  "createdAt": 1577934240000,
+  "docId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
+  "id": 889483296,
+  "message": "Fresh request",
+  "status": "READY",
+  "streamId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
+  "updatedAt": 1612325100000,
+}
+`;
