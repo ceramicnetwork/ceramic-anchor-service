@@ -11,6 +11,7 @@ import {
   MockIpfsService,
   randomCID,
   randomStreamID,
+  times,
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { RequestStatus } from '../../models/request.js'
@@ -209,6 +210,36 @@ describe('createRequest', () => {
       const jsonFn1 = jest.spyOn(res1, 'json')
       const presentation1 = jsonFn1.mock.lastCall[0]
       expect(presentation1).toEqual(presentation0)
+    })
+  })
+
+  describe('requests in order', () => {
+    test('respond with pending presentation', async () => {
+      const oneHourAgo = DateTime.fromISO('2020-01-02T03:04Z')
+      const streamId = randomStreamID()
+      const requests = times(3).map((n) => {
+        return {
+          cid: randomCID(),
+          streamId: streamId,
+          timestamp: oneHourAgo.plus({ minute: n }),
+        }
+      })
+      for (const request of requests) {
+        const req = mockRequest({
+          body: {
+            cid: request.cid.toString(),
+            streamId: request.streamId.toString(),
+            timestamp: request.timestamp.toISO(),
+          },
+        })
+        const res = mockResponse()
+        await controller.createRequest(req, res)
+        const jsonSpy = jest.spyOn(res, 'json')
+        const presentation = jsonSpy.mock.lastCall[0]
+        expect(presentation.cid).toEqual(request.cid.toString())
+        expect(presentation.streamId).toEqual(request.streamId.toString())
+        expect(presentation.status).toEqual(RequestStatus[RequestStatus.PENDING])
+      }
     })
   })
 })
