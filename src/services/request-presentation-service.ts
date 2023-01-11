@@ -56,18 +56,33 @@ export class RequestPresentationService {
       case RequestStatus.PROCESSING:
       case RequestStatus.FAILED:
       case RequestStatus.READY:
+        return this.notCompleted(request)
+      case RequestStatus.REPLACED: {
+        const asNotCompleted = this.notCompleted(request)
         return {
-          id: request.id,
-          status: RequestStatus[request.status],
-          cid: request.cid,
-          docId: request.streamId, // TODO remove
-          streamId: request.streamId,
-          message: request.message,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.updatedAt.getTime(),
+          ...asNotCompleted,
+          status: RequestStatus.PENDING,
         }
+      }
       default:
         throw new InvalidRequestStatusError(request.status)
+    }
+  }
+
+  /**
+   * Vanilla presentation of a non-complete request.
+   * Display status as is.
+   */
+  private notCompleted(request: Request) {
+    return {
+      id: request.id,
+      status: RequestStatus[request.status],
+      cid: request.cid,
+      docId: request.streamId, // TODO remove
+      streamId: request.streamId,
+      message: request.message,
+      createdAt: request.createdAt.getTime(),
+      updatedAt: request.updatedAt.getTime(),
     }
   }
 }
