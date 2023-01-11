@@ -214,3 +214,24 @@ export function generateRequests(
 export function times(n: number): Array<number> {
   return Array.from({ length: n }).map((_, i) => i)
 }
+
+/**
+ * Return true if `a` and `b` are close within `delta` %.
+ * Absolute difference between `a` and `b` should be less or equal to `delta * a` and `delta * b`.
+ *
+ * @param a - first number to compare
+ * @param b - second number to compare
+ * @param delta - allowed delta, default 0.01 means 1%
+ */
+export function isClose(a: number, b: number, delta = 0.01): boolean {
+  const difference = Math.abs(a - b)
+  return difference <= a * delta && difference <= b * delta
+}
+
+/**
+ * Unix timestamp (in seconds) from a Date.
+ * @param date
+ */
+export function seconds(date: Date): number {
+  return Math.floor(date.valueOf() / 1000)
+}

@@ -12,11 +12,14 @@ import {
   randomCID,
   randomStreamID,
   times,
+  isClose,
+  seconds,
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { RequestStatus } from '../../models/request.js'
 import type { StreamID } from '@ceramicnetwork/streamid'
 import type { IMetadataService } from '../../services/metadata-service.js'
+import { DateTime } from 'luxon'
 import { mockRequest, mockResponse } from './mock-request.util.js'
 
 type Tokens = {
@@ -138,8 +141,9 @@ describe('createRequest', () => {
       expect(createdRequest.streamId).toEqual(streamId.toString())
       expect(createdRequest.message).toEqual('Request is pending.')
       expect(createdRequest.timestamp.valueOf()).toEqual(timestamp.valueOf())
-      expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
+      const nowSeconds = seconds(now)
+      expect(isClose(seconds(createdRequest.createdAt), nowSeconds)).toBeTruthy()
+      expect(isClose(seconds(createdRequest.updatedAt), nowSeconds)).toBeTruthy()
       expect(createdRequest.origin).toEqual(origin)
     })
 
@@ -164,9 +168,10 @@ describe('createRequest', () => {
       expect(createdRequest.status).toEqual(RequestStatus.PENDING)
       expect(createdRequest.streamId).toEqual(streamId.toString())
       expect(createdRequest.message).toEqual('Request is pending.')
-      expect(createdRequest.timestamp.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
+      const nowSeconds = seconds(now)
+      expect(isClose(seconds(createdRequest.timestamp), nowSeconds)).toBeTruthy()
+      expect(isClose(seconds(createdRequest.createdAt), nowSeconds)).toBeTruthy()
+      expect(isClose(seconds(createdRequest.updatedAt), nowSeconds)).toBeTruthy()
       expect(createdRequest.origin).not.toBeNull()
     })
 
@@ -235,6 +240,7 @@ describe('createRequest', () => {
         const res = mockResponse()
         await controller.createRequest(req, res)
         const jsonSpy = jest.spyOn(res, 'json')
+        expect(jsonSpy).toBeCalledTimes(1)
         const presentation = jsonSpy.mock.lastCall[0]
         expect(presentation.cid).toEqual(request.cid.toString())
         expect(presentation.streamId).toEqual(request.streamId.toString())

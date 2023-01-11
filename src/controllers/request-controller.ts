@@ -113,12 +113,6 @@ export class RequestController {
         timestamp = new Date(req.body.timestamp)
       }
 
-      const found = await this.requestRepository.findByCid(cid)
-      if (found) {
-        const body = await this.requestPresentationService.body(found)
-        return res.status(StatusCodes.ACCEPTED).json(body)
-      }
-
       // Store metadata from genesis to the database
       // TODO CDB-2151 This should be moved out of RequestController
       await this.metadataService.fill(streamId)
