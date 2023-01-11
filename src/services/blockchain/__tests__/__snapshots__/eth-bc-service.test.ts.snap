@@ -3,7 +3,7 @@
 exports[`ETH service connected to ganache v0 should send CID to local ganache server 1`] = `
 Transaction {
   "chain": "eip155:1337",
-  "txHash": "0x84cbf591f46d6772d8048ff6a97a4bb70c0ce9cb79673d99c4dd1c642becd570",
+  "txHash": "0xf7f830ef89d55af5900d48db106d5bcfbc045aec70b29cde019d2cd1e58a7827",
 }
 `;
 

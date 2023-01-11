@@ -1,10 +1,11 @@
-import Ganache from 'ganache-core'
+import Ganache from 'ganache'
+import type { Server } from 'ganache'
 import getPort from 'get-port'
 
 const BLOCKCHAIN_START_TIME = new Date('2020-04-13T13:20:02.000Z')
 
 export type GanacheServer = {
-  server: Ganache.Server
+  server: Server
   port: number
   url: URL
   close: () => Promise<void>
@@ -20,7 +21,6 @@ export async function makeGanache(): Promise<GanacheServer> {
     debug: true,
     blockTime: 2,
     network_id: 1337,
-    networkId: 1337,
   })
 
   await ganacheServer.listen(port)
@@ -28,11 +28,6 @@ export async function makeGanache(): Promise<GanacheServer> {
     server: ganacheServer,
     port: port,
     url: new URL(`http://localhost:${port}/`),
-    close: () =>
-      new Promise((resolve, reject) => {
-        ganacheServer.close((error) => {
-          error ? reject(error) : resolve()
-        })
-      }),
+    close: () => ganacheServer.close(),
   }
 }
