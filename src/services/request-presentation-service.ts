@@ -60,7 +60,7 @@ export class RequestPresentationService implements IRequestPresentationService {
         const asNotCompleted = this.notCompleted(request)
         return {
           ...asNotCompleted,
-          status: RequestStatus.PENDING,
+          status: RequestStatus[RequestStatus.PENDING],
         }
       }
       default:

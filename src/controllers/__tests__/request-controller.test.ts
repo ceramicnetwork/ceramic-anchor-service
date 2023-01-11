@@ -215,7 +215,10 @@ describe('createRequest', () => {
     })
   })
 
-  describe('requests in order', () => {
+  describe('requests in sequential order', () => {
+    // When request from the same origin arrive sequentially, we present them all as PENDING,
+    // And mark stale requests REPLACED internally.
+
     test('respond with pending presentation', async () => {
       const oneHourAgo = DateTime.fromISO('2020-01-02T03:04Z')
       const streamId = randomStreamID()
