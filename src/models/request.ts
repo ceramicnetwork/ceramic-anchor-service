@@ -4,6 +4,7 @@ export enum RequestStatus {
   COMPLETED = 2,
   FAILED = 3,
   READY = 4,
+  REPLACED = 5, // Internal status for now, translates to PENDING externally, see RequestPresentationService
 }
 
 export type IDBRequest = {

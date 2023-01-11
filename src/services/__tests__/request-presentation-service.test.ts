@@ -1,10 +1,10 @@
-import { describe, expect, test, jest } from '@jest/globals'
+import { describe, expect, jest, test } from '@jest/globals'
 import { RequestStatus } from '../../models/request.js'
 import type { Config } from 'node-config-ts'
 import { RequestPresentationService } from '../request-presentation-service'
 import type {
-  IAnchorRepository,
   AnchorWithRequest,
+  IAnchorRepository,
 } from '../../repositories/anchor-repository.type.js'
 import { generateRequest } from '../../__tests__/test-utils.js'
 
@@ -27,7 +27,7 @@ const REQUEST_OVERRIDE = {
 }
 
 describe('present by RequestStatus', () => {
-  test('not COMPLETED', async () => {
+  test('PENDING, PROCESSING, FAILED, READY', async () => {
     const statuses = [
       RequestStatus.PENDING,
       RequestStatus.PROCESSING,
@@ -42,6 +42,17 @@ describe('present by RequestStatus', () => {
       const presentation = await service.body(request)
       expect(presentation).toMatchSnapshot()
     }
+  })
+
+  test('REPLACED', async () => {
+    const request = generateRequest({
+      ...REQUEST_OVERRIDE,
+      status: RequestStatus.REPLACED,
+    })
+    const presentation = await service.body(request)
+    // REPLACED is an internal status, which translates to PENDING externally
+    expect(presentation.status).toEqual(RequestStatus.PENDING)
+    expect(presentation).toMatchSnapshot()
   })
 
   test('COMPLETED', async () => {
