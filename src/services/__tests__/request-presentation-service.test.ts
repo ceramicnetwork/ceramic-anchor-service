@@ -1,9 +1,12 @@
-import { describe, expect, jest, test } from '@jest/globals'
+import { describe, expect, test, jest } from '@jest/globals'
 import { RequestStatus } from '../../models/request.js'
 import type { Config } from 'node-config-ts'
-import { RequestPresentationService } from '../request-presentation-service.js'
+import { RequestPresentationService } from '../request-presentation-service'
+import type {
+  IAnchorRepository,
+  AnchorWithRequest,
+} from '../../repositories/anchor-repository.type.js'
 import { generateRequest } from '../../__tests__/test-utils.js'
-import type { AnchorRepository, AnchorWithRequest } from '../../repositories/anchor-repository.js'
 
 const CONFIG = {
   schedulerIntervalMS: 1000,
@@ -11,7 +14,7 @@ const CONFIG = {
 
 const anchorRepository = {
   findByRequest: jest.fn(),
-} as unknown as AnchorRepository
+} as unknown as IAnchorRepository
 const service = new RequestPresentationService(CONFIG, anchorRepository)
 
 const REQUEST_OVERRIDE = {
@@ -24,7 +27,7 @@ const REQUEST_OVERRIDE = {
 }
 
 describe('present by RequestStatus', () => {
-  test('PENDING, PROCESSING, FAILED, READY', async () => {
+  test('not COMPLETED', async () => {
     const statuses = [
       RequestStatus.PENDING,
       RequestStatus.PROCESSING,
