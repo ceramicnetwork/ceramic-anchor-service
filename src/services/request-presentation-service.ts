@@ -1,7 +1,7 @@
-import type { AnchorRepository } from '../repositories/anchor-repository.js'
 import type { Request } from '../models/request.js'
 import { InvalidRequestStatusError, RequestStatus } from '../models/request.js'
 import type { Config } from 'node-config-ts'
+import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import type { IRequestPresentationService } from './request-presentation-service.type.js'
 
 /**
@@ -12,7 +12,7 @@ export class RequestPresentationService implements IRequestPresentationService {
 
   static inject = ['config', 'anchorRepository'] as const
 
-  constructor(config: Config, private readonly anchorRepository: AnchorRepository) {
+  constructor(config: Config, private readonly anchorRepository: IAnchorRepository) {
     this.schedulerIntervalMS = config.schedulerIntervalMS
   }
 

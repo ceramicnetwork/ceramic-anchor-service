@@ -10,7 +10,6 @@ import { Utils } from '../utils.js'
 import { Anchor } from '../models/anchor.js'
 import { Request, REQUEST_MESSAGES, RequestStatus as RS } from '../models/request.js'
 import type { Transaction } from '../models/transaction.js'
-import type { AnchorRepository } from '../repositories/anchor-repository.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
 import type { TransactionRepository } from '../repositories/transaction-repository.js'
 import type { EventProducerService } from './event-producer/event-producer-service.js'
@@ -34,6 +33,7 @@ import {
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
+import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import { SyncOptions } from '@ceramicnetwork/common'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
@@ -143,7 +143,7 @@ export class AnchorService {
     private readonly requestRepository: RequestRepository,
     private readonly transactionRepository: TransactionRepository,
     private readonly ceramicService: CeramicService,
-    private readonly anchorRepository: AnchorRepository,
+    private readonly anchorRepository: IAnchorRepository,
     private readonly connection: Knex,
     private readonly eventProducerService: EventProducerService
   ) {

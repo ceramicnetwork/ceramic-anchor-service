@@ -2,14 +2,11 @@ import { Anchor } from '../models/anchor.js'
 import { Request } from '../models/request.js'
 import type { Knex } from 'knex'
 import { Options } from './repository-types.js'
+import type { AnchorWithRequest, IAnchorRepository } from './anchor-repository.type.js'
 
 export const TABLE_NAME = 'anchor'
 
-export class AnchorWithRequest extends Anchor {
-  request: Request
-}
-
-export class AnchorRepository {
+export class AnchorRepository implements IAnchorRepository {
   static inject = ['dbConnection'] as const
 
   constructor(private connection?: Knex) {}
