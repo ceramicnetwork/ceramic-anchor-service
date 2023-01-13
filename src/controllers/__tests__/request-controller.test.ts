@@ -60,7 +60,7 @@ describe('createRequest', () => {
   })
 
   describe('fresh request', () => {
-    test('cid is empty', async () => {
+    test('cid is empty: fail', async () => {
       const req = mockRequest()
       const res = mockResponse()
       await controller.createRequest(req, res)
@@ -69,7 +69,7 @@ describe('createRequest', () => {
         error: 'CID is empty',
       })
     })
-    test('streamId is empty', async () => {
+    test('streamId is empty: fail', async () => {
       const req = mockRequest({
         body: {
           cid: randomCID().toString(),
@@ -82,7 +82,7 @@ describe('createRequest', () => {
         error: 'Stream ID is empty',
       })
     })
-    test('cid is malformed', async () => {
+    test('cid is malformed: fail', async () => {
       const streamId = randomStreamID()
       const req = mockRequest({
         body: {
@@ -98,7 +98,7 @@ describe('createRequest', () => {
         `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed`
       )
     })
-    test('streamId is malformed', async () => {
+    test('streamId is malformed: fail', async () => {
       const req = mockRequest({
         body: {
           cid: randomCID().toString(),
@@ -188,6 +188,21 @@ describe('createRequest', () => {
       await controller.createRequest(req, mockResponse())
       expect(fillSpy).toBeCalledWith(streamId)
     })
+
+    test('mark previous submissions REPLACED', async () => {
+      const cid = randomCID()
+      const streamId = randomStreamID()
+      const req = mockRequest({
+        body: {
+          cid: cid.toString(),
+          streamId: streamId.toString(),
+        },
+      })
+      const requestRepository = container.resolve('requestRepository')
+      const markPreviousReplacedSpy = jest.spyOn(requestRepository, 'markPreviousReplaced')
+      await controller.createRequest(req, mockResponse())
+      expect(markPreviousReplacedSpy).toBeCalledTimes(1)
+    })
   })
 
   describe('existing request', () => {
@@ -231,6 +246,8 @@ describe('createRequest', () => {
           timestamp: oneHourAgo.plus({ minute: n }),
         }
       })
+
+      // Requests are presented as PENDING
       for (const request of requests) {
         const req = mockRequest({
           body: {
@@ -248,6 +265,15 @@ describe('createRequest', () => {
         expect(presentation.streamId).toEqual(request.streamId.toString())
         expect(presentation.status).toEqual(RequestStatus[RequestStatus.PENDING])
       }
+
+      // All requests but the last should be REPLACED in the database
+      const requestRepository = container.resolve('requestRepository')
+      for (const replaced of requests.slice(0, -1)) {
+        const found = await requestRepository.findByCid(replaced.cid)
+        expect(found.status).toEqual(RequestStatus.REPLACED)
+      }
+      const lastRequest = await requestRepository.findByCid(requests[requests.length - 1].cid)
+      expect(lastRequest.status).toEqual(RequestStatus.PENDING)
     })
   })
 })
