@@ -11,3 +11,7 @@ const DID_MATCHER = new RegExp(`^did:${METHOD}:${METHOD_ID}$`)
 export function isDIDString(input: string): input is DIDString {
   return Boolean(input && input.match(DID_MATCHER))
 }
+
+export function asDIDString(input: string): DIDString {
+  return input as DIDString
+}

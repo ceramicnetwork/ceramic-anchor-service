@@ -4,6 +4,7 @@ import { createDbConnection } from '../../db-connection.js'
 import { MetadataRepository } from '../metadata-repository.js'
 import type { FreshMetadata } from '../../models/metadata.js'
 import { randomStreamID } from '../../__tests__/test-utils.js'
+import { asDIDString } from '../../ancillary/did-string.js'
 
 let dbConnection: Knex
 let repository: MetadataRepository
@@ -11,7 +12,7 @@ let repository: MetadataRepository
 const FRESH_METADATA: FreshMetadata = {
   streamId: randomStreamID(),
   metadata: {
-    controllers: ['did:key:controller'],
+    controllers: [asDIDString('did:key:controller')],
     model: new Uint8Array([1, 2, 3]),
     tags: ['hello'],
   },
