@@ -61,7 +61,7 @@ export class RequestPresentationService {
         const asNotCompleted = this.notCompleted(request)
         return {
           ...asNotCompleted,
-          status: RequestStatus[RequestStatus.PENDING],
+          status: RequestStatus[RequestStatus.FAILED],
         }
       }
       default:

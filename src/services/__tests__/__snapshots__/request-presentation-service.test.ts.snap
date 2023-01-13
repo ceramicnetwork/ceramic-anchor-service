@@ -88,7 +88,7 @@ exports[`present by RequestStatus REPLACED 1`] = `
   "docId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
   "id": 889483296,
   "message": "Fresh request",
-  "status": "PENDING",
+  "status": "FAILED",
   "streamId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
   "updatedAt": 1612325100000,
 }
