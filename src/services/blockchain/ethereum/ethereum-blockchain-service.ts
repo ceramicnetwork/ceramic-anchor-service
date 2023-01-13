@@ -151,10 +151,22 @@ export class EthereumBlockchainService implements BlockchainService {
   constructor(private readonly config: Config, private readonly wallet: ethers.Wallet) {
     this._network = this.config.blockchain.connectors.ethereum.network
     this._transactionTimeoutSecs = this.config.blockchain.connectors.ethereum.transactionTimeoutSecs
-    this._contract = new ethers.Contract(
-      this.config.blockchain.connectors.ethereum.contractAddress,
-      ABI
-    )
+
+    if (
+      !this.config.blockchain.connectors.ethereum.contractAddress &&
+      this.config.useSmartContractAnchors
+    ) {
+      throw Error(
+        'You must set a smart contract address if you would like to use smart contract anchors'
+      )
+    }
+
+    if (this.config.blockchain.connectors.ethereum.contractAddress) {
+      this._contract = new ethers.Contract(
+        this.config.blockchain.connectors.ethereum.contractAddress,
+        ABI
+      )
+    }
   }
 
   static make = make
