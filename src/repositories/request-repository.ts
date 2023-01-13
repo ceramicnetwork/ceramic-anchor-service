@@ -499,7 +499,8 @@ export class RequestRepository {
   markPreviousReplaced(request: Request): Promise<number> {
     return this.connection
       .table(TABLE_NAME)
-      .where({ origin: request.origin, status: RequestStatus.PENDING })
+      .where({ origin: request.origin, streamId: request.streamId })
+      .andWhere({ status: RequestStatus.PENDING })
       .andWhere('timestamp', '<', te.date.encode(request.timestamp))
       .update({ status: RequestStatus.REPLACED })
   }

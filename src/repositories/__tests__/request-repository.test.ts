@@ -1,23 +1,23 @@
 import 'reflect-metadata'
 import { jest } from '@jest/globals'
 import type { Knex } from 'knex'
-import { createDbConnection, clearTables } from '../../db-connection.js'
+import { clearTables, createDbConnection } from '../../db-connection.js'
 import { config } from 'node-config-ts'
 import {
-  RequestRepository,
-  PROCESSING_TIMEOUT,
-  FAILURE_RETRY_WINDOW,
-  TABLE_NAME,
   FAILURE_RETRY_INTERVAL,
+  FAILURE_RETRY_WINDOW,
+  PROCESSING_TIMEOUT,
+  RequestRepository,
+  TABLE_NAME,
 } from '../request-repository.js'
 import { AnchorRepository } from '../anchor-repository.js'
 import { Request, REQUEST_MESSAGES, RequestStatus } from '../../models/request.js'
 import {
-  generateRequests,
   generateRequest,
+  generateRequests,
+  randomCID,
   randomStreamID,
   times,
-  randomCID,
 } from '../../__tests__/test-utils.js'
 import { createInjector } from 'typed-inject'
 import { DateTime } from 'luxon'
@@ -679,6 +679,17 @@ describe('request repository test', () => {
         })
       )
 
+      // PENDING but with a different streamId
+      const unrelatedStreamRequest = await requestRepository.createOrUpdate(
+        new Request({
+          cid: randomCID().toString(),
+          streamId: randomStreamID().toString(),
+          timestamp: oneHourAgo.toJSDate(),
+          status: RequestStatus.PENDING,
+          origin: 'same-origin',
+        })
+      )
+
       // Create three PENDING requests at `oneHourAgo` plus some minutes
       const requestsP = times(3).map(async (n) => {
         const request = new Request({
@@ -709,6 +720,10 @@ describe('request repository test', () => {
         const retrieved = await requestRepository.findByCid(r.cid)
         expect(retrieved).toEqual(r)
       }
+
+      // Our unrelated request should not be affected
+      const retrieved = await requestRepository.findByCid(unrelatedStreamRequest.cid)
+      expect(retrieved).toEqual(unrelatedStreamRequest)
     })
   })
 })
