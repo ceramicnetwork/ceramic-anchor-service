@@ -12,6 +12,7 @@ import {
   SinceField,
 } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
+import * as te from '../ancillary/io-ts-extra.js'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
 // AnchorCommit available to the network.
@@ -317,10 +318,12 @@ export class RequestRepository {
    * @param options
    * @returns Promise for the associated request
    */
-  async findByCid(cid: CID, options: Options = {}): Promise<Request | undefined> {
+  async findByCid(cid: CID | string, options: Options = {}): Promise<Request | undefined> {
     const { connection = this.connection } = options
 
-    const found = await connection(TABLE_NAME).where({ cid: cid.toString() }).first()
+    const found = await connection(TABLE_NAME)
+      .where({ cid: String(cid) })
+      .first()
     if (found) return new Request(found)
   }
 
@@ -504,5 +507,13 @@ export class RequestRepository {
 
         throw err
       })
+  }
+
+  markPreviousReplaced(request: Request): Promise<number> {
+    return this.connection
+      .table(TABLE_NAME)
+      .where({ origin: request.origin, status: RequestStatus.PENDING })
+      .andWhere('timestamp', '<', te.date.encode(request.timestamp))
+      .update({ status: RequestStatus.REPLACED })
   }
 }

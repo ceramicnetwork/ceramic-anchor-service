@@ -12,8 +12,15 @@ import {
 } from '../request-repository.js'
 import { AnchorRepository } from '../anchor-repository.js'
 import { Request, REQUEST_MESSAGES, RequestStatus } from '../../models/request.js'
-import { generateRequests, generateRequest, randomStreamID } from '../../__tests__/test-utils.js'
+import {
+  generateRequests,
+  generateRequest,
+  randomStreamID,
+  times,
+  randomCID,
+} from '../../__tests__/test-utils.js'
 import { createInjector } from 'typed-inject'
+import { DateTime } from 'luxon'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -653,6 +660,58 @@ describe('request repository test', () => {
 
       const retriedReadyRequestsCount = await requestRepository.updateExpiringReadyRequests()
       expect(retriedReadyRequestsCount).toEqual(0)
+    })
+  })
+
+  describe('markPreviousReplaced', () => {
+    test('mark older PENDING entries REPLACED', async () => {
+      const oneHourAgo = DateTime.fromISO('1900-01-01T00:00Z')
+      const streamId = randomStreamID()
+
+      // Create three COMPLETED requests. These should not be changed
+      const completedRequests = await Promise.all(
+        times(3).map(async (n) => {
+          const request = new Request({
+            cid: randomCID().toString(),
+            streamId: streamId.toString(),
+            timestamp: oneHourAgo.minus({ minute: n }).toJSDate(),
+            status: RequestStatus.COMPLETED,
+            origin: 'same-origin',
+          })
+          return requestRepository.createOrUpdate(request)
+        })
+      )
+
+      // Create three PENDING requests at `oneHourAgo` plus some minutes
+      const requestsP = times(3).map(async (n) => {
+        const request = new Request({
+          cid: randomCID().toString(),
+          streamId: streamId.toString(),
+          timestamp: oneHourAgo.plus({ minute: n }).toJSDate(),
+          status: RequestStatus.PENDING,
+          origin: 'same-origin',
+        })
+        return requestRepository.createOrUpdate(request)
+      })
+      const requests = await Promise.all(requestsP)
+      const last = requests[requests.length - 1]
+      // First two requests should be marked REPLACED
+      const rowsAffected = await requestRepository.markPreviousReplaced(last)
+      expect(rowsAffected).toEqual(2)
+      const expectedAffected = requests.slice(0, rowsAffected)
+      for (const r of expectedAffected) {
+        const retrieved = await requestRepository.findByCid(r.cid)
+        expect(retrieved.status).toEqual(RequestStatus.REPLACED)
+      }
+      // Last request should be marked PENDING still
+      const lastRetrieved = await requestRepository.findByCid(last.cid)
+      expect(lastRetrieved.status).toEqual(RequestStatus.PENDING)
+
+      // COMPLETED requests should not be affected
+      for (const r of completedRequests) {
+        const retrieved = await requestRepository.findByCid(r.cid)
+        expect(retrieved).toEqual(r)
+      }
     })
   })
 })
