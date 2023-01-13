@@ -134,6 +134,7 @@ export class RequestController {
       request.timestamp = timestamp
 
       const storedRequest = await this.requestRepository.createOrUpdate(request)
+      await this.requestRepository.markPreviousReplaced(storedRequest)
 
       const body = await this.requestPresentationService.body(storedRequest)
       return res.status(StatusCodes.CREATED).json(body)
