@@ -37,6 +37,7 @@ import { METRIC_NAMES } from '../settings.js'
 import { Server } from 'http'
 import type { Injector } from 'typed-inject'
 import { createInjector } from 'typed-inject'
+import { teeDbConnection } from './tee-db-connection.util.js'
 
 process.env.NODE_ENV = 'test'
 
@@ -350,8 +351,7 @@ describe('Ceramic Integration Test', () => {
       })
       await cas1.start()
       anchorService1 = cas1.container.resolve('anchorService')
-
-      dbConnection2 = await createDbConnection()
+      dbConnection2 = await teeDbConnection(dbConnection1)
       const casPort2 = await getPort()
       cas2 = await makeCAS(createInjector(), dbConnection2, {
         mode: 'server',
