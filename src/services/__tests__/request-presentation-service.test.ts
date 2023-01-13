@@ -50,8 +50,8 @@ describe('present by RequestStatus', () => {
       status: RequestStatus.REPLACED,
     })
     const presentation = await service.body(request)
-    // REPLACED is an internal status, which translates to "PENDING" externally
-    expect(presentation.status).toEqual(RequestStatus[RequestStatus.PENDING])
+    // REPLACED is an internal status, which translates to "FAILED" externally
+    expect(presentation.status).toEqual(RequestStatus[RequestStatus.FAILED])
     expect(presentation).toMatchSnapshot()
   })
 
