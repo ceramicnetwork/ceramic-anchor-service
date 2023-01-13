@@ -14,6 +14,5 @@ export async function teeDbConnection(
 
   const teeConfig = cloneDeep(config.db)
   teeConfig.connection.database = databaseName
-  console.log('config.tee', teeConfig)
   return createDbConnection(teeConfig)
 }
