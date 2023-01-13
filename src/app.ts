@@ -14,16 +14,16 @@ import { HTTPEventProducerService } from './services/event-producer/http/http-ev
 import { AnchorRepository } from './repositories/anchor-repository.js'
 import { RequestRepository } from './repositories/request-repository.js'
 import { TransactionRepository } from './repositories/transaction-repository.js'
-import { CeramicServiceImpl } from './services/ceramic-service.js'
 import type { CeramicService } from './services/ceramic-service.js'
+import { CeramicServiceImpl } from './services/ceramic-service.js'
 import { HealthcheckController } from './controllers/healthcheck-controller.js'
 import { AnchorController } from './controllers/anchor-controller.js'
 import { RequestController } from './controllers/request-controller.js'
 import { ServiceInfoController } from './controllers/service-info-controller.js'
 import { EthereumBlockchainService } from './services/blockchain/ethereum/ethereum-blockchain-service.js'
 import {
-  ServiceMetrics as Metrics,
   DEFAULT_TRACE_SAMPLE_RATIO,
+  ServiceMetrics as Metrics,
 } from '@ceramicnetwork/observability'
 import { version } from './version.js'
 import { cleanupConfigForLogging, normalizeConfig } from './normalize-config.util.js'
@@ -34,6 +34,8 @@ import type { IRequestPresentationService } from './services/request-presentatio
 import type { IMetadataService } from './services/metadata-service.js'
 import { MetadataService } from './services/metadata-service.js'
 import { MetadataRepository } from './repositories/metadata-repository.js'
+import { AppMode } from './app-mode.js'
+import { UnreachableCaseError } from '@ceramicnetwork/common'
 
 type DependenciesContext = {
   config: Config
@@ -58,14 +60,20 @@ type ProvidedContext = {
  * Ceramic Anchor Service application
  */
 export class CeramicAnchorApp {
-  private _schedulerService: SchedulerService
-  private _server: CeramicAnchorServer
+  private _server?: CeramicAnchorServer
   readonly container: Injector<ProvidedContext>
   private readonly config: Config
+  private readonly mode: AppMode
+  private readonly anchorsSupported: boolean
 
   constructor(container: Injector<DependenciesContext>) {
     this.config = container.resolve('config')
     normalizeConfig(this.config)
+    this.mode = this.config.mode as AppMode
+    this.anchorsSupported =
+      this.mode === AppMode.ANCHOR ||
+      this.mode === AppMode.BUNDLED ||
+      this.config.anchorControllerEnabled
 
     // TODO: Selectively register only the global singletons needed based on the config
 
@@ -88,7 +96,7 @@ export class CeramicAnchorApp {
     try {
       Metrics.start(
         this.config.metrics.collectorHost,
-        'cas-' + this.config.mode,
+        'cas-' + this.mode,
         DEFAULT_TRACE_SAMPLE_RATIO,
         null,
         false
@@ -99,18 +107,6 @@ export class CeramicAnchorApp {
       logger.err(e)
       // start anchor service even if metrics threw an error
     }
-  }
-
-  /**
-   * Returns true when we're running in a config that may do an anchor.
-   * @private
-   */
-  private _anchorsSupported(): Boolean {
-    return (
-      this.config.mode == 'anchor' ||
-      this.config.mode == 'bundled' ||
-      this.config.anchorControllerEnabled
-    )
   }
 
   async anchor(triggeredByAnchorEvent = false): Promise<void> {
@@ -130,44 +126,34 @@ export class CeramicAnchorApp {
     const blockchainService = this.container.resolve('blockchainService')
     await blockchainService.connect()
 
-    if (this._anchorsSupported()) {
+    if (this.anchorsSupported) {
       const ipfsService = this.container.resolve('ipfsService')
       await ipfsService.init()
     }
 
-    switch (this.config.mode) {
-      case 'server': {
+    switch (this.mode) {
+      case AppMode.SERVER:
         await this._startServer()
         break
-      }
-      case 'anchor': {
+      case AppMode.ANCHOR:
         await this._startAnchorAndGarbageCollection()
         break
-      }
-      case 'bundled': {
+      case AppMode.BUNDLED:
         await this._startBundled()
         break
-      }
-      case 'scheduler': {
+      case AppMode.SCHEDULER:
         await this._startScheduler()
         break
-      }
-
-      default: {
-        logger.err(`Unknown application mode ${this.config.mode}`)
-        process.exit(1)
-      }
+      default:
+        throw new UnreachableCaseError(this.mode, `Unknown application mode ${this.mode}`)
     }
-    logger.imp(`Ceramic Anchor Service initiated ${this.config.mode} mode`)
+    logger.imp(`Ceramic Anchor Service initiated ${this.mode} mode`)
   }
 
   stop(): void {
-    if (this._schedulerService) {
-      this._schedulerService.stop()
-    }
-    if (this._server) {
-      this._server.stop()
-    }
+    const schedulerService = this.container.resolve('schedulerService')
+    schedulerService.stop()
+    this._server?.stop()
   }
 
   /**
@@ -179,9 +165,9 @@ export class CeramicAnchorApp {
    * @private
    */
   private async _startScheduler(): Promise<void> {
-    this._schedulerService = this.container.resolve('schedulerService')
     const anchorService = this.container.resolve('anchorService')
-    this._schedulerService.start(async () => await anchorService.emitAnchorEventIfReady())
+    const schedulerService = this.container.resolve('schedulerService')
+    schedulerService.start(async () => await anchorService.emitAnchorEventIfReady())
   }
 
   /**
@@ -189,9 +175,9 @@ export class CeramicAnchorApp {
    * @private
    */
   private async _startBundled(): Promise<void> {
-    this._schedulerService = this.container.resolve('schedulerService')
     const anchorService = this.container.resolve('anchorService')
-    this._schedulerService.start(async () => {
+    const schedulerService = this.container.resolve('schedulerService')
+    schedulerService.start(async () => {
       await anchorService.anchorRequests()
     })
     await this._startServer()
