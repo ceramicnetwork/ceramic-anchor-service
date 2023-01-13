@@ -166,7 +166,7 @@ const findRequestsToAnchorForStreams = (
     .orderByRaw(
       `array_position(ARRAY[${streamIds.map(
         (streamId) => `'${streamId}'`
-      )}], stream_id), created_at ASC`
+      )}]::varchar[], stream_id), created_at ASC`
     )
     .limit(POSTGRES_PARAMETERIZED_QUERY_LIMIT)
 
