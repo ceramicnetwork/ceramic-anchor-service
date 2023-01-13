@@ -1,4 +1,5 @@
 import { config } from 'node-config-ts'
+import type { Db } from 'node-config-ts'
 import type { Knex } from 'knex'
 import knex from 'knex'
 import snakeCase from 'lodash.snakecase'
@@ -38,9 +39,9 @@ async function runMigrations(connection: Knex) {
   }
 }
 
-export async function createDbConnection() {
+export async function createDbConnection(dbConfig: Db = config.db): Promise<Knex> {
   const knexConfig: Knex.Config = {
-    ...config.db,
+    ...dbConfig,
     // In our DB, identifiers have snake case formatting while in our code identifiers have camel case formatting.
     // We use the following transformers so we can always use camel case formatting in our code.
 
