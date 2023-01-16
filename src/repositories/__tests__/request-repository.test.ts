@@ -63,7 +63,7 @@ describe('request repository test', () => {
     const c = createInjector()
       .provideValue('config', config)
       .provideValue('dbConnection', connection)
-      .provideClass('requestRepository', RequestRepository)
+      .provideFactory('requestRepository', RequestRepository.make)
       .provideClass('anchorRepository', AnchorRepository)
 
     requestRepository = c.resolve('requestRepository')
@@ -499,6 +499,9 @@ describe('request repository test', () => {
       )
 
       await requestRepository.createRequests(requests)
+
+      const withConnectionSpy = jest.spyOn(requestRepository, 'withConnection')
+      withConnectionSpy.mockImplementationOnce(() => requestRepository)
 
       const originalUpdateRequest = requestRepository.updateRequests
       requestRepository.updateRequests = () => {

@@ -20,6 +20,7 @@ import type { StreamID } from '@ceramicnetwork/streamid'
 import type { IMetadataService } from '../../services/metadata-service.js'
 import { DateTime } from 'luxon'
 import { mockRequest, mockResponse } from './mock-request.util.js'
+import { AnchorRepository } from '../../repositories/anchor-repository'
 
 type Tokens = {
   requestController: RequestController
@@ -43,8 +44,8 @@ describe('createRequest', () => {
     container = createInjector()
       .provideValue('config', config)
       .provideValue('dbConnection', dbConnection)
-      .provideClass('requestRepository', RequestRepository)
-      .provideClass('anchorRepository', RequestRepository)
+      .provideFactory('requestRepository', RequestRepository.make)
+      .provideClass('anchorRepository', AnchorRepository)
       .provideClass('ipfsService', MockIpfsService)
       .provideClass('ceramicService', MockCeramicService)
       .provideClass('requestPresentationService', RequestPresentationService)

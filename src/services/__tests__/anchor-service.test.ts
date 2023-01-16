@@ -150,7 +150,7 @@ describe('anchor service', () => {
         })
       )
       .provideClass('anchorRepository', AnchorRepository)
-      .provideClass('requestRepository', RequestRepository)
+      .provideFactory('requestRepository', RequestRepository.make)
       .provideClass('transactionRepository', TransactionRepository)
       .provideClass('blockchainService', FakeEthereumBlockchainService)
       .provideClass('ipfsService', IpfsService)
@@ -977,6 +977,8 @@ describe('anchor service', () => {
         ),
       ].flat()
 
+      const withConnectionSpy = jest.spyOn(requestRepository, 'withConnection')
+      withConnectionSpy.mockImplementationOnce(() => requestRepository)
       const requestRepositoryUpdateSpy = jest.spyOn(requestRepository, 'updateRequests')
 
       try {
@@ -1004,6 +1006,8 @@ describe('anchor service', () => {
         0
       )
 
+      const withConnectionSpy = jest.spyOn(requestRepository, 'withConnection')
+      withConnectionSpy.mockImplementationOnce(() => requestRepository)
       const requestRepositoryUpdateSpy = jest.spyOn(requestRepository, 'updateRequests')
 
       await requestRepository.createRequests(originalRequests)
