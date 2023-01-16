@@ -5,7 +5,11 @@ export interface MergeFunction<TValue, TMetadata> {
    * @param n2 - Node 2 to merge.
    * @param metadata - optional tree metadata, generally only given when building the root node.
    */
-  merge(n1: Node<TValue>, n2: Node<TValue>, metadata: TMetadata | null): Promise<Node<TValue>>
+  merge(
+    n1: Node<TValue>,
+    n2: Node<TValue> | null,
+    metadata: TMetadata | null
+  ): Promise<Node<TValue>>
 }
 
 export interface CompareFunction<TValue> {

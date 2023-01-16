@@ -3,13 +3,24 @@ import { Node } from './merkle.js'
 import type { NonEmptyArray } from '@ceramicnetwork/common'
 import { MerkleTree } from './merkle-tree.js'
 
+/**
+ * When no leaves present.
+ */
 export class EmptyLeavesError extends Error {
   constructor() {
     super('Cannot generate Merkle structure with no elements')
   }
 }
 
-// FIXME Rename TData, TLeaf, TMetadata
+/**
+ * When number of leaves exceeds number of leaves available (`2^depthLimit`) for `depthLimit`.
+ */
+export class MerkleDepthError extends Error {
+  constructor(depthLimit: number, leavesLimit: number) {
+    super(`Merkle tree exceeded configured limit of ${depthLimit} levels (${leavesLimit} nodes)`)
+  }
+}
+
 export class MerkleTreeFactory<TData, TLeaf extends TData, TMetadata> {
   /**
    * @param mergeFn - fn that merges nodes at lower levels to produce nodes for higher levels of the tree
@@ -25,7 +36,14 @@ export class MerkleTreeFactory<TData, TLeaf extends TData, TMetadata> {
   ) {}
 
   async build(leaves?: Array<TLeaf>): Promise<MerkleTree<TData, TLeaf, TMetadata>> {
+    // Assert if we have any leaves
     if (!leaves || !leaves.length) throw new EmptyLeavesError()
+
+    // Assert we do not overflow the tree
+    const leavesLimit = Math.pow(2, this.depthLimit)
+    if (this.depthLimit > 0 && leavesLimit < leaves.length) {
+      throw new MerkleDepthError(this.depthLimit, leavesLimit)
+    }
 
     const nodes = leaves.map((leaf) => new Node(leaf, null, null)) as NonEmptyArray<Node<TLeaf>>
     if (this.compareFn) {
@@ -43,14 +61,6 @@ export class MerkleTreeFactory<TData, TLeaf extends TData, TMetadata> {
     treeDepth: number,
     treeMetadata: TMetadata
   ): Promise<Node<TData>> {
-    // FIXME Can be calculated at the start
-    if (this.depthLimit > 0 && treeDepth > this.depthLimit) {
-      const nodesLimit = Math.pow(2, this.depthLimit)
-      throw new Error(
-        `Merkle tree exceeded configured limit of ${this.depthLimit} levels (${nodesLimit} nodes)`
-      )
-    }
-
     // if there is only one leaf for the whole tree
     if (elements.length === 1 && treeDepth === 0) {
       const merged = await this.mergeFn.merge(elements[0], null, treeMetadata)
