@@ -34,22 +34,18 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
    * @returns Array of proof Nodes.
    */
   async getProof(elemIndex: number): Promise<Node<TData>[]> {
-    return (await this._getProofHelper(this.leafNodes[elemIndex])).reverse()
+    return this._getProofHelper(this.leafNodes[elemIndex])
   }
 
-  private async _getProofHelper(elem: Node<TLeaf>): Promise<Node<TData>[]> {
+  private _getProofHelper(elem: Node<TLeaf>, result: Array<Node<TData>> = []): Node<TData>[] {
     const parent = elem.parent
     if (!parent) {
       // We're at the root
-      return []
+      return result
     }
 
-    const result = await this._getProofHelper(parent)
-
     const proofNode = parent.left === elem ? parent.right : parent.left
-    result.push(proofNode)
-
-    return result
+    return this._getProofHelper(parent, result.concat(proofNode))
   }
 
   /**
@@ -83,15 +79,19 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
     return this._getDirectPathFromRootHelper(this.leafNodes[elemIndex])
   }
 
-  private _getDirectPathFromRootHelper(elem: Node<TData>): PathDirection[] {
+  private _getDirectPathFromRootHelper(
+    elem: Node<TData>,
+    result: Array<PathDirection> = []
+  ): Array<PathDirection> {
     const parent = elem.parent
     if (!parent) {
       // We're at the root
-      return []
+      return result.reverse()
     }
 
-    const result = this._getDirectPathFromRootHelper(parent)
-    result.push(parent.left === elem ? PathDirection.L : PathDirection.R)
-    return result
+    return this._getDirectPathFromRootHelper(
+      parent,
+      result.concat(parent.left === elem ? PathDirection.L : PathDirection.R)
+    )
   }
 }
