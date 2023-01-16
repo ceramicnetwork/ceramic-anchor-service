@@ -17,7 +17,7 @@ describe('Merkle tree proof verification', () => {
     describe('untampered proofs', () => {
       test.each(leaves)(`should verify the proof for leaf index %p`, async (leaf) => {
         const index = leaves.indexOf(leaf)
-        const proof = await tree.getProof(index)
+        const proof = tree.getProof(index)
         const verified = await tree.verifyProof(proof, leaves[index])
         expect(verified).toBeTruthy()
       })
@@ -26,7 +26,7 @@ describe('Merkle tree proof verification', () => {
     describe('tampered proofs', () => {
       describe('verifying a different node with a proof', () => {
         test('should not verify the proof', async () => {
-          const proof = await tree.getProof(2)
+          const proof = tree.getProof(2)
           const verified = await tree.verifyProof(proof, leaves[3])
           expect(verified).toBeFalsy()
         })
