@@ -124,6 +124,7 @@ export class AnchorService {
   private readonly useSmartContractAnchors: boolean
   private readonly maxStreamLimit: number
   private readonly minStreamLimit: number
+  private readonly merkleTreeFactory: MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>
 
   static inject = [
     'blockchainService',
@@ -148,10 +149,6 @@ export class AnchorService {
     private readonly connection: Knex,
     private readonly eventProducerService: EventProducerService
   ) {
-    this.ipfsMerge = new IpfsMerge(this.ipfsService)
-    this.ipfsCompare = new IpfsLeafCompare()
-    this.bloomMetadata = new BloomMetadata()
-
     this.merkleDepthLimit = config.merkleDepthLimit
     this.includeBlockInfoInAnchorProof = config.includeBlockInfoInAnchorProof
     this.useSmartContractAnchors = config.useSmartContractAnchors
@@ -159,6 +156,16 @@ export class AnchorService {
     const minStreamCount = config.minStreamCount
     this.maxStreamLimit = this.merkleDepthLimit > 0 ? Math.pow(2, this.merkleDepthLimit) : 0
     this.minStreamLimit = minStreamCount || Math.floor(this.maxStreamLimit / 2)
+
+    const ipfsMerge = new IpfsMerge(this.ipfsService)
+    const ipfsCompare = new IpfsLeafCompare()
+    const bloomMetadata = new BloomMetadata()
+    this.merkleTreeFactory = new MerkleTreeFactory(
+      ipfsMerge,
+      ipfsCompare,
+      bloomMetadata,
+      this.merkleDepthLimit
+    )
   }
 
   /**
@@ -367,14 +374,8 @@ export class AnchorService {
   async _buildMerkleTree(
     candidates: Candidate[]
   ): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
-    const merkleTreeFactory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
-      this.ipfsMerge,
-      this.ipfsCompare,
-      this.bloomMetadata,
-      this.merkleDepthLimit
-    )
     try {
-      return await merkleTreeFactory.build(candidates)
+      return await this.merkleTreeFactory.build(candidates)
     } catch (e) {
       throw new Error('Merkle tree cannot be created: ' + e.toString())
     }
