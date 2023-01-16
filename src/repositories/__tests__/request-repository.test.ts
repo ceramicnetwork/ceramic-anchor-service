@@ -727,4 +727,25 @@ describe('request repository test', () => {
       expect(retrieved).toEqual(unrelatedStreamRequest)
     })
   })
+
+  describe('batchProcessing', () => {
+    test.todo('min limit')
+    test.todo('max limit')
+    test.todo('respect request age')
+    test('update PENDING to PROCESSING', async () => {
+      const requests = await Promise.all(
+        times(3).map(() => {
+          return requestRepository.createOrUpdate(
+            generateRequest({
+              status: RequestStatus.PENDING,
+            })
+          )
+        })
+      )
+      const returned = await requestRepository.batchProcessing()
+      expect(returned.length).toEqual(requests.length)
+      expect(returned.map((r) => r.id).sort()).toEqual(requests.map((r) => r.id).sort())
+      expect(returned.every((r) => r.status === RequestStatus.PROCESSING)).toBeTruthy()
+    })
+  })
 })

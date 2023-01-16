@@ -8,7 +8,7 @@ import type { EventProducerService } from '../services/event-producer/event-prod
 import type { IIpfsService, RetrieveRecordOptions } from '../services/ipfs-service.type.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
-import { randomBytes } from '@stablelib/random'
+import { randomBytes, randomString } from '@stablelib/random'
 import { Request, RequestStatus } from '../models/request.js'
 import type { AbortOptions } from '../services/abort-options.type.js'
 import { Utils } from '../utils.js'
@@ -177,6 +177,7 @@ export function generateRequest(override: Partial<Request>): Request {
   request.createdAt = new Date(Date.now() - Math.random() * MS_IN_HOUR)
   request.updatedAt = new Date(request.createdAt.getTime())
   request.timestamp = new Date(request.createdAt.getTime())
+  request.origin = `origin:random:${randomString(8)}`
 
   Object.assign(request, override)
 
