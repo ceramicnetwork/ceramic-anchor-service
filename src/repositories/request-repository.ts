@@ -24,7 +24,6 @@ export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
 export const FAILURE_RETRY_INTERVAL = 1000 * 60 * 60 * 6 // 6H
 // application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
-export const TABLE_NAME = 'request'
 const POSTGRES_PARAMETERIZED_QUERY_LIMIT = 65000
 
 /**
@@ -191,7 +190,7 @@ export class RequestRepository {
   ) {}
 
   get table() {
-    return this.connection(TABLE_NAME)
+    return this.connection('request')
   }
 
   withConnection(connection: Knex): RequestRepository {
@@ -217,6 +216,10 @@ export class RequestRepository {
     })
 
     return new Request(created)
+  }
+
+  async allRequests(): Promise<Array<Request>> {
+    return this.table.orderBy('createdAt', 'asc')
   }
 
   /**
