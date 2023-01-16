@@ -1,6 +1,46 @@
 import { MergeFunction, Node, PathDirection } from './merkle.js'
 
 /**
+ * Calculate path from Merkle tree root to `element`.
+ * Uses tail recursion.
+ *
+ * @return Array of proof nodes.
+ */
+function pathFromRoot<TData>(
+  element: Node<TData>,
+  result: Array<PathDirection> = []
+): Array<PathDirection> {
+  const parent = element.parent
+  if (!parent) {
+    // We're at the root
+    return result.reverse()
+  }
+
+  return pathFromRoot(
+    parent,
+    result.concat(parent.left === element ? PathDirection.L : PathDirection.R)
+  )
+}
+
+/**
+ * Calculate Merkle tree proof for `element`.
+ * Uses tail recursion.
+ */
+function calculateProof<TData, TLeaf extends TData>(
+  element: Node<TLeaf>,
+  result: Array<Node<TData>> = []
+): Array<Node<TData>> {
+  const parent = element.parent
+  if (!parent) {
+    // We're at the root
+    return result
+  }
+
+  const proofNode = parent.left === element ? parent.right : parent.left
+  return calculateProof(parent, result.concat(proofNode))
+}
+
+/**
  * Merkle tree structure.
  * Type 'TData' is the type of the nodes in the tree. Type 'TLeaf' is the type of the leaf nodes specifically,
  * which may be a more specific sub-type of 'TData'. Type 'TMetadata' is the type of the metadata.
@@ -33,19 +73,18 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
    * @param elemIndex - Element index
    * @returns Array of proof Nodes.
    */
-  async getProof(elemIndex: number): Promise<Node<TData>[]> {
-    return this._getProofHelper(this.leafNodes[elemIndex])
+  getProof(elemIndex: number): Array<Node<TData>> {
+    return calculateProof(this.leafNodes[elemIndex])
   }
 
-  private _getProofHelper(elem: Node<TLeaf>, result: Array<Node<TData>> = []): Node<TData>[] {
-    const parent = elem.parent
-    if (!parent) {
-      // We're at the root
-      return result
-    }
-
-    const proofNode = parent.left === elem ? parent.right : parent.left
-    return this._getProofHelper(parent, result.concat(proofNode))
+  /**
+   * Get direct path for particular element by index
+   * @param elemIndex - Element index
+   * @returns Array of PathDirection objects representing the path from the root of the tree to
+   * the element requested
+   */
+  getDirectPathFromRoot(elemIndex: number): PathDirection[] {
+    return pathFromRoot(this.leafNodes[elemIndex])
   }
 
   /**
@@ -67,31 +106,5 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
       }
     }
     return this.root.data === current.data
-  }
-
-  /**
-   * Get direct path for particular element by index
-   * @param elemIndex - Element index
-   * @returns Array of PathDirection objects representing the path from the root of the tree to
-   * the element requested
-   */
-  getDirectPathFromRoot(elemIndex: number): PathDirection[] {
-    return this._getDirectPathFromRootHelper(this.leafNodes[elemIndex])
-  }
-
-  private _getDirectPathFromRootHelper(
-    elem: Node<TData>,
-    result: Array<PathDirection> = []
-  ): Array<PathDirection> {
-    const parent = elem.parent
-    if (!parent) {
-      // We're at the root
-      return result.reverse()
-    }
-
-    return this._getDirectPathFromRootHelper(
-      parent,
-      result.concat(parent.left === elem ? PathDirection.L : PathDirection.R)
-    )
   }
 }
