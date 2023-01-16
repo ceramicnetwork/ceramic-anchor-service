@@ -15,27 +15,15 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
      * Node corresponding to the root of the merkle tree.
      */
     readonly root: Node<TData>,
-    private readonly leafNodes: Array<Node<TLeaf>>,
+    /**
+     * Leaf nodes of the tree
+     */
+    readonly leafNodes: Array<Node<TLeaf>>,
     /**
      * Tree metadata
      */
     readonly metadata: TMetadata
   ) {}
-
-  /**
-   * Gets leaves
-   */
-  getLeaves(): TLeaf[] {
-    return this.leafNodes.map((n) => n.data)
-  }
-
-  /**
-   * Testing-only method to inspect the raw leaf nodes of the tree
-   * @private
-   */
-  _getLeafNodes(): Node<TLeaf>[] {
-    return this.leafNodes
-  }
 
   /**
    * Get proof for particular element by index.  The proof is an array of nodes representing
@@ -91,18 +79,18 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
    * @returns Array of PathDirection objects representing the path from the root of the tree to
    * the element requested
    */
-  async getDirectPathFromRoot(elemIndex: number): Promise<PathDirection[]> {
-    return await this._getDirectPathFromRootHelper(this.leafNodes[elemIndex])
+  getDirectPathFromRoot(elemIndex: number): PathDirection[] {
+    return this._getDirectPathFromRootHelper(this.leafNodes[elemIndex])
   }
 
-  private async _getDirectPathFromRootHelper(elem: Node<TData>): Promise<PathDirection[]> {
+  private _getDirectPathFromRootHelper(elem: Node<TData>): PathDirection[] {
     const parent = elem.parent
     if (!parent) {
       // We're at the root
       return []
     }
 
-    const result = await this._getDirectPathFromRootHelper(parent)
+    const result = this._getDirectPathFromRootHelper(parent)
     result.push(parent.left === elem ? PathDirection.L : PathDirection.R)
     return result
   }
