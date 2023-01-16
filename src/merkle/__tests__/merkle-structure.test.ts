@@ -148,10 +148,10 @@ const findNodeDepth = async (node: Node<any>): Promise<number> => {
 const findMinAndMaxNodeDepth = async (
   tree: MerkleTree<any, any, any>
 ): Promise<[number, number]> => {
-  let minDepth = tree.getLeaves().length
+  let minDepth = tree.leafNodes.length
   let maxDepth = 0
 
-  for (const node of tree._getLeafNodes()) {
+  for (const node of tree.leafNodes) {
     const depth = await findNodeDepth(node)
     if (depth < minDepth) {
       minDepth = depth

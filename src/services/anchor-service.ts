@@ -268,7 +268,7 @@ export class AnchorService {
 
     return {
       anchoredRequestsCount: numAnchoredRequests,
-      failedToPublishAnchorCommitCount: merkleTree.getLeaves().length - anchors.length,
+      failedToPublishAnchorCommitCount: merkleTree.leafNodes.length - anchors.length,
       anchorCount: anchors.length,
     }
   }
@@ -398,14 +398,14 @@ export class AnchorService {
     ipfsProofCid: CID,
     merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
   ): Promise<Anchor[]> {
-    const candidates = merkleTree.getLeaves()
+    const leafNodes = merkleTree.leafNodes
     const anchors = []
 
-    for (let i = 0; i < candidates.length; i++) {
-      const candidate = candidates[i]
+    for (let i = 0; i < leafNodes.length; i++) {
+      const candidate = leafNodes[i].data
       logger.debug(
         `Creating anchor commit #${i + 1} of ${
-          candidates.length
+          leafNodes.length
         }: stream id ${candidate.streamId.toString()} at commit CID ${candidate.cid}`
       )
       const anchor = await this._createAnchorCommit(candidate, i, ipfsProofCid, merkleTree)
@@ -434,7 +434,7 @@ export class AnchorService {
     anchor.requestId = candidate.newestAcceptedRequest.id
     anchor.proofCid = ipfsProofCid.toString()
 
-    const path = await merkleTree.getDirectPathFromRoot(candidateIndex)
+    const path = merkleTree.getDirectPathFromRoot(candidateIndex)
     anchor.path = path.map((p) => (p === PathDirection.L ? 0 : 1)).join('/')
 
     const ipfsAnchorCommit = {

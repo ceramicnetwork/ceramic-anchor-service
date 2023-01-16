@@ -8,7 +8,7 @@ describe('Merkle tree direct path tests', () => {
   test('should handle the case: [A]', async () => {
     const leaves = ['A']
     const merkleTree = await factory.build(leaves)
-    const directPath = await merkleTree.getDirectPathFromRoot(0)
+    const directPath = merkleTree.getDirectPathFromRoot(0)
     expect(directPath).toStrictEqual([PathDirection.L])
   })
 
@@ -16,7 +16,7 @@ describe('Merkle tree direct path tests', () => {
     const leaves = ['A', 'B', 'C', 'D']
     const merkleTree = await factory.build(leaves)
 
-    const directPath = await merkleTree.getDirectPathFromRoot(0)
+    const directPath = merkleTree.getDirectPathFromRoot(0)
     expect(directPath).toStrictEqual([PathDirection.L, PathDirection.L])
   })
 
@@ -24,7 +24,7 @@ describe('Merkle tree direct path tests', () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
     const merkleTree = await factory.build(leaves)
 
-    const directPath = await merkleTree.getDirectPathFromRoot(0)
+    const directPath = merkleTree.getDirectPathFromRoot(0)
     expect(directPath).toStrictEqual([PathDirection.L, PathDirection.L, PathDirection.L])
   })
 
@@ -32,7 +32,7 @@ describe('Merkle tree direct path tests', () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
     const merkleTree = await factory.build(leaves)
 
-    const directPath = await merkleTree.getDirectPathFromRoot(1)
+    const directPath = merkleTree.getDirectPathFromRoot(1)
     expect(directPath).toStrictEqual([PathDirection.L, PathDirection.L, PathDirection.R])
   })
 
@@ -40,7 +40,7 @@ describe('Merkle tree direct path tests', () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
     const merkleTree = await factory.build(leaves)
 
-    const directPath = await merkleTree.getDirectPathFromRoot(7)
+    const directPath = merkleTree.getDirectPathFromRoot(7)
     expect(directPath).toStrictEqual([PathDirection.R, PathDirection.R, PathDirection.R])
   })
 
@@ -48,7 +48,7 @@ describe('Merkle tree direct path tests', () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
     const merkleTree = await factory.build(leaves)
 
-    const directPath = await merkleTree.getDirectPathFromRoot(6)
+    const directPath = merkleTree.getDirectPathFromRoot(6)
     expect(directPath).toStrictEqual([PathDirection.R, PathDirection.R, PathDirection.L])
   })
 
@@ -56,7 +56,7 @@ describe('Merkle tree direct path tests', () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J']
     const merkleTree = await factory.build(leaves)
 
-    const directPath = await merkleTree.getDirectPathFromRoot(8)
+    const directPath = merkleTree.getDirectPathFromRoot(8)
     expect(directPath).toStrictEqual([
       PathDirection.R,
       PathDirection.R,
