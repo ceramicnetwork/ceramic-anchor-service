@@ -1,7 +1,6 @@
 import { CID } from 'multiformats/cid'
 import type { Knex } from 'knex'
 import { RequestStatus, Request, RequestUpdateFields, REQUEST_MESSAGES } from '../models/request.js'
-import { Options } from './repository-types.js'
 import { logEvent, logger } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { Utils } from '../utils.js'
@@ -25,7 +24,6 @@ export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
 export const FAILURE_RETRY_INTERVAL = 1000 * 60 * 60 * 6 // 6H
 // application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
-export const TABLE_NAME = 'request'
 
 /**
  * Records statistics about the set of requests
@@ -83,7 +81,7 @@ export class RequestRepository {
   ) {}
 
   get table() {
-    return this.connection(TABLE_NAME)
+    return this.connection('request')
   }
 
   withConnection(connection: Knex): RequestRepository {
@@ -109,6 +107,10 @@ export class RequestRepository {
     })
 
     return new Request(created)
+  }
+
+  async allRequests(): Promise<Array<Request>> {
+    return this.table.orderBy('createdAt', 'asc')
   }
 
   /**

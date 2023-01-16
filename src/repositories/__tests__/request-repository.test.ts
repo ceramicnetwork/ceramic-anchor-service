@@ -8,7 +8,6 @@ import {
   FAILURE_RETRY_WINDOW,
   PROCESSING_TIMEOUT,
   RequestRepository,
-  TABLE_NAME,
 } from '../request-repository.js'
 import { AnchorRepository } from '../anchor-repository.js'
 import { Request, REQUEST_MESSAGES, RequestStatus } from '../../models/request.js'
@@ -44,10 +43,6 @@ function generateCompletedRequest(expired: boolean, failed: boolean, varianceMS 
 
 function generateReadyRequests(count: number): Array<Request> {
   return generateRequests({ status: RequestStatus.READY }, count, MS_IN_HOUR)
-}
-
-async function getAllRequests(connection: Knex): Promise<Array<Request>> {
-  return connection.table(TABLE_NAME).orderBy('createdAt', 'asc')
 }
 
 describe('request repository test', () => {
@@ -164,7 +159,7 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(requests.length).toEqual(createdRequests.length)
 
       const expected = createdRequests.filter(({ status }) => status === RequestStatus.READY)
@@ -218,7 +213,7 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(requests.length).toEqual(createdRequests.length)
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
@@ -275,7 +270,7 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(requests.length).toEqual(createdRequests.length)
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
@@ -292,7 +287,7 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(createdRequests.length).toEqual(requests.length)
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
@@ -334,7 +329,7 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(createdRequests.length).toEqual(requests.length)
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
@@ -387,7 +382,7 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequest = await getAllRequests(connection)
+      const createdRequest = await requestRepository.allRequests()
       expect(createdRequest.length).toEqual(requests.length)
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
@@ -478,7 +473,7 @@ describe('request repository test', () => {
       const requests = shouldBeIncluded.concat(shouldNotBeIncluded)
       await requestRepository.createRequests(requests)
 
-      const createdRequest = await getAllRequests(connection)
+      const createdRequest = await requestRepository.allRequests()
       expect(createdRequest.length).toEqual(requests.length)
 
       const updatedRequests = await requestRepository.findAndMarkReady(1)
@@ -509,7 +504,7 @@ describe('request repository test', () => {
 
       try {
         await expect(requestRepository.findAndMarkReady(streamLimit)).rejects.toThrow(/test error/)
-        const requestsAfterUpdate = await getAllRequests(connection)
+        const requestsAfterUpdate = await requestRepository.allRequests()
         expect(requestsAfterUpdate.length).toEqual(requests.length)
         expect(requestsAfterUpdate.every(({ status }) => status === RequestStatus.PENDING)).toEqual(
           true
@@ -544,7 +539,7 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(createdRequests.length).toEqual(requests.length)
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
@@ -568,7 +563,7 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(requests.length).toEqual(createdRequests.length)
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
@@ -591,7 +586,7 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(requests.length).toEqual(createdRequests.length)
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
@@ -613,7 +608,7 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(requests.length).toEqual(createdRequests.length)
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
@@ -639,13 +634,13 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(requests.length).toEqual(createdRequests.length)
 
       const retriedReadyRequestsCount = await requestRepository.updateExpiringReadyRequests()
       expect(retriedReadyRequestsCount).toEqual(expiredReadyRequestsCount)
 
-      const allReadyRequests = await getAllRequests(connection)
+      const allReadyRequests = await requestRepository.allRequests()
       expect(allReadyRequests.every(({ updatedAt }) => updatedAt > updatedTooLongAgo)).toEqual(true)
     })
 
@@ -655,7 +650,7 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(requests.length).toEqual(createdRequests.length)
 
       const retriedReadyRequestsCount = await requestRepository.updateExpiringReadyRequests()
