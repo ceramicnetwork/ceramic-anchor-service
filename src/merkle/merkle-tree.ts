@@ -6,39 +6,27 @@ import { MergeFunction, Node, PathDirection } from './merkle.js'
  * which may be a more specific sub-type of 'TData'. Type 'TMetadata' is the type of the metadata.
  */
 export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
-  /**
-   * @param mergeFn - fn that merges nodes at lower levels to produce nodes for higher levels of the tree
-   * @param root
-   * @param leaves
-   * @param metadata
-   */
   constructor(
+    /**
+     * Function that merges nodes at lower levels to produce nodes for higher levels of the tree
+     */
     private readonly mergeFn: MergeFunction<TData, TMetadata>,
-    private readonly root: Node<TData>,
-    private readonly leaves: Array<Node<TLeaf>>,
-    private readonly metadata: TMetadata
+    /**
+     * Node corresponding to the root of the merkle tree.
+     */
+    readonly root: Node<TData>,
+    private readonly leafNodes: Array<Node<TLeaf>>,
+    /**
+     * Tree metadata
+     */
+    readonly metadata: TMetadata
   ) {}
-
-  /**
-   * Get root element
-   * @returns Node corresponding to the root of the merkle tree
-   */
-  getRoot(): Node<TData> {
-    return this.root
-  }
 
   /**
    * Gets leaves
    */
   getLeaves(): TLeaf[] {
-    return this.leaves.map((n) => n.data)
-  }
-
-  /**
-   * Gets tree metadata
-   */
-  getMetadata(): TMetadata {
-    return this.metadata
+    return this.leafNodes.map((n) => n.data)
   }
 
   /**
@@ -46,7 +34,7 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
    * @private
    */
   _getLeafNodes(): Node<TLeaf>[] {
-    return this.leaves
+    return this.leafNodes
   }
 
   /**
@@ -58,7 +46,7 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
    * @returns Array of proof Nodes.
    */
   async getProof(elemIndex: number): Promise<Node<TData>[]> {
-    return (await this._getProofHelper(this.leaves[elemIndex])).reverse()
+    return (await this._getProofHelper(this.leafNodes[elemIndex])).reverse()
   }
 
   private async _getProofHelper(elem: Node<TLeaf>): Promise<Node<TData>[]> {
@@ -94,7 +82,7 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
         current = await this.mergeFn.merge(current, p, metadata)
       }
     }
-    return this.getRoot().data === current.data
+    return this.root.data === current.data
   }
 
   /**
@@ -104,7 +92,7 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
    * the element requested
    */
   async getDirectPathFromRoot(elemIndex: number): Promise<PathDirection[]> {
-    return await this._getDirectPathFromRootHelper(this.leaves[elemIndex])
+    return await this._getDirectPathFromRootHelper(this.leafNodes[elemIndex])
   }
 
   private async _getDirectPathFromRootHelper(elem: Node<TData>): Promise<PathDirection[]> {

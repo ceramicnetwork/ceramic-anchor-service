@@ -44,7 +44,7 @@ describe('Merkle tree structure tests', () => {
     // No problem building with limit so long as there are fewer than 2^limit nodes
     const merkleTree = await merkleTreeFactory.build(['A', 'B', 'C', 'D'])
 
-    expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + Hash(C + D))')
+    expect(merkleTree.root.data).toBe('Hash(Hash(A + B) + Hash(C + D))')
 
     // Fails to build when there are more nodes than can fit within the depth limit
     await expect(merkleTreeFactory.build(['A', 'B', 'C', 'D', 'E'])).rejects.toThrow(
@@ -56,28 +56,28 @@ describe('Merkle tree structure tests', () => {
     const leaves = ['A']
     const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
-    expect(merkleTree.getRoot().data).toBe('Hash(A + null)')
+    expect(merkleTree.root.data).toBe('Hash(A + null)')
   })
 
   test('should create a root from two leaves: [A,B]', async () => {
     const leaves = ['A', 'B']
     const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
-    expect(merkleTree.getRoot().data).toBe('Hash(A + B)')
+    expect(merkleTree.root.data).toBe('Hash(A + B)')
   })
 
   test('should create a root from four leaves: [A,B,C,D]', async () => {
     const leaves = ['A', 'B', 'C', 'D']
     const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
-    expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + Hash(C + D))')
+    expect(merkleTree.root.data).toBe('Hash(Hash(A + B) + Hash(C + D))')
   })
 
   test('should create a root from four leaves: [B,D,A,C]', async () => {
     const leaves = ['B', 'D', 'A', 'C']
     const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
-    expect(merkleTree.getRoot().data).toBe('Hash(Hash(B + D) + Hash(A + C))')
+    expect(merkleTree.root.data).toBe('Hash(Hash(B + D) + Hash(A + C))')
   })
 
   test('should create a root from four leaves (sorted): [B,D,A,C]', async () => {
@@ -85,35 +85,35 @@ describe('Merkle tree structure tests', () => {
     const factory = new MerkleTreeFactory(new StringConcat(), new StringCompare())
     const merkleTree = await factory.build(leaves)
 
-    expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + Hash(C + D))')
+    expect(merkleTree.root.data).toBe('Hash(Hash(A + B) + Hash(C + D))')
   })
 
   test('should create a root from three leaves: [A,B,C]', async () => {
     const leaves = ['A', 'B', 'C']
     const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
-    expect(merkleTree.getRoot().data).toBe('Hash(A + Hash(B + C))')
+    expect(merkleTree.root.data).toBe('Hash(A + Hash(B + C))')
   })
 
   test('should create a root from five leaves: [A,B,C,D,E]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E']
     const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
-    expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + Hash(C + Hash(D + E)))')
+    expect(merkleTree.root.data).toBe('Hash(Hash(A + B) + Hash(C + Hash(D + E)))')
   })
 
   test('should create a root from six leaves: [A,B,C,D,E,F]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F']
     const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
-    expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + Hash(B + C)) + Hash(D + Hash(E + F)))')
+    expect(merkleTree.root.data).toBe('Hash(Hash(A + Hash(B + C)) + Hash(D + Hash(E + F)))')
   })
 
   test('should create a root from seven leaves: [A,B,C,D,E,F,G]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
     const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
-    expect(merkleTree.getRoot().data).toBe(
+    expect(merkleTree.root.data).toBe(
       'Hash(Hash(A + Hash(B + C)) + Hash(Hash(D + E) + Hash(F + G)))'
     )
   })
@@ -127,10 +127,8 @@ describe('Merkle tree structure tests', () => {
     )
     const merkleTree = await factory.build(leaves)
 
-    expect(merkleTree.getMetadata()).toEqual('A + B + C + D')
-    expect(merkleTree.getRoot().data).toBe(
-      'Hash(Hash(A + B) + Hash(C + D) + Metadata(A + B + C + D))'
-    )
+    expect(merkleTree.metadata).toEqual('A + B + C + D')
+    expect(merkleTree.root.data).toBe('Hash(Hash(A + B) + Hash(C + D) + Metadata(A + B + C + D))')
   })
 })
 

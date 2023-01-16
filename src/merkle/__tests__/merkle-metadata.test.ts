@@ -53,7 +53,7 @@ describe('Bloom filter', () => {
   test('Single stream minimal metadata', async () => {
     const candidates = [createCandidate({ controllers: ['a'] })]
     const merkleTree = await buildMerkleTree(candidates)
-    const metadata = merkleTree.getMetadata()
+    const metadata = merkleTree.metadata
     expect(metadata.numEntries).toEqual(1)
     expect(metadata.streamIds).toHaveLength(1)
     expect(metadata.streamIds).toEqual([candidates[0].streamId.toString()])
@@ -72,7 +72,7 @@ describe('Bloom filter', () => {
     }
     const candidates = [createCandidate(streamMetadata)]
     const merkleTree = await buildMerkleTree(candidates)
-    const metadata = merkleTree.getMetadata()
+    const metadata = merkleTree.metadata
     expect(metadata.numEntries).toEqual(1)
     expect(metadata.streamIds).toHaveLength(1)
     expect(metadata.streamIds).toEqual([candidates[0].streamId.toString()])
@@ -107,7 +107,7 @@ describe('Bloom filter', () => {
       createCandidate(streamMetadata2),
     ]
     const merkleTree = await buildMerkleTree(candidates)
-    const metadata = merkleTree.getMetadata()
+    const metadata = merkleTree.metadata
     expect(metadata.numEntries).toEqual(3)
     expect(metadata.streamIds).toHaveLength(3)
     expect(metadata.streamIds).toEqual(
