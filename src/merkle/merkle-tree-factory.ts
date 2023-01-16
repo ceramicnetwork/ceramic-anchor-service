@@ -22,16 +22,22 @@ export class MerkleDepthError extends Error {
 }
 
 export class MerkleTreeFactory<TData, TLeaf extends TData, TMetadata> {
-  /**
-   * @param mergeFn - fn that merges nodes at lower levels to produce nodes for higher levels of the tree
-   * @param compareFn - fn for sorting the leaves before building the tree
-   * @param metadataFn - fn for generating the tree metadata from the leaves
-   * @param depthLimit - limit to the number of levels the tree is allowed to have
-   */
   constructor(
+    /**
+     * A function that merges nodes at lower levels to produce nodes for higher levels of the tree.
+     */
     private readonly mergeFn: MergeFunction<TData, TMetadata>,
+    /**
+     * A function for sorting the leaves before building the tree.
+     */
     private readonly compareFn?: CompareFunction<TLeaf>,
+    /**
+     * A function for generating the tree metadata from the leaves.
+     */
     private readonly metadataFn?: MetadataFunction<TLeaf, TMetadata>,
+    /**
+     * Limit to the number of levels the tree is allowed to have.
+     */
     private readonly depthLimit?: number
   ) {}
 
