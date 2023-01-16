@@ -11,6 +11,12 @@ export class EmptyLeavesError extends Error {
 
 // FIXME Rename N, L, M
 export class MerkleTreeFactory<N, L extends N, M> {
+  /**
+   * @param mergeFn - fn that merges nodes at lower levels to produce nodes for higher levels of the tree
+   * @param compareFn - fn for sorting the leaves before building the tree
+   * @param metadataFn - fn for generating the tree metadata from the leaves
+   * @param depthLimit - limit to the number of levels the tree is allowed to have
+   */
   constructor(
     private readonly mergeFn: MergeFunction<N, M>,
     private readonly compareFn?: CompareFunction<L>,
@@ -29,15 +35,7 @@ export class MerkleTreeFactory<N, L extends N, M> {
     const metadata = this.metadataFn ? await this.metadataFn.generateMetadata(nodes) : null
 
     const root = await this._buildHelper(nodes, 0, metadata)
-    return new MerkleTree<N, L, M>(
-      this.mergeFn,
-      this.compareFn,
-      this.metadataFn,
-      this.depthLimit,
-      root,
-      nodes,
-      metadata
-    )
+    return new MerkleTree<N, L, M>(this.mergeFn, root, nodes, metadata)
   }
 
   private async _buildHelper(
