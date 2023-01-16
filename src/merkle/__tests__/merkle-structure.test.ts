@@ -1,15 +1,8 @@
-import { MergeFunction, Node, CompareFunction, MetadataFunction, TreeMetadata } from '../merkle.js'
-import { MerkleTree } from '../merkle-tree.js'
-
-class StringConcat implements MergeFunction<string, string> {
-  async merge(n1: Node<string>, n2: Node<string>, m: string | null): Promise<Node<string>> {
-    if (m) {
-      return new Node(`Hash(${n1} + ${n2} + Metadata(${m}))`, n1, n2)
-    } else {
-      return new Node(`Hash(${n1} + ${n2})`, n1, n2)
-    }
-  }
-}
+import { Node, CompareFunction, MetadataFunction } from '../merkle.js'
+import type { MerkleTree } from '../merkle-tree.js'
+import { MerkleTreeFactory } from '../merkle-tree-factory.js'
+import { expect, describe, test } from '@jest/globals'
+import { StringConcat } from './string-concat.js'
 
 // tslint:disable-next-line:max-classes-per-file
 class StringCompare implements CompareFunction<string> {
@@ -32,114 +25,93 @@ class StringConcatMetadata implements MetadataFunction<string, string> {
   }
 }
 
+const STRING_CONCAT_FACTORY = new MerkleTreeFactory(new StringConcat())
+
 describe('Merkle tree structure tests', () => {
   test('should handle null case', async () => {
-    try {
-      // tslint:disable-next-line:no-unused-expression
-      const merkleTree = new MerkleTree<string, string, string>(new StringConcat())
-      await merkleTree.build(null)
-
-      expect(false).toBe(true)
-    } catch (e) {
-      expect(e.toString()).toBe('Error: Cannot generate Merkle structure with no elements')
-    }
+    await expect(STRING_CONCAT_FACTORY.build(null)).rejects.toThrow(
+      /Cannot generate Merkle structure with no elements/
+    )
   })
 
   test('Enforces depth limit', async () => {
-    // No problem building with limit so long as there are fewer than 2^limit nodes
-    const merkleTree = new MerkleTree<string, string, string>(
+    const merkleTreeFactory = new MerkleTreeFactory<string, string, string>(
       new StringConcat(),
       undefined,
       undefined,
       2
     )
-    await merkleTree.build(['A', 'B', 'C', 'D'])
+    // No problem building with limit so long as there are fewer than 2^limit nodes
+    const merkleTree = await merkleTreeFactory.build(['A', 'B', 'C', 'D'])
 
     expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + Hash(C + D))')
 
     // Fails to build when there are more nodes than can fit within the depth limit
-    const merkleTree2 = new MerkleTree<string, string, string>(
-      new StringConcat(),
-      undefined,
-      undefined,
-      2
-    )
-    await expect(merkleTree2.build(['A', 'B', 'C', 'D', 'E'])).rejects.toThrow(
+    await expect(merkleTreeFactory.build(['A', 'B', 'C', 'D', 'E'])).rejects.toThrow(
       'Merkle tree exceeded configured limit of 2 levels (4 nodes)'
     )
   })
 
   test('should handle the base case: [A]', async () => {
     const leaves = ['A']
-    const merkleTree = new MerkleTree<string, string, string>(new StringConcat())
-    await merkleTree.build(leaves)
+    const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
     expect(merkleTree.getRoot().data).toBe('Hash(A + null)')
   })
 
   test('should create a root from two leaves: [A,B]', async () => {
     const leaves = ['A', 'B']
-    const merkleTree = new MerkleTree<string, string, string>(new StringConcat())
-    await merkleTree.build(leaves)
+    const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
     expect(merkleTree.getRoot().data).toBe('Hash(A + B)')
   })
 
   test('should create a root from four leaves: [A,B,C,D]', async () => {
     const leaves = ['A', 'B', 'C', 'D']
-    const merkleTree = new MerkleTree<string, string, string>(new StringConcat())
-    await merkleTree.build(leaves)
+    const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
     expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + Hash(C + D))')
   })
 
   test('should create a root from four leaves: [B,D,A,C]', async () => {
     const leaves = ['B', 'D', 'A', 'C']
-    const merkleTree = new MerkleTree<string, string, string>(new StringConcat())
-    await merkleTree.build(leaves)
+    const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
     expect(merkleTree.getRoot().data).toBe('Hash(Hash(B + D) + Hash(A + C))')
   })
 
   test('should create a root from four leaves (sorted): [B,D,A,C]', async () => {
     const leaves = ['B', 'D', 'A', 'C']
-    const merkleTree = new MerkleTree<string, string, string>(
-      new StringConcat(),
-      new StringCompare()
-    )
-    await merkleTree.build(leaves)
+    const factory = new MerkleTreeFactory(new StringConcat(), new StringCompare())
+    const merkleTree = await factory.build(leaves)
 
     expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + Hash(C + D))')
   })
 
   test('should create a root from three leaves: [A,B,C]', async () => {
     const leaves = ['A', 'B', 'C']
-    const merkleTree = new MerkleTree<string, string, string>(new StringConcat())
-    await merkleTree.build(leaves)
+    const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
     expect(merkleTree.getRoot().data).toBe('Hash(A + Hash(B + C))')
   })
 
   test('should create a root from five leaves: [A,B,C,D,E]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E']
-    const merkleTree = new MerkleTree<string, string, string>(new StringConcat())
-    await merkleTree.build(leaves)
+    const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
     expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + B) + Hash(C + Hash(D + E)))')
   })
 
   test('should create a root from six leaves: [A,B,C,D,E,F]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F']
-    const merkleTree = new MerkleTree<string, string, string>(new StringConcat())
-    await merkleTree.build(leaves)
+    const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
     expect(merkleTree.getRoot().data).toBe('Hash(Hash(A + Hash(B + C)) + Hash(D + Hash(E + F)))')
   })
 
   test('should create a root from seven leaves: [A,B,C,D,E,F,G]', async () => {
     const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
-    const merkleTree = new MerkleTree<string, string, string>(new StringConcat())
-    await merkleTree.build(leaves)
+    const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
     expect(merkleTree.getRoot().data).toBe(
       'Hash(Hash(A + Hash(B + C)) + Hash(Hash(D + E) + Hash(F + G)))'
@@ -148,12 +120,12 @@ describe('Merkle tree structure tests', () => {
 
   test('should create metadata', async () => {
     const leaves = ['B', 'D', 'A', 'C']
-    const merkleTree = new MerkleTree<string, string, string>(
+    const factory = new MerkleTreeFactory(
       new StringConcat(),
       new StringCompare(),
       new StringConcatMetadata()
     )
-    await merkleTree.build(leaves)
+    const merkleTree = await factory.build(leaves)
 
     expect(merkleTree.getMetadata()).toEqual('A + B + C + D')
     expect(merkleTree.getRoot().data).toBe(
@@ -203,8 +175,7 @@ describe('Merkle tree balance test', () => {
     }
 
     for (const leaves of inputs) {
-      const merkleTree = new MerkleTree<string, string, string>(new StringConcat())
-      await merkleTree.build(leaves)
+      const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
       const [minDepth, maxDepth] = await findMinAndMaxNodeDepth(merkleTree)
       // There shouldn't be more than 1 level difference between the deepest and shallowest nodes in the tree

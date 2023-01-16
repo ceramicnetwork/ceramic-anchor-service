@@ -1,6 +1,6 @@
 import { CID } from 'multiformats/cid'
 
-import { MerkleTree } from '../merkle/merkle-tree.js'
+import type { MerkleTree } from '../merkle/merkle-tree.js'
 import { PathDirection, TreeMetadata } from '../merkle/merkle.js'
 
 import type { Config } from 'node-config-ts'
@@ -35,6 +35,7 @@ import {
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
+import { MerkleTreeFactory } from '../merkle/merkle-tree-factory'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
@@ -350,15 +351,14 @@ export class AnchorService {
   async _buildMerkleTree(
     candidates: Candidate[]
   ): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
+    const merkleTreeFactory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
+      this.ipfsMerge,
+      this.ipfsCompare,
+      this.bloomMetadata,
+      this.merkleDepthLimit
+    )
     try {
-      const merkleTree = new MerkleTree<CIDHolder, Candidate, TreeMetadata>(
-        this.ipfsMerge,
-        this.ipfsCompare,
-        this.bloomMetadata,
-        this.merkleDepthLimit
-      )
-      await merkleTree.build(candidates)
-      return merkleTree
+      return await merkleTreeFactory.build(candidates)
     } catch (e) {
       throw new Error('Merkle tree cannot be created: ' + e.toString())
     }

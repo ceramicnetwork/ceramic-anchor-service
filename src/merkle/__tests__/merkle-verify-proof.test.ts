@@ -1,23 +1,16 @@
-import { MergeFunction, Node } from '../merkle.js'
 import { MerkleTree } from '../merkle-tree.js'
-
-class StringConcat implements MergeFunction<string, string> {
-  async merge(n1: Node<string>, n2: Node<string>, m: string | null): Promise<Node<string>> {
-    if (m) {
-      return new Node(`Hash(${n1} + ${n2} + Metadata(${m}))`, n1, n2)
-    } else {
-      return new Node(`Hash(${n1} + ${n2})`, n1, n2)
-    }
-  }
-}
+import { expect, describe, test, beforeAll } from '@jest/globals'
+import { MerkleTreeFactory } from '../merkle-tree-factory.js'
+import { StringConcat } from './string-concat.js'
 
 const leaves: string[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+const factory = new MerkleTreeFactory(new StringConcat())
+
 let tree: MerkleTree<string, string, string>
 
 describe('Merkle tree proof verification', () => {
   beforeAll(async () => {
-    tree = new MerkleTree<string, string, string>(new StringConcat())
-    await tree.build(leaves)
+    tree = await factory.build(leaves)
   })
 
   describe('a given merkle tree', () => {

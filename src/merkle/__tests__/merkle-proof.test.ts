@@ -1,17 +1,8 @@
 import * as crypto from 'crypto'
-
 import { MergeFunction, Node } from '../merkle.js'
-import { MerkleTree } from '../merkle-tree.js'
-
-class StringConcat implements MergeFunction<string, string> {
-  async merge(n1: Node<string>, n2: Node<string>, m: string | null): Promise<Node<string>> {
-    if (m) {
-      return new Node(`Hash(${n1} + ${n2} + Metadata(${m}))`, n1, n2)
-    } else {
-      return new Node(`Hash(${n1} + ${n2})`, n1, n2)
-    }
-  }
-}
+import type { MerkleTree } from '../merkle-tree.js'
+import { MerkleTreeFactory } from '../merkle-tree-factory.js'
+import { StringConcat } from './string-concat.js'
 
 // use the crypto module to create a sha256 hash from the node passed in
 const sha256 = (data: any): Uint8Array => {
@@ -63,13 +54,13 @@ let hashTree: MerkleTree<Uint8Array, Uint8Array, Uint8Array>
 
 const root = '1b0e895690b99d3bb2138f5ea55424f004901039763c420bc126ec8aa3bbca39'
 
+const hashTreeFactory = new MerkleTreeFactory<Uint8Array, Uint8Array, Uint8Array>(new HashConcat())
+const lettersTreeFactory = new MerkleTreeFactory<string, string, string>(new StringConcat())
+
 describe('Merkle tree proofs tests', () => {
   beforeAll(async () => {
-    hashTree = new MerkleTree<Uint8Array, Uint8Array, Uint8Array>(new HashConcat())
-    await hashTree.build(leaves.map(sha256))
-
-    lettersTree = new MerkleTree<string, string, string>(new StringConcat())
-    await lettersTree.build(leaves)
+    hashTree = await hashTreeFactory.build(leaves.map(sha256))
+    lettersTree = await lettersTreeFactory.build(leaves)
   })
 
   describe('for each leaf', () => {

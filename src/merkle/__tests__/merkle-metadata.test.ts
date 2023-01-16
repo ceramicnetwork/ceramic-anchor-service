@@ -1,6 +1,6 @@
-import { jest } from '@jest/globals'
+import { jest, describe, expect, beforeEach } from '@jest/globals'
 import { MockIpfsService, randomStreamID } from '../../__tests__/test-utils.js'
-import { MerkleTree } from '../merkle-tree.js'
+import type { MerkleTree } from '../merkle-tree.js'
 import { type Node, TreeMetadata } from '../merkle.js'
 import {
   BloomMetadata,
@@ -12,6 +12,7 @@ import {
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { Request } from '../../models/request.js'
 import { AnchorStatus } from '@ceramicnetwork/common'
+import { MerkleTreeFactory } from '../merkle-tree-factory.js'
 
 const TYPE_REGEX =
   /^jsnpm_@ceramicnetwork\/wasm-bloom-filter-v((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/
@@ -25,7 +26,7 @@ describe('Bloom filter', () => {
     ipfsService.reset()
   })
 
-  const createCandidate = async function (metadata: any): Promise<Candidate> {
+  function createCandidate(metadata: any): Candidate {
     const streamID = randomStreamID()
     const stream = {
       id: streamID,
@@ -38,18 +39,20 @@ describe('Bloom filter', () => {
     return candidate
   }
 
-  const makeMerkleTree = function () {
-    return new MerkleTree<CIDHolder, Candidate, TreeMetadata>(
+  function buildMerkleTree(
+    leaves: Array<Candidate>
+  ): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
+    const factory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
       new IpfsMerge(ipfsService),
       new IpfsLeafCompare(),
       new BloomMetadata()
     )
+    return factory.build(leaves)
   }
 
   test('Single stream minimal metadata', async () => {
-    const merkleTree = makeMerkleTree()
-    const candidates = [await createCandidate({ controllers: ['a'] })]
-    await merkleTree.build(candidates)
+    const candidates = [createCandidate({ controllers: ['a'] })]
+    const merkleTree = await buildMerkleTree(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(1)
     expect(metadata.streamIds).toHaveLength(1)
@@ -63,13 +66,12 @@ describe('Bloom filter', () => {
   })
 
   test('Single stream with model', async () => {
-    const merkleTree = makeMerkleTree()
     const streamMetadata = {
       controllers: ['a'],
       model: 'model',
     }
-    const candidates = [await createCandidate(streamMetadata)]
-    await merkleTree.build(candidates)
+    const candidates = [createCandidate(streamMetadata)]
+    const merkleTree = await buildMerkleTree(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(1)
     expect(metadata.streamIds).toHaveLength(1)
@@ -85,7 +87,6 @@ describe('Bloom filter', () => {
   })
 
   test('Multiple streams with model', async () => {
-    const merkleTree = makeMerkleTree()
     const streamMetadata0 = {
       controllers: ['a'],
       model: 'model0',
@@ -100,12 +101,12 @@ describe('Bloom filter', () => {
       controllers: ['b'],
       model: 'model2',
     }
-    const candidates = await Promise.all([
+    const candidates = [
       createCandidate(streamMetadata0),
       createCandidate(streamMetadata1),
       createCandidate(streamMetadata2),
-    ])
-    await merkleTree.build(candidates)
+    ]
+    const merkleTree = await buildMerkleTree(candidates)
     const metadata = merkleTree.getMetadata()
     expect(metadata.numEntries).toEqual(3)
     expect(metadata.streamIds).toHaveLength(3)
