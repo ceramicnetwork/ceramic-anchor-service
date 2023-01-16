@@ -1,4 +1,4 @@
-import { PathDirection } from '../merkle.js'
+import { PathDirection, pathString } from '../merkle.js'
 import { MerkleTreeFactory } from '../merkle-tree-factory.js'
 import { StringConcat } from './string-concat.js'
 
@@ -10,6 +10,7 @@ describe('Merkle tree direct path tests', () => {
     const merkleTree = await factory.build(leaves)
     const directPath = merkleTree.getDirectPathFromRoot(0)
     expect(directPath).toStrictEqual([PathDirection.L])
+    expect(pathString(directPath)).toEqual('0')
   })
 
   test('should handle the case: [A]', async () => {
@@ -18,6 +19,7 @@ describe('Merkle tree direct path tests', () => {
 
     const directPath = merkleTree.getDirectPathFromRoot(0)
     expect(directPath).toStrictEqual([PathDirection.L, PathDirection.L])
+    expect(pathString(directPath)).toEqual('0/0')
   })
 
   test('should handle the case: [A]', async () => {
@@ -26,6 +28,7 @@ describe('Merkle tree direct path tests', () => {
 
     const directPath = merkleTree.getDirectPathFromRoot(0)
     expect(directPath).toStrictEqual([PathDirection.L, PathDirection.L, PathDirection.L])
+    expect(pathString(directPath)).toEqual('0/0/0')
   })
 
   test('should handle the case: [B]', async () => {
@@ -34,6 +37,7 @@ describe('Merkle tree direct path tests', () => {
 
     const directPath = merkleTree.getDirectPathFromRoot(1)
     expect(directPath).toStrictEqual([PathDirection.L, PathDirection.L, PathDirection.R])
+    expect(pathString(directPath)).toEqual('0/0/1')
   })
 
   test('should handle the case: [H]', async () => {
@@ -42,6 +46,7 @@ describe('Merkle tree direct path tests', () => {
 
     const directPath = merkleTree.getDirectPathFromRoot(7)
     expect(directPath).toStrictEqual([PathDirection.R, PathDirection.R, PathDirection.R])
+    expect(pathString(directPath)).toEqual('1/1/1')
   })
 
   test('should handle the case: [G]', async () => {
@@ -50,6 +55,7 @@ describe('Merkle tree direct path tests', () => {
 
     const directPath = merkleTree.getDirectPathFromRoot(6)
     expect(directPath).toStrictEqual([PathDirection.R, PathDirection.R, PathDirection.L])
+    expect(pathString(directPath)).toEqual('1/1/0')
   })
 
   test('should handle the case: [J]', async () => {
@@ -63,5 +69,6 @@ describe('Merkle tree direct path tests', () => {
       PathDirection.R,
       PathDirection.R,
     ])
+    expect(pathString(directPath)).toEqual('1/1/1/1')
   })
 })

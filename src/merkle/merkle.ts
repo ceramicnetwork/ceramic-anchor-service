@@ -46,6 +46,13 @@ export enum PathDirection {
 }
 
 /**
+ * Serialize array of `PathDirection` entries to string.
+ */
+export function pathString(path: Array<PathDirection>): string {
+  return path.join('/')
+}
+
+/**
  * Metadata containing a bloom filter based on the metadata of the streams in the tree
  */
 export interface BloomMetadata {

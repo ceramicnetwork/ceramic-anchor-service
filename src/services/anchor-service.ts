@@ -1,7 +1,7 @@
 import { CID } from 'multiformats/cid'
 
 import type { MerkleTree } from '../merkle/merkle-tree.js'
-import { PathDirection, TreeMetadata } from '../merkle/merkle.js'
+import { pathString, TreeMetadata } from '../merkle/merkle.js'
 
 import type { Config } from 'node-config-ts'
 
@@ -435,7 +435,7 @@ export class AnchorService {
     anchor.proofCid = ipfsProofCid.toString()
 
     const path = merkleTree.getDirectPathFromRoot(candidateIndex)
-    anchor.path = path.map((p) => (p === PathDirection.L ? 0 : 1)).join('/')
+    anchor.path = pathString(path)
 
     const ipfsAnchorCommit = {
       id: candidate.streamId.cid,
