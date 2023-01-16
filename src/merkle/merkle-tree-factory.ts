@@ -41,7 +41,7 @@ export class MerkleTreeFactory<TData, TLeaf extends TData, TMetadata> {
 
     // Assert we do not overflow the tree
     const leavesLimit = Math.pow(2, this.depthLimit)
-    if (this.depthLimit > 0 && leavesLimit < leaves.length) {
+    if (this.depthLimit && leavesLimit < leaves.length) {
       throw new MerkleDepthError(this.depthLimit, leavesLimit)
     }
 
