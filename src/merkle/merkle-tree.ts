@@ -1,4 +1,4 @@
-import { CompareFunction, MergeFunction, MetadataFunction, Node, PathDirection } from './merkle.js'
+import { MergeFunction, Node, PathDirection } from './merkle.js'
 
 /**
  * Merkle tree structure.
@@ -6,106 +6,18 @@ import { CompareFunction, MergeFunction, MetadataFunction, Node, PathDirection }
  * which may be a more specific sub-type of 'N'. Type 'M' is the type of the metadata.
  */
 export class MerkleTree<N, L extends N, M> {
-  private root: Node<N>
-  private leaves: Node<L>[]
-  private metadata: M
-  private readonly mergeFn: MergeFunction<N, M>
-  private readonly compareFn: CompareFunction<L> | undefined
-  private readonly metadataFn: MetadataFunction<L, M> | undefined
-  private readonly depthLimit: number
-
   /**
-   * Default constructor
    * @param mergeFn - fn that merges nodes at lower levels to produce nodes for higher levels of the tree
-   * @param compareFn - fn for sorting the leaves before building the tree
-   * @param metadataFn - fn for generating the tree metadata from the leaves
-   * @param depthLimit - limit to the number of levels the tree is allowed to have
    * @param root
    * @param leaves
    * @param metadata
    */
   constructor(
-    mergeFn: MergeFunction<N, M>,
-    compareFn?: CompareFunction<L>,
-    metadataFn?: MetadataFunction<L, M>,
-    depthLimit?: number,
-    root?: Node<N>,
-    leaves?: Array<Node<L>>,
-    metadata?: M
-  ) {
-    this.mergeFn = mergeFn
-    this.compareFn = compareFn
-    this.metadataFn = metadataFn
-    this.depthLimit = depthLimit
-    this.root = root
-    this.leaves = leaves
-    this.metadata = metadata
-  }
-
-  /**
-   * Initialize Merkle structure
-   * @private
-   */
-  async build(leaves: L[] | undefined): Promise<void> {
-    if (!leaves || !leaves.length) {
-      throw new Error('Cannot generate Merkle structure with no elements')
-    }
-
-    this.leaves = leaves.map((leaf) => new Node(leaf, null, null))
-    if (this.compareFn) {
-      this.leaves.sort(this.compareFn.compare)
-    }
-
-    this.metadata = this.metadataFn ? await this.metadataFn.generateMetadata(this.leaves) : null
-
-    this.root = await this._buildHelper(this.leaves, 0, this.metadata)
-  }
-
-  /**
-   * Get Merkle root node
-   * @param elements - Sorted array of elements
-   * @param treeDepth - Counter incremented with each recursive call that keeps tracks of the number
-   *   of levels in the merkle tree
-   * @param treeMetadata - metadata to add to merged node.  Should only be set for the root level.
-   * @returns root of the merkle tree for the given elements
-   */
-  private async _buildHelper(
-    elements: Node<N>[],
-    treeDepth: number,
-    treeMetadata: M
-  ): Promise<Node<N>> {
-    if (elements == null) {
-      throw new Error('Cannot generate Merkle structure with no elements')
-    }
-
-    if (this.depthLimit > 0 && treeDepth > this.depthLimit) {
-      const nodesLimit = Math.pow(2, this.depthLimit)
-      throw new Error(
-        `Merkle tree exceeded configured limit of ${this.depthLimit} levels (${nodesLimit} nodes)`
-      )
-    }
-
-    // if there is only one leaf for the whole tree
-    if (elements.length === 1 && treeDepth === 0) {
-      const merged = await this.mergeFn.merge(elements[0], null, treeMetadata)
-      elements[0].parent = merged
-      return merged
-    }
-
-    if (elements.length === 1) {
-      return elements[0]
-    }
-
-    const middleIndex = Math.trunc(elements.length / 2)
-    const leftElements = elements.slice(0, middleIndex)
-    const rightElements = elements.slice(middleIndex)
-    const leftNode = await this._buildHelper(leftElements, treeDepth + 1, null)
-    const rightNode = await this._buildHelper(rightElements, treeDepth + 1, null)
-    const merged = await this.mergeFn.merge(leftNode, rightNode, treeMetadata)
-    leftNode.parent = merged
-    rightNode.parent = merged
-    return merged
-  }
+    private readonly mergeFn: MergeFunction<N, M>,
+    private readonly root: Node<N>,
+    private readonly leaves: Array<Node<L>>,
+    private readonly metadata: M
+  ) {}
 
   /**
    * Get root element
