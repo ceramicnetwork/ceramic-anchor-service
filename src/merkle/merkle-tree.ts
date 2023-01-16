@@ -2,10 +2,10 @@ import { MergeFunction, Node, PathDirection } from './merkle.js'
 
 /**
  * Merkle tree structure.
- * Type 'N' is the type of the nodes in the tree. Type 'L' is the type of the leaf nodes specifically,
- * which may be a more specific sub-type of 'N'. Type 'M' is the type of the metadata.
+ * Type 'TData' is the type of the nodes in the tree. Type 'TLeaf' is the type of the leaf nodes specifically,
+ * which may be a more specific sub-type of 'TData'. Type 'TMetadata' is the type of the metadata.
  */
-export class MerkleTree<N, L extends N, M> {
+export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
   /**
    * @param mergeFn - fn that merges nodes at lower levels to produce nodes for higher levels of the tree
    * @param root
@@ -13,31 +13,31 @@ export class MerkleTree<N, L extends N, M> {
    * @param metadata
    */
   constructor(
-    private readonly mergeFn: MergeFunction<N, M>,
-    private readonly root: Node<N>,
-    private readonly leaves: Array<Node<L>>,
-    private readonly metadata: M
+    private readonly mergeFn: MergeFunction<TData, TMetadata>,
+    private readonly root: Node<TData>,
+    private readonly leaves: Array<Node<TLeaf>>,
+    private readonly metadata: TMetadata
   ) {}
 
   /**
    * Get root element
    * @returns Node corresponding to the root of the merkle tree
    */
-  getRoot(): Node<N> {
+  getRoot(): Node<TData> {
     return this.root
   }
 
   /**
    * Gets leaves
    */
-  getLeaves(): L[] {
+  getLeaves(): TLeaf[] {
     return this.leaves.map((n) => n.data)
   }
 
   /**
    * Gets tree metadata
    */
-  getMetadata(): M {
+  getMetadata(): TMetadata {
     return this.metadata
   }
 
@@ -45,7 +45,7 @@ export class MerkleTree<N, L extends N, M> {
    * Testing-only method to inspect the raw leaf nodes of the tree
    * @private
    */
-  _getLeafNodes(): Node<L>[] {
+  _getLeafNodes(): Node<TLeaf>[] {
     return this.leaves
   }
 
@@ -57,11 +57,11 @@ export class MerkleTree<N, L extends N, M> {
    * @param elemIndex - Element index
    * @returns Array of proof Nodes.
    */
-  async getProof(elemIndex: number): Promise<Node<N>[]> {
+  async getProof(elemIndex: number): Promise<Node<TData>[]> {
     return (await this._getProofHelper(this.leaves[elemIndex])).reverse()
   }
 
-  private async _getProofHelper(elem: Node<L>): Promise<Node<N>[]> {
+  private async _getProofHelper(elem: Node<TLeaf>): Promise<Node<TData>[]> {
     const parent = elem.parent
     if (!parent) {
       // We're at the root
@@ -82,7 +82,7 @@ export class MerkleTree<N, L extends N, M> {
    * @param element - Node element
    * @returns {Promise<boolean>}
    */
-  async verifyProof(proof: Node<N>[], element: any): Promise<boolean> {
+  async verifyProof(proof: Node<TData>[], element: any): Promise<boolean> {
     let current = new Node(element, null, null)
     for (const p of proof) {
       const left = p.parent.left == p
@@ -107,7 +107,7 @@ export class MerkleTree<N, L extends N, M> {
     return await this._getDirectPathFromRootHelper(this.leaves[elemIndex])
   }
 
-  private async _getDirectPathFromRootHelper(elem: Node<N>): Promise<PathDirection[]> {
+  private async _getDirectPathFromRootHelper(elem: Node<TData>): Promise<PathDirection[]> {
     const parent = elem.parent
     if (!parent) {
       // We're at the root

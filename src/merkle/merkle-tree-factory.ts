@@ -9,8 +9,8 @@ export class EmptyLeavesError extends Error {
   }
 }
 
-// FIXME Rename N, L, M
-export class MerkleTreeFactory<N, L extends N, M> {
+// FIXME Rename TData, TLeaf, TMetadata
+export class MerkleTreeFactory<TData, TLeaf extends TData, TMetadata> {
   /**
    * @param mergeFn - fn that merges nodes at lower levels to produce nodes for higher levels of the tree
    * @param compareFn - fn for sorting the leaves before building the tree
@@ -18,16 +18,16 @@ export class MerkleTreeFactory<N, L extends N, M> {
    * @param depthLimit - limit to the number of levels the tree is allowed to have
    */
   constructor(
-    private readonly mergeFn: MergeFunction<N, M>,
-    private readonly compareFn?: CompareFunction<L>,
-    private readonly metadataFn?: MetadataFunction<L, M>,
+    private readonly mergeFn: MergeFunction<TData, TMetadata>,
+    private readonly compareFn?: CompareFunction<TLeaf>,
+    private readonly metadataFn?: MetadataFunction<TLeaf, TMetadata>,
     private readonly depthLimit?: number
   ) {}
 
-  async build(leaves?: Array<L>): Promise<MerkleTree<N, L, M>> {
+  async build(leaves?: Array<TLeaf>): Promise<MerkleTree<TData, TLeaf, TMetadata>> {
     if (!leaves || !leaves.length) throw new EmptyLeavesError()
 
-    const nodes = leaves.map((leaf) => new Node(leaf, null, null)) as NonEmptyArray<Node<L>>
+    const nodes = leaves.map((leaf) => new Node(leaf, null, null)) as NonEmptyArray<Node<TLeaf>>
     if (this.compareFn) {
       nodes.sort(this.compareFn.compare)
     }
@@ -35,14 +35,14 @@ export class MerkleTreeFactory<N, L extends N, M> {
     const metadata = this.metadataFn ? await this.metadataFn.generateMetadata(nodes) : null
 
     const root = await this._buildHelper(nodes, 0, metadata)
-    return new MerkleTree<N, L, M>(this.mergeFn, root, nodes, metadata)
+    return new MerkleTree<TData, TLeaf, TMetadata>(this.mergeFn, root, nodes, metadata)
   }
 
   private async _buildHelper(
-    elements: Node<N>[],
+    elements: Node<TData>[],
     treeDepth: number,
-    treeMetadata: M
-  ): Promise<Node<N>> {
+    treeMetadata: TMetadata
+  ): Promise<Node<TData>> {
     // FIXME Can be calculated at the start
     if (this.depthLimit > 0 && treeDepth > this.depthLimit) {
       const nodesLimit = Math.pow(2, this.depthLimit)
