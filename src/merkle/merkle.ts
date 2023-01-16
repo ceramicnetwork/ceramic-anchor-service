@@ -34,7 +34,11 @@ export interface MetadataFunction<TValue, TMetadata> {
 export class Node<TValue> {
   parent?: Node<TValue>
 
-  constructor(readonly data: TValue, readonly left: Node<TValue>, readonly right: Node<TValue>) {}
+  constructor(
+    readonly data: TValue,
+    readonly left: Node<TValue> | null = null,
+    readonly right: Node<TValue> | null = null
+  ) {}
 
   toString(): string {
     return String(this.data)
