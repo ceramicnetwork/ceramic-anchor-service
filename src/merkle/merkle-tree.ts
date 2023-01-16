@@ -1,11 +1,4 @@
-import {
-  CompareFunction,
-  MergeFunction,
-  MetadataFunction,
-  Node,
-  PathDirection,
-  TreeMetadata,
-} from './merkle.js'
+import { CompareFunction, MergeFunction, MetadataFunction, Node, PathDirection } from './merkle.js'
 
 /**
  * Merkle tree structure.
@@ -27,17 +20,26 @@ export class MerkleTree<N, L extends N, M> {
    * @param compareFn - fn for sorting the leaves before building the tree
    * @param metadataFn - fn for generating the tree metadata from the leaves
    * @param depthLimit - limit to the number of levels the tree is allowed to have
+   * @param root
+   * @param leaves
+   * @param metadata
    */
   constructor(
     mergeFn: MergeFunction<N, M>,
     compareFn?: CompareFunction<L>,
     metadataFn?: MetadataFunction<L, M>,
-    depthLimit?: number
+    depthLimit?: number,
+    root?: Node<N>,
+    leaves?: Array<Node<L>>,
+    metadata?: M
   ) {
     this.mergeFn = mergeFn
     this.compareFn = compareFn
     this.metadataFn = metadataFn
     this.depthLimit = depthLimit
+    this.root = root
+    this.leaves = leaves
+    this.metadata = metadata
   }
 
   /**
