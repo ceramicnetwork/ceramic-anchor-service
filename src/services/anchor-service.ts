@@ -5,10 +5,10 @@ import { PathDirection, TreeMetadata } from '../merkle/merkle.js'
 
 import type { Config } from 'node-config-ts'
 
-import { logger, logEvent } from '../logger/index.js'
+import { logEvent, logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
 import { Anchor } from '../models/anchor.js'
-import { Request, REQUEST_MESSAGES, RequestStatus as RS } from '../models/request.js'
+import { Request, REQUEST_MESSAGES, RequestStatus, RequestStatus as RS } from '../models/request.js'
 import type { Transaction } from '../models/transaction.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
 import type { TransactionRepository } from '../repositories/transaction-repository.js'
@@ -18,8 +18,8 @@ import type { EventProducerService } from './event-producer/event-producer-servi
 import type { CeramicService } from './ceramic-service.js'
 import {
   ServiceMetrics as Metrics,
-  TimeableMetric,
   SinceField,
+  TimeableMetric,
 } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 import { BlockchainService } from './blockchain/blockchain-service.js'
@@ -65,7 +65,7 @@ const logAnchorSummary = async (
   candidates: Candidate[],
   results: Partial<AnchorSummary> = {}
 ) => {
-  const pendingRequestsCount = await requestRepository.countPendingRequests()
+  const pendingRequestsCount = await requestRepository.countByStatus(RequestStatus.PENDING)
 
   const anchorSummary: AnchorSummary = Object.assign(
     {
@@ -148,9 +148,9 @@ export class AnchorService {
    */
   // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
   async anchorRequests(): Promise<void> {
-    const readyRequests = await this.requestRepository.findByStatus(RS.READY)
+    const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
 
-    if (readyRequests.length === 0) {
+    if (readyRequestsCount === 0) {
       // Pull in twice as many streams as we want to anchor, since some of those streams may fail to load.
       await this.requestRepository.findAndMarkReady(this.maxStreamLimit * 2, this.minStreamLimit)
     }
@@ -308,10 +308,9 @@ export class AnchorService {
    * mark them as PROCESSING, and perform an anchor.
    */
   async emitAnchorEventIfReady(): Promise<void> {
-    // FIXME Use countByStatus
-    const readyRequests = await this.requestRepository.findByStatus(RS.READY)
+    const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
 
-    if (readyRequests.length > 0) {
+    if (readyRequestsCount > 0) {
       // if ready requests have been updated because they have expired
       // we will retry them by emitting an anchor event and not marking anymore requests as READY
       const updatedExpiredReadyRequestsCount =

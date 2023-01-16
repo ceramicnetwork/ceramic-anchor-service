@@ -226,8 +226,8 @@ async function waitForNoReadyRequests(
 ): Promise<void> {
   await firstValueFrom(
     interval(1000).pipe(
-      concatMap(() => requestRepo.findByStatus(RequestStatus.READY)),
-      filter((requests) => requests.length == 0),
+      concatMap(() => requestRepo.countByStatus(RequestStatus.READY)),
+      filter((count) => count === 0),
       timeout({
         each: timeoutMS,
         with: () =>

@@ -1,10 +1,9 @@
 import { CID } from 'multiformats/cid'
 import type { Knex } from 'knex'
 import { RequestStatus, Request, RequestUpdateFields, REQUEST_MESSAGES } from '../models/request.js'
-import { LimitOptions, Options } from './repository-types.js'
-import { logEvent } from '../logger/index.js'
+import { Options } from './repository-types.js'
+import { logEvent, logger } from '../logger/index.js'
 import { Config } from 'node-config-ts'
-import { logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
 import {
   ServiceMetrics as Metrics,
@@ -13,6 +12,7 @@ import {
 } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 import * as te from '../ancillary/io-ts-extra.js'
+import { parseCountResult } from './parse-count-result.util.js'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
 // AnchorCommit available to the network.
@@ -105,6 +105,8 @@ const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder =>
  * Finds a batch of streams to anchor based on whether a stream's associated requests need to be anchored.
  * @param connection
  * @param maxStreamLimit max size of the batch
+ * @param minStreamLimit
+ * @param anchoringDeadline
  * @param now
  * @returns Promise for the stream ids to anchor
  */
@@ -423,28 +425,20 @@ export class RequestRepository {
    * @param options
    * @returns A promise that resolves to an array of request with the given status
    */
-  async findByStatus(status: RequestStatus, options: LimitOptions = {}): Promise<Request[]> {
-    const { connection = this.connection, limit } = options
+  async findByStatus(status: RequestStatus, options: Options = {}): Promise<Request[]> {
+    const { connection = this.connection } = options
 
-    const query = connection(TABLE_NAME).orderBy('updatedAt', 'asc').where({ status })
-
-    if (limit && limit !== 0) {
-      query.limit(limit)
-    }
-
-    return query
+    return connection(TABLE_NAME).orderBy('updatedAt', 'asc').where({ status })
   }
 
   /**
-   * Returns the number of pending anchor requests that remain in the database.
-   * @returns The number of requests in the database in status PENDING
+   * Return number of requests by status.
    */
-  async countPendingRequests(): Promise<number> {
-    const res = await this.connection(TABLE_NAME)
-      .count('id')
-      .where({ status: RequestStatus.PENDING })
-      .first()
-    return parseInt(res.count as string, 10)
+  async countByStatus(status: RequestStatus, options: Options = {}): Promise<number> {
+    const { connection = this.connection } = options
+
+    const result = await connection(TABLE_NAME).where({ status }).count('id').first()
+    return parseCountResult(result.count)
   }
 
   /**
