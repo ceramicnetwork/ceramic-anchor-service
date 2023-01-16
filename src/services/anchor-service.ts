@@ -494,14 +494,13 @@ export class AnchorService {
         await this.anchorRepository.createAnchors(anchors, { connection: trx })
       }
 
-      await this.requestRepository.updateRequests(
+      await this.requestRepository.withConnection(trx).updateRequests(
         {
           status: RS.COMPLETED,
           message: 'CID successfully anchored.',
           pinned: true,
         },
-        acceptedRequests,
-        { connection: trx }
+        acceptedRequests
       )
 
       await trx.commit()

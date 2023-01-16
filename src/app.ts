@@ -77,7 +77,7 @@ export class CeramicAnchorApp {
 
     this.container = container
       // register repositories
-      .provideClass('requestRepository', RequestRepository)
+      .provideFactory('requestRepository', RequestRepository.make)
       .provideClass('anchorRepository', AnchorRepository)
       .provideClass('transactionRepository', TransactionRepository)
       // register services
