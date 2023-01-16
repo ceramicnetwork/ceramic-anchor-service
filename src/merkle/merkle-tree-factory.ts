@@ -45,7 +45,7 @@ export class MerkleTreeFactory<TData, TLeaf extends TData, TMetadata> {
       throw new MerkleDepthError(this.depthLimit, leavesLimit)
     }
 
-    const nodes = leaves.map((leaf) => new Node(leaf, null, null)) as NonEmptyArray<Node<TLeaf>>
+    const nodes = leaves.map((leaf) => new Node(leaf))
     if (this.compareFn) {
       nodes.sort(this.compareFn.compare)
     }
