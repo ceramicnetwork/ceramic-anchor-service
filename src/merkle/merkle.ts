@@ -1,4 +1,4 @@
-interface MergeFunction<N, M> {
+export interface MergeFunction<N, M> {
   /**
    * Merges two nodes
    * @param n1 - object1
@@ -8,7 +8,7 @@ interface MergeFunction<N, M> {
   merge(n1: Node<N>, n2: Node<N>, metadata: M | null): Promise<Node<N>>
 }
 
-interface CompareFunction<L> {
+export interface CompareFunction<L> {
   /**
    * Compares two Merkle leaf nodes
    * @param n1
@@ -17,7 +17,7 @@ interface CompareFunction<L> {
   compare(n1: Node<L>, n2: Node<L>): number
 }
 
-interface MetadataFunction<L, M> {
+export interface MetadataFunction<L, M> {
   /**
    * Generates the tree metadata from the leaf nodes
    * @param leafNodes
@@ -28,7 +28,7 @@ interface MetadataFunction<L, M> {
 /**
  * Interface of one Merkle node
  */
-class Node<N> {
+export class Node<N> {
   parent?: Node<N>
 
   constructor(readonly data: N, readonly left: Node<N>, readonly right: Node<N>) {}
@@ -41,17 +41,15 @@ class Node<N> {
 /**
  * Path direction from the Merkle root node
  */
-enum PathDirection {
-  L,
-  R,
+export enum PathDirection {
+  L = 0,
+  R = 1,
 }
-
-export { Node, MergeFunction, CompareFunction, MetadataFunction, PathDirection }
 
 /**
  * Metadata containing a bloom filter based on the metadata of the streams in the tree
  */
-interface BloomMetadata {
+export interface BloomMetadata {
   type: string
   data: any
 }
