@@ -52,18 +52,18 @@ export class MerkleTreeFactory<TData, TLeaf extends TData, TMetadata> {
 
     const metadata = this.metadataFn ? await this.metadataFn.generateMetadata(nodes) : null
 
-    const root = await this._buildHelper(nodes, 0, metadata)
+    const root = await this.buildLevel(nodes, 0, metadata)
     return new MerkleTree<TData, TLeaf, TMetadata>(this.mergeFn, root, nodes, metadata)
   }
 
-  private async _buildHelper(
+  private async buildLevel(
     elements: Node<TData>[],
-    treeDepth: number,
-    treeMetadata: TMetadata
+    currentDepth: number,
+    metadata: TMetadata | null = null
   ): Promise<Node<TData>> {
     // if there is only one leaf for the whole tree
-    if (elements.length === 1 && treeDepth === 0) {
-      const merged = await this.mergeFn.merge(elements[0], null, treeMetadata)
+    if (elements.length === 1 && currentDepth === 0) {
+      const merged = await this.mergeFn.merge(elements[0], null, metadata)
       elements[0].parent = merged
       return merged
     }
@@ -75,9 +75,10 @@ export class MerkleTreeFactory<TData, TLeaf extends TData, TMetadata> {
     const middleIndex = Math.trunc(elements.length / 2)
     const leftElements = elements.slice(0, middleIndex)
     const rightElements = elements.slice(middleIndex)
-    const leftNode = await this._buildHelper(leftElements, treeDepth + 1, null)
-    const rightNode = await this._buildHelper(rightElements, treeDepth + 1, null)
-    const merged = await this.mergeFn.merge(leftNode, rightNode, treeMetadata)
+    const nextDepth = currentDepth + 1
+    const leftNode = await this.buildLevel(leftElements, nextDepth)
+    const rightNode = await this.buildLevel(rightElements, nextDepth)
+    const merged = await this.mergeFn.merge(leftNode, rightNode, metadata)
     leftNode.parent = merged
     rightNode.parent = merged
     return merged
