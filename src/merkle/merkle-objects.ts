@@ -200,8 +200,8 @@ export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
 
   async merge(
     left: Node<CIDHolder>,
-    right: Node<CIDHolder> | null,
-    metadata: TreeMetadata | null
+    right: Node<CIDHolder> | null = null,
+    metadata: TreeMetadata | null = null
   ): Promise<Node<CIDHolder>> {
     const merged = [left.data.cid, right?.data?.cid || null]
 
