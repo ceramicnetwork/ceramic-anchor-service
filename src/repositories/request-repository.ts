@@ -1,6 +1,12 @@
 import { CID } from 'multiformats/cid'
 import type { Knex } from 'knex'
-import { RequestStatus, Request, RequestUpdateFields, REQUEST_MESSAGES } from '../models/request.js'
+import {
+  RequestStatus,
+  Request,
+  RequestUpdateFields,
+  REQUEST_MESSAGES,
+  DATABASE_FIELDS,
+} from '../models/request.js'
 import { logEvent, logger } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { Utils } from '../utils.js'
@@ -467,5 +473,13 @@ export class RequestRepository {
    */
   findRequestsToAnchorForStreams(streamIds: string[], now: Date): Promise<Array<Request>> {
     return this.findRequestsToAnchor(now).whereIn('streamId', streamIds).orderBy('createdAt', 'asc')
+  }
+
+  async batchProcessing(): Promise<Array<Request>> {
+    const returned = await this.table
+      .where({ status: RequestStatus.PENDING })
+      .update({ status: RequestStatus.PROCESSING })
+      .returning(DATABASE_FIELDS)
+    return returned.map((r) => new Request(r))
   }
 }
