@@ -109,9 +109,9 @@ export class CeramicAnchorApp {
     }
   }
 
-  async anchor(triggeredByAnchorEvent = false): Promise<void> {
+  async anchor(): Promise<void> {
     const anchorService = this.container.resolve('anchorService')
-    return anchorService.anchorRequests(triggeredByAnchorEvent)
+    return anchorService.anchorRequests()
   }
 
   /**
