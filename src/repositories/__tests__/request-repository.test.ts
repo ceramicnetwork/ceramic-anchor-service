@@ -91,32 +91,6 @@ describe('request repository test', () => {
     expect(result1).toEqual(result2)
   })
 
-  test('countPendingRequests', async () => {
-    const requests = [
-      generateRequest({
-        status: RequestStatus.PENDING,
-      }),
-      generateRequest({
-        status: RequestStatus.PROCESSING,
-      }),
-      generateRequest({
-        status: RequestStatus.READY,
-      }),
-      generateRequest({
-        status: RequestStatus.FAILED,
-      }),
-      generateRequest({
-        status: RequestStatus.COMPLETED,
-      }),
-      generateRequest({
-        status: RequestStatus.PENDING,
-      }),
-    ]
-    await requestRepository.createRequests(requests)
-
-    await expect(requestRepository.countPendingRequests()).resolves.toEqual(2)
-  })
-
   describe('findRequestsToGarbageCollect', () => {
     test('Finds requests older than a month', async () => {
       // Create two requests that are expired and should be garbage collected, and two that should not
@@ -171,31 +145,57 @@ describe('request repository test', () => {
     expect(loadedRequests[1].cid).toEqual(requests[1].cid)
   })
 
-  test('findByStatus: retrieves all requests of a specified status', async () => {
-    const requests = [
-      generateRequests(
-        {
-          status: RequestStatus.READY,
-        },
-        3
-      ),
-      generateRequests(
-        {
-          status: RequestStatus.PENDING,
-        },
-        3
-      ),
-    ].flat()
+  describe('findByStatus', () => {
+    test('retrieve all requests of a specified status', async () => {
+      const requests = [
+        generateRequests(
+          {
+            status: RequestStatus.READY,
+          },
+          3
+        ),
+        generateRequests(
+          {
+            status: RequestStatus.PENDING,
+          },
+          3
+        ),
+      ].flat()
 
-    await requestRepository.createRequests(requests)
+      await requestRepository.createRequests(requests)
 
-    const createdRequests = await getAllRequests(connection)
-    expect(requests.length).toEqual(createdRequests.length)
+      const createdRequests = await getAllRequests(connection)
+      expect(requests.length).toEqual(createdRequests.length)
 
-    const expected = createdRequests.filter(({ status }) => status === RequestStatus.READY)
-    const received = await requestRepository.findByStatus(RequestStatus.READY)
+      const expected = createdRequests.filter(({ status }) => status === RequestStatus.READY)
+      const received = await requestRepository.findByStatus(RequestStatus.READY)
 
-    expect(received).toEqual(expected)
+      expect(received).toEqual(expected)
+    })
+  })
+
+  describe('countByStatus', () => {
+    test('return number of requests of a specified status', async () => {
+      const requests = [
+        generateRequests(
+          {
+            status: RequestStatus.READY,
+          },
+          3
+        ),
+        generateRequests(
+          {
+            status: RequestStatus.PENDING,
+          },
+          3
+        ),
+      ].flat()
+
+      await requestRepository.createRequests(requests)
+      await expect(requestRepository.countByStatus(RequestStatus.READY)).resolves.toEqual(3)
+      await expect(requestRepository.countByStatus(RequestStatus.PENDING)).resolves.toEqual(3)
+      await expect(requestRepository.countByStatus(RequestStatus.COMPLETED)).resolves.toEqual(0)
+    })
   })
 
   describe('findAndMarkReady', () => {

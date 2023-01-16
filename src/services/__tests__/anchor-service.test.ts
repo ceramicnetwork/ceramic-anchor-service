@@ -9,21 +9,21 @@ import { clearTables, createDbConnection } from '../../db-connection.js'
 import { RequestRepository } from '../../repositories/request-repository.js'
 import { IpfsService } from '../ipfs-service.js'
 import type { IIpfsService } from '../ipfs-service.type.js'
-import { AnchorRepository, TABLE_NAME } from '../../repositories/anchor-repository.js'
+import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { config, Config } from 'node-config-ts'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import {
-  MockCeramicService,
-  MockIpfsClient,
   generateRequests,
+  MockCeramicService,
   MockEventProducerService,
+  MockIpfsClient,
   randomStreamID,
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { CID } from 'multiformats/cid'
 import { Candidate } from '../../merkle/merkle-objects.js'
 import { Anchor } from '../../models/anchor.js'
-import { AnchorStatus, LogEntry, CommitType, toCID } from '@ceramicnetwork/common'
+import { AnchorStatus, CommitType, LogEntry, toCID } from '@ceramicnetwork/common'
 import cloneDeep from 'lodash.clonedeep'
 import { Utils } from '../../utils.js'
 import { PubsubMessage } from '@ceramicnetwork/core'
@@ -220,13 +220,13 @@ describe('anchor service', () => {
       ceramicService.putStream(commitId, stream)
     }
 
-    const beforePending = await requestRepository.findByStatus(RequestStatus.PENDING)
-    expect(beforePending.length).toEqual(numRequests)
+    const beforePending = await requestRepository.countByStatus(RequestStatus.PENDING)
+    expect(beforePending).toEqual(numRequests)
 
     // Should not anchor requests as there aren't at least minStreamCount requests
     await anchorService.anchorRequests()
-    const afterPending = await requestRepository.findByStatus(RequestStatus.PENDING)
-    expect(afterPending.length).toEqual(numRequests)
+    const afterPending = await requestRepository.countByStatus(RequestStatus.PENDING)
+    expect(afterPending).toEqual(numRequests)
   })
 
   test('create anchor records', async () => {
@@ -371,7 +371,7 @@ describe('anchor service', () => {
     await requestRepository.findAndMarkReady(anchorLimit)
 
     // First pass anchors half the pending requests
-    expect((await requestRepository.findByStatus(RequestStatus.READY)).length).toEqual(
+    await expect(requestRepository.countByStatus(RequestStatus.READY)).resolves.toEqual(
       anchorLimit * 2
     )
     const anchorPendingRequests = async function (requests: Request[]): Promise<void> {
@@ -432,15 +432,15 @@ describe('anchor service', () => {
 
     await requestRepository.findAndMarkReady(anchorLimit)
 
-    let requests = await requestRepository.findByStatus(RequestStatus.READY)
+    const requests = await requestRepository.findByStatus(RequestStatus.READY)
     expect(requests.length).toEqual(numRequests)
     const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
     expect(candidates.length).toEqual(numRequests)
     await anchorCandidates(candidates, anchorService, ipfsService)
 
     // All requests should have been processed
-    requests = await requestRepository.findByStatus(RequestStatus.READY)
-    expect(requests.length).toEqual(0)
+    const requestsReady = await requestRepository.countByStatus(RequestStatus.READY)
+    expect(requestsReady).toEqual(0)
   })
 
   test('filters invalid requests', async () => {
@@ -1105,8 +1105,8 @@ describe('anchor service', () => {
         anchorService.emitAnchorEventIfReady(),
       ])
 
-      const updatedRequests = await requestRepository.findByStatus(RequestStatus.READY)
-      expect(updatedRequests.length).toEqual(0)
+      const updatedRequestsCount = await requestRepository.countByStatus(RequestStatus.READY)
+      expect(updatedRequestsCount).toEqual(0)
       expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(0)
     })
   })

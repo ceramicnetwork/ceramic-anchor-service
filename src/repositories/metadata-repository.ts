@@ -3,6 +3,7 @@ import { MetadataInput, StoredMetadata } from '../models/metadata.js'
 import { ThrowDecoder } from '../ancillary/throw-decoder.js'
 import type { StreamID } from '@ceramicnetwork/streamid'
 import * as te from '../ancillary/io-ts-extra.js'
+import { parseCountResult } from './parse-count-result.util.js'
 
 /**
  * Public interface for MetadataRepository.
@@ -24,13 +25,6 @@ export interface IMetadataRepository {
    * Mark an entry as used `now`. Return true if touched, i.e. if the entry was in the database.
    */
   touch(streamId: StreamID, now?: Date): Promise<boolean>
-}
-
-/**
- * Parse result of Knex `count` query.
- */
-function parseCountResult(count: string | number): number {
-  return parseInt(String(count), 10) // `count` could be string or number, let's be pessimistic
 }
 
 /**
