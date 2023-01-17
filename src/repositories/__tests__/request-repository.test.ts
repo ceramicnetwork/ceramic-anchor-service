@@ -726,23 +726,43 @@ describe('request repository test', () => {
   })
 
   describe('batchProcessing', () => {
-    test.todo('min limit')
-    test.todo('max limit')
-    test.todo('respect request age')
-    test('update PENDING to PROCESSING', async () => {
-      const requests = await Promise.all(
-        times(3).map(() => {
+    const MIN_LIMIT = 2
+    const MAX_LIMIT = 3
+
+    function createRequests(n: number): Promise<Request[]> {
+      return Promise.all(
+        times(n).map(() => {
           return requestRepository.createOrUpdate(
             generateRequest({
-              status: RequestStatus.PENDING,
+              status: RequestStatus.READY,
             })
           )
         })
       )
-      const returned = await requestRepository.batchProcessing()
-      expect(returned.length).toEqual(requests.length)
+    }
+
+    test('respect min limit', async () => {
+      // Do not touch rows if we have less than MIN_LIMIT of them
+      await createRequests(MIN_LIMIT - 1)
+      const returned = await requestRepository.batchProcessing(MIN_LIMIT, MAX_LIMIT)
+      expect(returned).toEqual([])
+    })
+    test('respect max limit', async () => {
+      const requests = await createRequests(MAX_LIMIT * 2)
+      const returned = await requestRepository.batchProcessing(0, MAX_LIMIT)
+      expect(returned.length).toEqual(MAX_LIMIT)
+      const requestsIds = requests.map((r) => r.id)
+      expect(returned.every((r) => requestsIds.includes(r.id))).toBeTruthy()
+      expect(returned.every((r) => r.status === RequestStatus.PROCESSING)).toBeTruthy()
+    })
+    test('update READY to PROCESSING', async () => {
+      const requests = await createRequests(MAX_LIMIT)
+      const returned = await requestRepository.batchProcessing(0, MAX_LIMIT)
+      expect(returned.length).toEqual(MAX_LIMIT)
       expect(returned.map((r) => r.id).sort()).toEqual(requests.map((r) => r.id).sort())
       expect(returned.every((r) => r.status === RequestStatus.PROCESSING)).toBeTruthy()
     })
+    // FIXME
+    test.todo('respect request age')
   })
 })
