@@ -173,12 +173,13 @@ export class AnchorService {
    */
   // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
   async anchorRequests(): Promise<void> {
-    const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
-
-    if (readyRequestsCount === 0) {
-      // Pull in twice as many streams as we want to anchor, since some of those streams may fail to load.
-      await this.requestRepository.findAndMarkReady(this.maxStreamLimit * 2, this.minStreamLimit)
-    }
+    // FIXME PREV
+    // const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
+    //
+    // if (readyRequestsCount === 0) {
+    //   // Pull in twice as many streams as we want to anchor, since some of those streams may fail to load.
+    //   await this.requestRepository.findAndMarkReady(this.maxStreamLimit * 2, this.minStreamLimit)
+    // }
 
     return this.anchorReadyRequests()
   }
@@ -189,7 +190,12 @@ export class AnchorService {
   async anchorReadyRequests(): Promise<void> {
     logger.imp('Anchoring ready requests...')
     logger.debug(`Loading requests from the database`)
-    const requests: Request[] = await this.requestRepository.findAndMarkAsProcessing()
+    // FIXME PREV
+    // const requests: Request[] = await this.requestRepository.findAndMarkAsProcessing()
+    const requests = await this.requestRepository.batchProcessing(
+      this.minStreamLimit,
+      this.maxStreamLimit
+    )
     await this._anchorRequests(requests)
 
     // Sleep 5 seconds before exiting the process to give time for the logs to flush.

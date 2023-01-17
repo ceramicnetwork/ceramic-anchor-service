@@ -585,10 +585,23 @@ export class RequestRepository {
     return this.findRequestsToAnchor(now).whereIn('streamId', streamIds).orderBy('createdAt', 'asc')
   }
 
-  async batchProcessing(): Promise<Array<Request>> {
+  async batchProcessing(minStreamLimit: number, maxStreamLimit: number): Promise<Array<Request>> {
+    let whereInSubQuery = this.table.select('id').where({ status: RequestStatus.READY })
+    if (maxStreamLimit > 0) whereInSubQuery = whereInSubQuery.limit(maxStreamLimit)
+
     const returned = await this.table
-      .where({ status: RequestStatus.PENDING })
       .update({ status: RequestStatus.PROCESSING })
+      .whereIn(
+        // current status == PENDING and we get `maxStreamLimit` at most
+        'id',
+        whereInSubQuery
+      )
+      .andWhere(
+        // if number of PENDING rows is less then `minStreamLimit`, do not update
+        minStreamLimit,
+        '<=',
+        this.table.count('id').where({ status: RequestStatus.READY })
+      )
       .returning(DATABASE_FIELDS)
     return returned.map((r) => new Request(r))
   }
