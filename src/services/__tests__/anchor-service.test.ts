@@ -190,7 +190,7 @@ describe('anchor service', () => {
       const request = new Request()
       request.cid = cid.toString()
       request.streamId = streamId.toString()
-      request.status = RequestStatus.PENDING
+      request.status = RequestStatus.READY
       request.message = 'Request is pending.'
 
       requests.push(request)
@@ -204,7 +204,7 @@ describe('anchor service', () => {
 
     for (const req of requests) {
       const retrievedRequest = await requestRepository.findByCid(CID.parse(req.cid))
-      expect(retrievedRequest).toHaveProperty('status', RequestStatus.PENDING)
+      expect(retrievedRequest).toHaveProperty('status', RequestStatus.PENDING) // FIXME Should be READY again??
     }
   })
 
