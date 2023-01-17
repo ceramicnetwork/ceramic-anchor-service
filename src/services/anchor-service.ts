@@ -391,13 +391,19 @@ export class AnchorService {
    */
   async _createIPFSProof(tx: Transaction, merkleRootCid: CID): Promise<CID> {
     const txHashCid = Utils.convertEthHashToCid(tx.txHash.slice(2))
-    const ipfsAnchorProof = {
-      blockNumber: tx.blockNumber,
-      blockTimestamp: tx.blockTimestamp,
+    let ipfsAnchorProof = {
       root: merkleRootCid,
       chainId: tx.chain,
       txHash: txHashCid,
     } as any
+
+    if (this.config.includeBlockInfoInAnchorProof) {
+      ipfsAnchorProof = {
+        blockNumber: tx.blockNumber,
+        blockTimestamp: tx.blockTimestamp,
+        ...ipfsAnchorProof,
+      }
+    }
 
     if (this.config.useSmartContractAnchors) ipfsAnchorProof.txType = CONTRACT_TX_TYPE
 
