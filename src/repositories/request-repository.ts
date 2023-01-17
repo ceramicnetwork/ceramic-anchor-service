@@ -585,6 +585,12 @@ export class RequestRepository {
     return this.findRequestsToAnchor(now).whereIn('streamId', streamIds).orderBy('createdAt', 'asc')
   }
 
+  /**
+   * Mark requests in READY state as PROCESSING and return them.
+   * @param minStreamLimit - If found less than `minStreamLimit` requests, do nothing.
+   * @param maxStreamLimit - Get up to `maxStreamLimit` entries. `0` means there is no upper limit.
+   * @return Requests with PROCESSING status.
+   */
   async batchProcessing(minStreamLimit: number, maxStreamLimit: number): Promise<Array<Request>> {
     let whereInSubQuery = this.table.select('id').where({ status: RequestStatus.READY })
     if (maxStreamLimit > 0) whereInSubQuery = whereInSubQuery.limit(maxStreamLimit)
