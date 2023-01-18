@@ -4,19 +4,24 @@ import { VerifyJWSResult } from 'dids'
 import { Joi } from 'express-validation'
 import { DynamoDB } from '../services/aws/dynamodb.js'
 import { DIDStatus } from '../services/db.js'
-import { parseSignature } from '../utils/did.js'
+import { didRegex, parseSignature } from '../utils/did.js'
 import { generatePolicy } from '../utils/iam.js'
-import { authBearerValidation } from '../validators/did.js'
+import { authBearerValidation, nonceValidation } from '../validators/did.js'
 
-const schema = Joi.object({
+const authSchema = Joi.object({
   authorization: authBearerValidation.optional()
+})
+
+const allowRegisteredDIDSchema = Joi.object({
+  did: Joi.string().regex(didRegex).required(),
+  nonce: nonceValidation.required()
 })
 
 export const handler = async (event: APIGatewayRequestAuthorizerEvent, context, callback) => {
   console.log(event)
   console.log(context)
 
-  const { error, value } = schema.validate({ authorization: event.headers?.Authorization });
+  const { error, value } = authSchema.validate({ authorization: event.headers?.Authorization });
   if (error) {
     console.error(error)
     return callback('Unauthorized')
@@ -66,25 +71,22 @@ async function allowRegisteredDID(event: APIGatewayRequestAuthorizerEvent, callb
 
   if (result) {
     const did = result.didResolutionResult.didDocument?.id
+    const nonce = result.payload?.nonce
     if (!did) {
       console.error('Missing did')
+    } else if (!nonce) {
+      console.error('Missing nonce')
     } else {
-      const createTableIfNotExists = false
-      const db = new DynamoDB(createTableIfNotExists)
-      const data = await db.getDIDRegistration(did, DIDStatus.Active)
-      if (data && result.payload) {
-        if (result.payload.nonce > data.nonce) {
-          const success = await db.updateNonce(did, data.nonce)
-          if (!success) {
-            console.error('Failed to update nonce')
-          } else {
-            return callback(null, generatePolicy(did, {effect: 'Allow', resource: event.methodArn}, did))
-          }
-        } else {
-          console.error(`Nonce (${result.payload.nonce}) is too small`)
-        }
+      const { error, value } = allowRegisteredDIDSchema.validate({ did, nonce });
+      if (error) {
+        console.error(error.details)
       } else {
-        console.error('Missing data or payload')
+        const createTableIfNotExists = false
+        const db = new DynamoDB(createTableIfNotExists)
+        const data = await db.addNonce(did, result.payload?.nonce)
+        if (data.did == did && data.nonce == nonce) {
+          return callback(null, generatePolicy(did, {effect: 'Allow', resource: event.methodArn}, did))
+        }
       }
     }
   }
