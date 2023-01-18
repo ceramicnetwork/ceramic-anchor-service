@@ -34,9 +34,9 @@ import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
-import { MerkleTreeFactory } from '../merkle/merkle-tree-factory'
+import { MerkleTreeFactory } from '../merkle/merkle-tree-factory.js'
 import { SyncOptions } from '@ceramicnetwork/common'
-import { IMetadataRepository } from '../repositories/metadata-repository'
+import type { IMetadataRepository } from '../repositories/metadata-repository.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
