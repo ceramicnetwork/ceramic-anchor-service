@@ -35,8 +35,8 @@ import {
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
-import { MerkleTreeFactory } from '../merkle/merkle-tree-factory'
-import { IMetadataRepository } from '../repositories/metadata-repository'
+import { MerkleTreeFactory } from '../merkle/merkle-tree-factory.js'
+import type { IMetadataRepository } from '../repositories/metadata-repository.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
