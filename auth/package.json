@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "deploy": "./node_modules/.bin/serverless deploy",
+    "start": "TESTING=false ENABLE_REGISTRATION=true ./node_modules/.bin/serverless offline",
+    "admin:build-credentials": "node ./scripts/build-credentials.js",
+    "deploy": "TESTING=false ENABLE_REGISTRATION=true ./node_modules/.bin/serverless deploy",
+    "deploy:disable-registration": "TESTING=false ENABLE_REGISTRATION=false ./node_modules/.bin/serverless deploy",
     "test": "NODE_OPTIONS=--experimental-vm-modules npx jest"
   },
   "author": "",

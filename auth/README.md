@@ -18,7 +18,7 @@ docker run -p 8000:8000 amazon/dynamodb-local
 ```
 1. Run serverless offline
 ```sh
-sls offline
+pnpm run start
 ```
 
 ## Testing
@@ -27,7 +27,7 @@ Add the testing env var to run integration tests
 ```sh
 TESTING=true sls offline
 # in another terminal
-npm run test -- integration
+pnpm run test -- integration
 ```
 
 
@@ -35,7 +35,15 @@ npm run test -- integration
 
 ```shell
 curl --request POST \
-  --url <<endpoint>> \
+  --url <endpoint> \
   --header 'Content-Type: application/json' \
   --data '{}'
+```
+
+Request OTP
+```sh
+curl --request POST \
+  --url https://cas-dev.3boxlabs.com/api/v0/auth/verification \
+  --header 'Content-Type: application/json' \
+  --data '{"email": "<email>"}'
 ```

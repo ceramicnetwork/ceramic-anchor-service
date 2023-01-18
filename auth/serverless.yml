@@ -35,6 +35,18 @@ provider:
         - Effect: Allow
           Action: 'ec2:DescribeSecurityGroups'
           Resource: '*'
+          iamRoleStatements:
+        - Effect: Allow
+          Action:
+            - dynamodb:*
+          Resource:
+            - ${construct:didDb.tableArn}
+            - ${construct:otpDb.tableArn}
+        - Effect: Allow
+          Action:
+            - ses:SendEmail
+          Resource:
+            - 'arn:aws:ses:::identity/3boxlabs.com'
 
 constructs:
   didDb:
@@ -54,6 +66,7 @@ functions:
     environment:
       DB_DID_TABLE_NAME: ${construct:didDb.tableName}
       DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
+      ENABLE_REGISTRATION: ${env:ENABLE_REGISTRATION}
       TESTING: ${env:TESTING}
   authorizer:
     handler: src/authorizers/default.handler
@@ -64,7 +77,7 @@ functions:
       TESTING: ${env:TESTING}
 resources:
   Resources:
-    apiGatewayLambdaPermissions:
+    authorizerLambdaPermissions:
       Type: AWS::Lambda::Permission
       Properties:
         FunctionName:
