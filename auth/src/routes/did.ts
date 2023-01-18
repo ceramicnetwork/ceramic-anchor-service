@@ -21,20 +21,6 @@ router.post('/', validate(registerValidation), async (req: Req, res: Res) => {
 })
 
 /**
- * Get last recorded nonce
- */
-router.get('/:did/nonce', validate(getNonceValidation), async (req: Req, res: Res) => {
-  const jws = req.headers.authorization?.replace(authBearerOnlyRegex, '')
-  const valid = await checkValidSignature(req.params.did, jws || '')
-  if (!valid) throw new ClientFacingError('Invalid signature')
-  const nonce = await req.customContext.db.getNonce(req.params.did) ?? -1
-  if (nonce >= 0) {
-    return res.send({ nonce })
-  }
-  throw new ClientFacingError('Could not retrieve nonce')
-})
-
-/**
  * Revoke DID
  */
 router.patch('/:did', validate(revokeValidation), async (req: Req, res: Res) => {
