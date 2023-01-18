@@ -16,7 +16,6 @@ import {
     UpdateItemCommandInput,
     QueryCommand,
     QueryCommandInput,
-    QueryOutput,
 } from "@aws-sdk/client-dynamodb"
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb"
 import { DateTime } from 'luxon'
@@ -144,7 +143,7 @@ export class DynamoDB implements Database {
      * Otherwise returns undefined.
      * @param did DID as string
      * @param status DIDStatus
-     * @returns
+     * @returns Registration data or undefined
      */
     async getDIDRegistration(did: string, status?: DIDStatus): Promise<any | undefined> {
         try {
@@ -269,6 +268,39 @@ export class DynamoDB implements Database {
         await this.client.send(new PutItemCommand(params))
     }
 
+    /**
+     * Adds a new nonce for the did if the did is active
+     * @param did
+     * @param nonce
+     * @returns `{did, nonce}`
+     */
+    async addNonce(did: string, nonce: string): Promise<any | undefined> {
+        const activeDID = await this.getDIDRegistration(did, DIDStatus.Active)
+        if (!activeDID) return
+        const input: PutItemCommandInput = {
+            TableName: DID_TABLE_NAME,
+            Item: marshall({
+                'PK': did,
+                'SK': nonce,
+                'created_at_unix': now(),
+                'updated_at_unix': now(),
+                // TODO: add TTL if timestamp comes with the nonce
+            }),
+            ConditionExpression: 'attribute_exists(PK) AND attribute_not_exists(SK)'
+        }
+        try {
+            await this.client.send(new PutItemCommand(input))
+            return { did, nonce }
+        } catch (err) {
+            if (err instanceof ConditionalCheckFailedException) {
+                console.error('DID was not found or nonce has already been used.')
+            } else {
+                console.error(err)
+            }
+            return
+        }
+    }
+
     async registerDIDs(email: string, otp: string, dids: Array<string>): Promise<Array<any> | undefined> {
         if (!await this._checkCorrectOTP(email, otp)) return
         const shouldCheckOTPAgain = false
@@ -285,18 +317,16 @@ export class DynamoDB implements Database {
 
     async registerDID(email: string, otp: string, did: string, checkOTP: boolean = true): Promise<any | undefined> {
         if (checkOTP) {
-            if(!await this._checkCorrectOTP(email, otp)) return
+            if (!await this._checkCorrectOTP(email, otp)) return
         }
 
-        const nonce = 0
         const status = DIDStatus.Active
         const params: PutItemCommandInput = {
             TableName: DID_TABLE_NAME,
             Item: marshall({
-                'PK':  did,
-                'SK': did,
+                'PK': did,
+                'SK': INITIAL_NONCE,
                 'email': email,
-                'nonce': nonce,
                 'curr_status': status,
                 'created_at_unix': now(),
                 'updated_at_unix': now(),
@@ -306,8 +336,8 @@ export class DynamoDB implements Database {
 
         try {
             await this.client.send(new PutItemCommand(params))
-            return { email, did, nonce, status }
-        } catch(err) {
+            return { email, did, nonce: INITIAL_NONCE, status }
+        } catch (err) {
             if (err instanceof ConditionalCheckFailedException) {
                 console.error('Already registered this DID.')
             } else {
@@ -318,13 +348,13 @@ export class DynamoDB implements Database {
     }
 
     async revokeDID(email: string, otp: string, did: string): Promise<any> {
-        if(!await this._checkCorrectOTP(email, otp)) return false
+        if (!await this._checkCorrectOTP(email, otp)) return false
 
         const input: UpdateItemCommandInput = {
             TableName: DID_TABLE_NAME,
             Key: marshall({
                 'PK': did,
-                'SK': did
+                'SK': INITIAL_NONCE
             }),
             UpdateExpression: `SET curr_status=:curr_status, updated_at_unix=:updated_at_unix`,
             ConditionExpression: '(attribute_exists(PK)) AND contains(email, :email) AND NOT contains(curr_status, :curr_status)',
