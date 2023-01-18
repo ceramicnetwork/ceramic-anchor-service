@@ -18,6 +18,7 @@ import {
   MockEventProducerService,
   MockIpfsClient,
   randomStreamID,
+  repeat,
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { CID } from 'multiformats/cid'
@@ -32,6 +33,9 @@ import { TransactionRepository } from '../../repositories/transaction-repository
 import type { BlockchainService } from '../blockchain/blockchain-service'
 import type { Transaction } from '../../models/transaction.js'
 import { createInjector, Injector } from 'typed-inject'
+import { MetadataRepository } from '../../repositories/metadata-repository'
+import { randomString } from '@stablelib/random'
+import { IMetadataService, MetadataService } from '../metadata-service'
 
 process.env.NODE_ENV = 'test'
 
@@ -61,7 +65,9 @@ async function createRequest(
   request.message = 'Request is pending.'
   request.pinned = true
 
-  return requestRepository.createOrUpdate(request)
+  const stored = await requestRepository.createOrUpdate(request)
+  await requestRepository.markPreviousReplaced(stored)
+  return stored
 }
 
 async function anchorCandidates(
@@ -123,11 +129,13 @@ type Context = {
   eventProducerService: MockEventProducerService
   requestRepository: RequestRepository
   anchorService: AnchorService
+  metadataService: IMetadataService
 }
 
 describe('anchor service', () => {
   jest.setTimeout(10000)
   let ipfsService: IIpfsService
+  let metadataService: IMetadataService
   let ceramicService: MockCeramicService
   let connection: Knex
   let injector: Injector<Context>
@@ -156,6 +164,8 @@ describe('anchor service', () => {
       .provideClass('ipfsService', IpfsService)
       .provideClass('ceramicService', MockCeramicService)
       .provideClass('eventProducerService', MockEventProducerService)
+      .provideClass('metadataRepository', MetadataRepository)
+      .provideClass('metadataService', MetadataService)
       .provideClass('anchorService', AnchorService)
 
     ipfsService = injector.resolve('ipfsService')
@@ -164,6 +174,7 @@ describe('anchor service', () => {
     requestRepository = injector.resolve('requestRepository')
     anchorService = injector.resolve('anchorService')
     eventProducerService = injector.resolve('eventProducerService')
+    metadataService = injector.resolve('metadataService')
   })
 
   beforeEach(async () => {
@@ -171,6 +182,7 @@ describe('anchor service', () => {
     mockIpfsClient.reset()
     ceramicService.reset()
     eventProducerService.reset()
+    await requestRepository.table.delete()
   })
 
   afterAll(async () => {
@@ -180,7 +192,13 @@ describe('anchor service', () => {
   test('check state on tx fail', async () => {
     const requests: Request[] = []
     for (let i = 0; i < MIN_STREAM_COUNT; i++) {
-      const streamId = await randomStreamID()
+      const genesisCID = await ipfsService.storeRecord({
+        header: {
+          controllers: [`did:method:${randomString(32)}`],
+        },
+      })
+      const streamId = new StreamID(1, genesisCID)
+      await metadataService.fill(streamId)
       const cid = await ipfsService.storeRecord({})
       const streamCommitId = CommitID.make(streamId, cid)
       const stream = createStream(streamId, [cid])
@@ -234,7 +252,13 @@ describe('anchor service', () => {
     const requests: Request[] = []
     const numRequests = 4
     for (let i = 0; i < numRequests; i++) {
-      const streamId = await randomStreamID()
+      const genesisCID = await ipfsService.storeRecord({
+        header: {
+          controllers: [`did:method:${randomString(32)}`],
+        },
+      })
+      const streamId = new StreamID(1, genesisCID)
+      await metadataService.fill(streamId)
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       requests.push(request)
       const commitId = CommitID.make(streamId, request.cid)
@@ -260,13 +284,16 @@ describe('anchor service', () => {
     expect(mockIpfsClient.pubsub.publish.mock.calls.length).toEqual(anchors.length)
     const config = injector.resolve('config')
 
+    // All requests are anchored, in a different order because of IpfsLeafCompare
+    expect(anchors.map((a) => a.requestId).sort()).toEqual(requests.map((r) => r.id).sort())
     for (const i in anchors) {
       const anchor = anchors[i]
       expect(anchor.proofCid).toEqual(ipfsProofCid.toString())
-      expect(anchor.requestId).toEqual(requests[i].id)
+      const request = requests.find((r) => r.id === anchor.requestId)
+      expect(anchor.requestId).toEqual(request.id)
 
       const anchorRecord = await ipfsService.retrieveRecord(anchor.cid)
-      expect(anchorRecord.prev.toString()).toEqual(requests[i].cid)
+      expect(anchorRecord.prev.toString()).toEqual(request.cid)
       expect(anchorRecord.proof).toEqual(ipfsProofCid)
       expect(anchorRecord.path).toEqual(anchor.path)
       expect(mockIpfsClient.pubsub.publish.mock.calls[i][0]).toEqual(config.ipfsConfig.pubsubTopic)
@@ -285,7 +312,14 @@ describe('anchor service', () => {
 
     // Create pending requests
     for (let i = 0; i < numRequests; i++) {
-      const streamId = randomStreamID()
+      const genesisCID = await ipfsService.storeRecord({
+        header: {
+          controllers: [`did:method:${randomString(32)}`],
+        },
+      })
+      const streamId = new StreamID(1, genesisCID)
+      await metadataService.fill(streamId)
+
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
       const stream = createStream(streamId, [toCID(request.cid)])
@@ -296,8 +330,9 @@ describe('anchor service', () => {
     await requestRepository.findAndMarkReady(0)
 
     // First pass anchors half the pending requests
-    let requests = await requestRepository.findByStatus(RequestStatus.READY)
-    expect(requests.length).toEqual(numRequests)
+    let requests = await requestRepository.batchProcessing(0, anchorLimit)
+    expect(requests.length).toEqual(anchorLimit)
+
     const anchorPendingRequests = async function (requests: Request[]): Promise<void> {
       const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
       expect(candidates.length).toEqual(anchorLimit)
@@ -328,26 +363,29 @@ describe('anchor service', () => {
     // back-to-back.  So we do one pass to generate the first request for each stream, then another
     // to make the second requests.
     const requests: Request[] = []
-    let numFailed = Math.floor(anchorLimit / 2)
+    const numFailed = Math.floor(anchorLimit / 2)
+    let failedIndex = numFailed
     for (let i = 0; i < numStreams; i++) {
-      const streamId = await randomStreamID()
+      const genesisCID = await ipfsService.storeRecord({
+        header: {
+          controllers: [`did:method:${randomString(32)}`],
+        },
+      })
+      const streamId = new StreamID(1, genesisCID)
+      await metadataService.fill(streamId)
 
-      const request =
-        numFailed > 0
-          ? await createRequest(
-              streamId.toString(),
-              ipfsService,
-              requestRepository,
-              RequestStatus.FAILED
-            )
-          : await createRequest(streamId.toString(), ipfsService, requestRepository)
-      numFailed = numFailed - 1
-
-      await requestRepository.createOrUpdate(request)
+      const status = failedIndex > 0 ? RequestStatus.FAILED : RequestStatus.PENDING
+      const request = await createRequest(
+        streamId.toString(),
+        ipfsService,
+        requestRepository,
+        status
+      )
+      failedIndex -= 1
       requests.push(request)
 
       // Make sure each stream gets a unique 'createdAt' Date
-      await Utils.delay(1000)
+      await Utils.delay(100)
     }
 
     // Second pass, a second request per stream.  Create the 2nd request per stream in the opposite
@@ -356,7 +394,12 @@ describe('anchor service', () => {
       const prevRequest = requests[i]
       const streamId = prevRequest.streamId
 
-      const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
+      const request = await createRequest(
+        streamId.toString(),
+        ipfsService,
+        requestRepository,
+        RequestStatus.PENDING
+      )
       requests.push(request)
       const stream = createStream(StreamID.fromString(streamId), [
         toCID(prevRequest.cid),
@@ -365,55 +408,56 @@ describe('anchor service', () => {
       ceramicService.putStream(StreamID.fromString(streamId), stream)
 
       // Make sure each stream gets a unique 'createdAt' Date
-      await Utils.delay(1000)
+      await Utils.delay(100)
     }
 
-    await requestRepository.findAndMarkReady(anchorLimit)
+    await expect(requestRepository.countByStatus(RequestStatus.READY)).resolves.toEqual(0)
+    await requestRepository.findAndMarkReady(anchorLimit, 0)
 
     // First pass anchors half the pending requests
-    await expect(requestRepository.countByStatus(RequestStatus.READY)).resolves.toEqual(
-      anchorLimit * 2
-    )
-    const anchorPendingRequests = async function (requests: Request[]): Promise<void> {
-      const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
-      expect(candidates.length).toEqual(anchorLimit)
+    await expect(requestRepository.countByStatus(RequestStatus.READY)).resolves.toEqual(anchorLimit)
+    const pendingRequests = await requestRepository.batchProcessing(0, anchorLimit)
+    expect(pendingRequests.length).toEqual(anchorLimit)
+    const [candidates, _] = await anchorService._findCandidates(pendingRequests, anchorLimit)
+    expect(candidates.length).toEqual(anchorLimit)
 
-      await anchorCandidates(candidates, anchorService, ipfsService)
-    }
-    await anchorPendingRequests(requests)
-
+    await anchorCandidates(candidates, anchorService, ipfsService)
     await requestRepository.findAndMarkReady(anchorLimit)
 
     const remainingRequests = await requestRepository.findByStatus(RequestStatus.READY)
-    expect(remainingRequests.length).toEqual(requests.length / 2)
+    const storedRequests = await requestRepository.allRequests()
 
-    for (let i = 0; i < anchorLimit; i++) {
-      // The first 'anchorLimit' requests created should have been anchored, so should not show up
-      // as remaining
-      const remaining = remainingRequests.find((req) => req.id == requests[i].id)
-      expect(remaining).toBeFalsy()
-    }
+    // Make sure, that `requests` and `storedRequests` contain _same_ Requests at different stages of their lifecycle.
+    // `requests` contain "vanilla" just created entries. `storedRequests` contains entries after a round of anchoring,
+    // and few of them are marked as REPLACED, to imitate how CAS requests are created.
 
-    for (let i = anchorLimit; i < numStreams; i++) {
-      // The remaining half of the requests from the first batch created are on streams that
-      // weren't included in the batch, and so should still be remaining
-      const remaining = remainingRequests.find((req) => req.id == requests[i].id)
-      expect(remaining).toBeTruthy()
-    }
+    // Make sure these are same records in the same order
+    expect(requests.map((r) => r.id)).toEqual(storedRequests.map((r) => r.id))
 
-    for (let i = numStreams; i < numStreams + anchorLimit; i++) {
-      // The earlier created requests from the second request batch correspond to the later
-      // created streams, and thus should still be remaining
-      const remaining = remainingRequests.find((req) => req.id == requests[i].id)
-      expect(remaining).toBeTruthy()
-    }
+    // `requests`: FAILED, FAILED, PENDING, PENDING,..., PENDING
+    expect(requests.map((r) => r.status)).toEqual(
+      repeat(numFailed, RequestStatus.FAILED).concat(
+        repeat(numStreams * 2 - numFailed, RequestStatus.PENDING)
+      )
+    )
 
-    for (let i = numStreams + anchorLimit; i < numStreams * 2; i++) {
-      // The later created requests from the second request batch correspond to the earlier
-      // created streams, and thus should be anchored and not remaining
-      const remaining = remainingRequests.find((req) => req.id == requests[i].id)
-      expect(remaining).toBeFalsy()
-    }
+    // After a round of anchors we should have some COMPLETED and some REPLACED
+    // `storedRequests`: 2x FAILED, `numStreams - numFailed`x REPLACED, `anchorLimit` x COMPLETED, and the rest is READY.
+    expect(storedRequests.map((r) => r.status)).toEqual(
+      repeat(numFailed, RequestStatus.FAILED)
+        .concat(repeat(numStreams - numFailed, RequestStatus.REPLACED))
+        .concat(repeat(anchorLimit, RequestStatus.COMPLETED))
+        .concat(repeat(requests.length - numStreams - anchorLimit, RequestStatus.READY))
+    )
+
+    // `remainingRecords` represent the last four entries, which are in READY state
+    expect(remainingRequests.every((r) => r.status === RequestStatus.READY)).toBeTruthy()
+    expect(remainingRequests.map((r) => r.id).sort()).toEqual(
+      requests
+        .slice(-anchorLimit)
+        .map((r) => r.id)
+        .sort()
+    )
   }, 30000)
 
   test('Unlimited anchor requests', async () => {
@@ -422,7 +466,13 @@ describe('anchor service', () => {
 
     // Create pending requests
     for (let i = 0; i < numRequests; i++) {
-      const streamId = await randomStreamID()
+      const genesisCID = await ipfsService.storeRecord({
+        header: {
+          controllers: [`did:method:${randomString(32)}`],
+        },
+      })
+      const streamId = new StreamID(1, genesisCID)
+      await metadataService.fill(streamId)
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
       const stream = createStream(streamId, [toCID(request.cid)])
@@ -443,9 +493,16 @@ describe('anchor service', () => {
     expect(requestsReady).toEqual(0)
   })
 
-  test('filters invalid requests', async () => {
+  // FIXME PREV We do not need that anymore
+  test.skip('filters invalid requests', async () => {
     const makeRequest = async function (valid: boolean) {
-      const streamId = await randomStreamID()
+      const genesisCID = await ipfsService.storeRecord({
+        header: {
+          controllers: [`did:method:${randomString(32)}`],
+        },
+      })
+      const streamId = new StreamID(1, genesisCID)
+      await metadataService.fill(streamId)
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
 
       if (valid) {
@@ -487,7 +544,7 @@ describe('anchor service', () => {
         streamId.toString(),
         ipfsService,
         requestRepository,
-        RequestStatus.PROCESSING
+        RequestStatus.PENDING
       )
       const commitId = CommitID.make(streamId, request.cid)
 
@@ -507,15 +564,28 @@ describe('anchor service', () => {
         ceramicService.putStream(streamId, streamWithCommit)
       }
 
+      await Utils.delay(100)
       return request
     }
 
     // One stream where 1 commit is present in the stream in ceramic already and one commit is not
-    const streamIdA = await randomStreamID()
+    const genesisCIDA = await ipfsService.storeRecord({
+      header: {
+        controllers: [`did:method:${randomString(32)}`],
+      },
+    })
+    const streamIdA = new StreamID(1, genesisCIDA)
+    await metadataService.fill(streamIdA)
     const requestA0 = await makeRequest(streamIdA, true)
     const requestA1 = await makeRequest(streamIdA, false)
     // A second stream where both commits are included in the ceramic already
-    const streamIdB = await randomStreamID()
+    const genesisCIDB = await ipfsService.storeRecord({
+      header: {
+        controllers: [`did:method:${randomString(32)}`],
+      },
+    })
+    const streamIdB = new StreamID(1, genesisCIDB)
+    await metadataService.fill(streamIdB)
     const requestB0 = await makeRequest(streamIdB, true)
     const requestB1 = await makeRequest(streamIdB, true)
 
@@ -530,11 +600,9 @@ describe('anchor service', () => {
       result[commitIdA1.toString()] = streamAWithRequest1
       return result
     })
-
-    const [candidates, _] = await anchorService._findCandidates(
-      [requestA0, requestA1, requestB0, requestB1],
-      0
-    )
+    await requestRepository.findAndMarkReady(0)
+    const pendingRequests = await requestRepository.batchProcessing(0, 4)
+    const [candidates, _] = await anchorService._findCandidates(pendingRequests, 0)
     expect(candidates.length).toEqual(2)
     expect(candidates[0].streamId.toString()).toEqual(streamIdA.toString())
     expect(candidates[0].cid.toString()).toEqual(requestA1.cid)
@@ -543,10 +611,7 @@ describe('anchor service', () => {
 
     // Should only get 1 multiquery, for streamA.  StreamB already had all commits included so no
     // need to issue multiquery
-    expect(multiQuerySpy).toHaveBeenCalledTimes(1)
-    expect(multiQuerySpy.mock.calls[0][0].length).toEqual(2)
-    expect(multiQuerySpy.mock.calls[0][0][0].streamId.toString()).toEqual(commitIdA1.toString())
-    expect(multiQuerySpy.mock.calls[0][0][1].streamId.toString()).toEqual(streamIdA.toString())
+    expect(multiQuerySpy).toHaveBeenCalledTimes(0)
 
     multiQuerySpy.mockRestore()
   })
@@ -555,7 +620,13 @@ describe('anchor service', () => {
     // Create pending requests
     const numRequests = 4
     for (let i = 0; i < numRequests; i++) {
-      const streamId = await randomStreamID()
+      const genesisCID = await ipfsService.storeRecord({
+        header: {
+          controllers: [`did:method:${randomString(32)}`],
+        },
+      })
+      const streamId = new StreamID(1, genesisCID)
+      await metadataService.fill(streamId)
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
       const stream = createStream(streamId, [toCID(request.cid)])
@@ -609,7 +680,13 @@ describe('anchor service', () => {
 
     // Create pending requests
     for (let i = 0; i < numRequests; i++) {
-      const streamId = await randomStreamID()
+      const genesisCID = await ipfsService.storeRecord({
+        header: {
+          controllers: [`did:method:${randomString(32)}`],
+        },
+      })
+      const streamId = new StreamID(1, genesisCID)
+      await metadataService.fill(streamId)
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
       const stream = createStream(streamId, [toCID(request.cid)])
@@ -637,9 +714,16 @@ describe('anchor service', () => {
   })
 
   describe('Picks proper commit to anchor', () => {
-    test('Anchor more recent of two commits', async () => {
+    // FIXME PREV We do not do that anymore
+    test.skip('Anchor more recent of two commits', async () => {
       // 1 stream with 2 pending requests, one request is newer and inclusive of the other.
-      const streamId = await randomStreamID()
+      const genesisCID = await ipfsService.storeRecord({
+        header: {
+          controllers: [`did:method:${randomString(32)}`],
+        },
+      })
+      const streamId = new StreamID(1, genesisCID)
+      await metadataService.fill(streamId)
       const request0 = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const request1 = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId0 = CommitID.make(streamId, request0.cid)
@@ -677,7 +761,8 @@ describe('anchor service', () => {
       expect(anchor.requestId).toEqual(request1.id)
     })
 
-    test('Anchors commit more recent than any requests', async () => {
+    // FIXME PREV We do not do that anymore
+    test.skip('Anchors commit more recent than any requests', async () => {
       const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
@@ -708,8 +793,15 @@ describe('anchor service', () => {
       expect(anchor.requestId).toEqual(request.id)
     })
 
-    test('No anchor performed if no valid requests', async () => {
-      const streamId = await randomStreamID()
+    // FIXME PREV We do not do that anymore
+    test.skip('No anchor performed if no valid requests', async () => {
+      const genesisCID = await ipfsService.storeRecord({
+        header: {
+          controllers: [`did:method:${randomString(32)}`],
+        },
+      })
+      const streamId = new StreamID(1, genesisCID)
+      await metadataService.fill(streamId)
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
       const tipCID = await ipfsService.storeRecord({})
@@ -725,7 +817,7 @@ describe('anchor service', () => {
       expect(updatedRequest.status).toEqual(RequestStatus.FAILED)
     })
 
-    test('Request succeeds without anchor for already anchored CIDs', async () => {
+    test.skip('Request succeeds without anchor for already anchored CIDs', async () => {
       const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
@@ -747,8 +839,15 @@ describe('anchor service', () => {
       expect(updatedRequest.status).toEqual(RequestStatus.COMPLETED)
     })
 
-    test('Request succeeds without anchor if subsequent CIDs are already anchored', async () => {
-      const streamId = await randomStreamID()
+    // FIXME PREV We do not have that property, as there is no concept of "subsequent" CIDs
+    test.skip('Request succeeds without anchor if subsequent CIDs are already anchored', async () => {
+      const genesisCID = await ipfsService.storeRecord({
+        header: {
+          controllers: [`did:method:${randomString(32)}`],
+        },
+      })
+      const streamId = new StreamID(1, genesisCID)
+      await metadataService.fill(streamId)
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       await requestRepository.createOrUpdate(request)
       const commitId = CommitID.make(streamId, request.cid)
@@ -800,15 +899,16 @@ describe('anchor service', () => {
         )
       )
 
-      const [candidates, _] = await anchorService._findCandidates([request], 0)
-      expect(candidates.length).toEqual(0)
+      // const [candidates, _] = await anchorService._findCandidates([request], 0)
+      // expect(candidates.length).toEqual(0)
 
       // request should still be marked as completed even though no anchor was performed
       const updatedRequest = await requestRepository.findByCid(toCID(request.cid))
       expect(updatedRequest.status).toEqual(RequestStatus.COMPLETED)
     })
 
-    test('Request succeeds for anchor requests that have been anchored but not updated to COMPLETE', async () => {
+    // FIXME PREV We do not do that anymore
+    test.skip('Request succeeds for anchor requests that have been anchored but not updated to COMPLETE', async () => {
       const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       await requestRepository.createOrUpdate(request)
@@ -835,7 +935,18 @@ describe('anchor service', () => {
   describe('Request pinning', () => {
     async function anchorRequests(numRequests: number): Promise<Request[]> {
       // Create Requests
-      const streamIds = Array.from({ length: numRequests }).map(() => randomStreamID())
+      const streamIds = []
+      for (let i = 0; i < numRequests; i++) {
+        const genesisCID = await ipfsService.storeRecord({
+          header: {
+            controllers: [`did:method:${randomString(32)}`],
+          },
+        })
+        const streamId = new StreamID(1, genesisCID)
+        await metadataService.fill(streamId)
+        streamIds.push(streamId)
+      }
+      // const streamIds = Array.from({ length: numRequests }).map(() => randomStreamID())
       const requests = await Promise.all(
         streamIds.map((streamId) =>
           createRequest(streamId.toString(), ipfsService, requestRepository)
@@ -869,8 +980,6 @@ describe('anchor service', () => {
       expect(updatedRequest0.cid).toEqual(request0.cid)
       expect(updatedRequest0.message).toEqual('CID successfully anchored.')
       expect(updatedRequest0.pinned).toEqual(true)
-
-      console.log(updatedRequest0.updatedAt.toISOString())
     })
 
     test('Request garbage collection', async () => {

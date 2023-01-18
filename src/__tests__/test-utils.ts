@@ -216,6 +216,13 @@ export function times(n: number): Array<number> {
 }
 
 /**
+ * Create an array of length `n` filled with values `value`.
+ */
+export function repeat<T>(n: number, value: T): Array<T> {
+  return Array.from<T>({ length: n }).fill(value)
+}
+
+/**
  * Return true if `a` and `b` are close within `delta` %.
  * Absolute difference between `a` and `b` should be less or equal to `delta * a` and `delta * b`.
  *

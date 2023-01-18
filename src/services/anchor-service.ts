@@ -36,6 +36,7 @@ import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import { MerkleTreeFactory } from '../merkle/merkle-tree-factory'
+import { IMetadataRepository } from '../repositories/metadata-repository'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
@@ -118,6 +119,7 @@ export class AnchorService {
     'anchorRepository',
     'dbConnection',
     'eventProducerService',
+    'metadataRepository',
   ] as const
 
   constructor(
@@ -129,7 +131,8 @@ export class AnchorService {
     private readonly ceramicService: CeramicService,
     private readonly anchorRepository: IAnchorRepository,
     private readonly connection: Knex,
-    private readonly eventProducerService: EventProducerService
+    private readonly eventProducerService: EventProducerService,
+    private readonly metadataRepository: IMetadataRepository
   ) {
     this.merkleDepthLimit = config.merkleDepthLimit
     this.useSmartContractAnchors = config.useSmartContractAnchors
@@ -364,6 +367,7 @@ export class AnchorService {
     try {
       return await this.merkleTreeFactory.build(candidates)
     } catch (e) {
+      console.error(e)
       throw new Error('Merkle tree cannot be created: ' + e.toString())
     }
   }
@@ -607,15 +611,18 @@ export class AnchorService {
     candidateLimit: number
   ): Promise<[Candidate[], RequestGroups]> {
     logger.debug(`Grouping requests by stream`)
-    const candidates = AnchorService._buildCandidates(requests)
+    const candidates = await this._buildCandidates(requests)
 
     logger.debug(`Loading candidate streams`)
+    // FIXME PREV
     const groupedRequests = await this._loadCandidateStreams(candidates, candidateLimit)
-    await this._updateNonSelectedRequests(groupedRequests)
+    // await this._updateNonSelectedRequests(groupedRequests)
 
-    const candidatesToAnchor = candidates.filter((candidate) => {
-      return candidate.shouldAnchor()
-    })
+    // FIXME PREV
+    // const candidatesToAnchor = candidates.filter((candidate) => {
+    //   return candidate.shouldAnchor()
+    // })
+    const candidatesToAnchor = candidates
 
     if (candidatesToAnchor.length > 0) {
       for (const candidate of candidates) {
@@ -630,22 +637,28 @@ export class AnchorService {
    * Groups requests on the same StreamID into single Candidate objects.
    * @param requests
    */
-  static _buildCandidates(requests: Request[]): Candidate[] {
-    const requestsByStream: Map<string, Request[]> = new Map()
-
-    for (const request of requests) {
-      let streamRequests = requestsByStream.get(request.streamId)
-      if (!streamRequests) {
-        streamRequests = []
-        requestsByStream.set(request.streamId, streamRequests)
-      }
-
-      streamRequests.push(request)
+  async _buildCandidates(requests: Request[]): Promise<Array<Candidate>> {
+    // FIXME PREV We do not need to do conflict resolution here. We do conflict resolution by time when a request gets submitted.
+    // const requestsByStream: Map<string, Request[]> = new Map()
+    //
+    // for (const request of requests) {
+    //   let streamRequests = requestsByStream.get(request.streamId)
+    //   if (!streamRequests) {
+    //     streamRequests = []
+    //     requestsByStream.set(request.streamId, streamRequests)
+    //   }
+    //
+    //   streamRequests.push(request)
+    // }
+    //
+    // const candidates = Array.from(requestsByStream).map(([streamId, requests]) => {
+    //   return new Candidate(StreamID.fromString(streamId), requests)
+    // })
+    const candidates = requests.map((r) => new Candidate(StreamID.fromString(r.streamId), [r]))
+    for (const candidate of candidates) {
+      const metadata = await this.metadataRepository.retrieve(candidate.streamId) // TODO Move to service, make it throw when not found
+      candidate.setMetadata(metadata.metadata)
     }
-
-    const candidates = Array.from(requestsByStream).map(([streamId, requests]) => {
-      return new Candidate(StreamID.fromString(streamId), requests)
-    })
     // Make sure we process candidate streams in order of their earliest request.
     candidates.sort((candidate0, candidate1) => {
       return Math.sign(
@@ -688,7 +701,8 @@ export class AnchorService {
         continue
       }
 
-      await AnchorService._loadCandidate(candidate, this.ceramicService)
+      // FIXME PREV Do not need to load from Ceramic
+      // await AnchorService._loadCandidate(candidate, this.ceramicService)
 
       // anchor commit may already exist so check first
       const existingAnchorCommit = candidate.shouldAnchor()

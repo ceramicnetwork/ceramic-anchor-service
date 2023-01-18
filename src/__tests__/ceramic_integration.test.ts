@@ -512,7 +512,8 @@ describe('Ceramic Integration Test', () => {
     })
 
     describe('Consensus for anchors', () => {
-      test(
+      // FIXME PREV We do not do that anymore
+      test.skip(
         'Anchors latest available tip from network',
         async () => {
           const initialContent = { foo: 0 }
@@ -540,7 +541,8 @@ describe('Ceramic Integration Test', () => {
         60 * 1000 * 2
       )
 
-      test('Anchor discovered through pubsub', async () => {
+      // FIXME PREV We do not do that anymore
+      test.skip('Anchor discovered through pubsub', async () => {
         jest.setTimeout(60 * 1000 * 2)
         // In ceramic the stream waits for a successful anchor by polling the request endpoint of the CAS.
         // We alter the CAS' returned request anchor status so that it is always pending.

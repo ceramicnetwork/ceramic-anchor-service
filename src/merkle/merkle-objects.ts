@@ -10,6 +10,7 @@ import type { IIpfsService } from '../services/ipfs-service.type.js'
 
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { StreamID } from '@ceramicnetwork/streamid'
+import { GenesisFields } from '../models/metadata'
 
 const packageJson = JSON.parse(
   fs.readFileSync(
@@ -36,7 +37,7 @@ export class Candidate implements CIDHolder {
   private readonly _earliestRequestDate: Date
 
   private _cid: CID = null
-  private _metadata: StreamMetadata
+  private _metadata: GenesisFields
   private _acceptedRequests: Request[] = []
   private _failedRequests: Request[] = []
   private _rejectedRequests: Request[] = []
@@ -44,6 +45,10 @@ export class Candidate implements CIDHolder {
   private _alreadyAnchored = false
 
   constructor(readonly streamId: StreamID, readonly requests: Request[]) {
+    // FIXME MOD
+    this._cid = CID.parse(requests[0].cid)
+    this._acceptedRequests = requests
+
     let minDate = requests[0].createdAt
     for (const req of requests.slice(1)) {
       if (req.createdAt < minDate) {
@@ -57,7 +62,7 @@ export class Candidate implements CIDHolder {
     return this._cid
   }
 
-  get metadata(): StreamMetadata {
+  get metadata(): GenesisFields {
     return this._metadata
   }
 
@@ -97,7 +102,8 @@ export class Candidate implements CIDHolder {
    * anchored for this stream.
    */
   get newestAcceptedRequest(): Request {
-    return this._newestAcceptedRequest
+    // FIXME MOD Woah, that's not true.
+    return this._acceptedRequests[0]
   }
 
   /**
@@ -134,6 +140,16 @@ export class Candidate implements CIDHolder {
     return this.cid != null && this._acceptedRequests.length > 0 && !this._alreadyAnchored
   }
 
+  setMetadata(genesisFields: GenesisFields) {
+    this._metadata = genesisFields
+  }
+
+  get model(): StreamID | undefined {
+    if (this._metadata.model) {
+      return StreamID.fromBytes(this._metadata.model)
+    }
+  }
+
   /**
    * Given the current version of the stream, updates this.cid to include the appropriate tip to
    * anchor.  Note that the CID selected may be the cid corresponding to any of the pending anchor
@@ -143,48 +159,51 @@ export class Candidate implements CIDHolder {
    * resolution.
    * @param stream
    */
+  // FIXME PREV TODO Do we need that??
   setTipToAnchor(stream: Stream): void {
-    if (stream.state.anchorStatus == AnchorStatus.ANCHORED) {
-      this._alreadyAnchored = true
-    } else {
-      this._cid = stream.tip
-      this._metadata = stream.state.next?.metadata
-        ? stream.state.next.metadata
-        : stream.state.metadata
-    }
-
-    // Check the log of the Stream that was loaded from Ceramic to see which of the pending requests
-    // are for CIDs that are included in the current version of the Stream's log.
-    const includedRequests = this.requests.filter((req) => {
-      return stream.state.log.find((logEntry) => {
-        return logEntry.cid.toString() == req.cid
-      })
-    })
-    // Any requests whose CIDs don't show up in the Stream's log must have been rejected by Ceramic's
-    // conflict resolution.
-    const rejectedRequests = this.requests.filter((req) => {
-      return !includedRequests.includes(req)
-    })
-
-    this._acceptedRequests = includedRequests
-    this._rejectedRequests = rejectedRequests
-
-    // Pick which request to put in the anchor database entry for the anchor that will result
-    // from anchoring this Candidate Stream. If there are any anchor commits that are after the
-    // newest request, the candidate has already been anchored.
-    for (const logEntry of stream.state.log.reverse()) {
-      if (logEntry.type === CommitType.ANCHOR) {
-        this._alreadyAnchored = true
-        return
-      }
-
-      const newestRequest = includedRequests.find((req) => req.cid == logEntry.cid.toString())
-
-      if (newestRequest) {
-        this._newestAcceptedRequest = newestRequest
-        return
-      }
-    }
+    return
+    // FIXME PREV
+    // if (stream.state.anchorStatus == AnchorStatus.ANCHORED) {
+    //   this._alreadyAnchored = true
+    // } else {
+    //   this._cid = stream.tip
+    //   this._metadata = stream.state.next?.metadata
+    //     ? stream.state.next.metadata
+    //     : stream.state.metadata
+    // }
+    //
+    // // Check the log of the Stream that was loaded from Ceramic to see which of the pending requests
+    // // are for CIDs that are included in the current version of the Stream's log.
+    // const includedRequests = this.requests.filter((req) => {
+    //   return stream.state.log.find((logEntry) => {
+    //     return logEntry.cid.toString() == req.cid
+    //   })
+    // })
+    // // Any requests whose CIDs don't show up in the Stream's log must have been rejected by Ceramic's
+    // // conflict resolution.
+    // const rejectedRequests = this.requests.filter((req) => {
+    //   return !includedRequests.includes(req)
+    // })
+    //
+    // this._acceptedRequests = includedRequests
+    // this._rejectedRequests = rejectedRequests
+    //
+    // // Pick which request to put in the anchor database entry for the anchor that will result
+    // // from anchoring this Candidate Stream. If there are any anchor commits that are after the
+    // // newest request, the candidate has already been anchored.
+    // for (const logEntry of stream.state.log.reverse()) {
+    //   if (logEntry.type === CommitType.ANCHOR) {
+    //     this._alreadyAnchored = true
+    //     return
+    //   }
+    //
+    //   const newestRequest = includedRequests.find((req) => req.cid == logEntry.cid.toString())
+    //
+    //   if (newestRequest) {
+    //     this._newestAcceptedRequest = newestRequest
+    //     return
+    //   }
+    // }
   }
 
   markAsAnchored(): void {
@@ -222,8 +241,8 @@ export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
 export class IpfsLeafCompare implements CompareFunction<Candidate> {
   compare(left: Node<Candidate>, right: Node<Candidate>): number {
     // Sort by model first
-    const leftModel = left.data.metadata.model?.toString()
-    const rightModel = right.data.metadata.model?.toString()
+    const leftModel = left.data.model?.toString()
+    const rightModel = right.data.model?.toString()
     if (leftModel !== rightModel) {
       if (leftModel != null) {
         return rightModel == null
@@ -258,7 +277,7 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
       streamIds.push(candidate.streamId.toString())
       bloomFilterEntries.add(`streamid-${candidate.streamId.toString()}`)
       if (candidate.metadata.model) {
-        bloomFilterEntries.add(`model-${candidate.metadata.model.toString()}`)
+        bloomFilterEntries.add(`model-${candidate.model.toString()}`)
       }
       for (const controller of candidate.metadata.controllers) {
         bloomFilterEntries.add(`controller-${controller}`)

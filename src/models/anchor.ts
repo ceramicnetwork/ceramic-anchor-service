@@ -1,6 +1,6 @@
 export class Anchor {
   id: number
-  requestId: number
+  requestId: string
   path: string
   cid: string
   proofCid: string
