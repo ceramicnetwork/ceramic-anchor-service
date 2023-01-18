@@ -5,8 +5,8 @@ import { Config } from 'node-config-ts'
 import type { Knex } from 'knex'
 import { logger } from './logger/index.js'
 import { CeramicAnchorServer } from './server.js'
-import { IpfsServiceImpl } from './services/ipfs-service.js'
-import type { IpfsService } from './services/ipfs-service.js'
+import { IpfsService } from './services/ipfs-service.js'
+import type { IIpfsService } from './services/ipfs-service.type.js'
 import { AnchorService } from './services/anchor-service.js'
 import { SchedulerService } from './services/scheduler-service.js'
 import { BlockchainService } from './services/blockchain/blockchain-service.js'
@@ -21,7 +21,10 @@ import { AnchorController } from './controllers/anchor-controller.js'
 import { RequestController } from './controllers/request-controller.js'
 import { ServiceInfoController } from './controllers/service-info-controller.js'
 import { EthereumBlockchainService } from './services/blockchain/ethereum/ethereum-blockchain-service.js'
-import { ServiceMetrics as Metrics, DEFAULT_TRACE_SAMPLE_RATIO } from '@ceramicnetwork/observability'
+import {
+  ServiceMetrics as Metrics,
+  DEFAULT_TRACE_SAMPLE_RATIO,
+} from '@ceramicnetwork/observability'
 import { version } from './version.js'
 import { cleanupConfigForLogging, normalizeConfig } from './normalize-config.util.js'
 import type { Injector } from 'typed-inject'
@@ -40,7 +43,7 @@ type ProvidedContext = {
   blockchainService: BlockchainService
   eventProducerService: EventProducerService
   ceramicService: CeramicService
-  ipfsService: IpfsService
+  ipfsService: IIpfsService
   schedulerService: SchedulerService
 } & DependenciesContext
 
@@ -67,13 +70,19 @@ export class CeramicAnchorApp {
       // register services
       .provideFactory('blockchainService', EthereumBlockchainService.make)
       .provideClass('eventProducerService', HTTPEventProducerService)
-      .provideClass('ipfsService', IpfsServiceImpl)
+      .provideClass('ipfsService', IpfsService)
       .provideClass('ceramicService', CeramicServiceImpl)
       .provideClass('anchorService', AnchorService)
       .provideClass('schedulerService', SchedulerService)
 
     try {
-      Metrics.start(this.config.metrics.collectorHost, 'cas-' + this.config.mode, DEFAULT_TRACE_SAMPLE_RATIO, null, false)
+      Metrics.start(
+        this.config.metrics.collectorHost,
+        'cas-' + this.config.mode,
+        DEFAULT_TRACE_SAMPLE_RATIO,
+        null,
+        false
+      )
       Metrics.count('HELLO', 1)
       logger.imp('Metrics exporter started')
     } catch (e) {

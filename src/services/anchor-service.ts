@@ -14,10 +14,13 @@ import { AnchorRepository } from '../repositories/anchor-repository.js'
 import { RequestRepository } from '../repositories/request-repository.js'
 import { TransactionRepository } from '../repositories/transaction-repository.js'
 
-import { IpfsService } from './ipfs-service.js'
 import { EventProducerService } from './event-producer/event-producer-service.js'
 import { CeramicService } from './ceramic-service.js'
-import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '@ceramicnetwork/observability'
+import {
+  ServiceMetrics as Metrics,
+  TimeableMetric,
+  SinceField,
+} from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 import { BlockchainService } from './blockchain/blockchain-service.js'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
@@ -31,6 +34,7 @@ import {
 } from '../merkle/merkle-objects.js'
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
+import { IIpfsService } from './ipfs-service.type.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
@@ -95,9 +99,11 @@ const logAnchorSummary = async (
   )
 
   Metrics.recordObjectFields('anchorBatch', anchorSummary)
-  Metrics.recordRatio('anchorBatch_failureRatio',
-              anchorSummary.failedRequestsCount,
-              anchorSummary.anchoredRequestsCount)  
+  Metrics.recordRatio(
+    'anchorBatch_failureRatio',
+    anchorSummary.failedRequestsCount,
+    anchorSummary.anchoredRequestsCount
+  )
 
   logEvent.anchor({
     type: 'anchorRequests',
@@ -127,7 +133,7 @@ export class AnchorService {
   constructor(
     private readonly blockchainService: BlockchainService,
     private readonly config: Config,
-    private readonly ipfsService: IpfsService,
+    private readonly ipfsService: IIpfsService,
     private readonly requestRepository: RequestRepository,
     private readonly transactionRepository: TransactionRepository,
     private readonly ceramicService: CeramicService,

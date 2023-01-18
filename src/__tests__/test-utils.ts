@@ -1,14 +1,17 @@
-import { CID } from 'multiformats/cid'
-import { create } from 'multiformats/hashes/digest'
+import { jest } from '@jest/globals'
 
-import { CeramicService } from '../services/ceramic-service.js'
-import { EventProducerService } from '../services/event-producer/event-producer-service.js'
-import { IpfsService } from '../services/ipfs-service.js'
+import { CID } from 'multiformats/cid'
+
+import { create } from 'multiformats/hashes/digest'
+import type { CeramicService } from '../services/ceramic-service.js'
+import type { EventProducerService } from '../services/event-producer/event-producer-service.js'
+import type { IIpfsService, RetrieveRecordOptions } from '../services/ipfs-service.type.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
 import { randomBytes } from '@stablelib/random'
-import { jest } from '@jest/globals'
 import { Request, RequestStatus } from '../models/request.js'
+import type { AbortOptions } from '../services/abort-options.type.js'
+import { Utils } from '../utils.js'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -48,10 +51,17 @@ export class MockIpfsClient {
       get: jest.fn((cid: CID) => {
         return Promise.resolve({ value: this._streams[cid.toString()] })
       }),
-      put: jest.fn(async (record: Record<string, unknown>) => {
-        const cid = randomCID()
-        this._streams[cid.toString()] = record
-        return cid
+      put: jest.fn((record: Record<string, unknown>, abortOptions: AbortOptions = {}) => {
+        return new Promise<CID>((resolve, reject) => {
+          if (abortOptions.signal) {
+            const done = () => reject(new Error(`MockIpfsClient: Thrown on abort signal`))
+            if (abortOptions.signal?.aborted) return done()
+            abortOptions.signal?.addEventListener('abort', done)
+          }
+          const cid = randomCID()
+          this._streams[cid.toString()] = record
+          resolve(cid)
+        })
       }),
     }
 
@@ -59,17 +69,24 @@ export class MockIpfsClient {
   }
 }
 
-export class MockIpfsService implements IpfsService {
+export class MockIpfsService implements IIpfsService {
   private _streams: Record<string, any> = {}
 
   constructor() {}
 
   async init(): Promise<void> {
-    return null
+    // Do Nothing
   }
 
-  async retrieveRecord(cid: CID | string): Promise<any> {
-    return this._streams[cid.toString()]
+  async retrieveRecord<T = any>(
+    cid: CID | string,
+    options: RetrieveRecordOptions = {}
+  ): Promise<T> {
+    const found = this._streams[cid.toString()]
+    if (found) return found
+    // Wait for 30s to imitate IPFS timeout that happens when IPFS can not retrieve a record
+    await Utils.delay(30000, options.signal)
+    throw new Error(`MockIpfsService:retrieveRecord:timeout`)
   }
 
   async storeRecord(record: Record<string, unknown>): Promise<CID> {
@@ -91,7 +108,7 @@ export class MockCeramicService implements CeramicService {
   static inject = ['ipfsService'] as const
 
   constructor(
-    private _ipfsService: IpfsService,
+    private _ipfsService: IIpfsService,
     private _streams: Record<string, any> = {},
     private _cidIndex = 0
   ) {}
@@ -140,7 +157,7 @@ export class MockEventProducerService implements EventProducerService {
   }
 
   reset() {
-    this.emitAnchorEvent = jest.fn((body: string) => Promise.resolve())
+    this.emitAnchorEvent = jest.fn(() => Promise.resolve())
   }
 
   destroy(): void {}
@@ -159,6 +176,7 @@ export function generateRequest(override: Partial<Request>): Request {
   request.status = RequestStatus.PENDING
   request.createdAt = new Date(Date.now() - Math.random() * MS_IN_HOUR)
   request.updatedAt = new Date(request.createdAt.getTime())
+  request.timestamp = new Date(request.createdAt.getTime())
 
   Object.assign(request, override)
 
@@ -177,7 +195,7 @@ export function generateRequests(
   count = 1,
   varianceMS = 1000
 ): Array<Request> {
-  return Array.from({ length: count }).map((_, i) => {
+  return times(count).map((i) => {
     if (varianceMS > 0) {
       const createdAt = override.createdAt || new Date(Date.now())
       const updatedAt = override.updatedAt || new Date(createdAt.getTime())
@@ -191,4 +209,8 @@ export function generateRequests(
 
     return generateRequest(override)
   })
+}
+
+export function times(n: number): Array<number> {
+  return Array.from({ length: n }).map((_, i) => i)
 }
