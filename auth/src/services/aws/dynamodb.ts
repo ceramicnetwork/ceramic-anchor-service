@@ -168,37 +168,67 @@ export class DynamoDB implements Database {
         return
     }
 
+    /**
+     * Helper function for `createEmailVerificationCode`
+     * @param email
+     * @returns
+     */
     async _getRevokedOTPs(email: string): Promise<Item[]> {
         const expressionAttributeValues = marshall({
             ':PK': email,
             ':revoked': OTPStatus.Revoked
         })
-        const filterExpression = 'contains (curr_status, :revoked)'
+        const filterExpression = 'contains(curr_status, :revoked)'
         return await this._queryItems(OTP_TABLE_NAME, expressionAttributeValues, filterExpression)
     }
 
+    /**
+     * Helper function for `createEmailVerificationCode`
+     * @param email
+     * @returns
+     */
     async _getActiveOTPs(email: string): Promise<Item[]> {
         const expressionAttributeValues = marshall({
             ':PK': email,
             ':active': OTPStatus.Active
         })
-        const filterExpression = 'contains (curr_status, :active)'
+        const filterExpression = 'contains(curr_status, :active)'
         return await this._queryItems(OTP_TABLE_NAME, expressionAttributeValues, filterExpression)
     }
 
+    /**
+     * Helper function for `createEmailVerificationCode`
+     * @param email
+     * @returns
+     */
     _checkOTPExpired(item: Item): boolean {
         const data = unmarshall(item)
         return (data.expires_at_unix < now())
     }
 
+    /**
+     * Helper function for `createEmailVerificationCode`
+     * @param email
+     * @returns
+     */
     async _expireOTP(item: Item): Promise<void> {
         await this._updateOTP(item, OTPStatus.Expired)
     }
 
+    /**
+     * Helper function for `createEmailVerificationCode`
+     * @param email
+     * @returns
+     */
     async _revokeOTP(item: Item): Promise<void> {
         await this._updateOTP(item, OTPStatus.Revoked)
     }
 
+    /**
+     * Helper function for `createEmailVerificationCode`
+     * @param email
+     * @returns
+     */
     private async _updateOTP(item: Item, next_status: OTPStatus): Promise<void> {
         const data = unmarshall(item)
         const input: UpdateItemCommandInput = {
@@ -218,6 +248,11 @@ export class DynamoDB implements Database {
         await this.client.send(new UpdateItemCommand(input))
     }
 
+    /**
+     * Helper function for `createEmailVerificationCode`
+     * @param email
+     * @returns
+     */
     async _addOTP(email: string, otp: string): Promise<void> {
         const params: PutItemCommandInput = {
             TableName: OTP_TABLE_NAME,
