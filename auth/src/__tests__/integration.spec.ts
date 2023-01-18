@@ -37,12 +37,12 @@ describe('/did', () => {
         })
         expect(resp.status).toBe(200)
         await expect(resp.json()).resolves.toEqual([
-            {email, did: dids[0], nonce: 0, status: 'Active'}
+            {email, did: dids[0], nonce: '0', status: 'Active'}
         ])
     })
 
     test('registers multiple dids', async () => {
-        const email = 'val@3box.io'
+        const email = EMAIL_ADDRESS
         const dids = [
             randomDID(),
             randomDID(),
@@ -58,9 +58,9 @@ describe('/did', () => {
         })
         expect(resp.status).toBe(200)
         await expect(resp.json()).resolves.toEqual([
-            {email, did: dids[0], nonce: 0, status: 'Active'},
-            {email, did: dids[1], nonce: 0, status: 'Active'},
-            {email, did: dids[2], nonce: 0, status: 'Active'}
+            {email, did: dids[0], nonce: '0', status: 'Active'},
+            {email, did: dids[1], nonce: '0', status: 'Active'},
+            {email, did: dids[2], nonce: '0', status: 'Active'}
         ])
     })
 
@@ -208,10 +208,10 @@ describe('/did', () => {
     })
 })
 
-async function resetOTP(): Promise<any> {
+async function resetOTP(email: string = EMAIL_ADDRESS): Promise<any> {
     return await fetch(endpoint('/verification'), {
         method: httpMethods.POST,
-        body: JSON.stringify({email: EMAIL_ADDRESS})
+        body: JSON.stringify({email})
     })
 }
 

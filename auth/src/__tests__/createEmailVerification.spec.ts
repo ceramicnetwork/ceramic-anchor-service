@@ -1,4 +1,5 @@
 import { createEmailVerificationCode, DatabaseEmailVerification } from '../services/db'
+import { jest } from '@jest/globals'
 
 test('createEmailVerification', async () => {
     const activeOTPs: any[] = []
