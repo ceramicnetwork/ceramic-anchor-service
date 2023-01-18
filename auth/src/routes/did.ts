@@ -1,7 +1,7 @@
 import express from 'express'
 import asyncify from 'express-asyncify'
 import { validate } from 'express-validation'
-import { getNonceValidation, registerValidation, revokeValidation } from '../validators/did.js'
+import { registerValidation, revokeValidation } from '../validators/did.js'
 import { ClientFacingError } from '../utils/errorHandling.js'
 import { authBearerOnlyRegex, Req, Res } from '../utils/reqres.js'
 import { checkValidSignature } from '../utils/did.js'

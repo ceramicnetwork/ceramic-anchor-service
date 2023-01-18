@@ -4,6 +4,8 @@ import { authBearerRegex } from '../utils/reqres.js'
 
 export const authBearerValidation = Joi.string().regex(authBearerRegex)
 
+export const nonceValidation = Joi.string().uuid()
+
 export const registerValidation = {
   body: Joi.object({
     email: Joi.string()
@@ -19,17 +21,6 @@ export const registerValidation = {
       )
       .required(),
   }),
-}
-
-export const getNonceValidation = {
-    headers: Joi.object({
-        authorization: authBearerValidation.required(),
-    }).unknown(true),
-    params: Joi.object({
-        did: Joi.string()
-          .regex(didRegex)
-          .required()
-    }),
 }
 
 export const revokeValidation = {
