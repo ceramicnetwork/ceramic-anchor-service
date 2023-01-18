@@ -25,6 +25,7 @@ import { didRegex } from "../../utils/did"
 import { createEmailVerificationCode, Database, DIDStatus, OTPStatus } from "../db"
 
 const AWS_REGION = process.env.AWS_REGION ?? ''
+const INITIAL_NONCE = '0'
 
 /**
  * Returns current timestamp as unix integer
@@ -138,48 +139,14 @@ export class DynamoDB implements Database {
         }
     }
 
-    async getNonce(did: string): Promise<number | undefined> {
-        try {
-            return Number(await this._getItemAttribute(DID_TABLE_NAME, did, did, 'nonce'))
-        } catch (err) {
-            if (err instanceof ItemNotFoundError) {
-                console.error('Nonce not found. DID may not be registered.')
-            } else {
-                console.error(err)
-            }
-            return
-        }
-    }
-
-    async updateNonce(did: string, nonce: number): Promise<boolean> {
-        const input: UpdateItemCommandInput = {
-            TableName: DID_TABLE_NAME,
-            Key: marshall({
-                'PK': did,
-                'SK': did
-            }),
-            UpdateExpression: `SET nonce=:nonce, updated_at_unix=:updated_at_unix`,
-            ConditionExpression: '(attribute_exists(PK)) AND (nonce < :nonce)',
-            ExpressionAttributeValues: marshall({
-                'nonce': nonce,
-                'updated_at_unix': now(),
-            }),
-            ReturnValues: 'ALL_NEW'
-        }
-        try {
-            await this.client.send(new UpdateItemCommand(input))
-            return true
-        } catch (err) {
-            if (err instanceof ConditionalCheckFailedException) {
-                console.error('DID was not found or nonce is too small.')
-            } else {
-                console.error(err)
-            }
-            return false
-        }
-    }
-
-    async getDIDRegistration(did: string, status?: DIDStatus): Promise<any> {
+    /**
+     * If the DID is registered and has the given status, returns the item from the db.
+     * Otherwise returns undefined.
+     * @param did DID as string
+     * @param status DIDStatus
+     * @returns
+     */
+    async getDIDRegistration(did: string, status?: DIDStatus): Promise<any | undefined> {
         try {
             const data = await this._getItem(DID_TABLE_NAME, did, did)
             if (data.status != status) {
