@@ -34,7 +34,8 @@ describe('Bloom filter', () => {
       metadata,
       state: { anchorStatus: AnchorStatus.PENDING, log: [{ cid: streamID.cid }], metadata },
     }
-    const candidate = new Candidate(stream.id, [new Request()])
+    const candidate = new Candidate(stream.id, [new Request({ cid: streamID.cid.toString() })])
+    candidate.setMetadata(metadata)
     candidate.setTipToAnchor(stream as any)
     return candidate
   }
@@ -66,9 +67,10 @@ describe('Bloom filter', () => {
   })
 
   test('Single stream with model', async () => {
+    const model = randomStreamID()
     const streamMetadata = {
       controllers: ['a'],
-      model: 'model',
+      model: model.bytes,
     }
     const candidates = [createCandidate(streamMetadata)]
     const merkleTree = await buildMerkleTree(candidates)
@@ -83,23 +85,23 @@ describe('Bloom filter', () => {
     expect(bloomFilter.contains(`controller-a`)).toBeTruthy()
     expect(bloomFilter.contains(`controller-b`)).toBeFalsy()
     expect(bloomFilter.contains(`a`)).toBeFalsy()
-    expect(bloomFilter.contains(`model-model`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${model.toString()}`)).toBeTruthy()
   })
 
   test('Multiple streams with model', async () => {
     const streamMetadata0 = {
       controllers: ['a'],
-      model: 'model0',
+      model: randomStreamID().bytes,
       family: 'family0',
       tags: ['a', 'b'],
     }
     const streamMetadata1 = {
       controllers: ['a'],
-      model: 'model1',
+      model: randomStreamID().bytes,
     }
     const streamMetadata2 = {
       controllers: ['b'],
-      model: 'model2',
+      model: randomStreamID().bytes,
     }
     const candidates = [
       createCandidate(streamMetadata0),
@@ -123,9 +125,9 @@ describe('Bloom filter', () => {
     expect(bloomFilter.contains(`controller-b`)).toBeTruthy()
     expect(bloomFilter.contains(`controller-c`)).toBeFalsy()
     expect(bloomFilter.contains(`a`)).toBeFalsy()
-    expect(bloomFilter.contains(`model-model0`)).toBeTruthy()
-    expect(bloomFilter.contains(`model-model1`)).toBeTruthy()
-    expect(bloomFilter.contains(`model-model2`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${candidates[0].model.toString()}`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${candidates[1].model.toString()}`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${candidates[2].model.toString()}`)).toBeTruthy()
     expect(bloomFilter.contains(`model-model3`)).toBeFalsy()
   })
 })
@@ -134,7 +136,7 @@ describe('IpfsLeafCompare sorting', () => {
   const leaves = new IpfsLeafCompare()
 
   const mockNode = (streamId: string, metadata: any): Node<Candidate> => {
-    return { data: { streamId, metadata } } as unknown as Node<Candidate>
+    return { data: { streamId, metadata, model: metadata.model } } as unknown as Node<Candidate>
   }
 
   const node0 = mockNode('id0', { controllers: ['a'] })

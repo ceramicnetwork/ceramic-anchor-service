@@ -11,7 +11,7 @@ export enum RequestStatus {
 }
 
 export type IDBRequest = {
-  id: number
+  id: string
   status: RequestStatus
   cid: string
   streamId: string
@@ -45,7 +45,7 @@ export const DATABASE_FIELDS: Array<string> = RequestCodec.types.reduce(
 )
 
 export class Request {
-  id: number
+  id: string
   status: RequestStatus
   cid: string
   streamId: string

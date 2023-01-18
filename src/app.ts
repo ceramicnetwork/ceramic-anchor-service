@@ -87,6 +87,7 @@ export class CeramicAnchorApp {
       .provideClass('eventProducerService', HTTPEventProducerService)
       .provideClass('ipfsService', IpfsService)
       .provideClass('ceramicService', CeramicServiceImpl)
+      .provideClass('metadataRepository', MetadataRepository)
       .provideClass('anchorService', AnchorService)
       .provideClass('schedulerService', SchedulerService)
       .provideClass('requestPresentationService', RequestPresentationService)
