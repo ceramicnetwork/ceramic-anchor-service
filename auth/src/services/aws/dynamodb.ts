@@ -16,12 +16,14 @@ import {
     UpdateItemCommandInput,
     QueryCommand,
     QueryCommandInput,
+    ResourceNotFoundException,
 } from "@aws-sdk/client-dynamodb"
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb"
 import { DateTime } from 'luxon'
-import { didRegex } from "../../utils/did"
+import { didRegex } from '../../utils/did.js'
+import { now } from '../../utils/datetime.js'
 
-import { createEmailVerificationCode, Database, DIDStatus, OTPStatus } from "../db"
+import { createEmailVerificationCode, Database, DIDStatus, OTPStatus } from '../db.js'
 
 const AWS_REGION = process.env.AWS_REGION ?? ''
 const INITIAL_NONCE = '0'
@@ -30,8 +32,6 @@ const INITIAL_NONCE = '0'
  * Returns current timestamp as unix integer
  * @returns Unix timestamp
  */
-const now = (): number => { return DateTime.now().toUnixInteger() }
-
 const OTP_TABLE_NAME = process.env.IS_OFFLINE ? `cas-auth-otp-${now()}` : (process.env.DB_OTP_TABLE_NAME ?? '')
 const DID_TABLE_NAME = process.env.IS_OFFLINE ? `cas-auth-did-${now()}` : (process.env.DB_DID_TABLE_NAME ?? '')
 
@@ -70,7 +70,8 @@ export class DynamoDB implements Database {
     }
 
     private async _createTableIfNotExists(tableName: string): Promise<void> {
-        if (await this._checkTableExists(tableName)) return
+        const shouldthrow = process.env.IS_OFFLINE ? false : true
+        if (await this._checkTableExists(tableName, shouldthrow)) return
 
         const input: CreateTableCommandInput = {
             TableName: tableName,
@@ -112,6 +113,7 @@ export class DynamoDB implements Database {
             await this.client.send(new DescribeTableCommand(input))
             return true
         } catch (error) {
+            console.error(error)
             if (shouldThrow) {
                 throw error
             } else {
@@ -153,7 +155,11 @@ export class DynamoDB implements Database {
             }
             return data
         } catch (err) {
-            console.error(err)
+            if (err instanceof ResourceNotFoundException) {
+                console.error('Resource not found')
+            } else {
+                console.error(err)
+            }
         }
         return
     }
