@@ -58,4 +58,17 @@ describe('present by RequestStatus', () => {
     const presentation = await service.body(request)
     expect(presentation).toMatchSnapshot()
   })
+
+  test('COMPLETED but no associated anchor', async () => {
+    const request = generateRequest({
+      ...REQUEST_OVERRIDE,
+      status: RequestStatus.COMPLETED,
+    })
+    const findByRequestSpy = jest.spyOn(anchorRepository, 'findByRequest')
+    findByRequestSpy.mockImplementationOnce(async () => {
+      return null
+    })
+    const presentation = await service.body(request)
+    expect(presentation).toMatchSnapshot()
+  })
 })

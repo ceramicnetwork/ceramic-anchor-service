@@ -25,6 +25,18 @@ export class RequestPresentationService implements IRequestPresentationService {
     switch (request.status) {
       case RequestStatus.COMPLETED: {
         const anchor = await this.anchorRepository.findByRequest(request)
+        // TODO: This is a workaround, fix in CDB-2192
+        const anchorCommit = {
+          cid: anchor ? anchor.cid : request.cid,
+          content: {
+            // okay to be undefined because it is not used by ceramic node
+            path: anchor?.path,
+            prev: request.cid,
+            // okay to be undefined because it is not used by ceramic node
+            proof: anchor?.proofCid,
+          },
+        }
+
         return {
           id: request.id,
           status: RequestStatus[request.status],
@@ -34,23 +46,9 @@ export class RequestPresentationService implements IRequestPresentationService {
           message: request.message,
           createdAt: request.createdAt.getTime(),
           updatedAt: request.updatedAt.getTime(),
-          anchorRecord: {
-            // TODO: Remove this backwards compatibility field
-            cid: anchor.cid,
-            content: {
-              path: anchor.path,
-              prev: request.cid,
-              proof: anchor.proofCid,
-            },
-          },
-          anchorCommit: {
-            cid: anchor.cid,
-            content: {
-              path: anchor.path,
-              prev: request.cid,
-              proof: anchor.proofCid,
-            },
-          },
+          // TODO: Remove this backwards compatibility field
+          anchorRecord: anchorCommit,
+          anchorCommit,
         }
       }
       case RequestStatus.PENDING: {
