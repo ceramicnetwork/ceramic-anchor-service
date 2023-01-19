@@ -1,156 +1,136 @@
 import type { CID } from 'multiformats/cid'
 import LRUCache from 'lru-cache'
 import { create as createIpfsClient } from 'ipfs-http-client'
-import { Config } from 'node-config-ts'
+import type { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
 import * as dagJose from 'dag-jose'
 import type { IPFS } from 'ipfs-core-types'
-import { inject, singleton } from 'tsyringe'
 import { AnchorCommit, toCID } from '@ceramicnetwork/common'
-import { StreamID } from '@ceramicnetwork/streamid'
+import type { StreamID } from '@ceramicnetwork/streamid'
 import { Utils } from '../utils.js'
 import * as http from 'http'
 import * as https from 'https'
 import { PubsubMessage } from '@ceramicnetwork/core'
+import type { IIpfsService, RetrieveRecordOptions } from './ipfs-service.type.js'
+import type { AbortOptions } from './abort-options.type.js'
+
 const { serialize, MsgType } = PubsubMessage
 
-const DEFAULT_GET_TIMEOUT = 30000 // 30 seconds
+export const IPFS_GET_RETRIES = 2
+export const IPFS_GET_TIMEOUT = 30000 // 30 seconds
 const MAX_CACHE_ENTRIES = 100
-const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
+export const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
 const PUBSUB_DELAY = 100
 
-export interface IpfsService {
-  /**
-   * Initialize the service
-   */
-  init(): Promise<void>
-
-  /**
-   * Gets the record by its CID value
-   * @param cid - CID value
-   */
-  retrieveRecord(cid: CID | string): Promise<any>
-
-  /**
-   * Sets the record and returns its CID
-   * @param record - Record value
-   */
-  storeRecord(record: any): Promise<CID>
-
-  /**
-   * Stores the anchor commit to ipfs and publishes an update pubsub message to the Ceramic pubsub topic
-   * @param anchorCommit - anchor commit
-   */
-  publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID>
-}
-
-const ipfsHttpAgent = (ipfsEndpoint: string) => {
+function buildHttpAgent(endpoint: string | undefined): http.Agent {
   const agentOptions = {
     keepAlive: false,
     maxSockets: Infinity,
   }
-  if (ipfsEndpoint.startsWith('https')) {
+  if (endpoint?.startsWith('https')) {
     return new https.Agent(agentOptions)
   } else {
     return new http.Agent(agentOptions)
   }
 }
 
-@singleton()
-export class IpfsServiceImpl implements IpfsService {
-  private _ipfs: IPFS
-  private _cache: LRUCache
+function buildIpfsClient(config: Config): IPFS {
+  return createIpfsClient({
+    url: config.ipfsConfig.url,
+    timeout: config.ipfsConfig.timeout,
+    ipld: {
+      codecs: [dagJose],
+    },
+    agent: buildHttpAgent(config.ipfsConfig.url),
+  })
+}
 
-  constructor(@inject('config') private config?: Config) {}
+export class IpfsService implements IIpfsService {
+  private readonly cache: LRUCache<string, any>
+  private readonly pubsubTopic: string
+  private readonly ipfs: IPFS
+
+  static inject = ['config'] as const
+
+  constructor(config: Config, ipfs: IPFS = buildIpfsClient(config)) {
+    this.cache = new LRUCache<string, any>({ max: MAX_CACHE_ENTRIES })
+    this.ipfs = ipfs
+    this.pubsubTopic = config.ipfsConfig.pubsubTopic
+  }
 
   /**
    * Initialize the service
    */
-  public async init(): Promise<void> {
-    this._ipfs = createIpfsClient({
-      url: this.config.ipfsConfig.url,
-      timeout: this.config.ipfsConfig.timeout,
-      ipld: {
-        codecs: [dagJose],
-      },
-      agent: ipfsHttpAgent(this.config.ipfsConfig.url),
-    })
-
+  async init(): Promise<void> {
     // We have to subscribe to pubsub to keep ipfs connections alive.
     // TODO Remove this when the underlying ipfs issue is fixed
-    await this._ipfs.pubsub.subscribe(this.config.ipfsConfig.pubsubTopic, () => {
+    await this.ipfs.pubsub.subscribe(this.pubsubTopic, () => {
       /* do nothing */
     })
-
-    this._cache = new LRUCache(MAX_CACHE_ENTRIES)
   }
 
   /**
    * Gets the record by its CID value
    * @param cid - CID value
+   * @param options - May contain AbortSignal
    */
-  public async retrieveRecord(cid: CID | string): Promise<any> {
-    let retryTimes = 2
+  async retrieveRecord<T = any>(
+    cid: CID | string,
+    options: RetrieveRecordOptions = {}
+  ): Promise<T> {
+    const cacheKey = `${cid}${options.path || ''}`
+    let retryTimes = IPFS_GET_RETRIES
     while (retryTimes > 0) {
       try {
-        let value = this._cache.get(cid.toString())
-        if (value != null) {
-          return value
+        const found = this.cache.get(cacheKey)
+        if (found) {
+          return found
         }
-        const record = await this._ipfs.dag.get(toCID(cid), {
-          timeout: DEFAULT_GET_TIMEOUT,
+        const record = await this.ipfs.dag.get(toCID(cid), {
+          path: options.path,
+          timeout: IPFS_GET_TIMEOUT,
+          signal: options.signal,
         })
-        logger.debug('Successfully retrieved ' + cid)
-
-        value = record.value
-        this._cache.set(cid.toString(), value)
-        return value
+        const value = record.value
+        logger.debug(`Successfully retrieved ${cacheKey}`)
+        this.cache.set(cacheKey, value)
+        return value as T
       } catch (e) {
-        logger.err('Cannot retrieve IPFS record for CID ' + cid.toString())
+        if (options.signal?.aborted) throw e
+        logger.err(`Cannot retrieve IPFS record for CID ${cacheKey}`)
         retryTimes--
       }
     }
-    throw new Error('Failed to retrieve IPFS record for CID ' + cid.toString())
+    throw new Error(`Failed to retrieve IPFS record for CID ${cacheKey}`)
   }
 
   /**
-   * Sets the record and returns its CID
-   * @param record - Record value
+   * Sets the record and returns its CID.
    */
-  public async storeRecord(record: Record<string, unknown>): Promise<CID> {
-    let timeout: any
-
-    const putPromise = this._ipfs.dag.put(record).finally(() => {
-      clearTimeout(timeout)
-    })
-
-    const timeoutPromise = new Promise((resolve) => {
-      timeout = setTimeout(resolve, IPFS_PUT_TIMEOUT)
-    })
-
-    return await Promise.race([
-      putPromise,
-      timeoutPromise.then(() => {
-        throw new Error(`Timed out storing record in IPFS`)
-      }),
-    ])
+  storeRecord(record: Record<string, unknown>, options: AbortOptions = {}): Promise<CID> {
+    return this.ipfs.dag.put(record, { signal: options.signal, timeout: IPFS_PUT_TIMEOUT })
   }
 
   /**
-   * Stores the anchor commit to ipfs and publishes an update pubsub message to the Ceramic pubsub topic
+   * Stores `anchorCommit` to ipfs and publishes an update pubsub message to the Ceramic pubsub topic
    * @param anchorCommit - anchor commit
+   * @param streamId
+   * @param options
    */
-  public async publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID> {
-    const anchorCid = await this.storeRecord(anchorCommit as any)
+  async publishAnchorCommit(
+    anchorCommit: AnchorCommit,
+    streamId: StreamID,
+    options: AbortOptions = {}
+  ): Promise<CID> {
+    const anchorCid = await this.storeRecord(anchorCommit as any, { signal: options.signal })
 
-    const updateMessage = {
+    const serializedMessage = serialize({
       typ: MsgType.UPDATE,
       stream: streamId,
       tip: anchorCid,
-    }
-    const serializedMessage = serialize(updateMessage as any)
+    })
 
-    await this._ipfs.pubsub.publish(this.config.ipfsConfig.pubsubTopic, serializedMessage)
+    await this.ipfs.pubsub.publish(this.pubsubTopic, serializedMessage, { signal: options.signal })
 
     // wait so that we don't flood the pubsub
     await Utils.delay(PUBSUB_DELAY)

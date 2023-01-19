@@ -5,15 +5,14 @@ import Ganache from 'ganache-core'
 import { config, Config } from 'node-config-ts'
 import { logger } from '../../../logger/index.js'
 import { ethers } from 'ethers'
-import { container, instanceCachingFactory } from 'tsyringe'
 import { BlockchainService } from '../blockchain-service.js'
 import { EthereumBlockchainService, MAX_RETRIES } from '../ethereum/ethereum-blockchain-service.js'
 import { BigNumber } from 'ethers'
-import type { FeeData } from '@ethersproject/abstract-provider'
 import { ErrorCode } from '@ethersproject/logger'
 import fs from 'fs'
 import getPort from 'get-port'
 import cloneDeep from 'lodash.clonedeep'
+import { createInjector } from 'typed-inject'
 
 const deployContract = async (
   provider: ethers.providers.JsonRpcProvider
@@ -72,12 +71,10 @@ describe('ETH service connected to ganache', () => {
     testConfig.blockchain.connectors.ethereum.contractAddress = contract.address
     testConfig.useSmartContractAnchors = false
 
-    container.register('blockchainService', {
-      useFactory: instanceCachingFactory<EthereumBlockchainService>((c) =>
-        EthereumBlockchainService.make(testConfig)
-      ),
-    })
-    ethBc = container.resolve<BlockchainService>('blockchainService')
+    const injector = createInjector()
+      .provideValue('config', testConfig)
+      .provideFactory('blockchainService', EthereumBlockchainService.make)
+    ethBc = injector.resolve('blockchainService')
     await ethBc.connect()
   })
 
@@ -114,7 +111,7 @@ describe('ETH service connected to ganache', () => {
     })
 
     test('gas price increase math', () => {
-      const gasEstimate: FeeData = {
+      const gasEstimate = {
         maxFeePerGas: BigNumber.from(2000),
         maxPriorityFeePerGas: BigNumber.from(1000),
         gasPrice: BigNumber.from(0),

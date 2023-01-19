@@ -6,7 +6,7 @@ import { CompareFunction, MergeFunction, MetadataFunction, Node, TreeMetadata } 
 import { Request } from '../models/request.js'
 
 import { logger } from '../logger/index.js'
-import { IpfsService } from '../services/ipfs-service.js'
+import type { IIpfsService } from '../services/ipfs-service.type.js'
 
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { StreamID } from '@ceramicnetwork/streamid'
@@ -33,8 +33,6 @@ export interface CIDHolder {
  * track of which CID should actually be anchored for this stream.
  */
 export class Candidate implements CIDHolder {
-  public readonly streamId: StreamID
-  private readonly _requests: Request[] = []
   private readonly _earliestRequestDate: Date
 
   private _cid: CID = null
@@ -45,10 +43,7 @@ export class Candidate implements CIDHolder {
   private _newestAcceptedRequest: Request
   private _alreadyAnchored = false
 
-  constructor(streamId: StreamID, requests: Request[]) {
-    this.streamId = streamId
-    this._requests = requests
-
+  constructor(readonly streamId: StreamID, readonly requests: Request[]) {
     let minDate = requests[0].createdAt
     for (const req of requests.slice(1)) {
       if (req.createdAt < minDate) {
@@ -58,37 +53,30 @@ export class Candidate implements CIDHolder {
     this._earliestRequestDate = minDate
   }
 
-  public get cid(): CID {
+  get cid(): CID {
     return this._cid
   }
 
-  public get metadata(): StreamMetadata {
+  get metadata(): StreamMetadata {
     return this._metadata
   }
 
-  public get earliestRequestDate(): Date {
+  get earliestRequestDate(): Date {
     return this._earliestRequestDate
-  }
-
-  /**
-   * All requests being considered in this batch that are on this Stream
-   */
-  public get requests(): Request[] {
-    return this._requests
   }
 
   /**
    * All requests that are included in the current version of the Stream. Only available after
    * calling 'setTipToAnchor'.
    */
-  public get acceptedRequests(): Request[] {
+  get acceptedRequests(): Request[] {
     return this._acceptedRequests
   }
 
   /**
    * All requests that failed to be loaded from the Ceramic node.
    */
-  public get failedRequests(): Request[] {
+  get failedRequests(): Request[] {
     return this._failedRequests
   }
 
@@ -96,7 +84,7 @@ export class Candidate implements CIDHolder {
    * All requests that were rejected by Ceramic's conflict resolution. Only available after
    * calling 'setTipToAnchor'.
    */
-  public get rejectedRequests(): Request[] {
+  get rejectedRequests(): Request[] {
     return this._rejectedRequests
   }
 
@@ -108,7 +96,7 @@ export class Candidate implements CIDHolder {
    * it the Request whose CID is latest in the log of all the Requests that were successfully
    * anchored for this stream.
    */
-  public get newestAcceptedRequest(): Request {
+  get newestAcceptedRequest(): Request {
     return this._newestAcceptedRequest
   }
 
@@ -117,7 +105,7 @@ export class Candidate implements CIDHolder {
    * anchoring process (most likely by another anchoring service after the creation of the original
    * Request(s)).
    */
-  public get alreadyAnchored(): boolean {
+  get alreadyAnchored(): boolean {
     return this._alreadyAnchored
   }
 
@@ -134,12 +122,12 @@ export class Candidate implements CIDHolder {
    * fail all pending requests on this Stream.
    */
   failAllRequests(): void {
-    this._failedRequests = this._requests
+    this._failedRequests = this.requests
     this._acceptedRequests = []
   }
 
   allRequestsFailed(): boolean {
-    return this._failedRequests.length == this._requests.length
+    return this._failedRequests.length == this.requests.length
   }
 
   shouldAnchor(): boolean {
@@ -167,14 +155,14 @@ export class Candidate implements CIDHolder {
 
     // Check the log of the Stream that was loaded from Ceramic to see which of the pending requests
     // are for CIDs that are included in the current version of the Stream's log.
-    const includedRequests = this._requests.filter((req) => {
+    const includedRequests = this.requests.filter((req) => {
       return stream.state.log.find((logEntry) => {
         return logEntry.cid.toString() == req.cid
       })
     })
     // Any requests whose CIDs don't show up in the Stream's log must have been rejected by Ceramic's
     // conflict resolution.
-    const rejectedRequests = this._requests.filter((req) => {
+    const rejectedRequests = this.requests.filter((req) => {
       return !includedRequests.includes(req)
     })
 
@@ -208,11 +196,7 @@ export class Candidate implements CIDHolder {
  * Implements IPFS merge CIDs
  */
 export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
-  private ipfsService: IpfsService
-
-  constructor(ipfsService: IpfsService) {
-    this.ipfsService = ipfsService
-  }
+  constructor(private readonly ipfsService: IIpfsService) {}
 
   async merge(
     left: Node<CIDHolder>,
@@ -237,7 +221,36 @@ export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
  */
 export class IpfsLeafCompare implements CompareFunction<Candidate> {
   compare(left: Node<Candidate>, right: Node<Candidate>): number {
-    return left.data.streamId.toString().localeCompare(right.data.streamId.toString())
+    try {
+      // Sort by model first
+      const leftModel = left.data.metadata.model?.toString()
+      const rightModel = right.data.metadata.model?.toString()
+      if (leftModel !== rightModel) {
+        if (leftModel != null) {
+          return rightModel == null
+            ? -1 // null last
+            : leftModel.localeCompare(rightModel)
+        }
+        return 1 // null last
+      }
+
+      // Sort by controller
+      // If either value is an object for whatever reason it will
+      // be sorted last because "[" < "d" ("[object Object]" vs "did:...")
+      const leftController = String(left.data.metadata.controllers[0])
+      const rightController = String(right.data.metadata.controllers[0])
+      if (leftController !== rightController) {
+        return leftController.localeCompare(rightController)
+      }
+
+      // Sort by stream ID
+      return left.data.streamId.toString().localeCompare(right.data.streamId.toString())
+    } catch (err) {
+      logger.err(
+        `Error while comparing stream ${left.data.streamId.toString()} to stream ${right.data.streamId.toString()}. Error: ${err}`
+      )
+      throw err
+    }
   }
 }
 

@@ -10,30 +10,30 @@ import { toCID } from '@ceramicnetwork/common'
 import { AnchorRepository } from '../repositories/anchor-repository.js'
 import { RequestRepository } from '../repositories/request-repository.js'
 import { Request, RequestStatus } from '../models/request.js'
-import { inject, singleton } from 'tsyringe'
 import { logger } from '../logger/index.js'
-import { ServiceMetrics as Metrics } from '../service-metrics.js'
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
-import { RequestPresentation } from '../models/request-presentation.js'
 import { CeramicService } from '../services/ceramic-service.js'
+import type { IRequestPresentationService } from '../services/request-presentation-service.type.js'
 
-@singleton()
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
 export class RequestController {
-  #requestPresentation: RequestPresentation
+  static inject = [
+    'config',
+    'anchorRepository',
+    'requestRepository',
+    'ceramicService',
+    'requestPresentationService',
+  ] as const
 
   constructor(
-    @inject('config') private config?: Config,
-    @inject('anchorRepository') private anchorRepository?: AnchorRepository,
-    @inject('requestRepository') private requestRepository?: RequestRepository,
-    @inject('ceramicService') private ceramicService?: CeramicService
-  ) {
-    this.#requestPresentation = new RequestPresentation(
-      config.schedulerIntervalMS,
-      anchorRepository
-    )
-  }
+    private config: Config,
+    private anchorRepository: AnchorRepository,
+    private requestRepository: RequestRepository,
+    private ceramicService: CeramicService,
+    private readonly requestPresentationService: IRequestPresentationService
+  ) {}
 
   @Get(':cid')
   private async getStatusForCid(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
@@ -44,7 +44,7 @@ export class RequestController {
       if (cid) {
         const request = await this.requestRepository.findByCid(cid)
         if (request) {
-          const body = await this.#requestPresentation.body(request)
+          const body = await this.requestPresentationService.body(request)
           return res.status(StatusCodes.OK).json(body)
         } else {
           return res.status(StatusCodes.OK).send({
@@ -91,12 +91,12 @@ export class RequestController {
       const cidObj = toCID(cid)
       let request = await this.requestRepository.findByCid(cidObj)
       if (request) {
-        const body = await this.#requestPresentation.body(request)
+        const body = await this.requestPresentationService.body(request)
         return res.status(StatusCodes.ACCEPTED).json(body)
       } else {
         // Intentionally don't await the pinStream promise, let it happen in the background.
         this.ceramicService.pinStream(streamId)
-        Metrics.count(METRIC_NAMES.ANCHOR_REQUESTED, 1, {'ip_addr': req.ip})
+        Metrics.count(METRIC_NAMES.ANCHOR_REQUESTED, 1, { ip_addr: req.ip })
 
         request = new Request()
         request.cid = cid.toString()
@@ -110,7 +110,7 @@ export class RequestController {
 
         request = await this.requestRepository.createOrUpdate(request)
 
-        const body = await this.#requestPresentation.body(request)
+        const body = await this.requestPresentationService.body(request)
         return res.status(StatusCodes.CREATED).json(body)
       }
     } catch (err) {
