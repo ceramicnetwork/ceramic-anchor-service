@@ -4,10 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "TESTING=false ENABLE_REGISTRATION=true ./node_modules/.bin/serverless offline",
+    "start": "TESTING=false ADMIN_USERNAME=admin ADMIN_PASSWORD=admin ./node_modules/.bin/serverless offline",
+    "start:testing": "TESTING=true ADMIN_USERNAME=admin ADMIN_PASSWORD=admin ./node_modules/.bin/serverless offline",
     "admin:build-credentials": "node ./scripts/build-credentials.js",
-    "deploy": "TESTING=false ENABLE_REGISTRATION=true ./node_modules/.bin/serverless deploy",
-    "deploy:disable-registration": "TESTING=false ENABLE_REGISTRATION=false ./node_modules/.bin/serverless deploy",
+    "deploy": "TESTING=false ./node_modules/.bin/serverless deploy",
+    "deploy:disable-registration": "TESTING=false ./node_modules/.bin/serverless deploy",
     "test": "NODE_OPTIONS=--experimental-vm-modules npx jest"
   },
   "author": "",

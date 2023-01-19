@@ -40,6 +40,7 @@ provider:
           Action:
             - dynamodb:*
           Resource:
+            - ${construct:configDb.tableArn}
             - ${construct:didDb.tableArn}
             - ${construct:otpDb.tableArn}
         - Effect: Allow
@@ -49,6 +50,9 @@ provider:
             - 'arn:aws:ses:::identity/3boxlabs.com'
 
 constructs:
+  configDb:
+    type: database/dynamodb-single-table
+    gsiCount: 1
   didDb:
     type: database/dynamodb-single-table
     gsiCount: 1
@@ -64,13 +68,18 @@ functions:
           method: 'any'
           path: '/api/v0/auth/{proxy+}'
     environment:
+      ADMIN_USERNAME: ${env:ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${env:ADMIN_PASSWORD}
+      DB_CONFIG_TABLE_NAME: ${construct:configDb.tableName}
       DB_DID_TABLE_NAME: ${construct:didDb.tableName}
       DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
-      ENABLE_REGISTRATION: ${env:ENABLE_REGISTRATION}
       TESTING: ${env:TESTING}
   authorizer:
     handler: src/authorizers/default.handler
     environment:
+      ADMIN_USERNAME: ${env:ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${env:ADMIN_PASSWORD}
+      DB_CONFIG_TABLE_NAME: ${construct:configDb.tableName}
       DB_DID_TABLE_NAME: ${construct:didDb.tableName}
       DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
       PERMISSIONED_SECURITY_GROUP_IDS: ${env:PERMISSIONED_SECURITY_GROUP_IDS}

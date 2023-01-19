@@ -42,6 +42,7 @@ function customContext(req, res, next) {
   next()
 }
 
+app.use(API_ENDPOINT + '/config', routes.config)
 app.use(API_ENDPOINT + '/did', routes.did)
 app.use(API_ENDPOINT + '/verification', routes.verification)
 

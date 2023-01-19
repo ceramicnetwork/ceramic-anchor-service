@@ -7,11 +7,11 @@ export const authBearerValidation = Joi.string().regex(authBearerRegex)
 export const nonceValidation = Joi.string().uuid()
 
 export const registerValidation = {
-  header: Joi.object({
+  headers: Joi.object().keys({
     authorization: Joi.string()
       .regex(authBasicRegex)
-      .optional()
-  }),
+      .required()
+  }).unknown(true),
   body: Joi.object({
     email: Joi.string()
       .email()

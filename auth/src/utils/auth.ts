@@ -1,7 +1,8 @@
-import { createHash } from "crypto"
-import { DateTime } from "luxon"
-import { authBasicValidation } from "../validators/did"
-import { now } from "./datetime"
+import { createHash } from 'crypto'
+import { Joi } from 'express-validation'
+import { DateTime } from 'luxon'
+import { authBasicValidation } from '../validators/did.js'
+import { now } from './datetime.js'
 
 export const authBasicRegex = new RegExp(/Basic .*/)
 export const authBearerRegex = new RegExp(/Bearer .*/)
@@ -11,17 +12,14 @@ export function checkUserIsAdmin(authorization: string) {
         console.error('Missing admin credentials')
         return false
     }
-    const {error, value} = authBasicValidation.validate(authorization)
-    if (error) {
-        console.log(error)
+    if (!authBasicRegex.test(authorization)) {
+        console.log('Validation for Basic auth failed')
         return false
     }
     const credentials = authorization.split(' ')[1]
-    const buf = Buffer.from(credentials, 'base64')
-    const [username, password] = buf.toString().split(':')
+    const {username, password, expirationUnixTimestamp } = decodeAdminCredentials(credentials)
 
-    const expires = username.split('#')[1]
-    if (Number(expires) < now()) {
+    if (expirationUnixTimestamp < now()) {
         console.error('Credentials expired')
         return false
     }
@@ -29,4 +27,42 @@ export function checkUserIsAdmin(authorization: string) {
     const u = createHash('sha256').update(process.env.ADMIN_USERNAME).digest('hex')
     const p = createHash('sha256').update(process.env.ADMIN_PASSWORD).digest('hex')
     return (u == username) && (p == password)
+}
+
+export function decodeAdminCredentials(credentials: string): {
+    username: string,
+    password: string,
+    expirationUnixTimestamp: number
+} {
+    const buf = Buffer.from(credentials, 'base64')
+    const [front, password] = buf.toString().split(':')
+    const [username, exp] = front.split('#')
+    const expirationUnixTimestamp = Number(exp)
+    if (isNaN(expirationUnixTimestamp)) {
+        throw Error('Failed to decode credentials. Expiration is not a valid unix timestamp')
+    }
+    return { username, password, expirationUnixTimestamp}
+}
+
+/**
+ * Encodes admin credentials for Basic authorization header.
+ *
+ * Defaults to expiring 4 hours from now. This can be overridden by setting `expirationUnixTimestamp`.
+ * @param username
+ * @param password
+ * @param expirationUnixTimestamp Optional. Expiration time in seconds from epoch.
+ */
+export function encodeAdminCredentials(
+    username: string,
+    password: string,
+    expirationUnixTimestamp?: number
+): string {
+    if (!expirationUnixTimestamp) {
+        const date = DateTime.now().plus({ hours: 4 })
+        expirationUnixTimestamp = date.toUnixInteger()
+    }
+    const u = createHash('sha256').update(username).digest('hex')
+    const p = createHash('sha256').update(password).digest('hex')
+    const credentials = `${u}#${expirationUnixTimestamp}:${p}`
+    return Buffer.from(credentials).toString('base64')
 }

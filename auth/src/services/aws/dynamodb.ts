@@ -23,7 +23,8 @@ import { DateTime } from 'luxon'
 import { didRegex } from '../../utils/did.js'
 import { now } from '../../utils/datetime.js'
 
-import { createEmailVerificationCode, Database, DIDStatus, OTPStatus } from '../db.js'
+import { ConfigKey, createEmailVerificationCode, Database, DIDStatus, OTPStatus } from '../db.js'
+import { APIGateway } from "aws-sdk"
 
 const AWS_REGION = process.env.AWS_REGION ?? ''
 const INITIAL_NONCE = '0'
@@ -32,8 +33,9 @@ const INITIAL_NONCE = '0'
  * Returns current timestamp as unix integer
  * @returns Unix timestamp
  */
-const OTP_TABLE_NAME = process.env.IS_OFFLINE ? `cas-auth-otp-${now()}` : (process.env.DB_OTP_TABLE_NAME ?? '')
+const CONFIG_TABLE_NAME = process.env.IS_OFFLINE ? `cas-auth-config-${now()}` : (process.env.DB_CONFIG_TABLE_NAME ?? '')
 const DID_TABLE_NAME = process.env.IS_OFFLINE ? `cas-auth-did-${now()}` : (process.env.DB_DID_TABLE_NAME ?? '')
+const OTP_TABLE_NAME = process.env.IS_OFFLINE ? `cas-auth-otp-${now()}` : (process.env.DB_OTP_TABLE_NAME ?? '')
 
 class ItemNotFoundError extends Error { }
 
@@ -43,10 +45,14 @@ type ExpressionAttributeValues = Item
 export class DynamoDB implements Database {
     name: string
     readonly client: DynamoDBClient
+    readonly gatewayClient: APIGateway
     private readonly _shouldCreateTableIfNotExists: boolean
 
     constructor(createTableIfNotExists: boolean) {
         this._shouldCreateTableIfNotExists = createTableIfNotExists
+        if (CONFIG_TABLE_NAME == '') {
+            throw Error('Missing DB_CONFIG_TABLE_NAME')
+        }
         if (DID_TABLE_NAME == '') {
             throw Error('Missing DB_DID_TABLE_NAME')
         }
@@ -59,7 +65,7 @@ export class DynamoDB implements Database {
     }
 
     async init() {
-        for (const tableName of [OTP_TABLE_NAME, DID_TABLE_NAME]) {
+        for (const tableName of [CONFIG_TABLE_NAME, DID_TABLE_NAME, OTP_TABLE_NAME]) {
             if (this._shouldCreateTableIfNotExists) {
                 await this._createTableIfNotExists(tableName)
             } else {
@@ -113,13 +119,35 @@ export class DynamoDB implements Database {
             await this.client.send(new DescribeTableCommand(input))
             return true
         } catch (error) {
-            console.error(error)
+            if (error instanceof ResourceNotFoundException) {
+                // console.log(`Table (${tableName}) does yet not exist`)
+            } else {
+                console.error(error)
+            }
             if (shouldThrow) {
                 throw error
             } else {
                 return false
             }
         }
+    }
+
+    async getConfig(key: ConfigKey | string): Promise<any | null | undefined> {
+        try {
+            const data = await this._getItem(CONFIG_TABLE_NAME, key, key)
+            return data
+        } catch (err) {
+            if (err instanceof ItemNotFoundError) {
+                console.error('Config has not been set for this key')
+                return {
+                    PK: key,
+                    v: null
+                }
+            } else {
+                console.error(err)
+            }
+        }
+        return
     }
 
     /**
@@ -392,6 +420,40 @@ export class DynamoDB implements Database {
             } else {
                 console.error(err)
             }
+            return
+        }
+    }
+
+    async updateConfig(key: string, value: any): Promise<any> {
+        const input: UpdateItemCommandInput = {
+            TableName: CONFIG_TABLE_NAME,
+            Key: marshall({
+                'PK': key,
+                'SK': key
+            }),
+            UpdateExpression: `SET v=:v, updated_at_unix=:updated_at_unix`,
+            ExpressionAttributeValues: marshall({
+                ':v': value,
+                ':updated_at_unix': now(),
+            }),
+            ReturnValues: 'ALL_NEW'
+        }
+        try {
+            const output = await this.client.send(new UpdateItemCommand(input))
+            if (output) {
+                if (output.Attributes) {
+                    const attributes = unmarshall(output.Attributes)
+                    return {
+                        PK: attributes.PK,
+                        v: attributes.v
+                    }
+                }
+            } else {
+                console.warn('Command succeeded without return values')
+                return { PK: key, v: value }
+            }
+        } catch (err) {
+            console.error(err)
             return
         }
     }

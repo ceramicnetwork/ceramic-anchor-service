@@ -5,13 +5,22 @@ function main() {
         const date = new Date()
         date.setHours(date.getHours() + 4)
         const exp = Math.floor(date.getTime() / 1000)
-        const u = createHash('sha256').update(`${process.env.ADMIN_USERNAME}#${exp}`).digest('hex')
-        const p = createHash('sha256').update(process.env.ADMIN_PASSWORD).digest('hex')
-        const credentials = `${u}:${p}`
-        console.log(Buffer.from(credentials).toString('base64'))
+        const credentials = buildCredentials(
+            process.env.ADMIN_USERNAME,
+            process.env.ADMIN_PASSWORD,
+            exp
+        )
+        console.log(credentials)
     } else {
         console.error('Missing admin credentials')
     }
+}
+
+function buildCredentials(username, password, expirationUnixTimestamp) {
+    const u = createHash('sha256').update(username).digest('hex')
+    const p = createHash('sha256').update(password).digest('hex')
+    const credentials = `${u}#${expirationUnixTimestamp}:${p}`
+    return Buffer.from(credentials).toString('base64')
 }
 
 main()

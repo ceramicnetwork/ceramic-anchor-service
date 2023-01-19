@@ -21,11 +21,13 @@ docker run -p 8000:8000 amazon/dynamodb-local
 pnpm run start
 ```
 
+> Admin username and password are set to `admin` when in offline mode.
+
 ## Testing
 
-Add the testing env var to run integration tests
+Add the env var `TESTING` is set to true to run integration tests
 ```sh
-TESTING=true sls offline
+pnpm run start:testing
 # in another terminal
 pnpm run test -- integration
 ```

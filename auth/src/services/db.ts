@@ -13,17 +13,26 @@ export enum OTPStatus {
     Used = 'Used'
 }
 
+export enum ConfigKey {
+    RegistrationEnabled = 'RegistrationEnabled'
+}
+export const ConfigKeys = Object.keys(ConfigKey).filter((item) => {
+    return isNaN(Number(item))
+})
+
 export interface Database {
     name: string
     client: any
     init: () => Promise<void>
     createEmailVerificationCode: (email: string) => Promise<string | undefined>
+    getConfig: (key: ConfigKey) => Promise<any>
     getDIDRegistration: (did: string) => Promise<any>
     getEmail: (did: string) => Promise<string | undefined>
     addNonce: (did: string, nonce: string) => Promise<any>
     registerDID: (email: string, otp: string, did: string) => Promise<any>
     registerDIDs: (email: string, otp: string, dids: Array<string>) => Promise<any>
     revokeDID: (email: string, otp: string, did: string) => Promise<any>
+    updateConfig: (key: ConfigKey, value: any) => Promise<any>
 }
 
 export interface DatabaseEmailVerification {

@@ -1,7 +1,8 @@
 import { DateTime } from 'luxon'
 import fetch from 'node-fetch'
-import { DIDStatus } from '../services/db'
-import { httpMethods } from "../utils/reqres"
+import { ConfigKey, DIDStatus } from '../services/db.js'
+import { encodeAdminCredentials } from '../utils/auth.js'
+import { httpMethods } from '../utils/reqres.js'
 
 // Note: The dynamodb implementation allows duplicate otps under a single email,
 // however in production the `generateOTP` function will produce random uuids.
@@ -205,6 +206,118 @@ describe('/did', () => {
             did: dids[0],
             status: DIDStatus.Revoked
         })
+    })
+})
+
+describe.only('/config', () => {
+    test('non-admin can not get config', async () => {
+        let resp = await fetch(endpoint(`/config/key/${ConfigKey.RegistrationEnabled}`), {
+            method: httpMethods.GET
+        })
+        expect(resp.status).toBe(400)
+        resp = await fetch(endpoint(`/config/key/process`), {
+            method: httpMethods.GET
+        })
+        expect(resp.status).toBe(400)
+        const credentials = encodeAdminCredentials('admin', 'VX8Q3wY)wT^#')
+        resp = await fetch(endpoint(`/config/key/${ConfigKey.RegistrationEnabled}`), {
+            method: httpMethods.GET,
+            headers: { authorization: `Basic ${credentials}`}
+        })
+        expect(resp.status).toBe(400)
+    })
+    test('admin can not get invalid config', async () => {
+        const credentials = encodeAdminCredentials('admin', 'admin')
+        let resp = await fetch(endpoint(`/config/key/process`), {
+            method: httpMethods.GET,
+            headers: { authorization: `Basic ${credentials}`}
+        })
+        expect(resp.status).toBe(400)
+    })
+    test('admin can get valid config', async () => {
+        const credentials = encodeAdminCredentials('admin', 'admin')
+        let resp = await fetch(endpoint(`/config/key/${ConfigKey.RegistrationEnabled}`), {
+            method: httpMethods.GET,
+            headers: { authorization: `Basic ${credentials}`}
+        })
+        expect(resp.status).toBe(200)
+        const out: any = await resp.json()
+        expect(out.PK).toBe(ConfigKey.RegistrationEnabled)
+    })
+    test('non-admin can not get config keys', async () => {
+        let resp = await fetch(endpoint(`/config/keys`), {
+            method: httpMethods.GET
+        })
+        expect(resp.status).toBe(400)
+        const credentials = encodeAdminCredentials('admin', 'IccDw^$802N')
+        resp = await fetch(endpoint(`/config/keys`), {
+            method: httpMethods.GET,
+            headers: { authorization: `Basic ${credentials}`}
+        })
+        expect(resp.status).toBe(400)
+    })
+    test('admin can get config keys', async () => {
+        const credentials = encodeAdminCredentials('admin', 'admin')
+        let resp = await fetch(endpoint(`/config/keys`), {
+            method: httpMethods.GET,
+            headers: { authorization: `Basic ${credentials}`}
+        })
+        expect(resp.status).toBe(200)
+        await expect(resp.json()).resolves.toEqual([ConfigKey.RegistrationEnabled])
+    })
+    test('non-admin can not set config', async () => {
+        const data = {
+            PK: ConfigKey.RegistrationEnabled,
+            v: true
+        }
+        let resp = await fetch(endpoint('/config'), {
+            method: httpMethods.PUT,
+            body: JSON.stringify(data)
+        })
+        expect(resp.status).toBe(400)
+
+        const credentials = encodeAdminCredentials('admin', 'wY)wT]VX8Q3^#~Y3')
+        resp = await fetch(endpoint('/config'), {
+            method: httpMethods.PUT,
+            headers: { authorization: `Basic ${credentials}`},
+            body: JSON.stringify(data)
+        })
+        expect(resp.status).toBe(400)
+    })
+    test('admin can set valid config', async () => {
+        const data = {
+            PK: ConfigKey.RegistrationEnabled,
+            v: true
+        }
+        const credentials = encodeAdminCredentials('admin', 'admin')
+        let resp = await fetch(endpoint('/config'), {
+            method: httpMethods.PUT,
+            headers: { authorization: `Basic ${credentials}`},
+            body: JSON.stringify(data)
+        })
+        expect(resp.status).toBe(200)
+        await expect(resp.json()).resolves.toEqual(data)
+        resp = await fetch(endpoint(`/config/key/${ConfigKey.RegistrationEnabled}`), {
+            method: httpMethods.GET,
+            headers: { authorization: `Basic ${credentials}`}
+        })
+        expect(resp.status).toBe(200)
+        const out: any = await resp.json()
+        expect(out.PK).toBe(ConfigKey.RegistrationEnabled)
+        expect(out.v).toBe(true)
+    })
+    test('admin can not set random config', async () => {
+        const data = {
+            PK: 'shutdown',
+            v: true
+        }
+        const credentials = encodeAdminCredentials('admin', 'admin')
+        const resp = await fetch(endpoint('/config'), {
+            method: httpMethods.PUT,
+            headers: { authorization: `Basic ${credentials}`},
+            body: JSON.stringify(data)
+        })
+        expect(resp.status).toBe(400)
     })
 })
 
