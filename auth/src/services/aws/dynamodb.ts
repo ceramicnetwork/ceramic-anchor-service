@@ -23,8 +23,15 @@ import { DateTime } from 'luxon'
 import { didRegex } from '../../utils/did.js'
 import { now } from '../../utils/datetime.js'
 
-import { ConfigKey, createEmailVerificationCode, Database, DIDStatus, OTPStatus } from '../db.js'
-import { APIGateway } from "aws-sdk"
+import {
+    ConfigKey,
+    createEmailVerificationCode,
+    Database,
+    DIDResult,
+    DIDStatus,
+    OTPStatus
+} from '../db.js'
+import { KeyService } from "../key.js"
 
 const AWS_REGION = process.env.AWS_REGION ?? ''
 const INITIAL_NONCE = '0'
@@ -45,7 +52,7 @@ type ExpressionAttributeValues = Item
 export class DynamoDB implements Database {
     name: string
     readonly client: DynamoDBClient
-    readonly gatewayClient: APIGateway
+    readonly keyService: KeyService
     private readonly _shouldCreateTableIfNotExists: boolean
 
     constructor(createTableIfNotExists: boolean) {
@@ -335,7 +342,7 @@ export class DynamoDB implements Database {
         }
     }
 
-    async registerDIDs(email: string, otp: string, dids: Array<string>): Promise<Array<any> | undefined> {
+    async registerDIDs(email: string, otp: string, dids: Array<string>): Promise<Array<DIDResult> | undefined> {
         if (!await this._checkCorrectOTP(email, otp)) return
         const shouldCheckOTPAgain = false
 
@@ -349,7 +356,7 @@ export class DynamoDB implements Database {
         return results
     }
 
-    async registerDID(email: string, otp: string, did: string, checkOTP: boolean = true): Promise<any | undefined> {
+    async registerDID(email: string, otp: string, did: string, checkOTP: boolean = true): Promise<DIDResult | undefined> {
         if (checkOTP) {
             if (!await this._checkCorrectOTP(email, otp)) return
         }

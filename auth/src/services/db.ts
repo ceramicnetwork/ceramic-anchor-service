@@ -20,6 +20,13 @@ export const ConfigKeys = Object.keys(ConfigKey).filter((item) => {
     return isNaN(Number(item))
 })
 
+export type DIDResult = {
+    email: string
+    did: string
+    nonce: string
+    status: DIDStatus
+}
+
 export interface Database {
     name: string
     client: any
@@ -29,8 +36,8 @@ export interface Database {
     getDIDRegistration: (did: string) => Promise<any>
     getEmail: (did: string) => Promise<string | undefined>
     addNonce: (did: string, nonce: string) => Promise<any>
-    registerDID: (email: string, otp: string, did: string) => Promise<any>
-    registerDIDs: (email: string, otp: string, dids: Array<string>) => Promise<any>
+    registerDID: (email: string, otp: string, did: string) => Promise<DIDResult | undefined>
+    registerDIDs: (email: string, otp: string, dids: Array<string>) => Promise<Array<DIDResult> | undefined>
     revokeDID: (email: string, otp: string, did: string) => Promise<any>
     updateConfig: (key: ConfigKey, value: any) => Promise<any>
 }

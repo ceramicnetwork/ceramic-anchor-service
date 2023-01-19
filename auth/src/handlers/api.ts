@@ -4,6 +4,7 @@ import { ValidationError } from 'express-validation'
 import serverless from 'serverless-http'
 
 import * as routes from '../routes/index.js'
+import { ApiGateway } from '../services/aws/apiGateway.js'
 import { DynamoDB } from '../services/aws/dynamodb.js'
 import { SESService } from '../services/aws/ses.js'
 import { ClientFacingError } from '../utils/errorHandling.js'
@@ -15,6 +16,7 @@ const app = express()
 const createTableIfNotExists = true
 const db = new DynamoDB(createTableIfNotExists)
 const email = new SESService()
+const gateway = new ApiGateway()
 
 app.use(bodyParser.json())
 app.use(parseAsJson)
@@ -36,7 +38,8 @@ app.use(customContext)
 function customContext(req, res, next) {
   const context: CustomContext = {
     db,
-    email
+    email,
+    gateway
   }
   req.customContext = context
   next()
@@ -72,5 +75,6 @@ function errorHandler (err, req, res, next) {
 export const handler = async (event, context) => {
   await db.init()
   await email.init()
+  await gateway.init()
   return serverless(app)(event, context)
 }

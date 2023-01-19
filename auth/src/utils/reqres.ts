@@ -1,6 +1,7 @@
 import { Request, Response } from "express"
-import { Database } from "../services/db"
-import { EmailService } from "../services/email"
+import { Database } from "../services/db.js"
+import { EmailService } from "../services/email.js"
+import { KeyService } from "../services/key.js"
 
 export enum httpMethods {
   GET = 'GET',
@@ -13,6 +14,7 @@ export enum httpMethods {
 export type CustomContext = {
   db: Database
   email: EmailService
+  gateway: KeyService
 }
 
 export interface Req extends Request {
