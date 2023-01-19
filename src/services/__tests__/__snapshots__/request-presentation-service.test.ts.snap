@@ -29,6 +29,35 @@ exports[`present by RequestStatus COMPLETED 1`] = `
 }
 `;
 
+exports[`present by RequestStatus COMPLETED but no associated anchor 1`] = `
+{
+  "anchorCommit": {
+    "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
+    "content": {
+      "path": undefined,
+      "prev": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
+      "proof": undefined,
+    },
+  },
+  "anchorRecord": {
+    "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
+    "content": {
+      "path": undefined,
+      "prev": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
+      "proof": undefined,
+    },
+  },
+  "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
+  "createdAt": 1577934240000,
+  "docId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
+  "id": 889483296,
+  "message": "Fresh request",
+  "status": "COMPLETED",
+  "streamId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
+  "updatedAt": 1612325100000,
+}
+`;
+
 exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY 1`] = `
 {
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",

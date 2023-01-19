@@ -339,7 +339,7 @@ describe('Ceramic Integration Test', () => {
       const daemonPort1 = await getPort()
       const daemonPort2 = await getPort()
       dbConnection1 = await createDbConnection()
-      const casPort1 = await getPort()
+      casPort1 = await getPort()
 
       cas1 = await makeCAS(createInjector(), dbConnection1, {
         mode: 'server',
@@ -604,7 +604,7 @@ describe('Ceramic Integration Test', () => {
       console.log('Test complete: Metrics counts anchor attempts')
     })
 
-    test.only('Can retrieve completed request when the request CID was not the stream tip when anchored', async () => {
+    test('Can retrieve completed request when the request CID was not the stream tip when anchored', async () => {
       const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
       const originalTip = doc1.tip
       await doc1.update({ foo: 2 }, null, { anchor: true })
@@ -627,7 +627,7 @@ describe('Ceramic Integration Test', () => {
       expect(RequestStatus[originalTipRequest.status]).toEqual(RequestStatus.COMPLETED)
     })
 
-    test.only('Can retreive completed request that was marked COMPLETE because its stream was already anchored', async () => {
+    test('Can retreive completed request that was marked COMPLETE because its stream was already anchored', async () => {
       const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: false })
       const tipWithNoRequest = doc1.tip
       await doc1.update({ foo: 2 }, null, { anchor: true })
