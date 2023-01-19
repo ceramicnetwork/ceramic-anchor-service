@@ -19,7 +19,7 @@ const DEFAULT_LOAD_STREAM_TIMEOUT = 1000 * 60 // 1 minute
 const MULTIQUERY_SERVER_TIMEOUT = 1000 * 60 // 1 minute
 // 10 seconds more than server-side timeout so server-side timeout can fire first, which gives us a
 // more useful error message
-const MULTIQUERY_CLIENT_TIMEOUT = 1000 * 70 // 1 minute and 10 seconds
+const DEFAULT_MULTIQUERY_CLIENT_TIMEOUT = 1000 * 70 // 1 minute and 10 seconds
 const PIN_TIMEOUT = 1000 * 60 * 2 // 2 minutes
 
 export class CeramicServiceImpl implements CeramicService {
@@ -91,7 +91,7 @@ export class CeramicServiceImpl implements CeramicService {
       timeout = setTimeout(() => {
         logger.warn(`Timed out loading multiquery`)
         reject(new Error(`Timed out loading multiquery`))
-      }, MULTIQUERY_CLIENT_TIMEOUT)
+      }, this.config.loadStreamTimeoutMs || DEFAULT_MULTIQUERY_CLIENT_TIMEOUT)
     })
 
     return await Promise.race([queryPromise, timeoutPromise])
