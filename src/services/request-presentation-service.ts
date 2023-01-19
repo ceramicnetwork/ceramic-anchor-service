@@ -25,7 +25,7 @@ export class RequestPresentationService implements IRequestPresentationService {
     switch (request.status) {
       case RequestStatus.COMPLETED: {
         const anchor = await this.anchorRepository.findByRequest(request)
-        // TODO: This is a workaround, fix when CDB-2192 is compelted
+        // TODO: This is a workaround, fix in CDB-2192
         const anchorCommit = {
           cid: anchor ? anchor.cid : request.cid,
           content: {
