@@ -15,3 +15,4 @@ data
 store.db
 logs/
 cue.mod/
+src/version.ts

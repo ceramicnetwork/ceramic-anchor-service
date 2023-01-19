@@ -4,10 +4,13 @@ import { RequestStatus, Request, RequestUpdateFields, REQUEST_MESSAGES } from '.
 import { LimitOptions, Options } from './repository-types.js'
 import { logEvent } from '../logger/index.js'
 import { Config } from 'node-config-ts'
-import { inject, singleton } from 'tsyringe'
 import { logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
-import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '../service-metrics.js'
+import {
+  ServiceMetrics as Metrics,
+  TimeableMetric,
+  SinceField,
+} from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
@@ -22,6 +25,7 @@ export const FAILURE_RETRY_INTERVAL = 1000 * 60 * 60 * 6 // 6H
 // application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
 export const TABLE_NAME = 'request'
+const POSTGRES_PARAMETERIZED_QUERY_LIMIT = 65000
 
 /**
  * Records statistics about the set of requests
@@ -153,14 +157,23 @@ const findRequestsToAnchorForStreams = (
   streamIds: string[],
   now: Date
 ): Promise<Array<Request>> =>
-  findRequestsToAnchor(connection, now).whereIn('streamId', streamIds).orderBy('createdAt', 'asc')
+  findRequestsToAnchor(connection, now)
+    .whereIn('streamId', streamIds)
+    // We order the requests according to it's streamId's position in the provided array.
+    // We do this because we assume the given streamIds array is sorted according to priority.
+    // In this file the streamIds array is sorted based on the earliest request for each streamId (ascending).
+    // This results in us prioritizing requests that are older and possibly expiring.
+    .orderByRaw(
+      `array_position(ARRAY[${streamIds.map(
+        (streamId) => `'${streamId}'`
+      )}]::varchar[], stream_id), created_at ASC`
+    )
+    .limit(POSTGRES_PARAMETERIZED_QUERY_LIMIT)
 
-@singleton()
 export class RequestRepository {
-  constructor(
-    @inject('config') private config?: Config,
-    @inject('dbConnection') private connection?: Knex
-  ) {}
+  static inject = ['config', 'dbConnection'] as const
+
+  constructor(private config: Config, private connection: Knex) {}
 
   /**
    * Create/updates client request
@@ -168,13 +181,14 @@ export class RequestRepository {
    * @param options
    * @returns A promise that resolves to the created request
    */
-  public async createOrUpdate(request: Request, options: Options = {}): Promise<Request> {
+  async createOrUpdate(request: Request, options: Options = {}): Promise<Request> {
     const { connection = this.connection } = options
+    const keys = Object.keys(request).filter((key) => key !== 'id') // all keys except ID
     const [{ id }] = await connection
       .table(TABLE_NAME)
       .insert(request, ['id'])
       .onConflict('cid')
-      .merge()
+      .merge(keys)
 
     const created = await connection.table(TABLE_NAME).first().where({ id })
 
@@ -195,7 +209,7 @@ export class RequestRepository {
    * @param options
    * @returns
    */
-  public async createRequests(requests: Array<Request>, options: Options = {}): Promise<void> {
+  async createRequests(requests: Array<Request>, options: Options = {}): Promise<void> {
     const { connection = this.connection } = options
 
     await connection.table(TABLE_NAME).insert(requests)
@@ -208,7 +222,7 @@ export class RequestRepository {
    * @param options
    * @returns A promise that resolves to the number of updated requests
    */
-  public async updateRequests(
+  async updateRequests(
     fields: RequestUpdateFields,
     requests: Request[],
     options: Options = {}
@@ -244,7 +258,7 @@ export class RequestRepository {
    * @param options
    * @returns A promise for the array of READY requests that were updated
    */
-  public async findAndMarkAsProcessing(options: Options = {}): Promise<Request[]> {
+  async findAndMarkAsProcessing(options: Options = {}): Promise<Request[]> {
     const { connection = this.connection } = options
 
     return await connection
@@ -272,7 +286,7 @@ export class RequestRepository {
           // Record the requests we are processing, along with the time since they were marked as ready.
           const processing = new TimeableMetric(SinceField.UPDATED_AT)
           processing.recordAll(requests)
-          processing.publishStats(METRIC_NAMES.READY_PROCESSING)
+          processing.publishStats(METRIC_NAMES.READY_PROCESSING_MS)
           return requests
         },
         {
@@ -296,7 +310,7 @@ export class RequestRepository {
    * @param options
    * @returns Promise for the associated request
    */
-  public async findByCid(cid: CID, options: Options = {}): Promise<Request> {
+  async findByCid(cid: CID, options: Options = {}): Promise<Request> {
     const { connection = this.connection } = options
 
     return connection(TABLE_NAME).where({ cid: cid.toString() }).first()
@@ -308,7 +322,7 @@ export class RequestRepository {
    * @param options
    * @returns A promise that resolves to an array of request
    */
-  public async findRequestsToGarbageCollect(options: Options = {}): Promise<Request[]> {
+  async findRequestsToGarbageCollect(options: Options = {}): Promise<Request[]> {
     const { connection = this.connection } = options
 
     const now: number = new Date().getTime()
@@ -340,7 +354,7 @@ export class RequestRepository {
    * @param options
    * @returns A promise that resolves to an array of the original requests that were marked as READY
    */
-  public async findAndMarkReady(
+  async findAndMarkReady(
     maxStreamLimit: number,
     minStreamLimit = maxStreamLimit,
     options: Options = {}
@@ -411,7 +425,7 @@ export class RequestRepository {
    * @param options
    * @returns A promise that resolves to an array of request with the given status
    */
-  public async findByStatus(status: RequestStatus, options: LimitOptions = {}): Promise<Request[]> {
+  async findByStatus(status: RequestStatus, options: LimitOptions = {}): Promise<Request[]> {
     const { connection = this.connection, limit } = options
 
     const query = connection(TABLE_NAME).orderBy('updatedAt', 'asc').where({ status })
@@ -427,7 +441,7 @@ export class RequestRepository {
    * Returns the number of pending anchor requests that remain in the database.
    * @returns The number of requests in the database in status PENDING
    */
-  public async countPendingRequests(): Promise<number> {
+  async countPendingRequests(): Promise<number> {
     const res = await this.connection(TABLE_NAME)
       .count('id')
       .where({ status: RequestStatus.PENDING })
@@ -441,7 +455,7 @@ export class RequestRepository {
    * @param options
    * @returns A promise for the number of expired ready requests updated
    */
-  public async updateExpiringReadyRequests(options: Options = {}): Promise<number> {
+  async updateExpiringReadyRequests(options: Options = {}): Promise<number> {
     const { connection = this.connection } = options
 
     return await connection

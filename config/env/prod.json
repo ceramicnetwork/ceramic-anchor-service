@@ -1,9 +1,12 @@
 {
   "mode": "@@APP_MODE",
   "port": "@@APP_PORT",
+  "useSmartContractAnchors": "@@USE_SMART_CONTRACT_ANCHORS",
   "anchorControllerEnabled": "@@ANCHOR_CONTROLLER_ENABLED",
   "anchorLauncherUrl": "@@ANCHOR_LAUNCHER_URL",
   "expirationPeriod": "@@ANCHOR_EXPIRATION_PERIOD",
+  "includeBlockInfoInAnchorProof": "@@INCLUDE_BLOCK_INFO_IN_ANCHOR_PROOF",
+  "loadStreamTimeoutMs": "@@LOAD_STREAM_TIMEOUT_MS",
   "maxAnchoringDelayMS": "@@MAX_ANCHORING_DELAY_MS",
   "merkleDepthLimit": "@@MERKLE_DEPTH_LIMIT",
   "minStreamCount": "@@MIN_STREAM_COUNT",
@@ -33,7 +36,8 @@
         "transactionTimeoutSecs": "@@ETH_TXN_TIMEOUT",
         "account": {
           "privateKey": "@@ETH_WALLET_PK"
-        }
+        },
+        "contractAddress": "@@ETH_CONTRACT_ADDRESS"
       }
     }
   },
