@@ -772,9 +772,14 @@ export class AnchorService {
       stream = await ceramicService.loadStream(candidate.streamId)
     } catch (err) {
       logger.err(`Failed to load stream ${candidate.streamId.toString()}: ${err}`)
+      Metrics.count(METRIC_NAMES.FAILED_STREAM, 1)
       candidate.failAllRequests()
       return
     }
+
+    const newestRequest = candidate.requests.reduce(function (newest, current) {
+      return newest.createdAt > current.createdAt ? newest : current
+    })
 
     // Now filter out requests from the Candidate that are already present in the stream log
     const missingRequests = candidate.requests.filter((req) => {
@@ -783,6 +788,9 @@ export class AnchorService {
       })
       return !found
     })
+    const newestMissingRequest = missingRequests.reduce(function (newest, current) {
+      return newest.createdAt > current.createdAt ? newest : current
+    })
 
     // If stream already knows about all CIDs that we have requests for, great!
     if (missingRequests.length == 0) {
@@ -790,19 +798,32 @@ export class AnchorService {
       return
     }
 
-    for (const req of missingRequests) {
-      logger.debug(
-        `Stream ${req.streamId} is missing Commit CID ${req.cid}. Sending multiquery to force ceramic to load it`
-      )
+    if (newestRequest != newestMissingRequest) {
+      // The newestRequest is included in the stream. The odds that one of the missingRequests is a "better" commit
+      // to anchor than the newestRequest is extremely low, so don't bother trying to force the Ceramic node to
+      // consider them.  Just take the newest request and assume that's fine.
+      candidate.setTipToAnchor(stream)
+      return
     }
+
+    logger.debug(
+      `Stream ${candidate.streamId.toString()} is missing ${
+        missingRequests.length
+      } requests from its log. The newest missing request is ${newestMissingRequest.cid.toString()} - sending multiQuery to force ceramic to load it`
+    )
 
     // If there were CIDs that we have requests for but didn't show up in the stream state that
     // we loaded from Ceramic, we can't tell if that is because those commits were rejected by
     // Ceramic's conflict resolution, or if our local Ceramic node just never heard about those
-    // commits before.  So we build a multiquery including all missing commits and send that to
-    // Ceramic, forcing it to at least consider every CID that we have a request for.
-    const queries = missingRequests.map((request) => {
-      return { streamId: CommitID.make(candidate.streamId, request.cid).toString() }
+    // commits before.  Building a multiQuery including both the base StreamID and a missing commit's CommitID
+    // will force the Ceramic node to consider that commit and sent it through conflict resolution.
+    // To be perfectly safe and consider every missing request we would need to build a multiquery with every missing
+    // request CommitID, but that is very expensive and prone to timing out.  The vast majority of the time the newest
+    // request is going to be the best one, so we only send the multiquery for the newest missing request, as an
+    // optimization.
+    const queries = []
+    queries.push({
+      streamId: CommitID.make(candidate.streamId, newestMissingRequest.cid).toString(),
     })
     queries.push({ streamId: candidate.streamId.baseID.toString() })
 
@@ -810,6 +831,8 @@ export class AnchorService {
     let response
     try {
       response = await ceramicService.multiQuery(queries)
+      // Get the current version of the Stream that has considered the newest missing request CID
+      stream = response[candidate.streamId.toString()]
     } catch (err) {
       logger.err(
         `Multiquery failed for stream ${candidate.streamId.toString()} with ${
@@ -817,20 +840,24 @@ export class AnchorService {
         } missing commits: ${err}`
       )
       Metrics.count(METRIC_NAMES.ERROR_MULTIQUERY, 1)
-      candidate.failAllRequests()
-      return
+      // If the multiquery fails, fall back to anchoring based on the best information available
     }
 
+    const stillMissingRequests = candidate.requests.filter((req) => {
+      const found = stream.state.log.find(({ cid }) => {
+        return cid.toString() == req.cid
+      })
+      return !found
+    })
+
     // Fail requests for tips that failed to be loaded
-    for (const request of missingRequests) {
+    for (const request of stillMissingRequests) {
       const commitId = CommitID.make(candidate.streamId, request.cid)
-      if (!response[commitId.toString()]) {
-        logger.err(
-          `Failed to load stream ${commitId.baseID.toString()} at commit ${commitId.commit.toString()}`
-        )
-        Metrics.count(METRIC_NAMES.FAILED_TIP, 1)
-        candidate.failRequest(request)
-      }
+      logger.err(
+        `Failed to load stream ${commitId.baseID.toString()} at commit ${commitId.commit.toString()}`
+      )
+      Metrics.count(METRIC_NAMES.FAILED_TIP, 1)
+      candidate.failRequest(request)
     }
     if (candidate.allRequestsFailed()) {
       // If all pending requests for this stream failed to load then don't anchor the stream.
@@ -840,15 +867,6 @@ export class AnchorService {
       return
     }
 
-    // Get the current version of the Stream that has considered all pending request CIDs and select
-    // tip to anchor
-    stream = response[candidate.streamId.toString()]
-    if (!stream) {
-      logger.err(`Failed to load stream ${candidate.streamId.toString()}`)
-      Metrics.count(METRIC_NAMES.FAILED_STREAM, 1)
-      candidate.failAllRequests()
-      return
-    }
     candidate.setTipToAnchor(stream)
   }
 }
