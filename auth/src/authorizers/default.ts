@@ -82,7 +82,7 @@ async function allowRegisteredDID(event: APIGatewayRequestAuthorizerEvent, callb
       } else {
         const createTableIfNotExists = false
         const db = new DynamoDB(createTableIfNotExists)
-        const data = await db.addNonce(did, result.payload?.nonce)
+        const data = await db.addNonce(did, nonce)
         if (data) {
           if (data.did == did && data.nonce == nonce) {
             return callback(null, generatePolicy(did, {effect: 'Allow', resource: event.methodArn}, did))
