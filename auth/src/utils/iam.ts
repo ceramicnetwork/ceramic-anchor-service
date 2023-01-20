@@ -21,7 +21,5 @@ export function generatePolicy(principalId: string, policyDocumentOptions?: { ef
             "authId": usageIdentifierKey
         }
     }
-    // Add custom properties on context if needed
-    // authResponse.context
     return authResponse
 }
