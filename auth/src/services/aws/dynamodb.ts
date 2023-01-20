@@ -348,8 +348,10 @@ export class DynamoDB implements Database {
         }
     }
 
-    async registerDIDs(email: string, otp: string, dids: Array<string>): Promise<Array<DIDResult> | undefined> {
-        if (!await this._checkCorrectOTP(email, otp)) return
+    async registerDIDs(email: string, otp: string, dids: Array<string>, skipOTP?: boolean): Promise<Array<DIDResult> | undefined> {
+        if (!skipOTP) {
+            if (!await this._checkCorrectOTP(email, otp)) return
+        }
         const shouldCheckOTPAgain = false
 
         const results: any[] = []
@@ -366,6 +368,7 @@ export class DynamoDB implements Database {
         if (checkOTP) {
             if (!await this._checkCorrectOTP(email, otp)) return
         }
+        // TODO: limit to 4 dids before email
 
         const status = DIDStatus.Active
         const params: PutItemCommandInput = {

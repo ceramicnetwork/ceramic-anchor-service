@@ -26,7 +26,8 @@ router.post('/', validate(registerValidation), async (req: Req, res: Res) => {
     }
   }
 
-  const data = await req.customContext.db.registerDIDs(req.body.email, req.body.otp, req.body.dids)
+  const skipOTP = userIsAdmin
+  const data = await req.customContext.db.registerDIDs(req.body.email, req.body.otp, req.body.dids, skipOTP)
   if (data) {
     const keyData = data.map((didResult) => ({ user: didResult.email, apiKey: didResult.did }))
     try {
