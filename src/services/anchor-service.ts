@@ -788,29 +788,27 @@ export class AnchorService {
       })
       return !found
     })
-    const newestMissingRequest = missingRequests.reduce(function (newest, current) {
-      return newest.createdAt > current.createdAt ? newest : current
-    })
-
     // If stream already knows about all CIDs that we have requests for, great!
     if (missingRequests.length == 0) {
       candidate.setTipToAnchor(stream)
       return
     }
 
+    const newestMissingRequest = missingRequests.reduce(function (newest, current) {
+      return newest.createdAt > current.createdAt ? newest : current
+    })
     if (newestRequest != newestMissingRequest) {
       // The newestRequest is included in the stream. The odds that one of the missingRequests is a "better" commit
       // to anchor than the newestRequest is extremely low, so don't bother trying to force the Ceramic node to
       // consider them.  Just take the newest request and assume that's fine.
+      logger.debug(
+        `Stream ${candidate.streamId.toString()} is missing ${
+          missingRequests.length
+        } requests, but the newest request is included.  Anchoring the newest request, with CID ${newestRequest.cid.toString()}`
+      )
       candidate.setTipToAnchor(stream)
       return
     }
-
-    logger.debug(
-      `Stream ${candidate.streamId.toString()} is missing ${
-        missingRequests.length
-      } requests from its log. The newest missing request is ${newestMissingRequest.cid.toString()} - sending multiQuery to force ceramic to load it`
-    )
 
     // If there were CIDs that we have requests for but didn't show up in the stream state that
     // we loaded from Ceramic, we can't tell if that is because those commits were rejected by
@@ -821,6 +819,11 @@ export class AnchorService {
     // request CommitID, but that is very expensive and prone to timing out.  The vast majority of the time the newest
     // request is going to be the best one, so we only send the multiquery for the newest missing request, as an
     // optimization.
+    logger.debug(
+      `Stream ${candidate.streamId.toString()} is missing ${
+        missingRequests.length
+      } requests from its log. The newest missing request is ${newestMissingRequest.cid.toString()} - sending multiQuery to force ceramic to load it`
+    )
     const queries = []
     queries.push({
       streamId: CommitID.make(candidate.streamId, newestMissingRequest.cid).toString(),
