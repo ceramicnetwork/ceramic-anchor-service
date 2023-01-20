@@ -333,7 +333,7 @@ export class DynamoDB implements Database {
                 'updated_at_unix': now(),
                 // TODO: add TTL if timestamp comes with the nonce
             }),
-            ConditionExpression: 'attribute_exists(PK) AND attribute_not_exists(SK)'
+            ConditionExpression: 'attribute_not_exists(PK)'
         }
         try {
             await this.client.send(new PutItemCommand(input))
@@ -482,7 +482,7 @@ export class DynamoDB implements Database {
                 'SK': otp
             }),
             UpdateExpression: `SET curr_status=:next_status, updated_at_unix=:updated_at_unix`,
-            ConditionExpression: '(attribute_exists(PK)) AND (attribute_exists(SK)) AND contains(curr_status, :prev_status)',
+            ConditionExpression: '(attribute_exists(PK)) AND contains(curr_status, :prev_status)',
             ExpressionAttributeValues: marshall({
                 ':next_status': OTPStatus.Used,
                 ':prev_status': OTPStatus.Active,
