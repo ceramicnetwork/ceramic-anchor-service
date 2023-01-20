@@ -190,8 +190,8 @@ export class DynamoDB implements Database {
      */
     async getDIDRegistration(did: string, status?: DIDStatus): Promise<any | undefined> {
         try {
-            const data = await this._getItem(DID_TABLE_NAME, did, did)
-            if (data.status != status) {
+            const data = await this._getItem(DID_TABLE_NAME, did, INITIAL_NONCE)
+            if (data.curr_status != status) {
                 throw new Error(`Item found but status is not ${status}`)
             }
             return data
