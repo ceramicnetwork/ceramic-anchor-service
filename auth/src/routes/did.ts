@@ -5,6 +5,7 @@ import { registerValidation, revokeValidation } from '../validators/did.js'
 import { ClientFacingError } from '../utils/errorHandling.js'
 import { Req, Res } from '../utils/reqres.js'
 import { ConfigKey } from '../services/db.js'
+import { checkUserIsAdmin } from '../utils/auth.js'
 
 const router = asyncify(express.Router())
 
@@ -12,10 +13,18 @@ const router = asyncify(express.Router())
  * Register DIDs
  */
 router.post('/', validate(registerValidation), async (req: Req, res: Res) => {
-  const registrationEnabled = await req.customContext.db.getConfig(ConfigKey.RegistrationEnabled)
-  if (!registrationEnabled) {
-    return res.send({ message: 'We have reached capacity! We are not accepting new registrations at this time. Please try again later.'})
+  let userIsAdmin = false
+  if (req.headers.authorization) {
+    userIsAdmin = checkUserIsAdmin(req.headers.authorization)
   }
+
+  if (!userIsAdmin) {
+    const registrationEnabled = await req.customContext.db.getConfig(ConfigKey.RegistrationEnabled)
+    if (!registrationEnabled) {
+      return res.send({ message: 'We have reached capacity! We are not accepting new registrations at this time. Please try again later.'})
+    }
+  }
+
   const data = await req.customContext.db.registerDIDs(req.body.email, req.body.otp, req.body.dids)
   if (data) {
     const keyData = data.map((didResult) => ({ user: didResult.email, apiKey: didResult.did }))

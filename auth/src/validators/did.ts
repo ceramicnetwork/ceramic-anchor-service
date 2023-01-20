@@ -10,7 +10,7 @@ export const registerValidation = {
   headers: Joi.object().keys({
     authorization: Joi.string()
       .regex(authBasicRegex)
-      .required()
+      .optional()
   }).unknown(true),
   body: Joi.object({
     email: Joi.string()
