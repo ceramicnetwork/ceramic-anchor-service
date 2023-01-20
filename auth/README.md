@@ -49,3 +49,35 @@ curl --request POST \
   --header 'Content-Type: application/json' \
   --data '{"email": "<email>"}'
 ```
+
+Register DID
+```sh
+curl --request POST \
+  --url https://cas-dev.3boxlabs.com/api/v0/auth/did \
+  --header 'Content-Type: application/json' \
+  --data '{"email": "<email>", "otp": "<otp>", "dids": ["<did>"]}'
+```
+
+Disable registrations
+```sh
+node ./scripts/build-credentials.js
+```
+```sh
+curl --request PUT \
+  --url https://cas-dev.3boxlabs.com/api/v0/auth/config \
+  --header 'Content-Type: application/json' \
+  --header 'Authorization: Basic <credentials>' \
+  --data '{"PK": "RegistrationEnabled", "v": false}'
+```
+
+Bypass registration config
+```sh
+node ./scripts/build-credentials.js
+```
+```sh
+curl --request POST \
+  --url https://cas-dev.3boxlabs.com/api/v0/auth/did \
+  --header 'Content-Type: application/json' \
+  --header 'Authorization: Basic <credentials>' \
+  --data '{"email": "<email>", "otp": "<anything>", "dids": ["<did>"]}'
+```
