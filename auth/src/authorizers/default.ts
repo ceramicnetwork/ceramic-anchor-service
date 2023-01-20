@@ -6,6 +6,8 @@ import { DynamoDB } from '../services/aws/dynamodb.js'
 import { didRegex, parseSignature } from '../utils/did.js'
 import { generatePolicy } from '../utils/iam.js'
 import { authBearerValidation, nonceValidation } from '../validators/did.js'
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
+import { METRIC_NAMES } from '../settings.js'
 
 const authSchema = Joi.object({
   authorization: authBearerValidation.optional()
@@ -85,6 +87,7 @@ async function allowRegisteredDID(event: APIGatewayRequestAuthorizerEvent, callb
         const data = await db.addNonce(did, result.payload?.nonce)
         if (data) {
           if (data.did == did && data.nonce == nonce) {
+            Metrics.count(METRIC_NAMES.DID_AUTHORIZED_ACCESS, 1, {'did': did })
             return callback(null, generatePolicy(did, {effect: 'Allow', resource: event.methodArn}, did))
           }
         }
@@ -92,5 +95,6 @@ async function allowRegisteredDID(event: APIGatewayRequestAuthorizerEvent, callb
     }
   }
 
+  Metrics.count(METRIC_NAMES.DID_REFUSED_ACCESS, 1)
   return callback('Unauthorized')
 }
