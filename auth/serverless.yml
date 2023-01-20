@@ -35,7 +35,6 @@ provider:
         - Effect: Allow
           Action: 'ec2:DescribeSecurityGroups'
           Resource: '*'
-          iamRoleStatements:
         - Effect: Allow
           Action:
             - dynamodb:*
@@ -47,7 +46,10 @@ provider:
           Action:
             - ses:SendEmail
           Resource:
-            - 'arn:aws:ses:::identity/3boxlabs.com'
+            - 'arn:aws:ses:*:*:identity/3boxlabs.com'
+        - Effect: Allow
+          Action: 'apiGateway:*'
+          Resource: '*'
 
 constructs:
   configDb:
