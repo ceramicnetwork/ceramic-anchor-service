@@ -81,3 +81,11 @@ curl --request POST \
   --header 'Authorization: Basic <credentials>' \
   --data '{"email": "<email>", "otp": "<anything>", "dids": ["<did>"]}'
 ```
+
+Revoke DID
+```sh
+curl --request PATCH \
+  --url https://cas-dev.3boxlabs.com/api/v0/auth/did/<did> \
+  --header 'Content-Type: application/json' \
+  --data '{"email": "<email>", "otp": "<otp>"}'
+```
