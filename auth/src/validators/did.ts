@@ -24,6 +24,7 @@ export const registerValidation = {
         Joi.string()
         .regex(didRegex)
       )
+      .max(4)
       .required(),
   }),
 }
