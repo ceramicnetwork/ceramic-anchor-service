@@ -68,8 +68,9 @@ functions:
           method: 'any'
           path: '/api/v0/auth/{proxy+}'
     environment:
-      ADMIN_USERNAME: ${env:ADMIN_USERNAME}
-      ADMIN_PASSWORD: ${env:ADMIN_PASSWORD}
+      ADMIN_USERNAME: ${env:CAS_AUTH_ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${env:CAS_AUTH_ADMIN_PASSWORD}
+      API_DEFAULT_USAGE_PLAN_ID: ${env:CAS_AUTH_DEFAULT_USAGE_PLAN_ID}
       DB_CONFIG_TABLE_NAME: ${construct:configDb.tableName}
       DB_DID_TABLE_NAME: ${construct:didDb.tableName}
       DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
@@ -77,12 +78,13 @@ functions:
   authorizer:
     handler: src/authorizers/default.handler
     environment:
-      ADMIN_USERNAME: ${env:ADMIN_USERNAME}
-      ADMIN_PASSWORD: ${env:ADMIN_PASSWORD}
+      ADMIN_USERNAME: ${env:CAS_AUTH_ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${env:CAS_AUTH_ADMIN_PASSWORD}
+      API_DEFAULT_USAGE_PLAN_ID: ${env:CAS_AUTH_DEFAULT_USAGE_PLAN_ID}
       DB_CONFIG_TABLE_NAME: ${construct:configDb.tableName}
       DB_DID_TABLE_NAME: ${construct:didDb.tableName}
       DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
-      PERMISSIONED_SECURITY_GROUP_IDS: ${env:PERMISSIONED_SECURITY_GROUP_IDS}
+      PERMISSIONED_SECURITY_GROUP_IDS: ${env:CAS_PERMISSIONED_SECURITY_GROUP_IDS}
       TESTING: ${env:TESTING}
 resources:
   Resources:
