@@ -19,8 +19,9 @@ router.post('/', validate(registerValidation), async (req: Req, res: Res) => {
   }
 
   if (!userIsAdmin) {
-    const registrationEnabled = await req.customContext.db.getConfig(ConfigKey.RegistrationEnabled)
-    if (!registrationEnabled) {
+    const valueOnly = true
+    const registrationEnabled = await req.customContext.db.getConfig(ConfigKey.RegistrationEnabled, valueOnly)
+    if (registrationEnabled == false) {
       return res.send({ message: 'We have reached capacity! We are not accepting new registrations at this time. Please try again later.'})
     }
   }

@@ -139,20 +139,26 @@ export class DynamoDB implements Database {
         }
     }
 
-    async getConfig(key: ConfigKey | string): Promise<any | null | undefined> {
+    async getConfig(key: ConfigKey | string, valueOnly?: boolean): Promise<any | null | undefined> {
+        let data
         try {
-            const data = await this._getItem(CONFIG_TABLE_NAME, key, key)
-            return data
+            data = await this._getItem(CONFIG_TABLE_NAME, key, key)
         } catch (err) {
             if (err instanceof ItemNotFoundError) {
-                console.error('Config has not been set for this key')
-                return {
+                // console.log('Config has not been set for this key')
+                data = {
                     PK: key,
                     v: null
                 }
             } else {
                 console.error(err)
             }
+        }
+        if (data) {
+            if (valueOnly) {
+                return data.v
+            }
+            return data
         }
         return
     }

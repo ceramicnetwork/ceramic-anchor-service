@@ -32,7 +32,7 @@ export interface Database {
     client: any
     init: () => Promise<void>
     createEmailVerificationCode: (email: string) => Promise<string | undefined>
-    getConfig: (key: ConfigKey) => Promise<any>
+    getConfig: (key: ConfigKey, valueOnly?: boolean) => Promise<any>
     getDIDRegistration: (did: string) => Promise<any>
     getEmail: (did: string) => Promise<string | undefined>
     addNonce: (did: string, nonce: string) => Promise<any>
