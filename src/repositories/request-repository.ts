@@ -85,13 +85,13 @@ const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder =>
       .orWhere((subBuilder) =>
         subBuilder
           .where({ status: RequestStatus.PROCESSING })
-          .andWhere('updatedAt', '<', processingDeadline)
+          .andWhere('updatedAt', '<', processingDeadline.toISOString())
       )
       .orWhere((subBuilder) =>
         subBuilder
           .where({ status: RequestStatus.FAILED })
-          .andWhere('createdAt', '>=', earliestFailedCreatedAtToRetry)
-          .andWhere('updatedAt', '<=', latestFailedUpdatedAtToRetry)
+          .andWhere('createdAt', '>=', earliestFailedCreatedAtToRetry.toISOString())
+          .andWhere('updatedAt', '<=', latestFailedUpdatedAtToRetry.toISOString())
           .andWhere((subSubBuilder) =>
             subSubBuilder
               .whereNull('message')
@@ -186,7 +186,7 @@ export class RequestRepository {
     const keys = Object.keys(request).filter((key) => key !== 'id') // all keys except ID
     const [{ id }] = await connection
       .table(TABLE_NAME)
-      .insert(request, ['id'])
+      .insert(request.toDB(), ['id'])
       .onConflict('cid')
       .merge(keys)
 
@@ -200,7 +200,7 @@ export class RequestRepository {
       updatedAt: created.updatedAt.getTime(),
     })
 
-    return created
+    return new Request(created)
   }
 
   /**
@@ -212,7 +212,7 @@ export class RequestRepository {
   async createRequests(requests: Array<Request>, options: Options = {}): Promise<void> {
     const { connection = this.connection } = options
 
-    await connection.table(TABLE_NAME).insert(requests)
+    await connection.table(TABLE_NAME).insert(requests.map((request) => request.toDB()))
   }
 
   /**
@@ -228,7 +228,7 @@ export class RequestRepository {
     options: Options = {}
   ): Promise<number> {
     const { connection = this.connection } = options
-    const updatedAt = new Date(Date.now())
+    const updatedAt = new Date()
     const ids = requests.map((r) => r.id)
     const result = await connection(TABLE_NAME)
       .update({
@@ -310,10 +310,11 @@ export class RequestRepository {
    * @param options
    * @returns Promise for the associated request
    */
-  async findByCid(cid: CID, options: Options = {}): Promise<Request> {
+  async findByCid(cid: CID, options: Options = {}): Promise<Request | undefined> {
     const { connection = this.connection } = options
 
-    return connection(TABLE_NAME).where({ cid: cid.toString() }).first()
+    const found = await connection(TABLE_NAME).where({ cid: cid.toString() }).first()
+    if (found) return new Request(found)
   }
 
   /**
@@ -334,7 +335,7 @@ export class RequestRepository {
       .where('updatedAt', '>=', deadlineDate)
 
     // expired requests with streams that have not been recently updated
-    return await connection(TABLE_NAME)
+    return connection(TABLE_NAME)
       .orderBy('updatedAt', 'desc')
       .whereIn('status', [RequestStatus.COMPLETED, RequestStatus.FAILED])
       .andWhere('pinned', true)
@@ -446,7 +447,7 @@ export class RequestRepository {
       .count('id')
       .where({ status: RequestStatus.PENDING })
       .first()
-    return parseInt(res.count as string)
+    return parseInt(res.count as string, 10)
   }
 
   /**
