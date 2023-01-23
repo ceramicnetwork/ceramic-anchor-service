@@ -2,7 +2,7 @@ import { CeramicClient } from '@ceramicnetwork/http-client'
 import { CeramicApi, MultiQuery, Stream, SyncOptions } from '@ceramicnetwork/common'
 
 import type { Config } from 'node-config-ts'
-import { StreamID, CommitID } from '@ceramicnetwork/streamid'
+import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 import { logger } from '../logger/index.js'
@@ -36,17 +36,16 @@ export class CeramicServiceImpl implements CeramicService {
 
   async loadStream<T extends Stream>(
     streamId: StreamID | CommitID,
+    sync: SyncOptions = SyncOptions.PREFER_CACHE,
     timeoutMs?: number
   ): Promise<T> {
     let timeoutHandle: any
     const effectiveTimeout =
       timeoutMs ?? this.config.loadStreamTimeoutMs ?? DEFAULT_LOAD_STREAM_TIMEOUT
 
-    const streamPromise = this._client
-      .loadStream(streamId, { sync: SyncOptions.SYNC_ON_ERROR, pin: true })
-      .finally(() => {
-        clearTimeout(timeoutHandle)
-      })
+    const streamPromise = this._client.loadStream(streamId, { sync, pin: true }).finally(() => {
+      clearTimeout(timeoutHandle)
+    })
 
     const timeoutPromise = new Promise((_, reject) => {
       timeoutHandle = setTimeout(() => {
@@ -60,7 +59,7 @@ export class CeramicServiceImpl implements CeramicService {
   async pinStream(streamId: StreamID): Promise<void> {
     try {
       // this.loadStream uses the 'pin' flag to pin the stream after loading it.
-      await this.loadStream(streamId, PIN_TIMEOUT)
+      await this.loadStream(streamId, SyncOptions.SYNC_ON_ERROR, PIN_TIMEOUT)
 
       logger.debug(`Successfully pinned stream ${streamId.toString()}`)
       Metrics.count(METRIC_NAMES.PIN_SUCCEEDED, 1)
