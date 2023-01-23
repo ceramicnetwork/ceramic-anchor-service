@@ -34,19 +34,24 @@ export class CeramicServiceImpl implements CeramicService {
     this._client = new CeramicClient(config.ceramic.apiUrl)
   }
 
-  async loadStream<T extends Stream>(streamId: StreamID | CommitID): Promise<T> {
-    let timeout: any
+  async loadStream<T extends Stream>(
+    streamId: StreamID | CommitID,
+    timeoutMs?: number
+  ): Promise<T> {
+    let timeoutHandle: any
+    const effectiveTimeout =
+      timeoutMs ?? this.config.loadStreamTimeoutMs ?? DEFAULT_LOAD_STREAM_TIMEOUT
 
     const streamPromise = this._client
       .loadStream(streamId, { sync: SyncOptions.SYNC_ON_ERROR, pin: true })
       .finally(() => {
-        clearTimeout(timeout)
+        clearTimeout(timeoutHandle)
       })
 
     const timeoutPromise = new Promise((_, reject) => {
-      timeout = setTimeout(() => {
+      timeoutHandle = setTimeout(() => {
         reject(new Error(`Timed out loading stream: ${streamId.toString()}`))
-      }, this.config.loadStreamTimeoutMs || DEFAULT_LOAD_STREAM_TIMEOUT)
+      }, effectiveTimeout)
     })
 
     return (await Promise.race([streamPromise, timeoutPromise])) as T
@@ -54,25 +59,11 @@ export class CeramicServiceImpl implements CeramicService {
 
   async pinStream(streamId: StreamID): Promise<void> {
     try {
-      let timeout: any
+      // this.loadStream uses the 'pin' flag to pin the stream after loading it.
+      await this.loadStream(streamId, PIN_TIMEOUT)
 
-      const pinPromise = this._client.pin
-        .add(streamId)
-        .then(() => {
-          logger.debug(`Successfully pinned stream ${streamId.toString()}`)
-          Metrics.count(METRIC_NAMES.PIN_SUCCEEDED, 1)
-        })
-        .finally(() => {
-          clearTimeout(timeout)
-        })
-
-      const timeoutPromise = new Promise((_, reject) => {
-        timeout = setTimeout(() => {
-          reject(new Error(`Timed out pinning stream: ${streamId.toString()}`))
-        }, PIN_TIMEOUT)
-      })
-
-      await Promise.race([pinPromise, timeoutPromise])
+      logger.debug(`Successfully pinned stream ${streamId.toString()}`)
+      Metrics.count(METRIC_NAMES.PIN_SUCCEEDED, 1)
     } catch (e) {
       // Pinning is best-effort, as we don't want to fail requests if the Ceramic node is unavailable
       logger.err(`Error pinning stream ${streamId.toString()}: ${e.toString()}`)
