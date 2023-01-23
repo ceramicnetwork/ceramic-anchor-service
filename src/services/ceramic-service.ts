@@ -60,10 +60,10 @@ export class CeramicServiceImpl implements CeramicService {
   async pinStream(streamId: StreamID): Promise<void> {
     try {
       // this.loadStream uses the 'pin' flag to pin the stream after loading it.
-      await this.loadStream(streamId, PIN_TIMEOUT).then(() => {
-        logger.debug(`Successfully pinned stream ${streamId.toString()}`)
-        Metrics.count(METRIC_NAMES.PIN_SUCCEEDED, 1)
-      })
+      await this.loadStream(streamId, PIN_TIMEOUT)
+
+      logger.debug(`Successfully pinned stream ${streamId.toString()}`)
+      Metrics.count(METRIC_NAMES.PIN_SUCCEEDED, 1)
     } catch (e) {
       // Pinning is best-effort, as we don't want to fail requests if the Ceramic node is unavailable
       logger.err(`Error pinning stream ${streamId.toString()}: ${e.toString()}`)
