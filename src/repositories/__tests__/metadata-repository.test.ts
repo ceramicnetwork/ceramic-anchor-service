@@ -1,5 +1,5 @@
 import type { Knex } from 'knex'
-import { afterAll, beforeAll, afterEach, test, expect, describe } from '@jest/globals'
+import { afterAll, beforeAll, beforeEach, test, expect, describe } from '@jest/globals'
 import { createDbConnection } from '../../db-connection.js'
 import { MetadataRepository } from '../metadata-repository.js'
 import type { FreshMetadata } from '../../models/metadata.js'
@@ -23,7 +23,7 @@ beforeAll(async () => {
   repository = new MetadataRepository(dbConnection)
 })
 
-afterEach(async () => {
+beforeEach(async () => {
   await repository.table().delete()
 })
 
