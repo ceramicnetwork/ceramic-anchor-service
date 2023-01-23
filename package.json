@@ -68,7 +68,7 @@
     "http-status-codes": "^2.2.0",
     "io-ts": "^2.2.20",
     "ipfs-http-client": "^55.0.0",
-    "knex": "^2.2.0",
+    "knex": "^2.4.2",
     "lodash.camelcase": "^4.3.0",
     "lodash.clonedeep": "^4.5.0",
     "lodash.snakecase": "^4.1.1",
