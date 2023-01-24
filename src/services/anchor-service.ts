@@ -295,7 +295,7 @@ export class AnchorService {
 
     return {
       anchoredRequestsCount: anchoredRequests.length,
-      failedToPublishAnchorCommitCount: merkleTree.getLeaves().length - anchors.length,
+      failedToPublishAnchorCommitCount: merkleTree.leafNodes.length - anchors.length,
       anchorCount: anchors.length,
       reanchoredCount: reAnchoredCount,
     }
