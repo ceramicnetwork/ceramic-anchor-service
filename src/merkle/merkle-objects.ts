@@ -134,54 +134,34 @@ export class Candidate implements CIDHolder {
     return this.cid != null && this._acceptedRequests.length > 0 && !this._alreadyAnchored
   }
 
+  /**
+   * If there were requests that were missing from the stream log after we loaded the stream,
+   * we fall back to this method.  The old (more correct) behavior was to force the Ceramic node
+   * to load each commit from each pending request, so we know that the Ceramic node has considered
+   * them all and picked the best one according to conflict resolution.  What we do here is much
+   * dumber and riskier.  We just blindly take the most recent request, without doing any validation
+   * or conflict resolution on it.  The CAS w/o Ceramic node project will replace this with better
+   * logic that will still do signature verification, and will ensure that if different Ceramic
+   * nodes have pending anchor requests for different tips for the same stream, that both tips
+   * will get anchored.
+   * This is a temporary stopgap to speed up the anchoring process, and the cost of possibly more
+   * data loss due to anchoring the wrong tip in some cases.
+   */
   forceAnchorOfNewestRequest(stream: Stream) {
     this._metadata = stream.state.next?.metadata
       ? stream.state.next.metadata
       : stream.state.metadata
 
-    // Pick the newest request to be anchored
     const newestRequest = this.requests.reduce(function (newest, current) {
       return newest.createdAt > current.createdAt ? newest : current
     })
     this._cid = CID.asCID(newestRequest.cid)
 
-    // Check the log of the Stream that was loaded from Ceramic to see which of the pending requests
-    // are for CIDs that are included in the current version of the Stream's log.
-    const includedRequests = this.requests.filter((req) => {
-      return stream.state.log.find((logEntry) => {
-        return logEntry.cid.toString() == req.cid
-      })
+    this._acceptedRequests = [newestRequest]
+    this._rejectedRequests = this.requests.filter((req) => {
+      return req.cid != newestRequest.cid
     })
-    const missingRequests = this.requests.filter((req) => {
-      const found = stream.state.log.find(({ cid }) => {
-        return cid.toString() == req.cid
-      })
-      return !found
-    })
-    if (missingRequests.length == 0) {
-      throw new Error(
-        `forceAnchorOfNewestRequest called even though all requests are present, use setTipToAnchor instead`
-      )
-    }
-    if (missingRequests.length + includedRequests.length != this.requests.length) {
-      throw new Error(
-        `missing + included does not equal total number of requests, should be impossible`
-      )
-    }
-
-    const newestRequestIsIncluded = includedRequests.find((req) => {
-      return req.cid == newestRequest.cid
-    })
-    if (newestRequestIsIncluded) {
-      // If the newest request is included in the stream log, then
-      this._acceptedRequests = includedRequests
-      this._rejectedRequests = missingRequests
-    } else {
-      this._acceptedRequests = [newestRequest]
-      this._rejectedRequests = this.requests.filter((req) => {
-        return req.cid != newestRequest.cid
-      })
-    }
+    this._newestAcceptedRequest = newestRequest
   }
 
   /**
