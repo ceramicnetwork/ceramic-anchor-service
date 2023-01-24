@@ -117,6 +117,12 @@ export class AnchorService {
   private readonly ipfsCompare: IpfsLeafCompare
   private readonly bloomMetadata: BloomMetadata
 
+  private readonly merkleDepthLimit: number
+  private readonly includeBlockInfoInAnchorProof: boolean
+  private readonly useSmartContractAnchors: boolean
+  private readonly maxStreamLimit: number
+  private readonly minStreamLimit: number
+
   static inject = [
     'blockchainService',
     'config',
@@ -131,7 +137,7 @@ export class AnchorService {
 
   constructor(
     private readonly blockchainService: BlockchainService,
-    private readonly config: Config,
+    config: Config,
     private readonly ipfsService: IIpfsService,
     private readonly requestRepository: RequestRepository,
     private readonly transactionRepository: TransactionRepository,
@@ -143,6 +149,14 @@ export class AnchorService {
     this.ipfsMerge = new IpfsMerge(this.ipfsService)
     this.ipfsCompare = new IpfsLeafCompare()
     this.bloomMetadata = new BloomMetadata()
+
+    this.merkleDepthLimit = config.merkleDepthLimit
+    this.includeBlockInfoInAnchorProof = config.includeBlockInfoInAnchorProof
+    this.useSmartContractAnchors = config.useSmartContractAnchors
+
+    const minStreamCount = config.minStreamCount
+    this.maxStreamLimit = this.merkleDepthLimit > 0 ? Math.pow(2, this.merkleDepthLimit) : 0
+    this.minStreamLimit = minStreamCount || Math.floor(this.maxStreamLimit / 2)
   }
 
   /**
@@ -153,11 +167,8 @@ export class AnchorService {
     const readyRequests = await this.requestRepository.findByStatus(RS.READY)
 
     if (!triggeredByAnchorEvent && readyRequests.length === 0) {
-      const maxStreamLimit =
-        this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0
-      const minStreamLimit = this.config.minStreamCount || Math.floor(maxStreamLimit / 2)
       // Pull in twice as many streams as we want to anchor, since some of those streams may fail to load.
-      await this.requestRepository.findAndMarkReady(maxStreamLimit * 2, minStreamLimit)
+      await this.requestRepository.findAndMarkReady(this.maxStreamLimit * 2, this.minStreamLimit)
     }
 
     return this.anchorReadyRequests()
@@ -194,13 +205,7 @@ export class AnchorService {
       return
     }
 
-    let streamCountLimit = 0 // 0 means no limit
-    if (this.config.merkleDepthLimit > 0) {
-      // The number of streams we are able to include in a single anchor batch is limited by the
-      // max depth of the merkle tree.
-      streamCountLimit = Math.pow(2, this.config.merkleDepthLimit)
-    }
-    const [candidates, groupedRequests] = await this._findCandidates(requests, streamCountLimit)
+    const [candidates, groupedRequests] = await this._findCandidates(requests, this.maxStreamLimit)
 
     if (candidates.length === 0) {
       logger.imp('No candidates found. Skipping anchor.')
@@ -343,13 +348,9 @@ export class AnchorService {
       )
       Metrics.count(METRIC_NAMES.RETRY_EMIT_ANCHOR_EVENT, updatedExpiredReadyRequestsCount)
     } else {
-      const maxStreamLimit =
-        this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0
-      const minStreamLimit = this.config.minStreamCount || Math.floor(maxStreamLimit / 2)
-
       const updatedRequests = await this.requestRepository.findAndMarkReady(
-        maxStreamLimit,
-        minStreamLimit
+        this.maxStreamLimit,
+        this.minStreamLimit
       )
 
       if (updatedRequests.length === 0) {
@@ -362,8 +363,6 @@ export class AnchorService {
       // An event will emit the next time this is run and the ready requests have expired (in READY_TIMEOUT)
       logger.err(`Error when emitting an anchor event: ${err}`)
     })
-
-    return
   }
 
   /**
@@ -379,7 +378,7 @@ export class AnchorService {
         this.ipfsMerge,
         this.ipfsCompare,
         this.bloomMetadata,
-        this.config.merkleDepthLimit
+        this.merkleDepthLimit
       )
       await merkleTree.build(candidates)
       return merkleTree
@@ -402,7 +401,7 @@ export class AnchorService {
       txHash: txHashCid,
     } as any
 
-    if (this.config.includeBlockInfoInAnchorProof) {
+    if (this.includeBlockInfoInAnchorProof) {
       ipfsAnchorProof = {
         blockNumber: tx.blockNumber,
         blockTimestamp: tx.blockTimestamp,
@@ -410,7 +409,7 @@ export class AnchorService {
       }
     }
 
-    if (this.config.useSmartContractAnchors) ipfsAnchorProof.txType = CONTRACT_TX_TYPE
+    if (this.useSmartContractAnchors) ipfsAnchorProof.txType = CONTRACT_TX_TYPE
 
     logger.debug('Anchor proof: ' + JSON.stringify(ipfsAnchorProof))
     const ipfsProofCid = await this.ipfsService.storeRecord(ipfsAnchorProof)
