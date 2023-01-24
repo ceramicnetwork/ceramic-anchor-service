@@ -1,5 +1,6 @@
 import { CID } from 'multiformats/cid'
 import { create as createMultihash } from 'multiformats/hashes/digest'
+import re
 
 const KECCAK_256_CODE = 0x1b
 const ETH_TX_CODE = 0x93

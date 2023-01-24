@@ -12,6 +12,7 @@ export enum METRIC_NAMES {
   CONFLICTING_REQUESTS = 'conflicting_requests',
   ERROR_IPFS = 'error_ipfs',
   ERROR_MULTIQUERY = 'error_multiquery',
+  ERROR_WHEN_ANCHORING = 'error_when_anchoring',
   FAILED_REQUESTS = 'failed_requests',
   FAILED_STREAM = 'failed_load_stream',
   FAILED_TIP = 'failed_load_tip',

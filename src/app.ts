@@ -227,6 +227,7 @@ export class CeramicAnchorApp {
     const anchorService: AnchorService = this.container.resolve('anchorService')
     await anchorService.anchorRequests().catch((error) => {
       logger.err(`Error when anchoring: ${error}`)
+      Metrics.count(METRIC_NAMES.ERROR_WHEN_ANCHORING, 1, {'message': error.message.substring(0,50)})
       logger.err('Exiting')
       process.exit(1)
     })
