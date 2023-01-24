@@ -18,7 +18,7 @@ const anchorRepository = {
 const service = new RequestPresentationService(CONFIG, anchorRepository)
 
 const REQUEST_OVERRIDE = {
-  id: 889483296,
+  id: '889483296',
   cid: 'bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m',
   streamId: 'k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72',
   message: 'Fresh request',
