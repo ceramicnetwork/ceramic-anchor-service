@@ -908,8 +908,6 @@ describe('anchor service', () => {
       expect(updatedRequest0.cid).toEqual(request0.cid)
       expect(updatedRequest0.message).toEqual('CID successfully anchored.')
       expect(updatedRequest0.pinned).toEqual(true)
-
-      console.log(updatedRequest0.updatedAt.toISOString())
     })
 
     test('Request garbage collection', async () => {
