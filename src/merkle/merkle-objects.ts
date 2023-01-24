@@ -134,6 +134,56 @@ export class Candidate implements CIDHolder {
     return this.cid != null && this._acceptedRequests.length > 0 && !this._alreadyAnchored
   }
 
+  forceAnchorOfNewestRequest(stream: Stream) {
+    this._metadata = stream.state.next?.metadata
+      ? stream.state.next.metadata
+      : stream.state.metadata
+
+    // Pick the newest request to be anchored
+    const newestRequest = this.requests.reduce(function (newest, current) {
+      return newest.createdAt > current.createdAt ? newest : current
+    })
+    this._cid = CID.asCID(newestRequest.cid)
+
+    // Check the log of the Stream that was loaded from Ceramic to see which of the pending requests
+    // are for CIDs that are included in the current version of the Stream's log.
+    const includedRequests = this.requests.filter((req) => {
+      return stream.state.log.find((logEntry) => {
+        return logEntry.cid.toString() == req.cid
+      })
+    })
+    const missingRequests = this.requests.filter((req) => {
+      const found = stream.state.log.find(({ cid }) => {
+        return cid.toString() == req.cid
+      })
+      return !found
+    })
+    if (missingRequests.length == 0) {
+      throw new Error(
+        `forceAnchorOfNewestRequest called even though all requests are present, use setTipToAnchor instead`
+      )
+    }
+    if (missingRequests.length + includedRequests.length != this.requests.length) {
+      throw new Error(
+        `missing + included does not equal total number of requests, should be impossible`
+      )
+    }
+
+    const newestRequestIsIncluded = includedRequests.find((req) => {
+      return req.cid == newestRequest.cid
+    })
+    if (newestRequestIsIncluded) {
+      // If the newest request is included in the stream log, then
+      this._acceptedRequests = includedRequests
+      this._rejectedRequests = missingRequests
+    } else {
+      this._acceptedRequests = [newestRequest]
+      this._rejectedRequests = this.requests.filter((req) => {
+        return req.cid != newestRequest.cid
+      })
+    }
+  }
+
   /**
    * Given the current version of the stream, updates this.cid to include the appropriate tip to
    * anchor.  Note that the CID selected may be the cid corresponding to any of the pending anchor
