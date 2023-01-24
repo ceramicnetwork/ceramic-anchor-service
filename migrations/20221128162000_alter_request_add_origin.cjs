@@ -21,4 +21,5 @@ async function down(knex) {
   })
 }
 
+
 module.exports = { up, down }
