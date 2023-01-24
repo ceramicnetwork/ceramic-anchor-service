@@ -13,7 +13,8 @@ import type { Assert, IsExact } from 'conditional-type-checks'
  * Public interface for MetadataService.
  */
 export interface IMetadataService {
-  fill(streamId: StreamID, options?: AbortOptions): Promise<void>
+  fill(streamId: StreamID, genesisFields: GenesisFields): Promise<void>
+  fillFromIpfs(streamId: StreamID, options?: AbortOptions): Promise<void>
 }
 
 /**
@@ -51,14 +52,17 @@ export class MetadataService implements IMetadataService {
     private readonly ipfsService: IIpfsService
   ) {}
 
+  async fill(streamId: StreamID, genesisFields: GenesisFields): Promise<void> {
+    await this.storeMetadata(streamId, genesisFields)
+  }
+
   /**
    * Retrieve genesis header fields from IPFS, store to the database.
    */
-  async fill(streamId: StreamID, options: AbortOptions = {}): Promise<void> {
+  async fillFromIpfs(streamId: StreamID, options: AbortOptions = {}): Promise<void> {
     const isPresent = await this.metadataRepository.isPresent(streamId)
     if (isPresent) return // Do not perform same work of retrieving from IPFS twice
-    const genesisFields = await this.retrieveFromGenesis(streamId, options)
-    await this.storeMetadata(streamId, genesisFields)
+    await this.storeMetadata(streamId, await this.retrieveFromGenesis(streamId, options))
   }
 
   /**

@@ -2,10 +2,9 @@ import { StatusCodes } from 'http-status-codes'
 import { Request as ExpReq, Response as ExpRes } from 'express'
 
 import cors from 'cors'
-import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core'
+import {ClassMiddleware, Controller, Get, Middleware, Post} from '@overnightjs/core'
 
 import { toCID } from '@ceramicnetwork/common'
-import { StreamID } from '@ceramicnetwork/streamid'
 import { Request, RequestStatus } from '../models/request.js'
 import { logger } from '../logger/index.js'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
@@ -14,6 +13,12 @@ import { CeramicService } from '../services/ceramic-service.js'
 import type { IRequestPresentationService } from '../services/request-presentation-service.type.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
 import type { IMetadataService } from '../services/metadata-service.js'
+import {
+  RequestAnchorParams,
+  AnchorRequestParamsParser,
+  isRequestAnchorParamsV2
+} from "../ancillary/anchor-request-params-parser.js"
+import bodyParser from 'body-parser'
 
 /*
  * Get origin from a request from X-Forwarded-For.
@@ -83,29 +88,35 @@ export class RequestController {
   }
 
   @Post()
+  @Middleware([bodyParser.raw({type: 'application/vnd.ipld.car'})])
   async createRequest(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     try {
       logger.debug(`Create request ${JSON.stringify(req.body)}`)
 
-      const cidInput = req.body.cid
-      if (!cidInput) {
+      if (!req.body.cid) {
         return res.status(StatusCodes.BAD_REQUEST).json({
           error: 'CID is empty',
         })
       }
-      const cid = toCID(cidInput)
 
       if (!req.body.streamId) {
         return res.status(StatusCodes.BAD_REQUEST).json({
           error: 'Stream ID is empty',
         })
       }
-      const streamId = StreamID.fromString(req.body.streamId)
 
-      let timestamp = new Date()
-      if (req.body.timestamp) {
-        timestamp = new Date(req.body.timestamp)
+      let requestParams: RequestAnchorParams
+      try {
+        requestParams = (new AnchorRequestParamsParser()).parse(req)
+      } catch (e) {
+        return res.status(StatusCodes.BAD_REQUEST).json({
+          error: `Unable to parse request params: ${e.message}`,
+        })
       }
+
+      const cid = requestParams.tip
+      const streamId = requestParams.streamId
+      let timestamp = requestParams.timestamp ?? new Date()
 
       const found = await this.requestRepository.findByCid(cid)
       if (found) {
@@ -115,7 +126,11 @@ export class RequestController {
 
       // Store metadata from genesis to the database
       // TODO CDB-2151 This should be moved out of RequestController
-      await this.metadataService.fill(streamId)
+      if (isRequestAnchorParamsV2(requestParams)) {
+        await this.metadataService.fill(streamId, requestParams.genesisFields)
+      } else {
+        await this.metadataService.fillFromIpfs(streamId)
+      }
 
       // Intentionally don't await the pinStream promise, let it happen in the background.
       this.ceramicService.pinStream(streamId)
