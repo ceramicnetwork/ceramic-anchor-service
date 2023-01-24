@@ -59,7 +59,9 @@ export class CeramicServiceImpl implements CeramicService {
   async pinStream(streamId: StreamID): Promise<void> {
     try {
       // this.loadStream uses the 'pin' flag to pin the stream after loading it.
-      await this.loadStream(streamId, SyncOptions.SYNC_ON_ERROR, PIN_TIMEOUT)
+      // TODO(CDB-2213): Use SyncOptions.SYNC_ON_ERROR once the CAS doesn't have such a huge backlog of streams 
+      // that are already broken with CACAO timeouts
+      await this.loadStream(streamId, SyncOptions.PREFER_CACHE, PIN_TIMEOUT)
 
       logger.debug(`Successfully pinned stream ${streamId.toString()}`)
       Metrics.count(METRIC_NAMES.PIN_SUCCEEDED, 1)
