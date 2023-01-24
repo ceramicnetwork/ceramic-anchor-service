@@ -1,28 +1,27 @@
-import { CID } from 'multiformats/cid'
+import type { CID } from 'multiformats/cid'
 
 import { MerkleTree } from '../merkle/merkle-tree.js'
 import { PathDirection, TreeMetadata } from '../merkle/merkle.js'
 
-import { Config } from 'node-config-ts'
+import type { Config } from 'node-config-ts'
 
 import { logger, logEvent } from '../logger/index.js'
 import { Utils } from '../utils.js'
 import { Anchor } from '../models/anchor.js'
 import { Request, REQUEST_MESSAGES, RequestStatus as RS } from '../models/request.js'
-import { Transaction } from '../models/transaction.js'
-import { AnchorRepository } from '../repositories/anchor-repository.js'
-import { RequestRepository } from '../repositories/request-repository.js'
-import { TransactionRepository } from '../repositories/transaction-repository.js'
-
-import { EventProducerService } from './event-producer/event-producer-service.js'
-import { CeramicService } from './ceramic-service.js'
+import type { Transaction } from '../models/transaction.js'
+import type { AnchorRepository } from '../repositories/anchor-repository.js'
+import type { RequestRepository } from '../repositories/request-repository.js'
+import type { TransactionRepository } from '../repositories/transaction-repository.js'
+import type { EventProducerService } from './event-producer/event-producer-service.js'
+import type { CeramicService } from './ceramic-service.js'
 import {
   ServiceMetrics as Metrics,
   TimeableMetric,
   SinceField,
 } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
-import { BlockchainService } from './blockchain/blockchain-service.js'
+import type { BlockchainService } from './blockchain/blockchain-service.js'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 
 import {
@@ -34,7 +33,7 @@ import {
 } from '../merkle/merkle-objects.js'
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
-import { IIpfsService } from './ipfs-service.type.js'
+import type { IIpfsService } from './ipfs-service.type.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
