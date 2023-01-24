@@ -1,14 +1,11 @@
 import { StatusCodes } from 'http-status-codes'
 import { Request as ExpReq, Response as ExpRes } from 'express'
 
-import { Config } from 'node-config-ts'
-
 import cors from 'cors'
 import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core'
 
 import { toCID } from '@ceramicnetwork/common'
 import { StreamID } from '@ceramicnetwork/streamid'
-import { AnchorRepository } from '../repositories/anchor-repository.js'
 import { Request, RequestStatus } from '../models/request.js'
 import { logger } from '../logger/index.js'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
@@ -16,7 +13,6 @@ import { METRIC_NAMES } from '../settings.js'
 import { CeramicService } from '../services/ceramic-service.js'
 import type { IRequestPresentationService } from '../services/request-presentation-service.type.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
-import type { IIpfsService } from '../services/ipfs-service.type.js'
 import type { IMetadataService } from '../services/metadata-service.js'
 
 /*
@@ -44,22 +40,16 @@ function parseOrigin(req: ExpReq): string {
 @ClassMiddleware([cors()])
 export class RequestController {
   static inject = [
-    'config',
-    'anchorRepository',
     'requestRepository',
     'ceramicService',
     'requestPresentationService',
-    'ipfsService',
     'metadataService',
   ] as const
 
   constructor(
-    private readonly config: Config,
-    private readonly anchorRepository: AnchorRepository,
     private readonly requestRepository: RequestRepository,
     private readonly ceramicService: CeramicService,
     private readonly requestPresentationService: IRequestPresentationService,
-    private readonly ipfsService: IIpfsService,
     private readonly metadataService: IMetadataService
   ) {}
 
