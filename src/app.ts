@@ -31,6 +31,9 @@ import type { Injector } from 'typed-inject'
 import type { EventProducerService } from './services/event-producer/event-producer-service.js'
 import { RequestPresentationService } from './services/request-presentation-service.js'
 import type { IRequestPresentationService } from './services/request-presentation-service.type.js'
+import type { IMetadataService } from './services/metadata-service.js'
+import { MetadataService } from './services/metadata-service.js'
+import { MetadataRepository } from './repositories/metadata-repository.js'
 
 type DependenciesContext = {
   config: Config
@@ -48,6 +51,7 @@ type ProvidedContext = {
   ipfsService: IIpfsService
   schedulerService: SchedulerService
   requestPresentationService: IRequestPresentationService
+  metadataService: IMetadataService
 } & DependenciesContext
 
 /**
@@ -78,6 +82,8 @@ export class CeramicAnchorApp {
       .provideClass('anchorService', AnchorService)
       .provideClass('schedulerService', SchedulerService)
       .provideClass('requestPresentationService', RequestPresentationService)
+      .provideClass('metadataRepository', MetadataRepository)
+      .provideClass('metadataService', MetadataService)
 
     try {
       Metrics.start(
