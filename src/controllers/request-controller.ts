@@ -102,10 +102,6 @@ export class RequestController {
       }
       const streamId = StreamID.fromString(req.body.streamId)
 
-      // Store metadata from genesis to the database
-      // TODO CDB-2151 This should be moved out of RequestController
-      await this.metadataService.fill(streamId)
-
       let timestamp = new Date()
       if (req.body.timestamp) {
         timestamp = new Date(req.body.timestamp)
@@ -116,6 +112,10 @@ export class RequestController {
         const body = await this.requestPresentationService.body(found)
         return res.status(StatusCodes.ACCEPTED).json(body)
       }
+
+      // Store metadata from genesis to the database
+      // TODO CDB-2151 This should be moved out of RequestController
+      await this.metadataService.fill(streamId)
 
       // Intentionally don't await the pinStream promise, let it happen in the background.
       this.ceramicService.pinStream(streamId)
