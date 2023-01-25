@@ -8,9 +8,9 @@ import { GenesisFields } from "../models/metadata.js"
 import { AnchorRequestCarFileReader } from "./anchor-request-car-file-reader.js"
 
 export declare type RequestAnchorParamsV1 = {
-  streamId: StreamID
+  streamId?: StreamID
   timestamp?: Date
-  tip: CID
+  tip?: CID
 }
 
 export declare type RequestAnchorParamsV2 = {
@@ -28,7 +28,7 @@ export function isRequestAnchorParamsV2(input: RequestAnchorParams): input is Re
 
 export class AnchorRequestParamsParser {
   parse(req: ExpReq): RequestAnchorParams {
-    if (req.headers['Content-Type'] !== 'application/vnd.ipld.car') {
+    if (req.get('Content-Type') !== 'application/vnd.ipld.car') {
       // Legacy requests
       return this._parseReqV1(req)
     } else {
@@ -39,8 +39,8 @@ export class AnchorRequestParamsParser {
 
   private _parseReqV1(req: ExpReq): RequestAnchorParamsV1 {
     return {
-      streamId: StreamID.fromString(req.body.streamId),
-      tip: toCID(req.body.cid),
+      streamId: req.body.streamId ? StreamID.fromString(req.body.streamId) : undefined,
+      tip: req.body.cid ? toCID(req.body.cid) : undefined,
       timestamp: req.body.timestamp ? new Date(req.body.timestamp) : undefined,
     }
   }

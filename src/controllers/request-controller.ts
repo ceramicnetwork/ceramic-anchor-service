@@ -93,18 +93,6 @@ export class RequestController {
     try {
       logger.debug(`Create request ${JSON.stringify(req.body)}`)
 
-      if (!req.body.cid) {
-        return res.status(StatusCodes.BAD_REQUEST).json({
-          error: 'CID is empty',
-        })
-      }
-
-      if (!req.body.streamId) {
-        return res.status(StatusCodes.BAD_REQUEST).json({
-          error: 'Stream ID is empty',
-        })
-      }
-
       let requestParams: RequestAnchorParams
       try {
         requestParams = (new AnchorRequestParamsParser()).parse(req)
@@ -114,6 +102,19 @@ export class RequestController {
 
       const cid = requestParams.tip
       const streamId = requestParams.streamId
+
+      if (!cid) {
+        return res.status(StatusCodes.BAD_REQUEST).json({
+          error: 'CID is empty',
+        })
+      }
+
+      if (!streamId) {
+        return res.status(StatusCodes.BAD_REQUEST).json({
+          error: 'Stream ID is empty',
+        })
+      }
+
       let timestamp = requestParams.timestamp ?? new Date()
 
       const found = await this.requestRepository.findByCid(cid)
