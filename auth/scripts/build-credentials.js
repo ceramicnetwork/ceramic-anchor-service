@@ -1,13 +1,13 @@
 const { createHash } = require("crypto")
 
 function main() {
-    if (process.env.ADMIN_PASSWORD && process.env.ADMIN_USERNAME) {
+    if (process.env.CAS_AUTH_ADMIN_PASSWORD && process.env.CAS_AUTH_ADMIN_USERNAME) {
         const date = new Date()
         date.setHours(date.getHours() + 4)
         const exp = Math.floor(date.getTime() / 1000)
         const credentials = buildCredentials(
-            process.env.ADMIN_USERNAME,
-            process.env.ADMIN_PASSWORD,
+            process.env.CAS_AUTH_ADMIN_USERNAME,
+            process.env.CAS_AUTH_ADMIN_PASSWORD,
             exp
         )
         console.log(credentials)

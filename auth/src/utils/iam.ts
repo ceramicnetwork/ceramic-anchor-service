@@ -8,7 +8,7 @@ export function generatePolicy(principalId: string, policyDocumentOptions?: { ef
         Version: '2012-10-17',
         Statement: [
         {
-            Action: 'exevute-api:Invoke',
+            Action: 'execute-api:Invoke',
             Effect: policyDocumentOptions.effect,
             Resource: policyDocumentOptions.resource
         }]}
@@ -18,10 +18,8 @@ export function generatePolicy(principalId: string, policyDocumentOptions?: { ef
     if (usageIdentifierKey) {
         authResponse.usageIdentifierKey = usageIdentifierKey
         authResponse.context = {
-            authId: usageIdentifierKey
+            "authId": usageIdentifierKey
         }
     }
-    // Add custom properties on context if needed
-    // authResponse.context
     return authResponse
 }

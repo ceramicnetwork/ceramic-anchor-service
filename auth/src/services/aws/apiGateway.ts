@@ -1,5 +1,5 @@
 import { APIGateway } from "aws-sdk"
-import { CreateApiKeyRequest, CreateUsagePlanKeyRequest, UsagePlanKey } from "aws-sdk/clients/apigateway.js"
+import { ApiKey, CreateApiKeyRequest, CreateUsagePlanKeyRequest, UsagePlanKey } from "aws-sdk/clients/apigateway.js"
 import { ApiKeyData, KeyService } from "../key.js"
 
 const AWS_REGION = process.env.AWS_REGION ?? ''
@@ -9,7 +9,9 @@ export class ApiGateway implements KeyService {
     readonly client: APIGateway
 
     constructor() {
-        this.client = new APIGateway({ region: AWS_REGION })
+        this.client = process.env.IS_OFFLINE
+            ? new Object() as APIGateway
+            : new APIGateway({ region: AWS_REGION })
         if (DEFAULT_USAGE_PLAN_ID == '') {
             throw Error('Missing API_DEFAULT_USAGE_PLAN_ID')
         }
@@ -50,5 +52,43 @@ export class ApiGateway implements KeyService {
             keyType: 'API_KEY'
         }
         return await this.client.createUsagePlanKey(planKey).promise()
+    }
+
+    async disableApiKey(name: string, value: string): Promise<ApiKey | undefined> {
+        let found: ApiKey | undefined
+        let searching = true
+        const limit = 100
+        while (searching) {
+            let out = await this.client.getApiKeys({
+                limit,
+                nameQuery: name,
+                includeValues: true
+            }).promise()
+            if (!out.items) {
+                break
+            }
+            found = out.items.find((item) => item.value == value)
+            if (found) {
+                break
+            }
+            if (out.items?.length < limit) {
+                break
+            }
+        }
+
+        if (found) {
+            if (found.id) {
+                return await this.client.updateApiKey({
+                    apiKey: found.id,
+                    patchOperations: [
+                        {
+                            op: 'replace',
+                            path: '/enabled',
+                            value: 'false'
+                        }
+                    ]
+                }).promise()
+            }
+        }
     }
 }

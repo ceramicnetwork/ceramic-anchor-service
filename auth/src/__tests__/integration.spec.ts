@@ -209,7 +209,7 @@ describe('/did', () => {
     })
 })
 
-describe.only('/config', () => {
+describe('/config', () => {
     test('non-admin can not get config', async () => {
         let resp = await fetch(endpoint(`/config/key/${ConfigKey.RegistrationEnabled}`), {
             method: httpMethods.GET
@@ -226,6 +226,7 @@ describe.only('/config', () => {
         })
         expect(resp.status).toBe(400)
     })
+
     test('admin can not get invalid config', async () => {
         const credentials = encodeAdminCredentials('admin', 'admin')
         let resp = await fetch(endpoint(`/config/key/process`), {
@@ -234,6 +235,7 @@ describe.only('/config', () => {
         })
         expect(resp.status).toBe(400)
     })
+
     test('admin can get valid config', async () => {
         const credentials = encodeAdminCredentials('admin', 'admin')
         let resp = await fetch(endpoint(`/config/key/${ConfigKey.RegistrationEnabled}`), {
@@ -244,6 +246,7 @@ describe.only('/config', () => {
         const out: any = await resp.json()
         expect(out.PK).toBe(ConfigKey.RegistrationEnabled)
     })
+
     test('non-admin can not get config keys', async () => {
         let resp = await fetch(endpoint(`/config/keys`), {
             method: httpMethods.GET
@@ -256,6 +259,7 @@ describe.only('/config', () => {
         })
         expect(resp.status).toBe(400)
     })
+
     test('admin can get config keys', async () => {
         const credentials = encodeAdminCredentials('admin', 'admin')
         let resp = await fetch(endpoint(`/config/keys`), {
@@ -265,6 +269,7 @@ describe.only('/config', () => {
         expect(resp.status).toBe(200)
         await expect(resp.json()).resolves.toEqual([ConfigKey.RegistrationEnabled])
     })
+
     test('non-admin can not set config', async () => {
         const data = {
             PK: ConfigKey.RegistrationEnabled,
@@ -284,6 +289,7 @@ describe.only('/config', () => {
         })
         expect(resp.status).toBe(400)
     })
+
     test('admin can set valid config', async () => {
         const data = {
             PK: ConfigKey.RegistrationEnabled,
@@ -306,6 +312,7 @@ describe.only('/config', () => {
         expect(out.PK).toBe(ConfigKey.RegistrationEnabled)
         expect(out.v).toBe(true)
     })
+
     test('admin can not set random config', async () => {
         const data = {
             PK: 'shutdown',

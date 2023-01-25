@@ -139,20 +139,26 @@ export class DynamoDB implements Database {
         }
     }
 
-    async getConfig(key: ConfigKey | string): Promise<any | null | undefined> {
+    async getConfig(key: ConfigKey | string, valueOnly?: boolean): Promise<any | null | undefined> {
+        let data
         try {
-            const data = await this._getItem(CONFIG_TABLE_NAME, key, key)
-            return data
+            data = await this._getItem(CONFIG_TABLE_NAME, key, key)
         } catch (err) {
             if (err instanceof ItemNotFoundError) {
-                console.error('Config has not been set for this key')
-                return {
+                // console.log('Config has not been set for this key')
+                data = {
                     PK: key,
                     v: null
                 }
             } else {
                 console.error(err)
             }
+        }
+        if (data) {
+            if (valueOnly) {
+                return data.v
+            }
+            return data
         }
         return
     }
@@ -184,8 +190,8 @@ export class DynamoDB implements Database {
      */
     async getDIDRegistration(did: string, status?: DIDStatus): Promise<any | undefined> {
         try {
-            const data = await this._getItem(DID_TABLE_NAME, did, did)
-            if (data.status != status) {
+            const data = await this._getItem(DID_TABLE_NAME, did, INITIAL_NONCE)
+            if (data.curr_status != status) {
                 throw new Error(`Item found but status is not ${status}`)
             }
             return data
@@ -327,7 +333,7 @@ export class DynamoDB implements Database {
                 'updated_at_unix': now(),
                 // TODO: add TTL if timestamp comes with the nonce
             }),
-            ConditionExpression: 'attribute_exists(PK) AND attribute_not_exists(SK)'
+            ConditionExpression: 'attribute_not_exists(PK)'
         }
         try {
             await this.client.send(new PutItemCommand(input))
@@ -342,8 +348,10 @@ export class DynamoDB implements Database {
         }
     }
 
-    async registerDIDs(email: string, otp: string, dids: Array<string>): Promise<Array<DIDResult> | undefined> {
-        if (!await this._checkCorrectOTP(email, otp)) return
+    async registerDIDs(email: string, otp: string, dids: Array<string>, skipOTP?: boolean): Promise<Array<DIDResult> | undefined> {
+        if (!skipOTP) {
+            if (!await this._checkCorrectOTP(email, otp)) return
+        }
         const shouldCheckOTPAgain = false
 
         const results: any[] = []
@@ -360,6 +368,7 @@ export class DynamoDB implements Database {
         if (checkOTP) {
             if (!await this._checkCorrectOTP(email, otp)) return
         }
+        // TODO: limit to 4 dids before email
 
         const status = DIDStatus.Active
         const params: PutItemCommandInput = {
@@ -473,7 +482,7 @@ export class DynamoDB implements Database {
                 'SK': otp
             }),
             UpdateExpression: `SET curr_status=:next_status, updated_at_unix=:updated_at_unix`,
-            ConditionExpression: '(attribute_exists(PK)) AND (attribute_exists(SK)) AND contains(curr_status, :prev_status)',
+            ConditionExpression: '(attribute_exists(PK)) AND contains(curr_status, :prev_status)',
             ExpressionAttributeValues: marshall({
                 ':next_status': OTPStatus.Used,
                 ':prev_status': OTPStatus.Active,

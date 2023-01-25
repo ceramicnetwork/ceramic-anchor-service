@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "TESTING=false ADMIN_USERNAME=admin ADMIN_PASSWORD=admin ./node_modules/.bin/serverless offline",
-    "start:testing": "TESTING=true ADMIN_USERNAME=admin ADMIN_PASSWORD=admin ./node_modules/.bin/serverless offline",
+    "start": "TESTING=false CAS_AUTH_ADMIN_USERNAME=admin CAS_AUTH_ADMIN_PASSWORD=admin CAS_AUTH_DEFAULT_USAGE_PLAN_ID=123 ./node_modules/.bin/serverless offline",
+    "start:testing": "TESTING=true CAS_AUTH_ADMIN_USERNAME=admin CAS_AUTH_ADMIN_PASSWORD=admin CAS_AUTH_DEFAULT_USAGE_PLAN_ID=123 ./node_modules/.bin/serverless offline",
     "admin:build-credentials": "node ./scripts/build-credentials.js",
     "deploy": "TESTING=false ./node_modules/.bin/serverless deploy",
     "deploy:disable-registration": "TESTING=false ./node_modules/.bin/serverless deploy",
