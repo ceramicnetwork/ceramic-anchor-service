@@ -17,6 +17,7 @@ import { RequestStatus } from '../../models/request.js'
 import type { StreamID } from '@ceramicnetwork/streamid'
 import type { IMetadataService } from '../../services/metadata-service.js'
 import { mockRequest, mockResponse } from './mock-request.util.js'
+import {GenesisFields} from "../../models/metadata";
 
 type Tokens = {
   requestController: RequestController
@@ -25,7 +26,11 @@ type Tokens = {
 }
 
 class MockMetadataService implements IMetadataService {
-  async fill(streamId: StreamID): Promise<void> {
+  async fill(streamId: StreamID, genesisFields: GenesisFields): Promise<void> {
+    return
+  }
+
+  async fillFromIpfs(streamId: StreamID): Promise<void> {
     return
   }
 }
@@ -66,6 +71,9 @@ describe('createRequest', () => {
     })
     test('streamId is empty', async () => {
       const req = mockRequest({
+        headers: {
+          'Content-type': 'application/json'
+        },
         body: {
           cid: randomCID().toString(),
         },
@@ -80,6 +88,9 @@ describe('createRequest', () => {
     test('cid is malformed', async () => {
       const streamId = randomStreamID()
       const req = mockRequest({
+        headers: {
+          'Content-type': 'application/json'
+        },
         body: {
           cid: 'garbage',
           streamId: streamId.toString(),
@@ -95,6 +106,9 @@ describe('createRequest', () => {
     })
     test('streamId is malformed', async () => {
       const req = mockRequest({
+        headers: {
+          'Content-type': 'application/json'
+        },
         body: {
           cid: randomCID().toString(),
           streamId: 'garbage',
@@ -116,6 +130,7 @@ describe('createRequest', () => {
       const origin = '203.0.113.195'
       const req = mockRequest({
         headers: {
+          'Content-type': 'application/json',
           'X-Forwarded-For': [` ${origin}`, `${origin}, 2001:db8:85a3:8d3:1319:8a2e:370:7348`],
         },
         body: {
@@ -129,6 +144,7 @@ describe('createRequest', () => {
       await expect(requestRepository.findByCid(cid)).resolves.toBeUndefined()
       const now = new Date()
       await controller.createRequest(req, res)
+
       expect(res.status).toBeCalledWith(StatusCodes.CREATED)
       const createdRequest = await requestRepository.findByCid(cid)
       expect(createdRequest).toBeDefined()
@@ -147,6 +163,9 @@ describe('createRequest', () => {
       const streamId = randomStreamID()
       const now = new Date()
       const req = mockRequest({
+        headers: {
+          'Content-type': 'application/json'
+        },
         body: {
           cid: cid.toString(),
           streamId: streamId.toString(),
@@ -173,13 +192,16 @@ describe('createRequest', () => {
       const cid = randomCID()
       const streamId = randomStreamID()
       const req = mockRequest({
+        headers: {
+          'Content-type': 'application/json'
+        },
         body: {
           cid: cid.toString(),
           streamId: streamId.toString(),
         },
       })
       const metadataService = container.resolve('metadataService')
-      const fillSpy = jest.spyOn(metadataService, 'fill')
+      const fillSpy = jest.spyOn(metadataService, 'fillFromIpfs')
       await controller.createRequest(req, mockResponse())
       expect(fillSpy).toBeCalledWith(streamId)
     })
@@ -192,6 +214,9 @@ describe('createRequest', () => {
       const streamId = randomStreamID()
       const now = new Date()
       const req = mockRequest({
+        headers: {
+          'Content-type': 'application/json'
+        },
         body: {
           cid: cid.toString(),
           streamId: streamId.toString(),

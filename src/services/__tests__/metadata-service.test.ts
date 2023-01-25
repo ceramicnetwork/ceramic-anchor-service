@@ -197,7 +197,7 @@ describe('fill', () => {
   test('store metadata from genesis commit', async () => {
     const retrieveSpy = jest.spyOn(metadataService, 'retrieveFromGenesis')
     const saveSpy = jest.spyOn(metadataService, 'storeMetadata')
-    await metadataService.fill(streamId)
+    await metadataService.fillFromIpfs(streamId)
     expect(retrieveSpy).toBeCalledTimes(1)
     expect(retrieveSpy).toBeCalledWith(streamId, {})
     expect(saveSpy).toBeCalledTimes(1)
@@ -208,12 +208,12 @@ describe('fill', () => {
     test('do not retrieve genesis', async () => {
       const retrieveSpy = jest.spyOn(metadataService, 'retrieveFromGenesis')
       const saveSpy = jest.spyOn(metadataService, 'storeMetadata')
-      await metadataService.fill(streamId)
+      await metadataService.fillFromIpfs(streamId)
       expect(retrieveSpy).toBeCalledTimes(1) // Retrieve from IPFS
       expect(saveSpy).toBeCalledTimes(1) // Store to the database
       retrieveSpy.mockClear()
       saveSpy.mockClear()
-      await metadataService.fill(streamId)
+      await metadataService.fillFromIpfs(streamId)
       expect(retrieveSpy).toBeCalledTimes(0) // Do not retrieve from IPFS
       expect(saveSpy).toBeCalledTimes(0) // Do not store to the database.
     })

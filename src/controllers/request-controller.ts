@@ -108,10 +108,8 @@ export class RequestController {
       let requestParams: RequestAnchorParams
       try {
         requestParams = (new AnchorRequestParamsParser()).parse(req)
-      } catch (e) {
-        return res.status(StatusCodes.BAD_REQUEST).json({
-          error: `Unable to parse request params: ${e.message}`,
-        })
+      } catch (err) {
+        return this.getBadRequestResponse(req, res, err)
       }
 
       const cid = requestParams.tip
@@ -153,12 +151,16 @@ export class RequestController {
       const body = await this.requestPresentationService.body(storedRequest)
       return res.status(StatusCodes.CREATED).json(body)
     } catch (err) {
-      const errmsg = `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed: ${err.message}`
-      logger.err(errmsg)
-      logger.err(err) // Log stack trace
-      return res.status(StatusCodes.BAD_REQUEST).json({
-        error: errmsg,
-      })
+      return this.getBadRequestResponse(req, res, err)
     }
+  }
+
+  private getBadRequestResponse(req: ExpReq, res: ExpRes, err: Error): ExpRes {
+    const errmsg = `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed: ${err.message}`
+    logger.err(errmsg)
+    logger.err(err) // Log stack trace
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      error: errmsg,
+    })
   }
 }
