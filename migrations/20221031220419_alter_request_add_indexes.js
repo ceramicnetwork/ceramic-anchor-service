@@ -5,7 +5,7 @@ const ANCHOR_TABLE_NAME = 'anchor'
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
-async function up(knex) {
+export async function up(knex) {
   await knex.schema.alterTable(REQUEST_TABLE_NAME, (table) => {
     table.index(['stream_id'])
     table.index(['created_at'])
@@ -23,7 +23,7 @@ async function up(knex) {
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
-async function down(knex) {
+export async function down(knex) {
   await knex.schema.alterTable(REQUEST_TABLE_NAME, (table) => {
     table.dropIndex(['stream_id'])
     table.dropIndex(['created_at'])
@@ -36,5 +36,3 @@ async function down(knex) {
     table.dropIndex(['cid'])
   })
 }
-
-module.exports = { up, down }
