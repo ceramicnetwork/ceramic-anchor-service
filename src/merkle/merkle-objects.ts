@@ -134,6 +134,10 @@ export class Candidate implements CIDHolder {
     return this.cid != null && this._acceptedRequests.length > 0 && !this._alreadyAnchored
   }
 
+  get model(): StreamID | undefined {
+    return this._metadata?.model
+  }
+
   /**
    * Given the current version of the stream, updates this.cid to include the appropriate tip to
    * anchor.  Note that the CID selected may be the cid corresponding to any of the pending anchor
@@ -200,8 +204,8 @@ export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
 
   async merge(
     left: Node<CIDHolder>,
-    right: Node<CIDHolder> | null,
-    metadata: TreeMetadata | null
+    right: Node<CIDHolder> | null = null,
+    metadata: TreeMetadata | null = null
   ): Promise<Node<CIDHolder>> {
     const merged = [left.data.cid, right?.data?.cid || null]
 
@@ -223,8 +227,8 @@ export class IpfsLeafCompare implements CompareFunction<Candidate> {
   compare(left: Node<Candidate>, right: Node<Candidate>): number {
     try {
       // Sort by model first
-      const leftModel = left.data.metadata.model?.toString()
-      const rightModel = right.data.metadata.model?.toString()
+      const leftModel = left.data.model?.toString()
+      const rightModel = right.data.model?.toString()
       if (leftModel !== rightModel) {
         if (leftModel != null) {
           return rightModel == null
@@ -267,7 +271,7 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
       streamIds.push(candidate.streamId.toString())
       bloomFilterEntries.add(`streamid-${candidate.streamId.toString()}`)
       if (candidate.metadata.model) {
-        bloomFilterEntries.add(`model-${candidate.metadata.model.toString()}`)
+        bloomFilterEntries.add(`model-${candidate.model.toString()}`)
       }
       for (const controller of candidate.metadata.controllers) {
         bloomFilterEntries.add(`controller-${controller}`)

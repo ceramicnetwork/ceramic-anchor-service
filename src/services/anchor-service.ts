@@ -1,7 +1,8 @@
 import type { CID } from 'multiformats/cid'
 
-import { MerkleTree } from '../merkle/merkle-tree.js'
-import { PathDirection, TreeMetadata } from '../merkle/merkle.js'
+import type { MerkleTree } from '../merkle/merkle-tree.js'
+import { pathString, TreeMetadata } from '../merkle/merkle.js'
+import { MerkleTreeFactory } from '../merkle/merkle-tree-factory.js'
 
 import type { Config } from 'node-config-ts'
 
@@ -113,15 +114,11 @@ const logAnchorSummary = async (
  * Anchors CIDs to blockchain
  */
 export class AnchorService {
-  private readonly ipfsMerge: IpfsMerge
-  private readonly ipfsCompare: IpfsLeafCompare
-  private readonly bloomMetadata: BloomMetadata
-
-  private readonly merkleDepthLimit: number
   private readonly includeBlockInfoInAnchorProof: boolean
   private readonly useSmartContractAnchors: boolean
   private readonly maxStreamLimit: number
   private readonly minStreamLimit: number
+  private readonly merkleTreeFactory: MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>
 
   static inject = [
     'blockchainService',
@@ -146,17 +143,20 @@ export class AnchorService {
     private readonly connection: Knex,
     private readonly eventProducerService: EventProducerService
   ) {
-    this.ipfsMerge = new IpfsMerge(this.ipfsService)
-    this.ipfsCompare = new IpfsLeafCompare()
-    this.bloomMetadata = new BloomMetadata()
-
-    this.merkleDepthLimit = config.merkleDepthLimit
     this.includeBlockInfoInAnchorProof = config.includeBlockInfoInAnchorProof
     this.useSmartContractAnchors = config.useSmartContractAnchors
 
+    const merkleDepthLimit = config.merkleDepthLimit
     const minStreamCount = config.minStreamCount
-    this.maxStreamLimit = this.merkleDepthLimit > 0 ? Math.pow(2, this.merkleDepthLimit) : 0
+    this.maxStreamLimit = merkleDepthLimit > 0 ? Math.pow(2, merkleDepthLimit) : 0
     this.minStreamLimit = minStreamCount || Math.floor(this.maxStreamLimit / 2)
+
+    this.merkleTreeFactory = new MerkleTreeFactory(
+      new IpfsMerge(this.ipfsService),
+      new IpfsLeafCompare(),
+      new BloomMetadata(),
+      merkleDepthLimit
+    )
   }
 
   /**
@@ -251,12 +251,12 @@ export class AnchorService {
     // create and send ETH transaction
     const tx: Transaction = await this.transactionRepository.withTransactionMutex(() => {
       logger.debug('Preparing to send transaction to put merkle root on blockchain')
-      return this.blockchainService.sendTransaction(merkleTree.getRoot().data.cid)
+      return this.blockchainService.sendTransaction(merkleTree.root.data.cid)
     })
 
     // create proof on IPFS
     logger.debug('Creating IPFS anchor proof')
-    const ipfsProofCid = await this._createIPFSProof(tx, merkleTree.getRoot().data.cid)
+    const ipfsProofCid = await this._createIPFSProof(tx, merkleTree.root.data.cid)
 
     // create anchor records on IPFS
     logger.debug('Creating anchor commits')
@@ -284,7 +284,7 @@ export class AnchorService {
 
     return {
       anchoredRequestsCount: anchoredRequests.length,
-      failedToPublishAnchorCommitCount: merkleTree.getLeaves().length - anchors.length,
+      failedToPublishAnchorCommitCount: merkleTree.leafNodes.length - anchors.length,
       anchorCount: anchors.length,
       reanchoredCount: reAnchoredCount,
     }
@@ -374,14 +374,7 @@ export class AnchorService {
     candidates: Candidate[]
   ): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
     try {
-      const merkleTree = new MerkleTree<CIDHolder, Candidate, TreeMetadata>(
-        this.ipfsMerge,
-        this.ipfsCompare,
-        this.bloomMetadata,
-        this.merkleDepthLimit
-      )
-      await merkleTree.build(candidates)
-      return merkleTree
+      return await this.merkleTreeFactory.build(candidates)
     } catch (e) {
       throw new Error('Merkle tree cannot be created: ' + e.toString())
     }
@@ -429,7 +422,7 @@ export class AnchorService {
     ipfsProofCid: CID,
     merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
   ): Promise<Anchor[]> {
-    const candidates = merkleTree.getLeaves()
+    const candidates = merkleTree.leafNodes.map((leaf) => leaf.data)
     const anchors = []
 
     for (let i = 0; i < candidates.length; i++) {
@@ -465,8 +458,8 @@ export class AnchorService {
     anchor.requestId = candidate.newestAcceptedRequest.id
     anchor.proofCid = ipfsProofCid.toString()
 
-    const path = await merkleTree.getDirectPathFromRoot(candidateIndex)
-    anchor.path = path.map((p) => (p === PathDirection.L ? 0 : 1)).join('/')
+    const path = merkleTree.getDirectPathFromRoot(candidateIndex)
+    anchor.path = pathString(path)
 
     const ipfsAnchorCommit = {
       id: candidate.streamId.cid,
