@@ -74,6 +74,7 @@ functions:
       DB_DID_TABLE_NAME: ${construct:didDb.tableName}
       DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
       TESTING: ${env:TESTING}
+      COLLECTOR_HOST: 10.0.1.70
   authorizer:
     handler: src/authorizers/default.handler
     environment:

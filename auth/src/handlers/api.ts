@@ -2,7 +2,7 @@ import bodyParser from 'body-parser'
 import express from 'express'
 import { ValidationError } from 'express-validation'
 import serverless from 'serverless-http'
-
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import * as routes from '../routes/index.js'
 import { ApiGateway } from '../services/aws/apiGateway.js'
 import { DynamoDB } from '../services/aws/dynamodb.js'
@@ -17,6 +17,7 @@ const createTableIfNotExists = true
 const db = new DynamoDB(createTableIfNotExists)
 const email = new SESService()
 const gateway = new ApiGateway()
+Metrics.start('10.0.1.70', 'cas-api')
 
 app.use(bodyParser.json())
 app.use(parseAsJson)
