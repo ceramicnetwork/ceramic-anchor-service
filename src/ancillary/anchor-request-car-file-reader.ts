@@ -1,12 +1,9 @@
-import { CAR, CARFactory } from 'cartonne'
+import { CAR, CARFactory, CarBlock } from 'cartonne'
 import { StreamID } from '@ceramicnetwork/streamid'
-import { toCID } from '@ceramicnetwork/common'
 import type { CID } from 'multiformats/cid'
 import { GenesisFields } from "../models/metadata.js"
 import { ThrowDecoder } from "./throw-decoder.js"
 import { IpfsGenesisHeader } from "../services/metadata-service"
-import {asDIDString} from "./did-string";
-import * as uint8arrays from "uint8arrays";
 
 const DAG_JOSE_CODEC = 133
 const DAB_CBOR_CODEC = 113
@@ -28,7 +25,7 @@ export class AnchorRequestCarFileReader {
   }
 
   get tip(): CID {
-    return toCID(this.root.tip)
+    return this.root.tip
   }
 
   get genesisFields(): GenesisFields {

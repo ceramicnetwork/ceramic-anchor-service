@@ -6,6 +6,8 @@ import { CARFactory } from 'cartonne'
 import * as DAG_JOSE from 'dag-jose'
 import { GenesisFields } from "../models/metadata.js"
 import { AnchorRequestCarFileReader } from "./anchor-request-car-file-reader.js"
+import { base64 } from 'multiformats/bases/base64'
+
 
 export declare type RequestAnchorParamsV1 = {
   streamId?: StreamID
