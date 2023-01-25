@@ -7,7 +7,7 @@ import { didRegex, parseSignature } from '../utils/did.js'
 import { generatePolicy } from '../utils/iam.js'
 import { authBearerValidation, nonceValidation } from '../validators/did.js'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
-import { METRIC_NAMES } from '../settings.js'
+import { METRIC_NAMES } from '../utils/metrics.js'
 
 const authSchema = Joi.object({
   authorization: authBearerValidation.optional()

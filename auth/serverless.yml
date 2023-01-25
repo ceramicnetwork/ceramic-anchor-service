@@ -78,6 +78,13 @@ functions:
       DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
       TESTING: ${env:TESTING}
       COLLECTOR_HOST: 10.0.1.70
+    vpc:
+      securityGroupIds:
+       - sg-0b7ef011db25b929b
+       - sg-01f16a195daab3046
+      subnetIds:
+       - subnet-031f3e3270b0fd7c3
+      
   authorizer:
     handler: src/authorizers/default.handler
     environment:
@@ -89,6 +96,14 @@ functions:
       DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
       PERMISSIONED_SECURITY_GROUP_IDS: ${env:CAS_PERMISSIONED_SECURITY_GROUP_IDS}
       TESTING: ${env:TESTING}
+      COLLECTOR_HOST: 10.0.1.70
+    vpc:
+      securityGroupIds:
+       - sg-0b7ef011db25b929b
+       - sg-01f16a195daab3046
+      subnetIds:
+       - subnet-031f3e3270b0fd7c3
+
 resources:
   Resources:
     authorizerLambdaPermissions:

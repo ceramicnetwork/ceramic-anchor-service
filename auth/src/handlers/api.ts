@@ -17,7 +17,8 @@ const createTableIfNotExists = true
 const db = new DynamoDB(createTableIfNotExists)
 const email = new SESService()
 const gateway = new ApiGateway()
-Metrics.start('10.0.1.70', 'cas-api')
+Metrics.start('10.0.1.70', 'cas_api')
+Metrics.count('HELLO', 1)
 
 app.use(bodyParser.json())
 app.use(parseAsJson)

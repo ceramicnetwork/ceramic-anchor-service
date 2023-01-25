@@ -34,11 +34,6 @@ export enum METRIC_NAMES {
   RETRY_PROCESSING = 'retry_processing',
   RETRY_FAILED = 'retry_failed',
 
-  // admin and auth
-  DID_REGISTERED = 'did_registered'
-  DID_AUTHORIZED_ACCESS = 'did_authorized_access'
-  DID_REFUSED_ACCESS = 'did_unauthorized_access'
-
   // *******************************************************************//
   // Anchor Service (histograms)
 
