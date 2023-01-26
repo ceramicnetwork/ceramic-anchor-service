@@ -3,7 +3,7 @@ import 'dotenv/config'
 import { jest } from '@jest/globals'
 import { CeramicDaemon, DaemonConfig } from '@ceramicnetwork/cli'
 import { Ceramic } from '@ceramicnetwork/core'
-import { AnchorStatus, IpfsApi, Stream, SyncOptions } from '@ceramicnetwork/common'
+import { AnchorStatus, fetchJson, IpfsApi, Stream, SyncOptions } from '@ceramicnetwork/common'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 
 import { create } from 'ipfs-core'
@@ -265,6 +265,7 @@ describe('Ceramic Integration Test', () => {
   let dbConnection1: Knex
   let dbConnection2: Knex
 
+  let casPort1: number
   let cas1: CeramicAnchorApp
   let anchorService1: AnchorService
   let cas2: CeramicAnchorApp
@@ -338,7 +339,7 @@ describe('Ceramic Integration Test', () => {
       const daemonPort1 = await getPort()
       const daemonPort2 = await getPort()
       dbConnection1 = await createDbConnection()
-      const casPort1 = await getPort()
+      casPort1 = await getPort()
 
       cas1 = await makeCAS(createInjector(), dbConnection1, {
         mode: 'server',
@@ -601,6 +602,67 @@ describe('Ceramic Integration Test', () => {
       expect(metricsCountSpy).toHaveBeenCalledWith(METRIC_NAMES.ANCHOR_SUCCESS, 1)
 
       console.log('Test complete: Metrics counts anchor attempts')
+    })
+
+    test('Can retrieve completed request when the request CID was not the stream tip when anchored', async () => {
+      const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
+      const originalTip = doc1.tip
+      await doc1.update({ foo: 2 }, null, { anchor: true })
+      const nextTip = doc1.tip
+
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+
+      await anchorUpdate(doc1, cas1, anchorService1)
+
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+
+      const nextTipRequest = await fetchJson(
+        'http://localhost:' + casPort1 + '/api/v0/requests/' + nextTip.toString()
+      )
+      expect(RequestStatus[nextTipRequest.status]).toEqual(RequestStatus.COMPLETED)
+
+      const originalTipRequest = await fetchJson(
+        'http://localhost:' + casPort1 + '/api/v0/requests/' + originalTip.toString()
+      )
+      expect(RequestStatus[originalTipRequest.status]).toEqual(RequestStatus.COMPLETED)
+    })
+
+    test('Can retreive completed request that was marked COMPLETE because its stream was already anchored', async () => {
+      const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: false })
+      const tipWithNoRequest = doc1.tip
+      await doc1.update({ foo: 2 }, null, { anchor: true })
+      const tipWithRequest = doc1.tip
+
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+      await anchorUpdate(doc1, cas1, anchorService1)
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+
+      const tipWithRequestInfo = await fetchJson(
+        'http://localhost:' + casPort1 + '/api/v0/requests/' + tipWithRequest.toString()
+      )
+      expect(RequestStatus[tipWithRequestInfo.status]).toEqual(RequestStatus.COMPLETED)
+
+      await fetchJson('http://localhost:' + casPort1 + '/api/v0/requests', {
+        method: 'POST',
+        body: {
+          streamId: doc1.id.toString(),
+          docId: doc1.id.toString(),
+          cid: tipWithNoRequest.toString(),
+        },
+      })
+
+      const tipWithNoRequestBeforeAnchorInfo = await fetchJson(
+        'http://localhost:' + casPort1 + '/api/v0/requests/' + tipWithNoRequest.toString()
+      )
+      expect(RequestStatus[tipWithNoRequestBeforeAnchorInfo.status]).toEqual(RequestStatus.PENDING)
+
+      await anchorService1.emitAnchorEventIfReady()
+      await cas1.anchor()
+
+      const tipWithNoRequestAfterAnchorInfo = await fetchJson(
+        'http://localhost:' + casPort1 + '/api/v0/requests/' + tipWithNoRequest.toString()
+      )
+      expect(RequestStatus[tipWithNoRequestAfterAnchorInfo.status]).toEqual(RequestStatus.COMPLETED)
     })
   })
 })

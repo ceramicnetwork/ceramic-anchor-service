@@ -1,25 +1,27 @@
-import { CID } from 'multiformats/cid'
+import type { CID } from 'multiformats/cid'
 
 import { MerkleTree } from '../merkle/merkle-tree.js'
 import { PathDirection, TreeMetadata } from '../merkle/merkle.js'
 
-import { Config } from 'node-config-ts'
+import type { Config } from 'node-config-ts'
 
 import { logger, logEvent } from '../logger/index.js'
 import { Utils } from '../utils.js'
 import { Anchor } from '../models/anchor.js'
 import { Request, REQUEST_MESSAGES, RequestStatus as RS } from '../models/request.js'
-import { Transaction } from '../models/transaction.js'
-import { AnchorRepository } from '../repositories/anchor-repository.js'
-import { RequestRepository } from '../repositories/request-repository.js'
-import { TransactionRepository } from '../repositories/transaction-repository.js'
-
-import { IpfsService } from './ipfs-service.js'
-import { EventProducerService } from './event-producer/event-producer-service.js'
-import { CeramicService } from './ceramic-service.js'
-import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '@ceramicnetwork/observability'
+import type { Transaction } from '../models/transaction.js'
+import type { AnchorRepository } from '../repositories/anchor-repository.js'
+import type { RequestRepository } from '../repositories/request-repository.js'
+import type { TransactionRepository } from '../repositories/transaction-repository.js'
+import type { EventProducerService } from './event-producer/event-producer-service.js'
+import type { CeramicService } from './ceramic-service.js'
+import {
+  ServiceMetrics as Metrics,
+  TimeableMetric,
+  SinceField,
+} from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
-import { BlockchainService } from './blockchain/blockchain-service.js'
+import type { BlockchainService } from './blockchain/blockchain-service.js'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 
 import {
@@ -31,6 +33,7 @@ import {
 } from '../merkle/merkle-objects.js'
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
+import type { IIpfsService } from './ipfs-service.type.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
@@ -95,9 +98,11 @@ const logAnchorSummary = async (
   )
 
   Metrics.recordObjectFields('anchorBatch', anchorSummary)
-  Metrics.recordRatio('anchorBatch_failureRatio',
-              anchorSummary.failedRequestsCount,
-              anchorSummary.anchoredRequestsCount)  
+  Metrics.recordRatio(
+    'anchorBatch_failureRatio',
+    anchorSummary.failedRequestsCount,
+    anchorSummary.anchoredRequestsCount
+  )
 
   logEvent.anchor({
     type: 'anchorRequests',
@@ -111,6 +116,12 @@ export class AnchorService {
   private readonly ipfsMerge: IpfsMerge
   private readonly ipfsCompare: IpfsLeafCompare
   private readonly bloomMetadata: BloomMetadata
+
+  private readonly merkleDepthLimit: number
+  private readonly includeBlockInfoInAnchorProof: boolean
+  private readonly useSmartContractAnchors: boolean
+  private readonly maxStreamLimit: number
+  private readonly minStreamLimit: number
 
   static inject = [
     'blockchainService',
@@ -126,8 +137,8 @@ export class AnchorService {
 
   constructor(
     private readonly blockchainService: BlockchainService,
-    private readonly config: Config,
-    private readonly ipfsService: IpfsService,
+    config: Config,
+    private readonly ipfsService: IIpfsService,
     private readonly requestRepository: RequestRepository,
     private readonly transactionRepository: TransactionRepository,
     private readonly ceramicService: CeramicService,
@@ -138,6 +149,14 @@ export class AnchorService {
     this.ipfsMerge = new IpfsMerge(this.ipfsService)
     this.ipfsCompare = new IpfsLeafCompare()
     this.bloomMetadata = new BloomMetadata()
+
+    this.merkleDepthLimit = config.merkleDepthLimit
+    this.includeBlockInfoInAnchorProof = config.includeBlockInfoInAnchorProof
+    this.useSmartContractAnchors = config.useSmartContractAnchors
+
+    const minStreamCount = config.minStreamCount
+    this.maxStreamLimit = this.merkleDepthLimit > 0 ? Math.pow(2, this.merkleDepthLimit) : 0
+    this.minStreamLimit = minStreamCount || Math.floor(this.maxStreamLimit / 2)
   }
 
   /**
@@ -148,11 +167,8 @@ export class AnchorService {
     const readyRequests = await this.requestRepository.findByStatus(RS.READY)
 
     if (!triggeredByAnchorEvent && readyRequests.length === 0) {
-      const maxStreamLimit =
-        this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0
-      const minStreamLimit = this.config.minStreamCount || Math.floor(maxStreamLimit / 2)
       // Pull in twice as many streams as we want to anchor, since some of those streams may fail to load.
-      await this.requestRepository.findAndMarkReady(maxStreamLimit * 2, minStreamLimit)
+      await this.requestRepository.findAndMarkReady(this.maxStreamLimit * 2, this.minStreamLimit)
     }
 
     return this.anchorReadyRequests()
@@ -162,13 +178,6 @@ export class AnchorService {
    * Creates anchors for client requests that have been marked as READY
    */
   async anchorReadyRequests(): Promise<void> {
-    // TODO: Remove this after restart loop removed as part of switching to go-ipfs
-    // Skip sleep for unit tests
-    if (process.env.NODE_ENV != 'test') {
-      logger.imp('sleeping one minute for ipfs to stabilize')
-      await Utils.delay(1000 * 60)
-    }
-
     logger.imp('Anchoring ready requests...')
     logger.debug(`Loading requests from the database`)
     const requests: Request[] = await this.requestRepository.findAndMarkAsProcessing()
@@ -189,13 +198,7 @@ export class AnchorService {
       return
     }
 
-    let streamCountLimit = 0 // 0 means no limit
-    if (this.config.merkleDepthLimit > 0) {
-      // The number of streams we are able to include in a single anchor batch is limited by the
-      // max depth of the merkle tree.
-      streamCountLimit = Math.pow(2, this.config.merkleDepthLimit)
-    }
-    const [candidates, groupedRequests] = await this._findCandidates(requests, streamCountLimit)
+    const [candidates, groupedRequests] = await this._findCandidates(requests, this.maxStreamLimit)
 
     if (candidates.length === 0) {
       logger.imp('No candidates found. Skipping anchor.')
@@ -338,13 +341,9 @@ export class AnchorService {
       )
       Metrics.count(METRIC_NAMES.RETRY_EMIT_ANCHOR_EVENT, updatedExpiredReadyRequestsCount)
     } else {
-      const maxStreamLimit =
-        this.config.merkleDepthLimit > 0 ? Math.pow(2, this.config.merkleDepthLimit) : 0
-      const minStreamLimit = this.config.minStreamCount || Math.floor(maxStreamLimit / 2)
-
       const updatedRequests = await this.requestRepository.findAndMarkReady(
-        maxStreamLimit,
-        minStreamLimit
+        this.maxStreamLimit,
+        this.minStreamLimit
       )
 
       if (updatedRequests.length === 0) {
@@ -357,8 +356,6 @@ export class AnchorService {
       // An event will emit the next time this is run and the ready requests have expired (in READY_TIMEOUT)
       logger.err(`Error when emitting an anchor event: ${err}`)
     })
-
-    return
   }
 
   /**
@@ -374,7 +371,7 @@ export class AnchorService {
         this.ipfsMerge,
         this.ipfsCompare,
         this.bloomMetadata,
-        this.config.merkleDepthLimit
+        this.merkleDepthLimit
       )
       await merkleTree.build(candidates)
       return merkleTree
@@ -391,15 +388,21 @@ export class AnchorService {
    */
   async _createIPFSProof(tx: Transaction, merkleRootCid: CID): Promise<CID> {
     const txHashCid = Utils.convertEthHashToCid(tx.txHash.slice(2))
-    const ipfsAnchorProof = {
-      blockNumber: tx.blockNumber,
-      blockTimestamp: tx.blockTimestamp,
+    let ipfsAnchorProof = {
       root: merkleRootCid,
       chainId: tx.chain,
       txHash: txHashCid,
     } as any
 
-    if (this.config.useSmartContractAnchors) ipfsAnchorProof.txType = CONTRACT_TX_TYPE
+    if (this.includeBlockInfoInAnchorProof) {
+      ipfsAnchorProof = {
+        blockNumber: tx.blockNumber,
+        blockTimestamp: tx.blockTimestamp,
+        ...ipfsAnchorProof,
+      }
+    }
+
+    if (this.useSmartContractAnchors) ipfsAnchorProof.txType = CONTRACT_TX_TYPE
 
     logger.debug('Anchor proof: ' + JSON.stringify(ipfsAnchorProof))
     const ipfsProofCid = await this.ipfsService.storeRecord(ipfsAnchorProof)
@@ -528,10 +531,12 @@ export class AnchorService {
 
       await trx.commit()
 
+      // record some metrics about the timing and count of anchors
       const completed = new TimeableMetric(SinceField.CREATED_AT)
       completed.recordAll(acceptedRequests)
-
+      completed.publishStats(METRIC_NAMES.CREATED_SUCCESS_MS)
       Metrics.count(METRIC_NAMES.ACCEPTED_REQUESTS, acceptedRequests.length)
+
       return persistedAnchorsCount
     } catch (err) {
       await trx.rollback()
@@ -842,9 +847,16 @@ export class AnchorService {
     // Fail requests for tips that failed to be loaded
     for (const request of stillMissingRequests) {
       const commitId = CommitID.make(candidate.streamId, request.cid)
-      logger.err(
-        `Failed to load stream ${commitId.baseID.toString()} at commit ${commitId.commit.toString()}`
-      )
+
+      if (request.cid == newestMissingRequest.cid) {
+        logger.err(
+          `Failed to load stream ${commitId.baseID.toString()} at commit ${commitId.commit.toString()}`
+        )
+      } else {
+        logger.warn(
+          `Skipped trying to load commit ${commitId.commit.toString()} of stream ${commitId.baseID.toString()} and it stayed missing from the stream log`
+        )
+      }
       Metrics.count(METRIC_NAMES.FAILED_TIP, 1)
       candidate.failRequest(request)
     }

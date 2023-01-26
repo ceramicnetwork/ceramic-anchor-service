@@ -492,8 +492,8 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const originaUpdateRequest = requestRepository.updateRequests
-      requestRepository.updateRequests = (fields, requests, manager) => {
+      const originalUpdateRequest = requestRepository.updateRequests
+      requestRepository.updateRequests = () => {
         throw new Error('test error')
       }
 
@@ -505,7 +505,7 @@ describe('request repository test', () => {
           true
         )
       } finally {
-        requestRepository.updateRequests = originaUpdateRequest
+        requestRepository.updateRequests = originalUpdateRequest
       }
     })
 
@@ -516,7 +516,7 @@ describe('request repository test', () => {
         generateRequests(
           {
             status: RequestStatus.FAILED,
-            createdAt: dateDuringRetryPeriod,
+            createdAt: new Date(dateDuringRetryPeriod.getTime() + MS_IN_MINUTE),
             updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
             message: 'random',
           },
