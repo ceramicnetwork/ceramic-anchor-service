@@ -23,8 +23,7 @@ const cwclient = new CloudWatchClient({})
 // just to test for now
 const cmd = new PutMetricDataCommand({'MetricName': 'ApiGatewayHello',
                                       'Value': 1 })
-const resp = await cwclient.send(cmd)
-console.log(resp)
+cwclient.send(cmd)
 
 app.use(bodyParser.json())
 app.use(parseAsJson)
