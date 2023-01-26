@@ -847,9 +847,16 @@ export class AnchorService {
     // Fail requests for tips that failed to be loaded
     for (const request of stillMissingRequests) {
       const commitId = CommitID.make(candidate.streamId, request.cid)
-      logger.err(
-        `Failed to load stream ${commitId.baseID.toString()} at commit ${commitId.commit.toString()}`
-      )
+
+      if (request.cid == newestMissingRequest.cid) {
+        logger.err(
+          `Failed to load stream ${commitId.baseID.toString()} at commit ${commitId.commit.toString()}`
+        )
+      } else {
+        logger.warn(
+          `Skipped trying to load commit ${commitId.commit.toString()} of stream ${commitId.baseID.toString()} and it stayed missing from the stream log`
+        )
+      }
       Metrics.count(METRIC_NAMES.FAILED_TIP, 1)
       candidate.failRequest(request)
     }
