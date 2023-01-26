@@ -9,6 +9,7 @@ import { DynamoDB } from '../services/aws/dynamodb.js'
 import { SESService } from '../services/aws/ses.js'
 import { ClientFacingError } from '../utils/errorHandling.js'
 import { CustomContext, httpMethods } from '../utils/reqres.js'
+import { CloudWatchClient, PutMetricDataCommand } from "@aws-sdk/client-cloudwatch";
 
 export const API_ENDPOINT = '/api/v0/auth'
 
@@ -17,6 +18,13 @@ const createTableIfNotExists = true
 const db = new DynamoDB(createTableIfNotExists)
 const email = new SESService()
 const gateway = new ApiGateway()
+const cwclient = new CloudWatchClient({})
+
+// just to test for now
+const cmd = new PutMetricDataCommand({'MetricName': 'ApiGatewayHello',
+                                      'Value': 1 })
+const resp = await cwclient.send(cmd)
+console.log(resp)
 
 app.use(bodyParser.json())
 app.use(parseAsJson)
