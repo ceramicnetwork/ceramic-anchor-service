@@ -7,6 +7,7 @@ services:
       - NODE_ENV=dev
       - APP_MODE=server
       - APP_PORT=8081
+      - USE_SMART_CONTRACT_ANCHORS=true
 
       - ANCHOR_CONTROLLER_ENABLED=false
       - ANCHOR_EXPIRATION_PERIOD=0
@@ -19,6 +20,7 @@ services:
       - ETH_NETWORK=goerli
       - ETH_OVERRIDE_GAS_CONFIG=false
       - ETH_WALLET_PK=0x16dd0990d19001c50eeea6d32e8fdeef40d3945962caf18c18c3930baa5a6ec9
+      - ETH_CONTRACT_ADDRESS=0xD3f84Cf6Be3DD0EB16dC89c972f7a27B441A39f2
 
       - IPFS_API_URL=http://ipfs:5011
       - IPFS_API_TIMEOUT=10000
@@ -52,6 +54,7 @@ services:
       - NODE_ENV=dev
       - APP_MODE=anchor
       - APP_PORT=8081
+      - USE_SMART_CONTRACT_ANCHORS=true
 
       - ANCHOR_CONTROLLER_ENABLED=false
       - ANCHOR_EXPIRATION_PERIOD=0
@@ -64,6 +67,7 @@ services:
       - ETH_NETWORK=goerli
       - ETH_OVERRIDE_GAS_CONFIG=false
       - ETH_WALLET_PK=0x16dd0990d19001c50eeea6d32e8fdeef40d3945962caf18c18c3930baa5a6ec9
+      - ETH_CONTRACT_ADDRESS=0xD3f84Cf6Be3DD0EB16dC89c972f7a27B441A39f2
 
       - IPFS_API_URL=http://ipfs:5011
       - IPFS_API_TIMEOUT=10000

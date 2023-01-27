@@ -6,7 +6,11 @@ import { logEvent } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
-import { ServiceMetrics as Metrics, TimeableMetric, SinceField } from '@ceramicnetwork/observability'
+import {
+  ServiceMetrics as Metrics,
+  TimeableMetric,
+  SinceField,
+} from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
@@ -21,6 +25,7 @@ export const FAILURE_RETRY_INTERVAL = 1000 * 60 * 60 * 6 // 6H
 // application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
 export const TABLE_NAME = 'request'
+const POSTGRES_PARAMETERIZED_QUERY_LIMIT = 65000
 
 /**
  * Records statistics about the set of requests
@@ -80,13 +85,13 @@ const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder =>
       .orWhere((subBuilder) =>
         subBuilder
           .where({ status: RequestStatus.PROCESSING })
-          .andWhere('updatedAt', '<', processingDeadline)
+          .andWhere('updatedAt', '<', processingDeadline.toISOString())
       )
       .orWhere((subBuilder) =>
         subBuilder
           .where({ status: RequestStatus.FAILED })
-          .andWhere('createdAt', '>=', earliestFailedCreatedAtToRetry)
-          .andWhere('updatedAt', '<=', latestFailedUpdatedAtToRetry)
+          .andWhere('createdAt', '>=', earliestFailedCreatedAtToRetry.toISOString())
+          .andWhere('updatedAt', '<=', latestFailedUpdatedAtToRetry.toISOString())
           .andWhere((subSubBuilder) =>
             subSubBuilder
               .whereNull('message')
@@ -152,12 +157,29 @@ const findRequestsToAnchorForStreams = (
   streamIds: string[],
   now: Date
 ): Promise<Array<Request>> =>
-  findRequestsToAnchor(connection, now).whereIn('streamId', streamIds).orderBy('createdAt', 'asc')
+  findRequestsToAnchor(connection, now)
+    .whereIn('streamId', streamIds)
+    // We order the requests according to it's streamId's position in the provided array.
+    // We do this because we assume the given streamIds array is sorted according to priority.
+    // In this file the streamIds array is sorted based on the earliest request for each streamId (ascending).
+    // This results in us prioritizing requests that are older and possibly expiring.
+    .orderByRaw(
+      `array_position(ARRAY[${streamIds.map(
+        (streamId) => `'${streamId}'`
+      )}]::varchar[], stream_id), created_at ASC`
+    )
+    .limit(POSTGRES_PARAMETERIZED_QUERY_LIMIT)
 
 export class RequestRepository {
   static inject = ['config', 'dbConnection'] as const
 
-  constructor(private config: Config, private connection: Knex) {}
+  private readonly maxAnchoringDelayMS: number
+  private readonly readyRetryIntervalMS: number
+
+  constructor(config: Config, private connection: Knex) {
+    this.maxAnchoringDelayMS = config.maxAnchoringDelayMS
+    this.readyRetryIntervalMS = config.readyRetryIntervalMS
+  }
 
   /**
    * Create/updates client request
@@ -170,7 +192,7 @@ export class RequestRepository {
     const keys = Object.keys(request).filter((key) => key !== 'id') // all keys except ID
     const [{ id }] = await connection
       .table(TABLE_NAME)
-      .insert(request, ['id'])
+      .insert(request.toDB(), ['id'])
       .onConflict('cid')
       .merge(keys)
 
@@ -184,7 +206,7 @@ export class RequestRepository {
       updatedAt: created.updatedAt.getTime(),
     })
 
-    return created
+    return new Request(created)
   }
 
   /**
@@ -196,7 +218,7 @@ export class RequestRepository {
   async createRequests(requests: Array<Request>, options: Options = {}): Promise<void> {
     const { connection = this.connection } = options
 
-    await connection.table(TABLE_NAME).insert(requests)
+    await connection.table(TABLE_NAME).insert(requests.map((request) => request.toDB()))
   }
 
   /**
@@ -212,7 +234,7 @@ export class RequestRepository {
     options: Options = {}
   ): Promise<number> {
     const { connection = this.connection } = options
-    const updatedAt = new Date(Date.now())
+    const updatedAt = new Date()
     const ids = requests.map((r) => r.id)
     const result = await connection(TABLE_NAME)
       .update({
@@ -294,10 +316,11 @@ export class RequestRepository {
    * @param options
    * @returns Promise for the associated request
    */
-  async findByCid(cid: CID, options: Options = {}): Promise<Request> {
+  async findByCid(cid: CID, options: Options = {}): Promise<Request | undefined> {
     const { connection = this.connection } = options
 
-    return connection(TABLE_NAME).where({ cid: cid.toString() }).first()
+    const found = await connection(TABLE_NAME).where({ cid: cid.toString() }).first()
+    if (found) return new Request(found)
   }
 
   /**
@@ -318,7 +341,7 @@ export class RequestRepository {
       .where('updatedAt', '>=', deadlineDate)
 
     // expired requests with streams that have not been recently updated
-    return await connection(TABLE_NAME)
+    return connection(TABLE_NAME)
       .orderBy('updatedAt', 'desc')
       .whereIn('status', [RequestStatus.COMPLETED, RequestStatus.FAILED])
       .andWhere('pinned', true)
@@ -345,7 +368,7 @@ export class RequestRepository {
   ): Promise<Request[]> {
     const { connection = this.connection } = options
     const now = new Date()
-    const anchoringDeadline = new Date(now.getTime() - this.config.maxAnchoringDelayMS)
+    const anchoringDeadline = new Date(now.getTime() - this.maxAnchoringDelayMS)
 
     return connection
       .transaction(
@@ -430,7 +453,7 @@ export class RequestRepository {
       .count('id')
       .where({ status: RequestStatus.PENDING })
       .first()
-    return parseInt(res.count as string)
+    return parseInt(res.count as string, 10)
   }
 
   /**
@@ -446,7 +469,7 @@ export class RequestRepository {
       .transaction(
         async (trx) => {
           const readyRequests = await this.findByStatus(RequestStatus.READY, { connection: trx })
-          const readyDeadline = Date.now() - this.config.readyRetryIntervalMS
+          const readyDeadline = Date.now() - this.readyRetryIntervalMS
 
           if (readyRequests.length === 0) {
             return 0

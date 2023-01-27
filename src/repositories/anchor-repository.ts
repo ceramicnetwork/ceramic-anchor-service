@@ -39,7 +39,7 @@ export class AnchorRepository {
    * @param options
    * @returns A promise that resolve to the anchor associated to the request
    */
-  async findByRequest(request: Request, options: Options = {}): Promise<AnchorWithRequest> {
+  async findByRequest(request: Request, options: Options = {}): Promise<AnchorWithRequest | null> {
     const { connection = this.connection } = options
 
     const anchor = await connection(TABLE_NAME).where({ requestId: request.id }).first()

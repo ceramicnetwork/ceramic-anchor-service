@@ -2,7 +2,7 @@ import { CeramicClient } from '@ceramicnetwork/http-client'
 import { CeramicApi, MultiQuery, Stream, SyncOptions } from '@ceramicnetwork/common'
 
 import type { Config } from 'node-config-ts'
-import { StreamID, CommitID } from '@ceramicnetwork/streamid'
+import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 import { logger } from '../logger/index.js'
@@ -34,19 +34,23 @@ export class CeramicServiceImpl implements CeramicService {
     this._client = new CeramicClient(config.ceramic.apiUrl)
   }
 
-  async loadStream<T extends Stream>(streamId: StreamID | CommitID): Promise<T> {
-    let timeout: any
+  async loadStream<T extends Stream>(
+    streamId: StreamID | CommitID,
+    sync: SyncOptions = SyncOptions.PREFER_CACHE,
+    timeoutMs?: number
+  ): Promise<T> {
+    let timeoutHandle: any
+    const effectiveTimeout =
+      timeoutMs ?? this.config.loadStreamTimeoutMs ?? DEFAULT_LOAD_STREAM_TIMEOUT
 
-    const streamPromise = this._client
-      .loadStream(streamId, { sync: SyncOptions.PREFER_CACHE, pin: true })
-      .finally(() => {
-        clearTimeout(timeout)
-      })
+    const streamPromise = this._client.loadStream(streamId, { sync, pin: true }).finally(() => {
+      clearTimeout(timeoutHandle)
+    })
 
     const timeoutPromise = new Promise((_, reject) => {
-      timeout = setTimeout(() => {
+      timeoutHandle = setTimeout(() => {
         reject(new Error(`Timed out loading stream: ${streamId.toString()}`))
-      }, this.config.loadStreamTimeoutMs || DEFAULT_LOAD_STREAM_TIMEOUT)
+      }, effectiveTimeout)
     })
 
     return (await Promise.race([streamPromise, timeoutPromise])) as T
@@ -54,25 +58,13 @@ export class CeramicServiceImpl implements CeramicService {
 
   async pinStream(streamId: StreamID): Promise<void> {
     try {
-      let timeout: any
+      // this.loadStream uses the 'pin' flag to pin the stream after loading it.
+      // TODO(CDB-2213): Use SyncOptions.SYNC_ON_ERROR once the CAS doesn't have such a huge backlog of streams 
+      // that are already broken with CACAO timeouts
+      await this.loadStream(streamId, SyncOptions.PREFER_CACHE, PIN_TIMEOUT)
 
-      const pinPromise = this._client.pin
-        .add(streamId)
-        .then(() => {
-          logger.debug(`Successfully pinned stream ${streamId.toString()}`)
-          Metrics.count(METRIC_NAMES.PIN_SUCCEEDED, 1)
-        })
-        .finally(() => {
-          clearTimeout(timeout)
-        })
-
-      const timeoutPromise = new Promise((_, reject) => {
-        timeout = setTimeout(() => {
-          reject(new Error(`Timed out pinning stream: ${streamId.toString()}`))
-        }, PIN_TIMEOUT)
-      })
-
-      await Promise.race([pinPromise, timeoutPromise])
+      logger.debug(`Successfully pinned stream ${streamId.toString()}`)
+      Metrics.count(METRIC_NAMES.PIN_SUCCEEDED, 1)
     } catch (e) {
       // Pinning is best-effort, as we don't want to fail requests if the Ceramic node is unavailable
       logger.err(`Error pinning stream ${streamId.toString()}: ${e.toString()}`)
