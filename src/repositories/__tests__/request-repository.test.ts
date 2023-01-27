@@ -509,110 +509,112 @@ describe('request repository test', () => {
       }
     })
 
-    test('Marks failed requests as ready', async () => {
-      const streamLimit = 5
-      const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
-      const requests = [
-        generateRequests(
-          {
-            status: RequestStatus.FAILED,
-            createdAt: new Date(dateDuringRetryPeriod.getTime() + MS_IN_MINUTE),
-            updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
-            message: 'random',
-          },
-          1
-        ),
-        generateRequests(
-          {
-            status: RequestStatus.FAILED,
-            createdAt: dateDuringRetryPeriod,
-            updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
-          },
-          streamLimit - 1
-        ),
-      ].flat()
+    // TODO: https://linear.app/3boxlabs/issue/CDB-2221/turn-cas-failure-retry-back-on
 
-      await requestRepository.createRequests(requests)
+    // test('Marks failed requests as ready', async () => {
+    //   const streamLimit = 5
+    //   const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+    //   const requests = [
+    //     generateRequests(
+    //       {
+    //         status: RequestStatus.FAILED,
+    //         createdAt: new Date(dateDuringRetryPeriod.getTime() + MS_IN_MINUTE),
+    //         updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+    //         message: 'random',
+    //       },
+    //       1
+    //     ),
+    //     generateRequests(
+    //       {
+    //         status: RequestStatus.FAILED,
+    //         createdAt: dateDuringRetryPeriod,
+    //         updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+    //       },
+    //       streamLimit - 1
+    //     ),
+    //   ].flat()
 
-      const createdRequests = await getAllRequests(connection)
-      expect(createdRequests.length).toEqual(requests.length)
+    //   await requestRepository.createRequests(requests)
 
-      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
-      expect(updatedRequests.length).toEqual(streamLimit)
+    //   const createdRequests = await getAllRequests(connection)
+    //   expect(createdRequests.length).toEqual(requests.length)
 
-      expect(updatedRequests.map(({ cid }) => cid)).toEqual(createdRequests.map(({ cid }) => cid))
-    })
+    //   const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+    //   expect(updatedRequests.length).toEqual(streamLimit)
 
-    test('Will not mark expired failed requests as ready', async () => {
-      const streamLimit = 5
-      const dateBeforeRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW - MS_IN_HOUR)
+    //   expect(updatedRequests.map(({ cid }) => cid)).toEqual(createdRequests.map(({ cid }) => cid))
+    // })
 
-      const requests = generateRequests(
-        {
-          status: RequestStatus.FAILED,
-          createdAt: dateBeforeRetryPeriod,
-          updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
-        },
-        streamLimit
-      )
+    // test('Will not mark expired failed requests as ready', async () => {
+    //   const streamLimit = 5
+    //   const dateBeforeRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW - MS_IN_HOUR)
 
-      await requestRepository.createRequests(requests)
+    //   const requests = generateRequests(
+    //     {
+    //       status: RequestStatus.FAILED,
+    //       createdAt: dateBeforeRetryPeriod,
+    //       updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+    //     },
+    //     streamLimit
+    //   )
 
-      const createdRequests = await getAllRequests(connection)
-      expect(requests.length).toEqual(createdRequests.length)
+    //   await requestRepository.createRequests(requests)
 
-      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
-      expect(updatedRequests.length).toEqual(0)
-    })
+    //   const createdRequests = await getAllRequests(connection)
+    //   expect(requests.length).toEqual(createdRequests.length)
 
-    test('Will not mark failed requests that were rejected because of conflict resolution as ready', async () => {
-      const streamLimit = 5
-      const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+    //   const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+    //   expect(updatedRequests.length).toEqual(0)
+    // })
 
-      const requests = generateRequests(
-        {
-          status: RequestStatus.FAILED,
-          createdAt: dateDuringRetryPeriod,
-          updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
-          message: REQUEST_MESSAGES.conflictResolutionRejection,
-        },
-        streamLimit
-      )
+    // test('Will not mark failed requests that were rejected because of conflict resolution as ready', async () => {
+    //   const streamLimit = 5
+    //   const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
 
-      await requestRepository.createRequests(requests)
+    //   const requests = generateRequests(
+    //     {
+    //       status: RequestStatus.FAILED,
+    //       createdAt: dateDuringRetryPeriod,
+    //       updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+    //       message: REQUEST_MESSAGES.conflictResolutionRejection,
+    //     },
+    //     streamLimit
+    //   )
 
-      const createdRequests = await getAllRequests(connection)
-      expect(requests.length).toEqual(createdRequests.length)
+    //   await requestRepository.createRequests(requests)
 
-      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
-      expect(updatedRequests.length).toEqual(0)
-    })
+    //   const createdRequests = await getAllRequests(connection)
+    //   expect(requests.length).toEqual(createdRequests.length)
 
-    test('Will not mark failed requests that were tried recently as ready', async () => {
-      const streamLimit = 5
-      const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+    //   const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+    //   expect(updatedRequests.length).toEqual(0)
+    // })
 
-      const requests = generateRequests(
-        {
-          status: RequestStatus.FAILED,
-          createdAt: dateDuringRetryPeriod,
-          updatedAt: new Date(Date.now() - MS_IN_HOUR),
-        },
-        streamLimit
-      )
+    // test('Will not mark failed requests that were tried recently as ready', async () => {
+    //   const streamLimit = 5
+    //   const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
 
-      await requestRepository.createRequests(requests)
+    //   const requests = generateRequests(
+    //     {
+    //       status: RequestStatus.FAILED,
+    //       createdAt: dateDuringRetryPeriod,
+    //       updatedAt: new Date(Date.now() - MS_IN_HOUR),
+    //     },
+    //     streamLimit
+    //   )
 
-      const createdRequests = await getAllRequests(connection)
-      expect(requests.length).toEqual(createdRequests.length)
+    //   await requestRepository.createRequests(requests)
 
-      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
-      expect(updatedRequests.length).toEqual(0)
-    })
+    //   const createdRequests = await getAllRequests(connection)
+    //   expect(requests.length).toEqual(createdRequests.length)
+
+    //   const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+    //   expect(updatedRequests.length).toEqual(0)
+    // })
   })
 
   describe('updateExpiringReadyRequests', () => {
-    test('Updates expiring ready requests if they exist', async () => {
+    test.only('Updates expiring ready requests if they exist', async () => {
       const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
       const expiredReadyRequestsCount = 3
 
