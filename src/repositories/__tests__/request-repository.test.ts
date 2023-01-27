@@ -614,7 +614,7 @@ describe('request repository test', () => {
   })
 
   describe('updateExpiringReadyRequests', () => {
-    test.only('Updates expiring ready requests if they exist', async () => {
+    test('Updates expiring ready requests if they exist', async () => {
       const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
       const expiredReadyRequestsCount = 3
 
