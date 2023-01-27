@@ -14,8 +14,10 @@ router.post('/', validate(verifyValidation), async (req: Req, res: Res) => {
     const code = await req.customContext.db.createEmailVerificationCode(req.body.email)
     if (code) {
       await req.customContext.email.sendVerificationCode(req.body.email, code)
+      await req.customContext.metrics.count('verify', 1, {'result': 'sent'})
       return res.send({message: 'Please check your email for your verification code.'})
     }
+    await req.customContext.metrics.count('verify', 1, {'result': 'unavailable'})
     throw new ClientFacingError('Unavailable. Try again later.')
 })
 
