@@ -331,7 +331,7 @@ describe('Ceramic Integration Test', () => {
     await anchorLauncher.stop()
   })
 
-  describe.skip.each([0, 1])('Using anchor version %i', (version) => {
+  describe.each([0, 1])('Using anchor version %i', (version) => {
     beforeAll(async () => {
       const useSmartContractAnchors = version === 1
 

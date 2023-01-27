@@ -403,16 +403,17 @@ describe('request repository test', () => {
           },
           1
         ),
-        // failed request
-        generateRequests(
-          {
-            status: RequestStatus.FAILED,
-            streamId: repeatedStreamId,
-            createdAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
-            updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_MINUTE * 30),
-          },
-          1
-        ),
+        // TODO: https://linear.app/3boxlabs/issue/CDB-2221/turn-cas-failure-retry-back-on
+        // // failed request
+        // generateRequests(
+        //   {
+        //     status: RequestStatus.FAILED,
+        //     streamId: repeatedStreamId,
+        //     createdAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+        //     updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_MINUTE * 30),
+        //   },
+        //   1
+        // ),
         // PROCESSING request updated 4 hours ago
         generateRequests(
           {
