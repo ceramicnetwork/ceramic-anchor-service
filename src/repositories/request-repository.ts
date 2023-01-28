@@ -87,17 +87,18 @@ const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder =>
           .where({ status: RequestStatus.PROCESSING })
           .andWhere('updatedAt', '<', processingDeadline.toISOString())
       )
-      .orWhere((subBuilder) =>
-        subBuilder
-          .where({ status: RequestStatus.FAILED })
-          .andWhere('createdAt', '>=', earliestFailedCreatedAtToRetry.toISOString())
-          .andWhere('updatedAt', '<=', latestFailedUpdatedAtToRetry.toISOString())
-          .andWhere((subSubBuilder) =>
-            subSubBuilder
-              .whereNull('message')
-              .orWhereNot({ message: REQUEST_MESSAGES.conflictResolutionRejection })
-          )
-      )
+    // TODO: https://linear.app/3boxlabs/issue/CDB-2221/turn-cas-failure-retry-back-on
+    // .orWhere((subBuilder) =>
+    //   subBuilder
+    //     .where({ status: RequestStatus.FAILED })
+    //     .andWhere('createdAt', '>=', earliestFailedCreatedAtToRetry.toISOString())
+    //     .andWhere('updatedAt', '<=', latestFailedUpdatedAtToRetry.toISOString())
+    //     .andWhere((subSubBuilder) =>
+    //       subSubBuilder
+    //         .whereNull('message')
+    //         .orWhereNot({ message: REQUEST_MESSAGES.conflictResolutionRejection })
+    //     )
+    // )
   })
 }
 
