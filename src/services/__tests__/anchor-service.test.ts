@@ -747,7 +747,9 @@ describe('anchor service', () => {
       expect(anchor.requestId).toEqual(request.id)
     })
 
-    test('No anchor performed if no valid requests', async () => {
+    // Because of the changes in PR#919, we're blindly choosing the newest request to anchor. This is a stop-gap until
+    // CAS w/o Ceramic node replaces this with better logic.
+    test('Anchor performed for newest request', async () => {
       const streamId = await randomStreamID()
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
@@ -761,7 +763,8 @@ describe('anchor service', () => {
       const [candidates, _] = await anchorService._findCandidates([request], 0)
       expect(candidates.length).toEqual(0)
       const updatedRequest = await requestRepository.findByCid(toCID(request.cid))
-      expect(updatedRequest.status).toEqual(RequestStatus.FAILED)
+
+      expect(updatedRequest.status).toEqual(RequestStatus.PENDING)
     })
 
     test('Request succeeds without anchor for already anchored CIDs', async () => {
