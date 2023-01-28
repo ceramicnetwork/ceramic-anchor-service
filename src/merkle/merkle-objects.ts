@@ -135,6 +135,36 @@ export class Candidate implements CIDHolder {
   }
 
   /**
+   * If there were requests that were missing from the stream log after we loaded the stream,
+   * we fall back to this method.  The old (more correct) behavior was to force the Ceramic node
+   * to load each commit from each pending request, so we know that the Ceramic node has considered
+   * them all and picked the best one according to conflict resolution.  What we do here is much
+   * dumber and riskier.  We just blindly take the most recent request, without doing any validation
+   * or conflict resolution on it.  The CAS w/o Ceramic node project will replace this with better
+   * logic that will still do signature verification, and will ensure that if different Ceramic
+   * nodes have pending anchor requests for different tips for the same stream, that both tips
+   * will get anchored.
+   * This is a temporary stopgap to speed up the anchoring process, and the cost of possibly more
+   * data loss due to anchoring the wrong tip in some cases.
+   */
+  forceAnchorOfNewestRequest(stream: Stream) {
+    this._metadata = stream.state.next?.metadata
+      ? stream.state.next.metadata
+      : stream.state.metadata
+
+    const newestRequest = this.requests.reduce(function (newest, current) {
+      return newest.createdAt > current.createdAt ? newest : current
+    })
+    this._cid = CID.asCID(newestRequest.cid)
+
+    this._acceptedRequests = [newestRequest]
+    this._rejectedRequests = this.requests.filter((req) => {
+      return req.cid != newestRequest.cid
+    })
+    this._newestAcceptedRequest = newestRequest
+  }
+
+  /**
    * Given the current version of the stream, updates this.cid to include the appropriate tip to
    * anchor.  Note that the CID selected may be the cid corresponding to any of the pending anchor
    * requests, or to none of them if a newer, better CID is learned about from the Ceramic node.
