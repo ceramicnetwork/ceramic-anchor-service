@@ -1,5 +1,5 @@
 import { CeramicClient } from '@ceramicnetwork/http-client'
-import { CeramicApi, MultiQuery, Stream, SyncOptions } from '@ceramicnetwork/common'
+import { CeramicApi, Stream, SyncOptions } from '@ceramicnetwork/common'
 
 import type { Config } from 'node-config-ts'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
@@ -16,15 +16,10 @@ export interface CeramicService {
     pin?: boolean
   ): Promise<any>
   pinStream(streamId: StreamID): Promise<void>
-  multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>>
   unpinStream(streamId: StreamID): Promise<void>
 }
 
 const DEFAULT_LOAD_STREAM_TIMEOUT = 1000 * 60 // 1 minute
-const MULTIQUERY_SERVER_TIMEOUT = 1000 * 60 // 1 minute
-// 10 seconds more than server-side timeout so server-side timeout can fire first, which gives us a
-// more useful error message
-const MULTIQUERY_CLIENT_TIMEOUT = 1000 * 70 // 1 minute and 10 seconds
 const PIN_TIMEOUT = 1000 * 60 * 2 // 2 minutes
 
 export class CeramicServiceImpl implements CeramicService {
@@ -76,23 +71,6 @@ export class CeramicServiceImpl implements CeramicService {
       logger.err(`Error pinning stream ${streamId.toString()}: ${e.toString()}`)
       Metrics.count(METRIC_NAMES.PIN_FAILED, 1)
     }
-  }
-
-  async multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>> {
-    let timeout: any
-
-    const queryPromise = this._client.multiQuery(queries, MULTIQUERY_SERVER_TIMEOUT).finally(() => {
-      clearTimeout(timeout)
-    })
-
-    const timeoutPromise = new Promise<Record<string, Stream>>((_, reject) => {
-      timeout = setTimeout(() => {
-        logger.warn(`Timed out loading multiquery`)
-        reject(new Error(`Timed out loading multiquery`))
-      }, MULTIQUERY_CLIENT_TIMEOUT)
-    })
-
-    return await Promise.race([queryPromise, timeoutPromise])
   }
 
   /**

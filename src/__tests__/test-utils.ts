@@ -123,19 +123,6 @@ export class MockCeramicService implements CeramicService {
 
   async pinStream(streamId: StreamID): Promise<any> {}
 
-  async multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>> {
-    const result = {}
-    for (const query of queries) {
-      const id = query.streamId.toString()
-      const stream = this._streams[id]
-      if (stream) {
-        result[id] = stream
-      }
-    }
-
-    return result
-  }
-
   // Mock-only method to control what gets returned by loadStream()
   putStream(id: StreamID | CommitID, stream: any) {
     this._streams[id.toString()] = stream
