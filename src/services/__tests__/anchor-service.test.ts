@@ -1018,50 +1018,6 @@ describe('anchor service', () => {
       expect(updatedRequest0.message).toEqual('CID successfully anchored.')
       expect(updatedRequest0.pinned).toEqual(true)
     })
-
-    test('Request garbage collection', async () => {
-      const requestCIDs = (await anchorRequests(3)).map((request) => request.cid)
-      const requests = await Promise.all(
-        requestCIDs.map((cid) => requestRepository.findByCid(toCID(cid)))
-      )
-
-      const now = new Date()
-      const TWO_MONTHS = 1000 * 60 * 60 * 24 * 60
-      const expiredDate = new Date(now.getTime() - TWO_MONTHS)
-
-      // Make 2 of the 3 requests be expired
-      requests[0].updatedAt = expiredDate
-      requests[1].updatedAt = expiredDate
-      await requestRepository.createOrUpdate(requests[0])
-      await requestRepository.createOrUpdate(requests[1])
-
-      // run garbage collection
-      const unpinStreamSpy = jest.spyOn(ceramicService, 'unpinStream')
-      await anchorService.garbageCollectPinnedStreams()
-
-      const updatedRequests = await Promise.all(
-        requests.map((req) => requestRepository.findByCid(toCID(req.cid)))
-      )
-      // Expired requests should be unpinned, but recent request should still be pinned
-      expect(updatedRequests[0].pinned).toBeFalsy()
-      expect(updatedRequests[1].pinned).toBeFalsy()
-      expect(updatedRequests[2].pinned).toBeTruthy()
-      expect(unpinStreamSpy).toHaveBeenCalledTimes(2)
-
-      // Running garbage collection on already unpinned streams shouldn't unpin again
-      updatedRequests[0].updatedAt = expiredDate
-      await requestRepository.createOrUpdate(updatedRequests[0])
-      await anchorService.garbageCollectPinnedStreams()
-
-      const finalRequests = await Promise.all(
-        updatedRequests.map((req) => requestRepository.findByCid(toCID(req.cid)))
-      )
-      expect(finalRequests[0].pinned).toBeFalsy()
-      expect(finalRequests[1].pinned).toBeFalsy()
-      expect(finalRequests[2].pinned).toBeTruthy()
-      // No additional calls to unpinStream
-      expect(unpinStreamSpy).toHaveBeenCalledTimes(2)
-    })
   })
 
   describe('emitAnchorEventIfReady', () => {

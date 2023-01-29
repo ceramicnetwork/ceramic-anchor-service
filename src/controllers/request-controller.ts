@@ -10,7 +10,6 @@ import { Request, RequestStatus } from '../models/request.js'
 import { logger } from '../logger/index.js'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
-import { CeramicService } from '../services/ceramic-service.js'
 import type { IRequestPresentationService } from '../services/request-presentation-service.type.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
 import type { IMetadataService } from '../services/metadata-service.js'
@@ -41,14 +40,12 @@ function parseOrigin(req: ExpReq): string {
 export class RequestController {
   static inject = [
     'requestRepository',
-    'ceramicService',
     'requestPresentationService',
     'metadataService',
   ] as const
 
   constructor(
     private readonly requestRepository: RequestRepository,
-    private readonly ceramicService: CeramicService,
     private readonly requestPresentationService: IRequestPresentationService,
     private readonly metadataService: IMetadataService
   ) {}
@@ -118,7 +115,6 @@ export class RequestController {
       await this.metadataService.fill(streamId)
 
       // Intentionally don't await the pinStream promise, let it happen in the background.
-      this.ceramicService.pinStream(streamId)
       Metrics.count(METRIC_NAMES.ANCHOR_REQUESTED, 1, { ip_addr: req.ip })
 
       const request = new Request()

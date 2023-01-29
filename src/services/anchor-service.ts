@@ -13,7 +13,6 @@ import type { Transaction } from '../models/transaction.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
 import type { TransactionRepository } from '../repositories/transaction-repository.js'
 import type { EventProducerService } from './event-producer/event-producer-service.js'
-import type { CeramicService } from './ceramic-service.js'
 import {
   ServiceMetrics as Metrics,
   SinceField,
@@ -133,7 +132,6 @@ export class AnchorService {
     'ipfsService',
     'requestRepository',
     'transactionRepository',
-    'ceramicService',
     'anchorRepository',
     'dbConnection',
     'eventProducerService',
@@ -146,7 +144,6 @@ export class AnchorService {
     private readonly ipfsService: IIpfsService,
     private readonly requestRepository: RequestRepository,
     private readonly transactionRepository: TransactionRepository,
-    private readonly ceramicService: CeramicService,
     private readonly anchorRepository: IAnchorRepository,
     private readonly connection: Knex,
     private readonly eventProducerService: EventProducerService,
@@ -203,11 +200,6 @@ export class AnchorService {
 
     // Sleep 5 seconds before exiting the process to give time for the logs to flush.
     await Utils.delay(5000)
-  }
-
-  async garbageCollectPinnedStreams(): Promise<void> {
-    const requests: Request[] = await this.requestRepository.findRequestsToGarbageCollect()
-    await this._garbageCollect(requests)
   }
 
   private async _anchorRequests(requests: Request[]): Promise<void> {
@@ -299,37 +291,6 @@ export class AnchorService {
       anchorCount: anchors.length,
       reanchoredCount: reAnchoredCount,
     }
-  }
-
-  private async _garbageCollect(requests: Request[]): Promise<void> {
-    const streamIds = new Set<string>()
-    requests.forEach((request) => streamIds.add(request.streamId))
-
-    logger.imp(
-      `Garbage collecting ${streamIds.size} pinned Streams from ${requests.length} Requests`
-    )
-
-    const unpinnedStreams = new Set<string>()
-    for (const streamIdStr of streamIds) {
-      try {
-        const streamId = StreamID.fromString(streamIdStr)
-        await this.ceramicService.unpinStream(streamId)
-        unpinnedStreams.add(streamIdStr)
-        logger.debug(`Stream ${streamIdStr.toString()} successfully unpinned`)
-      } catch (err) {
-        logger.err(`Error unpinning Stream ${streamIdStr}: ${err}`)
-      }
-    }
-
-    logger.imp(`Successfully unpinned ${unpinnedStreams.size} Streams`)
-
-    const garbageCollectedRequests = requests.filter((request) =>
-      unpinnedStreams.has(request.streamId)
-    )
-
-    await this.requestRepository.updateRequests({ pinned: false }, garbageCollectedRequests)
-
-    logger.imp(`Successfully garbage collected ${garbageCollectedRequests.length} Requests`)
   }
 
   /**

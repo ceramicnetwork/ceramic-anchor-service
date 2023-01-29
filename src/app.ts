@@ -14,8 +14,6 @@ import { HTTPEventProducerService } from './services/event-producer/http/http-ev
 import { AnchorRepository } from './repositories/anchor-repository.js'
 import { RequestRepository } from './repositories/request-repository.js'
 import { TransactionRepository } from './repositories/transaction-repository.js'
-import type { CeramicService } from './services/ceramic-service.js'
-import { CeramicServiceImpl } from './services/ceramic-service.js'
 import { HealthcheckController } from './controllers/healthcheck-controller.js'
 import { AnchorController } from './controllers/anchor-controller.js'
 import { RequestController } from './controllers/request-controller.js'
@@ -49,7 +47,6 @@ type ProvidedContext = {
   transactionRepository: TransactionRepository
   blockchainService: BlockchainService
   eventProducerService: EventProducerService
-  ceramicService: CeramicService
   ipfsService: IIpfsService
   schedulerService: SchedulerService
   requestPresentationService: IRequestPresentationService
@@ -86,7 +83,6 @@ export class CeramicAnchorApp {
       .provideFactory('blockchainService', EthereumBlockchainService.make)
       .provideClass('eventProducerService', HTTPEventProducerService)
       .provideClass('ipfsService', IpfsService)
-      .provideClass('ceramicService', CeramicServiceImpl)
       .provideClass('metadataRepository', MetadataRepository)
       .provideClass('anchorService', AnchorService)
       .provideClass('schedulerService', SchedulerService)

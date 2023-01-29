@@ -7,7 +7,6 @@ import { RequestPresentationService } from '../../services/request-presentation-
 import { RequestRepository } from '../../repositories/request-repository.js'
 import { StatusCodes } from 'http-status-codes'
 import {
-  MockCeramicService,
   MockIpfsService,
   randomCID,
   randomStreamID,
@@ -47,7 +46,6 @@ describe('createRequest', () => {
       .provideFactory('requestRepository', RequestRepository.make)
       .provideClass('anchorRepository', AnchorRepository)
       .provideClass('ipfsService', MockIpfsService)
-      .provideClass('ceramicService', MockCeramicService)
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('metadataService', MockMetadataService)
       .provideClass('requestController', RequestController)
