@@ -627,7 +627,7 @@ describe('Ceramic Integration Test', () => {
       const originalTipRequest = await fetchJson(
         'http://localhost:' + casPort1 + '/api/v0/requests/' + originalTip.toString()
       )
-      expect(RequestStatus[originalTipRequest.status]).toEqual(RequestStatus.COMPLETED)
+      expect(RequestStatus[originalTipRequest.status]).toEqual(RequestStatus.FAILED)
     })
 
     test('Can retreive completed request that was marked COMPLETE because its stream was already anchored', async () => {

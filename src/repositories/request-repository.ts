@@ -1,12 +1,6 @@
 import { CID } from 'multiformats/cid'
 import type { Knex } from 'knex'
-import {
-  RequestStatus,
-  Request,
-  RequestUpdateFields,
-  REQUEST_MESSAGES,
-  DATABASE_FIELDS,
-} from '../models/request.js'
+import { RequestStatus, Request, RequestUpdateFields, DATABASE_FIELDS } from '../models/request.js'
 import { logEvent, logger } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { Utils } from '../utils.js'
@@ -78,114 +72,6 @@ function make(config: Config, connection: Knex) {
 }
 make.inject = ['config', 'dbConnection'] as const
 
-/**
- * Finds a batch of requests to anchor. A request will be included in the batch if:
- *  1. it is a PENDING request that need to be anchored
- *  2. it is ia PROCESSING requests that needs to be anchored and retried (the request hasn't been updated in a long time)
- *  3. it is a FAILED requests that failed for reasons other than conflict resolution and did not expire
- * @param connection
- * @param now
- * @returns
- */
-const findRequestsToAnchor = (connection: Knex, now: Date): Knex.QueryBuilder => {
-  const earliestFailedCreatedAtToRetry = new Date(now.getTime() - FAILURE_RETRY_WINDOW)
-  const processingDeadline = new Date(now.getTime() - PROCESSING_TIMEOUT)
-  const latestFailedUpdatedAtToRetry = new Date(now.getTime() - FAILURE_RETRY_INTERVAL)
-
-  return connection(TABLE_NAME).where((builder) => {
-    builder
-      .where({ status: RequestStatus.PENDING })
-      .orWhere((subBuilder) =>
-        subBuilder
-          .where({ status: RequestStatus.PROCESSING })
-          .andWhere('updatedAt', '<', processingDeadline.toISOString())
-      )
-    // TODO: https://linear.app/3boxlabs/issue/CDB-2221/turn-cas-failure-retry-back-on
-    // .orWhere((subBuilder) =>
-    //   subBuilder
-    //     .where({ status: RequestStatus.FAILED })
-    //     .andWhere('createdAt', '>=', earliestFailedCreatedAtToRetry.toISOString())
-    //     .andWhere('updatedAt', '<=', latestFailedUpdatedAtToRetry.toISOString())
-    //     .andWhere((subSubBuilder) =>
-    //       subSubBuilder
-    //         .whereNull('message')
-    //         .orWhereNot({ message: REQUEST_MESSAGES.conflictResolutionRejection })
-    //     )
-    // )
-  })
-}
-
-/**
- * Finds a batch of streams to anchor based on whether a stream's associated requests need to be anchored.
- * @param connection
- * @param maxStreamLimit max size of the batch
- * @param minStreamLimit
- * @param anchoringDeadline
- * @param now
- * @returns Promise for the stream ids to anchor
- */
-const findStreamsToAnchor = async (
-  connection: Knex,
-  maxStreamLimit: number,
-  minStreamLimit: number,
-  anchoringDeadline: Date,
-  now: Date
-): Promise<Array<string>> => {
-  const query = findRequestsToAnchor(connection, now)
-    .select(['streamId', connection.raw('MIN(request.created_at) as min_created_at')])
-    .orderBy('min_created_at', 'asc')
-    .groupBy('streamId')
-
-  if (maxStreamLimit !== 0) query.limit(maxStreamLimit)
-
-  const streamsToAnchor = await query
-
-  // Do not anchor if there are no streams to anchor
-  if (streamsToAnchor.length === 0) {
-    logger.debug(`No streams were found that are ready to anchor`)
-    return []
-  }
-
-  // Return a batch of streams only if we have enough streams to fill a batch or the earliest stream request is expired
-  const enoughStreams = streamsToAnchor.length >= minStreamLimit
-  const earliestIsExpired = streamsToAnchor[0].minCreatedAt < anchoringDeadline
-
-  if (!enoughStreams && !earliestIsExpired) {
-    logger.debug(
-      `No streams are ready to anchor because there are not enough streams for a batch ${streamsToAnchor.length}/${minStreamLimit} and the earliest request is not expired (created at ${streamsToAnchor[0].minCreatedAt})`
-    )
-
-    return []
-  }
-
-  return streamsToAnchor.map(({ streamId }) => streamId)
-}
-
-/**
- * Finds a batch of requests to anchor that are are associated with the given streams
- * @param connection
- * @param streamIds streams to anchor
- * @param now
- * @returns
- */
-const findRequestsToAnchorForStreams = (
-  connection: Knex,
-  streamIds: string[],
-  now: Date
-): Promise<Array<Request>> =>
-  findRequestsToAnchor(connection, now)
-    .whereIn('streamId', streamIds)
-    // We order the requests according to it's streamId's position in the provided array.
-    // We do this because we assume the given streamIds array is sorted according to priority.
-    // In this file the streamIds array is sorted based on the earliest request for each streamId (ascending).
-    // This results in us prioritizing requests that are older and possibly expiring.
-    .orderByRaw(
-      `array_position(ARRAY[${streamIds.map(
-        (streamId) => `'${streamId}'`
-      )}]::varchar[], stream_id), created_at ASC`
-    )
-    .limit(POSTGRES_PARAMETERIZED_QUERY_LIMIT)
-
 export class RequestRepository {
   static make = make
 
@@ -251,7 +137,7 @@ export class RequestRepository {
         message: fields.message,
         status: fields.status,
         pinned: fields.pinned,
-        updatedAt: updatedAt,
+        updatedAt: updatedAt.toISOString(),
       })
       .whereIn('id', ids)
 
@@ -514,18 +400,18 @@ export class RequestRepository {
             .where({ status: RequestStatus.PROCESSING })
             .andWhere('updatedAt', '<', te.date.encode(processingDeadline))
         )
-        // TODO: https://linear.app/3boxlabs/issue/CDB-2221/turn-cas-failure-retry-back-on
-        // .orWhere((subBuilder) =>
-        //   subBuilder
-        //     .where({ status: RequestStatus.FAILED })
-        //     .andWhere('createdAt', '>=', te.date.encode(earliestFailedCreatedAtToRetry))
-        //     .andWhere('updatedAt', '<=', te.date.encode(latestFailedUpdatedAtToRetry))
-        //     .andWhere((subSubBuilder) =>
-        //       subSubBuilder
-        //         .whereNull('message')
-        //         .orWhereNot({ message: REQUEST_MESSAGES.conflictResolutionRejection })
-        //     )
-        // )
+      // TODO: https://linear.app/3boxlabs/issue/CDB-2221/turn-cas-failure-retry-back-on
+      // .orWhere((subBuilder) =>
+      //   subBuilder
+      //     .where({ status: RequestStatus.FAILED })
+      //     .andWhere('createdAt', '>=', te.date.encode(earliestFailedCreatedAtToRetry))
+      //     .andWhere('updatedAt', '<=', te.date.encode(latestFailedUpdatedAtToRetry))
+      //     .andWhere((subSubBuilder) =>
+      //       subSubBuilder
+      //         .whereNull('message')
+      //         .orWhereNot({ message: REQUEST_MESSAGES.conflictResolutionRejection })
+      //     )
+      // )
     })
   }
 

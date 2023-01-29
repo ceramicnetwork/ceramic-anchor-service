@@ -164,9 +164,9 @@ export class Candidate implements CIDHolder {
    * data loss due to anchoring the wrong tip in some cases.
    */
   forceAnchorOfNewestRequest(stream: Stream) {
-    this._metadata = stream.state.next?.metadata
+    this._metadata = (stream.state.next?.metadata
       ? stream.state.next.metadata
-      : stream.state.metadata
+      : stream.state.metadata) as unknown as GenesisFields
 
     const newestRequest = this.requests.reduce(function (newest, current) {
       return newest.createdAt > current.createdAt ? newest : current

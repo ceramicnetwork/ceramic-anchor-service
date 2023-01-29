@@ -714,7 +714,13 @@ describe('anchor service', () => {
 
     // Create pending requests
     for (let i = 0; i < numRequests; i++) {
-      const streamId = await randomStreamID()
+      const genesisCID = await ipfsService.storeRecord({
+        header: {
+          controllers: [`did:method:${randomString(32)}`],
+        },
+      })
+      const streamId = new StreamID(1, genesisCID)
+      await metadataService.fill(streamId)
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       const commitId = CommitID.make(streamId, request.cid)
       const stream = createStream(streamId, [toCID(request.cid)])
@@ -733,14 +739,14 @@ describe('anchor service', () => {
     requests = await requestRepository.findByStatus(RequestStatus.READY)
     expect(requests.length).toEqual(0)
 
-    let anchors = await connection.select().from(TABLE_NAME)
+    let anchors = await requestRepository.table
     expect(anchors.length).toEqual(numRequests)
 
     // reanchor the same candidates
     await anchorCandidates(candidates, anchorService, ipfsService)
 
     // no new anchor should have been created
-    anchors = await connection.select().from(TABLE_NAME)
+    anchors = await requestRepository.table
     expect(anchors.length).toEqual(numRequests)
   })
 
