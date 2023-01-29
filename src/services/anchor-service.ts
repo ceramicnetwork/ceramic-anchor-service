@@ -167,13 +167,12 @@ export class AnchorService {
    */
   // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
   async anchorRequests(): Promise<void> {
-    // FIXME PREV
-    // const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
-    //
-    // if (readyRequestsCount === 0) {
-    //   // Pull in twice as many streams as we want to anchor, since some of those streams may fail to load.
-    //   await this.requestRepository.findAndMarkReady(this.maxStreamLimit * 2, this.minStreamLimit)
-    // }
+    const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
+
+    if (readyRequestsCount === 0) {
+      // Pull in twice as many streams as we want to anchor, since some of those streams may fail to load.
+      await this.requestRepository.findAndMarkReady(this.maxStreamLimit * 2, this.minStreamLimit)
+    }
 
     return this.anchorReadyRequests()
   }
