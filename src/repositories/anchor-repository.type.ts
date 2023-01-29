@@ -8,5 +8,5 @@ export class AnchorWithRequest extends Anchor {
 
 export interface IAnchorRepository {
   createAnchors(anchors: Array<Anchor>, options?: Options): Promise<number>
-  findByRequest(request: Request, options?: Options): Promise<AnchorWithRequest>
+  findByRequest(request: Request): Promise<AnchorWithRequest>
 }

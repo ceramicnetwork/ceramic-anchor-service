@@ -1,7 +1,7 @@
-import { Anchor } from '../models/anchor.js'
-import { Request } from '../models/request.js'
+import type { Anchor } from '../models/anchor.js'
+import type { Request } from '../models/request.js'
 import type { Knex } from 'knex'
-import { Options } from './repository-types.js'
+import type { Options } from './repository-types.js'
 import type { AnchorWithRequest, IAnchorRepository } from './anchor-repository.type.js'
 
 export const TABLE_NAME = 'anchor'
@@ -9,7 +9,7 @@ export const TABLE_NAME = 'anchor'
 export class AnchorRepository implements IAnchorRepository {
   static inject = ['dbConnection'] as const
 
-  constructor(private connection?: Knex) {}
+  constructor(private connection: Knex) {}
 
   /**
    * Creates anchors
@@ -36,10 +36,8 @@ export class AnchorRepository implements IAnchorRepository {
    * @param options
    * @returns A promise that resolve to the anchor associated to the request
    */
-  async findByRequest(request: Request, options: Options = {}): Promise<AnchorWithRequest | null> {
-    const { connection = this.connection } = options
-
-    const anchor = await connection(TABLE_NAME).where({ requestId: request.id }).first()
+  async findByRequest(request: Request): Promise<AnchorWithRequest | null> {
+    const anchor = await this.connection(TABLE_NAME).where({ requestId: request.id }).first()
 
     if (!anchor) {
       return anchor
