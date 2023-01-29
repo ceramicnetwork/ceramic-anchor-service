@@ -43,10 +43,11 @@ export class CeramicServiceImpl implements CeramicService {
     let timeoutHandle: any
     const effectiveTimeout =
       timeoutMs ?? this.config.loadStreamTimeoutMs ?? DEFAULT_LOAD_STREAM_TIMEOUT
-
-    const streamPromise = this._client.loadStream(streamId, { sync, pin }).finally(() => {
-      clearTimeout(timeoutHandle)
-    })
+    const streamPromise = this._client
+      .loadStream(streamId, { sync: SyncOptions.PREFER_CACHE, pin })
+      .finally(() => {
+        clearTimeout(timeoutHandle)
+      })
 
     const timeoutPromise = new Promise((_, reject) => {
       timeoutHandle = setTimeout(() => {
