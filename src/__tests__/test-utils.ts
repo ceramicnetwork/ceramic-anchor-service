@@ -3,7 +3,6 @@ import { jest } from '@jest/globals'
 import { CID } from 'multiformats/cid'
 
 import { create } from 'multiformats/hashes/digest'
-import type { CeramicService } from '../services/ceramic-service.js'
 import type { EventProducerService } from '../services/event-producer/event-producer-service.js'
 import type { IIpfsService, RetrieveRecordOptions } from '../services/ipfs-service.type.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
@@ -100,38 +99,6 @@ export class MockIpfsService implements IIpfsService {
   }
 
   reset() {
-    this._streams = {}
-  }
-}
-
-export class MockCeramicService implements CeramicService {
-  static inject = ['ipfsService'] as const
-
-  constructor(
-    private _ipfsService: IIpfsService,
-    private _streams: Record<string, any> = {},
-    private _cidIndex = 0
-  ) {}
-
-  async loadStream(streamId: StreamID): Promise<any> {
-    const stream = this._streams[streamId.toString()]
-    if (!stream) {
-      throw new Error(`No stream found with streamid ${streamId.toString()}`)
-    }
-    return stream
-  }
-
-  async pinStream(streamId: StreamID): Promise<any> {}
-
-  // Mock-only method to control what gets returned by loadStream()
-  putStream(id: StreamID | CommitID, stream: any) {
-    this._streams[id.toString()] = stream
-  }
-
-  async unpinStream(streamId: StreamID) {}
-
-  reset() {
-    this._cidIndex = 0
     this._streams = {}
   }
 }
