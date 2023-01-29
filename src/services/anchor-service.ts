@@ -41,7 +41,6 @@ const CONTRACT_TX_TYPE = 'f(bytes32)'
 
 type RequestGroups = {
   alreadyAnchoredRequests: Request[]
-  conflictingRequests: Request[]
   failedRequests: Request[]
   unprocessedRequests: Request[]
   acceptedRequests: Request[]
@@ -85,15 +84,14 @@ const logAnchorSummary = async (
       acceptedRequestsCount: groupedRequests.acceptedRequests.length,
       alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
       anchoredRequestsCount: 0,
-      conflictingRequestCount: groupedRequests.conflictingRequests.length,
+      conflictingRequestCount: 0,
       failedRequestsCount: groupedRequests.failedRequests.length,
       failedToPublishAnchorCommitCount: 0,
       unprocessedRequestCount: groupedRequests.unprocessedRequests.length,
       pendingRequestsCount,
       candidateCount: candidates.length,
       anchorCount: 0,
-      canRetryCount:
-        groupedRequests.failedRequests.length - groupedRequests.conflictingRequests.length,
+      canRetryCount: groupedRequests.failedRequests.length,
       reanchoredCount: 0,
     },
     results
@@ -236,10 +234,7 @@ export class AnchorService {
         // NOTE: We will retry all of the above requests that were updated back to PENDING.
         // We also may retry all failed requests other than requests rejected from conflict resolution.
         // A failed request will not be retried if it has expired when the next anchor runs.
-        canRetryCount:
-          failedRequests.length -
-          groupedRequests.conflictingRequests.length +
-          acceptedRequests.length,
+        canRetryCount: failedRequests.length + acceptedRequests.length,
       })
 
       throw err
@@ -636,7 +631,6 @@ export class AnchorService {
     return {
       alreadyAnchoredRequests,
       acceptedRequests: [],
-      conflictingRequests: [],
       failedRequests: [],
       unprocessedRequests,
     }
