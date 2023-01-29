@@ -113,10 +113,6 @@ const logAnchorSummary = async (
  * Anchors CIDs to blockchain
  */
 export class AnchorService {
-  private readonly ipfsMerge: IpfsMerge
-  private readonly ipfsCompare: IpfsLeafCompare
-  private readonly bloomMetadata: BloomMetadata
-
   private readonly merkleDepthLimit: number
   private readonly includeBlockInfoInAnchorProof: boolean
   private readonly useSmartContractAnchors: boolean
@@ -545,22 +541,6 @@ export class AnchorService {
    * @param requests
    */
   async _buildCandidates(requests: Request[]): Promise<Array<Candidate>> {
-    // FIXME PREV We do not need to do conflict resolution here. We do conflict resolution by time when a request gets submitted.
-    // const requestsByStream: Map<string, Request[]> = new Map()
-    //
-    // for (const request of requests) {
-    //   let streamRequests = requestsByStream.get(request.streamId)
-    //   if (!streamRequests) {
-    //     streamRequests = []
-    //     requestsByStream.set(request.streamId, streamRequests)
-    //   }
-    //
-    //   streamRequests.push(request)
-    // }
-    //
-    // const candidates = Array.from(requestsByStream).map(([streamId, requests]) => {
-    //   return new Candidate(StreamID.fromString(streamId), requests)
-    // })
     const candidates = []
     for (const request of requests) {
       const streamId = StreamID.fromString(request.streamId)
