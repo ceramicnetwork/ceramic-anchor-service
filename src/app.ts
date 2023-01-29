@@ -207,7 +207,7 @@ export class CeramicAnchorApp {
    * @private
    */
   private async _startAnchorAndGarbageCollection(): Promise<void> {
-    const anchorService: AnchorService = this.container.resolve('anchorService')
+    const anchorService = this.container.resolve('anchorService')
     await anchorService.anchorRequests().catch((error) => {
       logger.err(`Error when anchoring: ${error}`)
       logger.err('Exiting')

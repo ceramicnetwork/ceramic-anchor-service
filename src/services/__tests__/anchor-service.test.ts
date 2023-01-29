@@ -23,7 +23,7 @@ import type { Knex } from 'knex'
 import { CID } from 'multiformats/cid'
 import { Candidate } from '../../merkle/merkle-objects.js'
 import { Anchor } from '../../models/anchor.js'
-import { AnchorStatus, CommitType, LogEntry, toCID } from '@ceramicnetwork/common'
+import { AnchorStatus, LogEntry, toCID } from '@ceramicnetwork/common'
 import { Utils } from '../../utils.js'
 import { PubsubMessage } from '@ceramicnetwork/core'
 import { validate as validateUUID } from 'uuid'
@@ -459,42 +459,6 @@ describe('anchor service', () => {
     // All requests should have been processed
     const requestsReady = await requestRepository.countByStatus(RequestStatus.READY)
     expect(requestsReady).toEqual(0)
-  })
-
-  // FIXME PREV We do not need that anymore
-  test.skip('filters invalid requests', async () => {
-    const makeRequest = async function (valid: boolean) {
-      const genesisCID = await ipfsService.storeRecord({
-        header: {
-          controllers: [`did:method:${randomString(32)}`],
-        },
-      })
-      const streamId = new StreamID(1, genesisCID)
-      await metadataService.fill(streamId)
-      return createRequest(streamId.toString(), ipfsService, requestRepository)
-    }
-
-    const requests: Request[] = []
-    for (const isValid of [true, false, true, false]) {
-      const request = await makeRequest(isValid)
-      requests.push(request)
-    }
-
-    // mark requests as ready and move to processing before loading candidates
-    const markedAsReady = await requestRepository.findAndMarkReady(0)
-    await requestRepository.updateRequests({ status: RequestStatus.PROCESSING }, markedAsReady)
-
-    const [candidates, _] = await anchorService._findCandidates(requests, 0)
-    expect(candidates.length).toEqual(2)
-
-    const request0 = await requestRepository.findByCid(toCID(requests[0].cid))
-    const request1 = await requestRepository.findByCid(toCID(requests[1].cid))
-    const request2 = await requestRepository.findByCid(toCID(requests[2].cid))
-    const request3 = await requestRepository.findByCid(toCID(requests[3].cid))
-    expect(request0.status).toEqual(RequestStatus.PROCESSING)
-    expect(request1.status).toEqual(RequestStatus.FAILED)
-    expect(request2.status).toEqual(RequestStatus.PROCESSING)
-    expect(request3.status).toEqual(RequestStatus.FAILED)
   })
 
   test('filters anchors that fail to publish AnchorCommit', async () => {
