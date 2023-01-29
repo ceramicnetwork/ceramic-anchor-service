@@ -21,7 +21,7 @@ import {
 } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 import type { BlockchainService } from './blockchain/blockchain-service.js'
-import { CommitID, StreamID } from '@ceramicnetwork/streamid'
+import { StreamID } from '@ceramicnetwork/streamid'
 
 import {
   BloomMetadata,
@@ -232,13 +232,13 @@ export class AnchorService {
       logger.warn(
         `Updating PROCESSING requests to PENDING so they are retried in the next batch because an error occured while creating the anchors: ${err}`
       )
-      const acceptedRequests = candidates.map((candidate) => candidate.acceptedRequests).flat()
+      const acceptedRequests = candidates.map((candidate) => candidate.request).flat()
       await this.requestRepository.updateRequests({ status: RS.PENDING }, acceptedRequests)
 
       Metrics.count(METRIC_NAMES.REVERT_TO_PENDING, acceptedRequests.length)
 
       // groupRequests.failedRequests does not include all the newly failed requests so we recount here
-      const failedRequests = candidates.map((candidate) => candidate.failedRequests).flat()
+      const failedRequests = []
       await logAnchorSummary(this.requestRepository, groupedRequests, candidates, {
         failedRequestsCount: failedRequests.length,
         // NOTE: We will retry all of the above requests that were updated back to PENDING.
@@ -279,7 +279,7 @@ export class AnchorService {
 
     const anchoredRequests = []
     for (const candidate of candidates) {
-      anchoredRequests.push(...candidate.acceptedRequests)
+      anchoredRequests.push(candidate.request)
     }
 
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
@@ -465,7 +465,7 @@ export class AnchorService {
     merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
   ): Promise<Anchor | null> {
     const anchor: Anchor = new Anchor()
-    anchor.requestId = candidate.newestAcceptedRequest.id
+    anchor.requestId = candidate.request.id
     anchor.proofCid = ipfsProofCid.toString()
 
     const path = merkleTree.getDirectPathFromRoot(candidateIndex)
@@ -494,11 +494,9 @@ export class AnchorService {
       } for stream ${candidate.streamId.toString()}: ${err}`
       logger.err(msg)
       Metrics.count(METRIC_NAMES.ERROR_IPFS, 1)
-      await this.requestRepository.updateRequests(
-        { status: RS.FAILED, message: msg },
-        candidate.acceptedRequests
-      )
-      candidate.failAllRequests()
+      await this.requestRepository.updateRequests({ status: RS.FAILED, message: msg }, [
+        candidate.request,
+      ])
       return null
     }
     return anchor
@@ -517,7 +515,7 @@ export class AnchorService {
     // filter to requests for streams that were actually anchored successfully
     const acceptedRequests = []
     for (const candidate of candidates) {
-      acceptedRequests.push(...candidate.acceptedRequests)
+      acceptedRequests.push(candidate.request)
     }
 
     const trx = await this.connection.transaction(null, { isolationLevel: 'repeatable read' })
@@ -656,7 +654,7 @@ export class AnchorService {
 
     if (candidatesToAnchor.length > 0) {
       for (const candidate of candidates) {
-        groupedRequests.acceptedRequests.push(...candidate.acceptedRequests)
+        groupedRequests.acceptedRequests.push(candidate.request)
       }
     }
 
@@ -684,15 +682,17 @@ export class AnchorService {
     // const candidates = Array.from(requestsByStream).map(([streamId, requests]) => {
     //   return new Candidate(StreamID.fromString(streamId), requests)
     // })
-    const candidates = requests.map((r) => new Candidate(StreamID.fromString(r.streamId), r))
-    for (const candidate of candidates) {
-      const metadata = await this.metadataRepository.retrieve(candidate.streamId) // TODO Move to service, make it throw when not found
-      candidate.setMetadata(metadata.metadata)
+    const candidates = []
+    for (const request of requests) {
+      const streamId = StreamID.fromString(request.streamId)
+      const metadata = await this.metadataRepository.retrieve(streamId) // TODO Move to service, make it throw when not found
+      const candidate = new Candidate(streamId, request, metadata.metadata)
+      candidates.push(candidate)
     }
     // Make sure we process candidate streams in order of their earliest request.
     candidates.sort((candidate0, candidate1) => {
       return Math.sign(
-        candidate0.earliestRequestDate.getTime() - candidate1.earliestRequestDate.getTime()
+        candidate0.request.timestamp.getTime() - candidate1.request.timestamp.getTime()
       )
     })
     return candidates
@@ -712,8 +712,6 @@ export class AnchorService {
     candidates: Candidate[],
     candidateLimit: number
   ): Promise<RequestGroups> {
-    const failedRequests: Request[] = []
-    const conflictingRequests: Request[] = []
     const unprocessedRequests: Request[] = []
     const alreadyAnchoredRequests: Request[] = []
 
@@ -727,16 +725,13 @@ export class AnchorService {
 
       if (numSelectedCandidates >= candidateLimit) {
         // No need to process this candidate, we've already filled our anchor batch
-        unprocessedRequests.push(...candidate.requests)
+        unprocessedRequests.push(candidate.request)
         continue
       }
 
-      // FIXME PREV Do not need to load from Ceramic
-      // await AnchorService._loadCandidate(candidate, this.ceramicService)
-
       // anchor commit may already exist so check first
       const existingAnchorCommit = candidate.shouldAnchor()
-        ? await this.anchorRepository.findByRequest(candidate.newestAcceptedRequest)
+        ? await this.anchorRepository.findByRequest(candidate.request)
         : null
 
       if (existingAnchorCommit) {
@@ -750,67 +745,16 @@ export class AnchorService {
         )
       } else if (candidate.alreadyAnchored) {
         logger.debug(`Stream ${candidate.streamId.toString()} is already anchored`)
-        alreadyAnchoredRequests.push(...candidate.acceptedRequests)
+        alreadyAnchoredRequests.push(candidate.request)
       }
-      failedRequests.push(...candidate.failedRequests)
-      conflictingRequests.push(...candidate.rejectedRequests)
     }
 
     return {
       alreadyAnchoredRequests,
       acceptedRequests: [],
-      conflictingRequests,
-      failedRequests,
+      conflictingRequests: [],
+      failedRequests: [],
       unprocessedRequests,
     }
-  }
-
-  /**
-   * Uses a multiQuery to load the current version of the Candidate Stream, while simultaneously
-   * providing the Ceramic node the CommitIDs for each pending Request on this Stream. This ensures
-   * that the Ceramic node we are using has at least heard of and considered every commit that
-   * has a pending anchor request, even if it hadn't heard of that tip via pubsub. We can then
-   * use the guaranteed current version of the Stream to decide what CID to anchor.
-   * @param candidate
-   * @param ceramicService
-   * @private
-   */
-  static async _loadCandidate(candidate: Candidate, ceramicService: CeramicService): Promise<void> {
-    // First, load the current known stream state from the ceramic node
-    let stream
-    try {
-      stream = await ceramicService.loadStream(
-        candidate.streamId,
-        SyncOptions.PREFER_CACHE,
-        undefined,
-        false
-      )
-    } catch (err) {
-      logger.err(`Failed to load stream ${candidate.streamId.toString()}: ${err}`)
-      Metrics.count(METRIC_NAMES.FAILED_STREAM, 1)
-      candidate.failAllRequests()
-      return
-    }
-
-    // Now filter out requests from the Candidate that are already present in the stream log
-    const missingRequests = candidate.requests.filter((req) => {
-      const found = stream.state.log.find(({ cid }) => {
-        return cid.toString() == req.cid
-      })
-      return !found
-    })
-    // If stream already knows about all CIDs that we have requests for, great!
-    if (missingRequests.length == 0) {
-      candidate.setTipToAnchor(stream)
-      return
-    }
-
-    // THIS IS DANGEROUS.  We're blindly choosing the newest request to anchor.  We have no
-    // guarantee that that is the best request in terms of Ceramic conflict resolution (ie the
-    // request that results in the longest stream log).  We don't even know that it's a valid
-    // request for this stream at all.  It could be garbage.  We do no signature verfication or any
-    // verification of any kind.  This is a temporary stop-gap until CAS w/o Ceramic node replaces
-    // this with better logic.
-    candidate.forceAnchorOfNewestRequest(stream)
   }
 }

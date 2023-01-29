@@ -696,7 +696,6 @@ describe('anchor service', () => {
     const original = anchorService._createAnchorCommit
     try {
       anchorService._createAnchorCommit = async (candidate) => {
-        candidate.failAllRequests()
         return null
       }
       await anchorCandidates(candidates, anchorService, ipfsService)

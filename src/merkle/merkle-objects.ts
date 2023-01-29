@@ -1,7 +1,6 @@
 import { CID } from 'multiformats/cid'
 import * as fs from 'fs'
 
-import { Stream } from '@ceramicnetwork/common'
 import { CompareFunction, MergeFunction, MetadataFunction, Node, TreeMetadata } from './merkle.js'
 import { Request } from '../models/request.js'
 
@@ -34,78 +33,20 @@ export interface CIDHolder {
  * track of which CID should actually be anchored for this stream.
  */
 export class Candidate implements CIDHolder {
-  private readonly _earliestRequestDate: Date
-  readonly requests: Array<Request>
+  readonly cid: CID
+  readonly model: StreamID | undefined
 
-  private _cid: CID = null
-  private _metadata: GenesisFields
-  private _acceptedRequests: Request[] = []
-  private _failedRequests: Request[] = []
-  private _rejectedRequests: Request[] = []
-  private _newestAcceptedRequest: Request
   private _alreadyAnchored = false
 
-  constructor(readonly streamId: StreamID, request: Request) {
-    this.requests = [request]
-    // FIXME MOD
-    this._cid = CID.parse(this.requests[0].cid)
-    this._acceptedRequests = this.requests
-
-    let minDate = this.requests[0].createdAt
-    for (const req of this.requests.slice(1)) {
-      if (req.createdAt < minDate) {
-        minDate = req.createdAt
-      }
-    }
-    this._earliestRequestDate = minDate
-  }
-
-  get cid(): CID {
-    return this._cid
-  }
-
-  get metadata(): GenesisFields {
-    return this._metadata
-  }
-
-  get earliestRequestDate(): Date {
-    return this._earliestRequestDate
-  }
-
-  /**
-   * All requests that are included in the current version of the Stream. Only available after
-   * calling 'setTipToAnchor'.
-   */
-  get acceptedRequests(): Request[] {
-    return this._acceptedRequests
-  }
-
-  /**
-   * All requests that failed to be loaded from the Ceramic node.
-   */
-  get failedRequests(): Request[] {
-    return this._failedRequests
-  }
-
-  /**
-   * All requests that were rejected by Ceramic's conflict resolution. Only available after
-   * calling 'setTipToAnchor'.
-   */
-  get rejectedRequests(): Request[] {
-    return this._rejectedRequests
-  }
-
-  /**
-   * The Anchor database has a 1-1 foreign key reference to a single Request. This is a remnant
-   * of a time when every Anchor always directly corresponded to a single Request.  Now it's
-   * possible for one Anchor to satisfy multiple Requests on the same Stream, but the database
-   * still expects us to provide it a single Request to link. So we somewhat arbitrarily provide
-   * it the Request whose CID is latest in the log of all the Requests that were successfully
-   * anchored for this stream.
-   */
-  get newestAcceptedRequest(): Request {
-    // FIXME MOD Woah, that's not true.
-    return this._acceptedRequests[0]
+  constructor(
+    readonly streamId: StreamID,
+    readonly request: Request,
+    readonly metadata: GenesisFields
+  ) {
+    this.request = request
+    this.cid = CID.parse(request.cid)
+    this.metadata = metadata
+    this.model = this.metadata.model ? StreamID.fromBytes(this.metadata.model) : undefined
   }
 
   /**
@@ -117,125 +58,8 @@ export class Candidate implements CIDHolder {
     return this._alreadyAnchored
   }
 
-  /**
-   * Marks that the CommitID corresponding to this Request could not be loaded from the Ceramic node.
-   * @param request
-   */
-  failRequest(request: Request): void {
-    this._failedRequests.push(request)
-  }
-
-  /**
-   * Marks that this Stream could not be loaded from the Ceramic node and we should therefore
-   * fail all pending requests on this Stream.
-   */
-  failAllRequests(): void {
-    this._failedRequests = this.requests
-    this._acceptedRequests = []
-  }
-
-  allRequestsFailed(): boolean {
-    return this._failedRequests.length == this.requests.length
-  }
-
   shouldAnchor(): boolean {
-    return this.cid != null && this._acceptedRequests.length > 0 && !this._alreadyAnchored
-  }
-
-  setMetadata(genesisFields: GenesisFields) {
-    this._metadata = genesisFields
-  }
-
-  get model(): StreamID | undefined {
-    if (this._metadata.model) {
-      return StreamID.fromBytes(this._metadata.model)
-    }
-  }
-
-  /**
-   * If there were requests that were missing from the stream log after we loaded the stream,
-   * we fall back to this method.  The old (more correct) behavior was to force the Ceramic node
-   * to load each commit from each pending request, so we know that the Ceramic node has considered
-   * them all and picked the best one according to conflict resolution.  What we do here is much
-   * dumber and riskier.  We just blindly take the most recent request, without doing any validation
-   * or conflict resolution on it.  The CAS w/o Ceramic node project will replace this with better
-   * logic that will still do signature verification, and will ensure that if different Ceramic
-   * nodes have pending anchor requests for different tips for the same stream, that both tips
-   * will get anchored.
-   * This is a temporary stopgap to speed up the anchoring process, and the cost of possibly more
-   * data loss due to anchoring the wrong tip in some cases.
-   */
-  forceAnchorOfNewestRequest(stream: Stream) {
-    this._metadata = (stream.state.next?.metadata
-      ? stream.state.next.metadata
-      : stream.state.metadata) as unknown as GenesisFields
-
-    const newestRequest = this.requests.reduce(function (newest, current) {
-      return newest.createdAt > current.createdAt ? newest : current
-    })
-    this._cid = CID.asCID(newestRequest.cid)
-
-    this._acceptedRequests = [newestRequest]
-    this._rejectedRequests = this.requests.filter((req) => {
-      return req.cid != newestRequest.cid
-    })
-    this._newestAcceptedRequest = newestRequest
-  }
-
-  /**
-   * Given the current version of the stream, updates this.cid to include the appropriate tip to
-   * anchor.  Note that the CID selected may be the cid corresponding to any of the pending anchor
-   * requests, or to none of them if a newer, better CID is learned about from the Ceramic node.
-   * Also updates the Candidate's internal bookkeeping to keep track of which Requests
-   * were included in the tip being anchored and which were rejected by the Ceramic node's conflict
-   * resolution.
-   * @param stream
-   */
-  // FIXME PREV TODO Do we need that??
-  setTipToAnchor(stream: Stream): void {
-    return
-    // FIXME PREV
-    // if (stream.state.anchorStatus == AnchorStatus.ANCHORED) {
-    //   this._alreadyAnchored = true
-    // } else {
-    //   this._cid = stream.tip
-    //   this._metadata = stream.state.next?.metadata
-    //     ? stream.state.next.metadata
-    //     : stream.state.metadata
-    // }
-    //
-    // // Check the log of the Stream that was loaded from Ceramic to see which of the pending requests
-    // // are for CIDs that are included in the current version of the Stream's log.
-    // const includedRequests = this.requests.filter((req) => {
-    //   return stream.state.log.find((logEntry) => {
-    //     return logEntry.cid.toString() == req.cid
-    //   })
-    // })
-    // // Any requests whose CIDs don't show up in the Stream's log must have been rejected by Ceramic's
-    // // conflict resolution.
-    // const rejectedRequests = this.requests.filter((req) => {
-    //   return !includedRequests.includes(req)
-    // })
-    //
-    // this._acceptedRequests = includedRequests
-    // this._rejectedRequests = rejectedRequests
-    //
-    // // Pick which request to put in the anchor database entry for the anchor that will result
-    // // from anchoring this Candidate Stream. If there are any anchor commits that are after the
-    // // newest request, the candidate has already been anchored.
-    // for (const logEntry of stream.state.log.reverse()) {
-    //   if (logEntry.type === CommitType.ANCHOR) {
-    //     this._alreadyAnchored = true
-    //     return
-    //   }
-    //
-    //   const newestRequest = includedRequests.find((req) => req.cid == logEntry.cid.toString())
-    //
-    //   if (newestRequest) {
-    //     this._newestAcceptedRequest = newestRequest
-    //     return
-    //   }
-    // }
+    return !this._alreadyAnchored
   }
 
   markAsAnchored(): void {
