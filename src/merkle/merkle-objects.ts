@@ -1,7 +1,7 @@
 import { CID } from 'multiformats/cid'
 import * as fs from 'fs'
 
-import { AnchorStatus, Stream, StreamMetadata, CommitType } from '@ceramicnetwork/common'
+import { Stream } from '@ceramicnetwork/common'
 import { CompareFunction, MergeFunction, MetadataFunction, Node, TreeMetadata } from './merkle.js'
 import { Request } from '../models/request.js'
 
@@ -35,6 +35,7 @@ export interface CIDHolder {
  */
 export class Candidate implements CIDHolder {
   private readonly _earliestRequestDate: Date
+  readonly requests: Array<Request>
 
   private _cid: CID = null
   private _metadata: GenesisFields
@@ -44,13 +45,14 @@ export class Candidate implements CIDHolder {
   private _newestAcceptedRequest: Request
   private _alreadyAnchored = false
 
-  constructor(readonly streamId: StreamID, readonly requests: Request[]) {
+  constructor(readonly streamId: StreamID, request: Request) {
+    this.requests = [request]
     // FIXME MOD
-    this._cid = CID.parse(requests[0].cid)
-    this._acceptedRequests = requests
+    this._cid = CID.parse(this.requests[0].cid)
+    this._acceptedRequests = this.requests
 
-    let minDate = requests[0].createdAt
-    for (const req of requests.slice(1)) {
+    let minDate = this.requests[0].createdAt
+    for (const req of this.requests.slice(1)) {
       if (req.createdAt < minDate) {
         minDate = req.createdAt
       }

@@ -684,7 +684,7 @@ export class AnchorService {
     // const candidates = Array.from(requestsByStream).map(([streamId, requests]) => {
     //   return new Candidate(StreamID.fromString(streamId), requests)
     // })
-    const candidates = requests.map((r) => new Candidate(StreamID.fromString(r.streamId), [r]))
+    const candidates = requests.map((r) => new Candidate(StreamID.fromString(r.streamId), r))
     for (const candidate of candidates) {
       const metadata = await this.metadataRepository.retrieve(candidate.streamId) // TODO Move to service, make it throw when not found
       candidate.setMetadata(metadata.metadata)

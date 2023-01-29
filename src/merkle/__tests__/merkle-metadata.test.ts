@@ -34,7 +34,7 @@ describe('Bloom filter', () => {
       metadata,
       state: { anchorStatus: AnchorStatus.PENDING, log: [{ cid: streamID.cid }], metadata },
     }
-    const candidate = new Candidate(stream.id, [new Request({ cid: streamID.cid.toString() })])
+    const candidate = new Candidate(stream.id, new Request({ cid: streamID.cid.toString() }))
     candidate.setMetadata(metadata)
     candidate.setTipToAnchor(stream as any)
     return candidate
