@@ -31,6 +31,7 @@ import {
 } from '../merkle/merkle-objects.js'
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
+import { SyncOptions } from '@ceramicnetwork/common'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
@@ -755,7 +756,12 @@ export class AnchorService {
     // First, load the current known stream state from the ceramic node
     let stream
     try {
-      stream = await ceramicService.loadStream(candidate.streamId)
+      stream = await ceramicService.loadStream(
+        candidate.streamId,
+        SyncOptions.PREFER_CACHE,
+        undefined,
+        false
+      )
     } catch (err) {
       logger.err(`Failed to load stream ${candidate.streamId.toString()}: ${err}`)
       Metrics.count(METRIC_NAMES.FAILED_STREAM, 1)
