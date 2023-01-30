@@ -76,6 +76,7 @@ export class CeramicAnchorApp {
 
     this.container = container
       // register repositories
+      .provideClass('metadataRepository', MetadataRepository)
       .provideFactory('requestRepository', RequestRepository.make)
       .provideClass('anchorRepository', AnchorRepository)
       .provideClass('transactionRepository', TransactionRepository)
@@ -83,12 +84,10 @@ export class CeramicAnchorApp {
       .provideFactory('blockchainService', EthereumBlockchainService.make)
       .provideClass('eventProducerService', HTTPEventProducerService)
       .provideClass('ipfsService', IpfsService)
-      .provideClass('metadataRepository', MetadataRepository)
+      .provideClass('metadataService', MetadataService)
       .provideClass('anchorService', AnchorService)
       .provideClass('schedulerService', SchedulerService)
       .provideClass('requestPresentationService', RequestPresentationService)
-      .provideClass('metadataRepository', MetadataRepository)
-      .provideClass('metadataService', MetadataService)
 
     try {
       Metrics.start(

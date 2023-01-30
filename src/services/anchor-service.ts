@@ -35,7 +35,7 @@ import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import { MerkleTreeFactory } from '../merkle/merkle-tree-factory.js'
 import { SyncOptions } from '@ceramicnetwork/common'
-import type { IMetadataRepository } from '../repositories/metadata-repository.js'
+import type { IMetadataService } from './metadata-service.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
@@ -129,7 +129,7 @@ export class AnchorService {
     'anchorRepository',
     'dbConnection',
     'eventProducerService',
-    'metadataRepository',
+    'metadataService',
   ] as const
 
   constructor(
@@ -141,7 +141,7 @@ export class AnchorService {
     private readonly anchorRepository: IAnchorRepository,
     private readonly connection: Knex,
     private readonly eventProducerService: EventProducerService,
-    private readonly metadataRepository: IMetadataRepository
+    private readonly metadataService: IMetadataService
   ) {
     this.merkleDepthLimit = config.merkleDepthLimit
     this.includeBlockInfoInAnchorProof = config.includeBlockInfoInAnchorProof
@@ -167,6 +167,10 @@ export class AnchorService {
    */
   // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
   async anchorRequests(): Promise<void> {
+    const withoutMetadata = await this.requestRepository.allWithoutMetadata(
+      this.minStreamLimit || this.maxStreamLimit || 100
+    )
+    await this.metadataService.fillAll(withoutMetadata)
     const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
 
     if (readyRequestsCount === 0) {
@@ -541,9 +545,11 @@ export class AnchorService {
     const candidates = []
     for (const request of requests) {
       const streamId = StreamID.fromString(request.streamId)
-      const metadata = await this.metadataRepository.retrieve(streamId) // TODO Move to service, make it throw when not found
-      const candidate = new Candidate(streamId, request, metadata.metadata)
-      candidates.push(candidate)
+      const metadata = await this.metadataService.retrieve(streamId) // TODO Move to service, make it throw when not found
+      if (metadata) {
+        const candidate = new Candidate(streamId, request, metadata.metadata)
+        candidates.push(candidate)
+      }
     }
     // Make sure we process candidate streams in order of their earliest request.
     candidates.sort((candidate0, candidate1) => {

@@ -34,6 +34,7 @@ import { createInjector, Injector } from 'typed-inject'
 import { MetadataRepository } from '../../repositories/metadata-repository'
 import { randomString } from '@stablelib/random'
 import { IMetadataService, MetadataService } from '../metadata-service'
+import { asDIDString } from '../../ancillary/did-string'
 
 process.env.NODE_ENV = 'test'
 
@@ -127,6 +128,7 @@ type Context = {
   requestRepository: RequestRepository
   anchorService: AnchorService
   metadataService: IMetadataService
+  metadataRepository: MetadataRepository
 }
 
 describe('anchor service', () => {
@@ -138,6 +140,7 @@ describe('anchor service', () => {
   let requestRepository: RequestRepository
   let anchorService: AnchorService
   let eventProducerService: MockEventProducerService
+  let metadataRepository: MetadataRepository
 
   beforeAll(async () => {
     const { IpfsService } = await import('../ipfs-service.js')
@@ -154,12 +157,12 @@ describe('anchor service', () => {
         })
       )
       .provideClass('anchorRepository', AnchorRepository)
+      .provideClass('metadataRepository', MetadataRepository)
       .provideFactory('requestRepository', RequestRepository.make)
       .provideClass('transactionRepository', TransactionRepository)
       .provideClass('blockchainService', FakeEthereumBlockchainService)
       .provideClass('ipfsService', IpfsService)
       .provideClass('eventProducerService', MockEventProducerService)
-      .provideClass('metadataRepository', MetadataRepository)
       .provideClass('metadataService', MetadataService)
       .provideClass('anchorService', AnchorService)
 
@@ -169,6 +172,7 @@ describe('anchor service', () => {
     anchorService = injector.resolve('anchorService')
     eventProducerService = injector.resolve('eventProducerService')
     metadataService = injector.resolve('metadataService')
+    metadataRepository = injector.resolve('metadataRepository')
   })
 
   beforeEach(async () => {
@@ -720,6 +724,14 @@ describe('anchor service', () => {
       )
 
       await requestRepository.createRequests(originalRequests)
+      for (const request of originalRequests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: [asDIDString(`did:random:${Math.random()}`)],
+          },
+        })
+      }
       await anchorService.emitAnchorEventIfReady()
 
       expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(1)

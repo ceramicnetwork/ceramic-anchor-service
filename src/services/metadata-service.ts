@@ -1,6 +1,6 @@
 import type { StreamID } from '@ceramicnetwork/streamid'
 import type { IIpfsService, RetrieveRecordOptions } from './ipfs-service.type.js'
-import type { GenesisFields } from '../models/metadata.js'
+import type { GenesisFields, StoredMetadata } from '../models/metadata.js'
 import type { GenesisCommit } from '@ceramicnetwork/common'
 import * as t from 'io-ts'
 import * as te from '../ancillary/io-ts-extra.js'
@@ -8,12 +8,15 @@ import type { IMetadataRepository } from '../repositories/metadata-repository.js
 import { ThrowDecoder } from '../ancillary/throw-decoder.js'
 import type { AbortOptions } from './abort-options.type.js'
 import type { Assert, IsExact } from 'conditional-type-checks'
+import { logger } from '../logger'
 
 /**
  * Public interface for MetadataService.
  */
 export interface IMetadataService {
+  fillAll(streamIds: Array<StreamID>, options?: AbortOptions): Promise<void>
   fill(streamId: StreamID, options?: AbortOptions): Promise<void>
+  retrieve(streamId: StreamID): Promise<StoredMetadata | undefined>
 }
 
 /**
@@ -59,6 +62,7 @@ export class MetadataService implements IMetadataService {
     if (isPresent) return // Do not perform same work of retrieving from IPFS twice
     const genesisFields = await this.retrieveFromGenesis(streamId, options)
     await this.storeMetadata(streamId, genesisFields)
+    logger.debug(`Filled metadata from IPFS for ${streamId}`)
   }
 
   /**
@@ -83,6 +87,10 @@ export class MetadataService implements IMetadataService {
     return ThrowDecoder.decode(IpfsGenesisHeader, header)
   }
 
+  async retrieve(streamId: StreamID): Promise<StoredMetadata | undefined> {
+    return this.metadataRepository.retrieve(streamId)
+  }
+
   /**
    * Store genesis header fields in a database.
    */
@@ -91,5 +99,17 @@ export class MetadataService implements IMetadataService {
       streamId: streamId,
       metadata: fields,
     })
+  }
+
+  async fillAll(streamIds: Array<StreamID>, options?: AbortOptions): Promise<void> {
+    await Promise.all(
+      streamIds.map(async (streamId) => {
+        try {
+          await this.fill(streamId, options)
+        } catch (e) {
+          logger.err(`Can not fill metadata for ${streamId}: ${e}`)
+        }
+      })
+    )
   }
 }

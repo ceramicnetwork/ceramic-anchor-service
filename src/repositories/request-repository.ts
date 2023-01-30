@@ -12,6 +12,8 @@ import {
 import { METRIC_NAMES } from '../settings.js'
 import * as te from '../ancillary/io-ts-extra.js'
 import { parseCountResult } from './parse-count-result.util.js'
+import { StreamID } from '@ceramicnetwork/streamid'
+import { IMetadataRepository } from './metadata-repository.js'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
 // AnchorCommit available to the network.
@@ -67,10 +69,15 @@ const recordAnchorRequestMetrics = (requests: Request[], anchoringDeadline: Date
 /**
  * Injection factory.
  */
-function make(config: Config, connection: Knex) {
-  return new RequestRepository(connection, config.maxAnchoringDelayMS, config.readyRetryIntervalMS)
+function make(config: Config, connection: Knex, metadataRepository: IMetadataRepository) {
+  return new RequestRepository(
+    connection,
+    config.maxAnchoringDelayMS,
+    config.readyRetryIntervalMS,
+    metadataRepository
+  )
 }
-make.inject = ['config', 'dbConnection'] as const
+make.inject = ['config', 'dbConnection', 'metadataRepository'] as const
 
 export class RequestRepository {
   static make = make
@@ -78,7 +85,8 @@ export class RequestRepository {
   constructor(
     private readonly connection: Knex,
     private readonly maxAnchoringDelayMS: number,
-    private readonly readyRetryIntervalMS: number
+    private readonly readyRetryIntervalMS: number,
+    private readonly metadataRepository: IMetadataRepository
   ) {}
 
   get table() {
@@ -86,7 +94,12 @@ export class RequestRepository {
   }
 
   withConnection(connection: Knex): RequestRepository {
-    return new RequestRepository(connection, this.maxAnchoringDelayMS, this.readyRetryIntervalMS)
+    return new RequestRepository(
+      connection,
+      this.maxAnchoringDelayMS,
+      this.readyRetryIntervalMS,
+      this.metadataRepository
+    )
   }
 
   /**
@@ -268,7 +281,14 @@ export class RequestRepository {
             return []
           }
 
-          const requests = await embedded.findRequestsToAnchorForStreams(streamIds, now)
+          const streamsWithMetadata = await embedded.hasMetadata(streamIds)
+
+          const requests = await embedded.findRequestsToAnchorForStreams(streamsWithMetadata, now)
+
+          if (requests.length === 0) {
+            logger.debug(`No requests to mark as READY`)
+            return []
+          }
 
           const updatedCount = await embedded.updateRequests(
             { status: RequestStatus.READY },
@@ -312,6 +332,38 @@ export class RequestRepository {
    */
   async findByStatus(status: RequestStatus): Promise<Request[]> {
     return this.table.orderBy('updatedAt', 'asc').where({ status })
+  }
+
+  /**
+   * Return up to `limit` StreamIds for requests that has no corresponding metadata in the database.
+   */
+  async allWithoutMetadata(limit: number) {
+    const result = await this.table
+      .select('streamId')
+      .whereNotExists(
+        this.metadataRepository.table
+          .select(this.connection.raw('NULL'))
+          .where('streamId', '=', this.connection.raw('request.stream_id'))
+      )
+      .groupBy('streamId')
+      .limit(limit)
+    return result.map((row) => StreamID.fromString(row.streamId))
+  }
+
+  async hasMetadata(streamIds: Array<StreamID | string> = []): Promise<Array<StreamID>> {
+    const result = await this.table
+      .select('streamId')
+      .where((sub) => {
+        sub.whereExists(
+          this.metadataRepository.table
+            .select(this.connection.raw('NULL'))
+            .where('streamId', '=', this.connection.raw('request.stream_id'))
+        )
+      })
+      .andWhere((sub) => {
+        sub.whereIn('streamId', streamIds.map(String))
+      })
+    return result.map((row) => StreamID.fromString(row.streamId))
   }
 
   /**
@@ -467,8 +519,13 @@ export class RequestRepository {
    * @param now
    * @returns
    */
-  findRequestsToAnchorForStreams(streamIds: string[], now: Date): Promise<Array<Request>> {
-    return this.findRequestsToAnchor(now).whereIn('streamId', streamIds).orderBy('createdAt', 'asc')
+  findRequestsToAnchorForStreams(
+    streamIds: Array<StreamID | string>,
+    now: Date
+  ): Promise<Array<Request>> {
+    return this.findRequestsToAnchor(now)
+      .whereIn('streamId', streamIds.map(String))
+      .orderBy('createdAt', 'asc')
   }
 
   /**

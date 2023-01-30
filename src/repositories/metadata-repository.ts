@@ -9,6 +9,7 @@ import { parseCountResult } from './parse-count-result.util.js'
  * Public interface for MetadataRepository.
  */
 export interface IMetadataRepository {
+  readonly table: Knex.QueryBuilder
   /**
    * Store metadata entry to the database.
    */

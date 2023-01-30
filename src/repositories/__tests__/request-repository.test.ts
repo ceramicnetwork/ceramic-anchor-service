@@ -3,14 +3,9 @@ import { jest } from '@jest/globals'
 import type { Knex } from 'knex'
 import { clearTables, createDbConnection } from '../../db-connection.js'
 import { config } from 'node-config-ts'
-import {
-  FAILURE_RETRY_INTERVAL,
-  FAILURE_RETRY_WINDOW,
-  PROCESSING_TIMEOUT,
-  RequestRepository,
-} from '../request-repository.js'
+import { PROCESSING_TIMEOUT, RequestRepository } from '../request-repository.js'
 import { AnchorRepository } from '../anchor-repository.js'
-import { Request, REQUEST_MESSAGES, RequestStatus } from '../../models/request.js'
+import { Request, RequestStatus } from '../../models/request.js'
 import {
   generateRequest,
   generateRequests,
@@ -20,6 +15,9 @@ import {
 } from '../../__tests__/test-utils.js'
 import { createInjector } from 'typed-inject'
 import { DateTime } from 'luxon'
+import { MetadataRepository } from '../metadata-repository'
+import { StreamID } from '@ceramicnetwork/streamid'
+import { asDIDString } from '../../ancillary/did-string'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -50,6 +48,7 @@ describe('request repository test', () => {
   let connection: Knex
   let connection2: Knex
   let requestRepository: RequestRepository
+  let metadataRepository: MetadataRepository
 
   beforeAll(async () => {
     connection = await createDbConnection()
@@ -58,10 +57,12 @@ describe('request repository test', () => {
     const c = createInjector()
       .provideValue('config', config)
       .provideValue('dbConnection', connection)
+      .provideClass('metadataRepository', MetadataRepository)
       .provideFactory('requestRepository', RequestRepository.make)
       .provideClass('anchorRepository', AnchorRepository)
 
     requestRepository = c.resolve('requestRepository')
+    metadataRepository = c.resolve('metadataRepository')
   })
 
   beforeEach(async () => {
@@ -169,6 +170,67 @@ describe('request repository test', () => {
     })
   })
 
+  describe('allWithoutMetadata', () => {
+    test('returns streamIds with no metadata', async () => {
+      const TOTAL = 5
+      const WITH_METADATA = 3
+      // Create TOTAL number of pending requests
+      const requests = generateRequests({ status: RequestStatus.PENDING }, TOTAL)
+      await requestRepository.createRequests(requests)
+      const metadataRepository = new MetadataRepository(connection)
+      // WITH_METADATA number of them have metadata
+      await Promise.all(
+        times(WITH_METADATA).map((index) => {
+          return metadataRepository.save({
+            streamId: StreamID.fromString(requests[index].streamId),
+            metadata: {
+              controllers: [asDIDString(`did:key:r${index}`)],
+            },
+          })
+        })
+      )
+      const withoutMetadata = await requestRepository.allWithoutMetadata(TOTAL)
+      const streamIds = requests.map((r) => StreamID.fromString(r.streamId))
+      streamIds.slice(0, WITH_METADATA).forEach((streamId) => {
+        expect(withoutMetadata).not.toContainEqual(streamId)
+      })
+      streamIds.slice(WITH_METADATA).forEach((streamId) => {
+        expect(withoutMetadata).toContainEqual(streamId)
+      })
+    })
+  })
+
+  describe('hasMetadata', () => {
+    test('return streams of the list which has metadata', async () => {
+      const TOTAL = 5
+      const WITH_METADATA = 3
+      // Create TOTAL number of pending requests
+      const requests = generateRequests({ status: RequestStatus.PENDING }, TOTAL)
+      await requestRepository.createRequests(requests)
+      const metadataRepository = new MetadataRepository(connection)
+      // WITH_METADATA number of them have metadata
+      await Promise.all(
+        times(WITH_METADATA).map((index) => {
+          return metadataRepository.save({
+            streamId: StreamID.fromString(requests[index].streamId),
+            metadata: {
+              controllers: [asDIDString(`did:key:r${index}`)],
+            },
+          })
+        })
+      )
+
+      const streamIds = requests.map((r) => StreamID.fromString(r.streamId))
+      const withMetadata = await requestRepository.hasMetadata(streamIds)
+      streamIds.slice(0, WITH_METADATA).forEach((streamId) => {
+        expect(withMetadata).toContainEqual(streamId)
+      })
+      streamIds.slice(WITH_METADATA).forEach((streamId) => {
+        expect(withMetadata).not.toContainEqual(streamId)
+      })
+    })
+  })
+
   describe('countByStatus', () => {
     test('return number of requests of a specified status', async () => {
       const requests = [
@@ -216,12 +278,19 @@ describe('request repository test', () => {
       const createdRequests = await requestRepository.allRequests()
       expect(requests.length).toEqual(createdRequests.length)
 
+      const pendingRequests = createdRequests.filter((r) => r.status === RequestStatus.PENDING)
+      for (const request of pendingRequests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: [asDIDString(`did:random:${Math.random()}`)],
+          },
+        })
+      }
+
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
       expect(updatedRequests.length).toEqual(streamLimit)
 
-      const pendingRequests = createdRequests.filter(
-        ({ status }) => RequestStatus.PENDING === status
-      )
       expect(updatedRequests.map(({ cid }) => cid)).toEqual(pendingRequests.map(({ cid }) => cid))
     })
 
@@ -269,6 +338,14 @@ describe('request repository test', () => {
       ].flat()
 
       await requestRepository.createRequests(requests)
+      for (const request of requests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: [asDIDString(`did:random:${Math.random()}`)],
+          },
+        })
+      }
 
       const createdRequests = await requestRepository.allRequests()
       expect(requests.length).toEqual(createdRequests.length)
@@ -289,6 +366,14 @@ describe('request repository test', () => {
 
       const createdRequests = await requestRepository.allRequests()
       expect(createdRequests.length).toEqual(requests.length)
+      for (const request of createdRequests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: [asDIDString(`did:random:${Math.random()}`)],
+          },
+        })
+      }
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
       expect(updatedRequests.length).toEqual(streamLimit)
@@ -331,6 +416,14 @@ describe('request repository test', () => {
 
       const createdRequests = await requestRepository.allRequests()
       expect(createdRequests.length).toEqual(requests.length)
+      for (const request of createdRequests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: [asDIDString(`did:random:${Math.random()}`)],
+          },
+        })
+      }
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
       expect(updatedRequests.length).toEqual(streamLimit)
@@ -382,8 +475,16 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequest = await requestRepository.allRequests()
-      expect(createdRequest.length).toEqual(requests.length)
+      const createdRequests = await requestRepository.allRequests()
+      expect(createdRequests.length).toEqual(requests.length)
+      for (const request of createdRequests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: [asDIDString(`did:random:${Math.random()}`)],
+          },
+        })
+      }
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
       expect(updatedRequests.length).toEqual(streamLimit + 1)
@@ -474,8 +575,16 @@ describe('request repository test', () => {
       const requests = shouldBeIncluded.concat(shouldNotBeIncluded)
       await requestRepository.createRequests(requests)
 
-      const createdRequest = await requestRepository.allRequests()
-      expect(createdRequest.length).toEqual(requests.length)
+      const createdRequests = await requestRepository.allRequests()
+      expect(createdRequests.length).toEqual(requests.length)
+      for (const request of createdRequests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: [asDIDString(`did:random:${Math.random()}`)],
+          },
+        })
+      }
 
       const updatedRequests = await requestRepository.findAndMarkReady(1)
       expect(updatedRequests.length).toEqual(shouldBeIncluded.length)
@@ -494,6 +603,15 @@ describe('request repository test', () => {
       )
 
       await requestRepository.createRequests(requests)
+
+      for (const request of requests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: [asDIDString(`did:random:${Math.random()}`)],
+          },
+        })
+      }
 
       const withConnectionSpy = jest.spyOn(requestRepository, 'withConnection')
       withConnectionSpy.mockImplementationOnce(() => requestRepository)
