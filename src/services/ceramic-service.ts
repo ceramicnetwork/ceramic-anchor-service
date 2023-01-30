@@ -9,7 +9,12 @@ import { logger } from '../logger/index.js'
 
 // Interface to allow injecting a mock in tests
 export interface CeramicService {
-  loadStream(streamId: StreamID): Promise<any>
+  loadStream(
+    streamId: StreamID,
+    sync?: SyncOptions,
+    timeoutMs?: number,
+    pin?: boolean
+  ): Promise<any>
   pinStream(streamId: StreamID): Promise<void>
   multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>>
   unpinStream(streamId: StreamID): Promise<void>
@@ -37,13 +42,14 @@ export class CeramicServiceImpl implements CeramicService {
   async loadStream<T extends Stream>(
     streamId: StreamID | CommitID,
     sync: SyncOptions = SyncOptions.PREFER_CACHE,
-    timeoutMs?: number
+    timeoutMs?: number,
+    pin: boolean = true
   ): Promise<T> {
     let timeoutHandle: any
     const effectiveTimeout =
       timeoutMs ?? this.config.loadStreamTimeoutMs ?? DEFAULT_LOAD_STREAM_TIMEOUT
 
-    const streamPromise = this._client.loadStream(streamId, { sync, pin: true }).finally(() => {
+    const streamPromise = this._client.loadStream(streamId, { sync, pin }).finally(() => {
       clearTimeout(timeoutHandle)
     })
 
@@ -59,9 +65,9 @@ export class CeramicServiceImpl implements CeramicService {
   async pinStream(streamId: StreamID): Promise<void> {
     try {
       // this.loadStream uses the 'pin' flag to pin the stream after loading it.
-      // TODO(CDB-2213): Use SyncOptions.SYNC_ON_ERROR once the CAS doesn't have such a huge backlog of streams 
+      // TODO(CDB-2213): Use SyncOptions.SYNC_ON_ERROR once the CAS doesn't have such a huge backlog of streams
       // that are already broken with CACAO timeouts
-      await this.loadStream(streamId, SyncOptions.PREFER_CACHE, PIN_TIMEOUT)
+      await this.loadStream(streamId, SyncOptions.PREFER_CACHE, PIN_TIMEOUT, true)
 
       logger.debug(`Successfully pinned stream ${streamId.toString()}`)
       Metrics.count(METRIC_NAMES.PIN_SUCCEEDED, 1)
