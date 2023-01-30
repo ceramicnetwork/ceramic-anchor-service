@@ -8,7 +8,7 @@ import type { IMetadataRepository } from '../repositories/metadata-repository.js
 import { ThrowDecoder } from '../ancillary/throw-decoder.js'
 import type { AbortOptions } from './abort-options.type.js'
 import type { Assert, IsExact } from 'conditional-type-checks'
-import { logger } from '../logger'
+import { logger } from '../logger/index.js'
 
 /**
  * Public interface for MetadataService.
