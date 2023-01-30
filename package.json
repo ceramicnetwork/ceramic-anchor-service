@@ -49,7 +49,7 @@
   "dependencies": {
     "@ceramicnetwork/common": "^2.18.0-rc.1",
     "@ceramicnetwork/core": "^2.23.0-rc.1",
-    "@ceramicnetwork/http-client": "^2.15.0-rc.1",
+    "@ceramicnetwork/http-client": "^2.15.0",
     "@ceramicnetwork/logger": "^2.5.0",
     "@ceramicnetwork/observability": "^1.0.7",
     "@ceramicnetwork/streamid": "^2.10.0-rc.0",
