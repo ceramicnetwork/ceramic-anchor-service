@@ -76,7 +76,7 @@
     "morgan": "^1.10.0",
     "multiformats": "^9.9.0",
     "os-utils": "^0.0.14",
-    "pg": "^8.8.0",
+    "pg": "^8.9.0",
     "reflect-metadata": "^0.1.13",
     "sqlite3": "^5.1.2",
     "tsm": "^2.2.2",
