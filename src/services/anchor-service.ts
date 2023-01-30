@@ -473,9 +473,7 @@ export class AnchorService {
     try {
       const persistedAnchorsCount =
         anchors.length > 0
-          ? await this.anchorRepository.createAnchors(anchors, {
-              connection: trx,
-            })
+          ? await this.anchorRepository.withConnection(trx).createAnchors(anchors)
           : 0
 
       await this.requestRepository.withConnection(trx).updateRequests(
