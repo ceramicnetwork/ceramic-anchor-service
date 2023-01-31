@@ -147,7 +147,7 @@ export class AnchorService {
     this.includeBlockInfoInAnchorProof = config.includeBlockInfoInAnchorProof
     this.useSmartContractAnchors = config.useSmartContractAnchors
 
-    const minStreamCount = config.minStreamCount
+    const minStreamCount = Number(config.minStreamCount)
     this.maxStreamLimit = this.merkleDepthLimit > 0 ? Math.pow(2, this.merkleDepthLimit) : 0
     this.minStreamLimit = minStreamCount || Math.floor(this.maxStreamLimit / 2)
 
@@ -167,10 +167,11 @@ export class AnchorService {
    */
   // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
   async anchorRequests(): Promise<void> {
-    const withoutMetadata = await this.requestRepository.allWithoutMetadata(
-      this.minStreamLimit || this.maxStreamLimit || 100
-    )
-    await this.metadataService.fillAll(withoutMetadata)
+    // TODO FIXME Remove after backfill
+    // const withoutMetadata = await this.requestRepository.allWithoutMetadata(
+    //   this.minStreamLimit || this.maxStreamLimit || 100
+    // )
+    // await this.metadataService.fillAll(withoutMetadata)
     const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
 
     if (readyRequestsCount === 0) {
