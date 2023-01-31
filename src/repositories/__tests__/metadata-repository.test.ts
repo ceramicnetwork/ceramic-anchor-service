@@ -24,7 +24,7 @@ beforeAll(async () => {
 })
 
 beforeEach(async () => {
-  await repository.table().delete()
+  await repository.table.delete()
 })
 
 afterAll(async () => {

@@ -7,7 +7,7 @@ import * as http from 'http'
 const DEFAULT_SERVER_PORT = 8081
 
 export class CeramicAnchorServer extends Server {
-  private _server: http.Server
+  private _server?: http.Server
 
   constructor(controllers: any[]) {
     super(true)
@@ -35,6 +35,6 @@ export class CeramicAnchorServer extends Server {
   }
 
   stop(): void {
-    this._server.close()
+    this._server?.close()
   }
 }

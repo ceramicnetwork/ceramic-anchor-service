@@ -8,7 +8,7 @@ import { METRIC_NAMES } from '../settings.js'
  * Repeatedly triggers a task to be run after a configured amount of ms
  */
 export class SchedulerService {
-  private _subscription: Subscription
+  private _subscription?: Subscription
 
   static inject = ['config'] as const
 
@@ -40,6 +40,6 @@ export class SchedulerService {
   }
 
   stop(): void {
-    this._subscription.unsubscribe()
+    this._subscription?.unsubscribe()
   }
 }
