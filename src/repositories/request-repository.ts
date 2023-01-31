@@ -1,13 +1,13 @@
 import { CID } from 'multiformats/cid'
 import type { Knex } from 'knex'
-import { RequestStatus, Request, RequestUpdateFields, DATABASE_FIELDS } from '../models/request.js'
+import { DATABASE_FIELDS, Request, RequestStatus, RequestUpdateFields } from '../models/request.js'
 import { logEvent, logger } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { Utils } from '../utils.js'
 import {
   ServiceMetrics as Metrics,
-  TimeableMetric,
   SinceField,
+  TimeableMetric,
 } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 import * as te from '../ancillary/io-ts-extra.js'
@@ -345,7 +345,15 @@ export class RequestRepository {
           .select(this.connection.raw('NULL'))
           .where('streamId', '=', this.connection.raw('request.stream_id'))
       )
-      .groupBy('streamId')
+      .andWhere((sub) =>
+        sub.whereIn('status', [
+          RequestStatus.PENDING,
+          RequestStatus.PROCESSING,
+          RequestStatus.READY,
+        ])
+      )
+      .orderBy('createdAt', 'ASC')
+      .groupBy('streamId', 'createdAt')
       .limit(limit)
     return result.map((row) => StreamID.fromString(row.streamId))
   }
