@@ -4,6 +4,13 @@ import knex from 'knex'
 import snakeCase from 'lodash.snakecase'
 import camelCase from 'lodash.camelcase'
 import { logger } from './logger/index.js'
+import pg from 'pg'
+import postgresDate from 'postgres-date'
+
+// Parse "timestamp without timezone" like it is in UTC.
+pg.types.setTypeParser(1114, (value: string) => {
+  return postgresDate(`${value}Z`)
+})
 
 const KNEX_TABLES = ['knex_migrations', 'knex_migrations_lock']
 
