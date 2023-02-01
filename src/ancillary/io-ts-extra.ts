@@ -90,7 +90,7 @@ export const didString = t.refinement(t.string, isDIDString, 'did-string')
  * io-ts codec for controllers array: `[DIDString]`.
  */
 export const controllers = t.refinement(
-  t.array(didString),
+  t.array(t.string),
   (array) => array.length === 1,
   '[DIDString]'
 )
