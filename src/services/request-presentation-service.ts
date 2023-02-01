@@ -1,7 +1,7 @@
-import type { AnchorRepository } from '../repositories/anchor-repository.js'
 import type { Request } from '../models/request.js'
 import { InvalidRequestStatusError, RequestStatus } from '../models/request.js'
 import type { Config } from 'node-config-ts'
+import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import type { IRequestPresentationService } from './request-presentation-service.type.js'
 
 /**
@@ -12,7 +12,7 @@ export class RequestPresentationService implements IRequestPresentationService {
 
   static inject = ['config', 'anchorRepository'] as const
 
-  constructor(config: Config, private readonly anchorRepository: AnchorRepository) {
+  constructor(config: Config, private readonly anchorRepository: IAnchorRepository) {
     this.schedulerIntervalMS = config.schedulerIntervalMS
   }
 
@@ -51,53 +51,37 @@ export class RequestPresentationService implements IRequestPresentationService {
           anchorCommit,
         }
       }
-      case RequestStatus.PENDING: {
+      case RequestStatus.PENDING:
+      case RequestStatus.PROCESSING:
+      case RequestStatus.FAILED:
+      case RequestStatus.READY:
+        return this.notCompleted(request)
+      case RequestStatus.REPLACED: {
+        const asNotCompleted = this.notCompleted(request)
         return {
-          id: request.id,
-          status: RequestStatus[request.status],
-          cid: request.cid,
-          docId: request.streamId, // TODO remove
-          streamId: request.streamId,
-          message: request.message,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.updatedAt.getTime(),
+          ...asNotCompleted,
+          status: RequestStatus[RequestStatus.FAILED],
         }
       }
-      case RequestStatus.PROCESSING:
-        return {
-          id: request.id,
-          status: RequestStatus[request.status],
-          cid: request.cid,
-          docId: request.streamId, // TODO remove
-          streamId: request.streamId,
-          message: request.message,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.updatedAt.getTime(),
-        }
-      case RequestStatus.FAILED:
-        return {
-          id: request.id,
-          status: RequestStatus[request.status],
-          cid: request.cid,
-          docId: request.streamId, // TODO remove
-          streamId: request.streamId,
-          message: request.message,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.updatedAt.getTime(),
-        }
-      case RequestStatus.READY:
-        return {
-          id: request.id,
-          status: RequestStatus[request.status],
-          cid: request.cid,
-          docId: request.streamId, // TODO remove
-          streamId: request.streamId,
-          message: request.message,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.updatedAt.getTime(),
-        }
       default:
         throw new InvalidRequestStatusError(request.status)
+    }
+  }
+
+  /**
+   * Vanilla presentation of a non-complete request.
+   * Display status as is.
+   */
+  private notCompleted(request: Request) {
+    return {
+      id: request.id,
+      status: RequestStatus[request.status],
+      cid: request.cid,
+      docId: request.streamId, // TODO remove
+      streamId: request.streamId,
+      message: request.message,
+      createdAt: request.createdAt.getTime(),
+      updatedAt: request.updatedAt.getTime(),
     }
   }
 }

@@ -34,7 +34,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
   ipfsService.reset()
-  await metadataRepository.table().delete()
+  await metadataRepository.table.delete()
   jest.clearAllMocks()
 })
 

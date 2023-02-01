@@ -1,9 +1,12 @@
 import { describe, expect, jest, test } from '@jest/globals'
 import { RequestStatus } from '../../models/request.js'
 import type { Config } from 'node-config-ts'
-import { RequestPresentationService } from '../request-presentation-service.js'
+import { RequestPresentationService } from '../request-presentation-service'
+import type {
+  AnchorWithRequest,
+  IAnchorRepository,
+} from '../../repositories/anchor-repository.type.js'
 import { generateRequest } from '../../__tests__/test-utils.js'
-import type { AnchorRepository, AnchorWithRequest } from '../../repositories/anchor-repository.js'
 
 const CONFIG = {
   schedulerIntervalMS: 1000,
@@ -11,11 +14,11 @@ const CONFIG = {
 
 const anchorRepository = {
   findByRequest: jest.fn(),
-} as unknown as AnchorRepository
+} as unknown as IAnchorRepository
 const service = new RequestPresentationService(CONFIG, anchorRepository)
 
 const REQUEST_OVERRIDE = {
-  id: 889483296,
+  id: '889483296',
   cid: 'bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m',
   streamId: 'k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72',
   message: 'Fresh request',
@@ -39,6 +42,17 @@ describe('present by RequestStatus', () => {
       const presentation = await service.body(request)
       expect(presentation).toMatchSnapshot()
     }
+  })
+
+  test('REPLACED', async () => {
+    const request = generateRequest({
+      ...REQUEST_OVERRIDE,
+      status: RequestStatus.REPLACED,
+    })
+    const presentation = await service.body(request)
+    // REPLACED is an internal status, which translates to "FAILED" externally
+    expect(presentation.status).toEqual(RequestStatus[RequestStatus.FAILED])
+    expect(presentation).toMatchSnapshot()
   })
 
   test('COMPLETED', async () => {
