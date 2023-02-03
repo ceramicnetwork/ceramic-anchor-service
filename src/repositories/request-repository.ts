@@ -553,12 +553,13 @@ export class RequestRepository {
         'id',
         whereInSubQuery
       )
-      .andWhere(
-        // if number of PENDING rows is less then `minStreamLimit`, do not update
-        minStreamLimit,
-        '<=',
-        this.table.count('id').where({ status: RequestStatus.READY })
-      )
+      // TODO CDB-2231 Reconsider if it should be here or not
+      // .andWhere(
+      //   // if number of PENDING rows is less then `minStreamLimit`, do not update
+      //   minStreamLimit,
+      //   '<=',
+      //   this.table.count('id').where({ status: RequestStatus.READY })
+      // )
       .returning(DATABASE_FIELDS)
     return returned.map((r) => new Request(r))
   }

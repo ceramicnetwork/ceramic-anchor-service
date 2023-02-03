@@ -862,7 +862,8 @@ describe('request repository test', () => {
       )
     }
 
-    test('respect min limit', async () => {
+    // TODO CDB-2231 Reconsider if it should be here or not
+    test.skip('respect min limit', async () => {
       // Do not touch rows if we have less than MIN_LIMIT of them
       await createRequests(MIN_LIMIT - 1)
       const returned = await requestRepository.batchProcessing(MIN_LIMIT, MAX_LIMIT)
