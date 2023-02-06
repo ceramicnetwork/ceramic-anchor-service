@@ -1,18 +1,29 @@
-import { Anchor } from '../models/anchor.js'
-import { Request } from '../models/request.js'
+import type { Anchor } from '../models/anchor.js'
+import type { Request } from '../models/request.js'
 import type { Knex } from 'knex'
-import { Options } from './repository-types.js'
+import type { AnchorWithRequest, IAnchorRepository } from './anchor-repository.type.js'
+import { parseCountResult } from './parse-count-result.util.js'
 
-export const TABLE_NAME = 'anchor'
+const TABLE_NAME = 'anchor'
 
-export class AnchorWithRequest extends Anchor {
-  request: Request
-}
-
-export class AnchorRepository {
+export class AnchorRepository implements IAnchorRepository {
   static inject = ['dbConnection'] as const
 
-  constructor(private connection?: Knex) {}
+  constructor(private connection: Knex) {}
+
+  /**
+   * New instance using different database `connection`
+   */
+  withConnection(connection: Knex): AnchorRepository {
+    return new AnchorRepository(connection)
+  }
+
+  /**
+   * `... FROM anchor` SQL clause.
+   */
+  get table(): Knex.QueryBuilder {
+    return this.connection(TABLE_NAME)
+  }
 
   /**
    * Creates anchors
@@ -20,16 +31,9 @@ export class AnchorRepository {
    * @param options
    * @returns A promise that resolve to the number of anchors created
    */
-  async createAnchors(anchors: Array<Anchor>, options: Options = {}): Promise<number> {
-    const { connection = this.connection } = options
-
-    const result = (await connection
-      .table(TABLE_NAME)
-      .insert(anchors)
-      .onConflict('requestId')
-      .ignore()) as any
-
-    return result.rowCount
+  async createAnchors(anchors: Array<Anchor>): Promise<number> {
+    const result: any = await this.table.insert(anchors).onConflict('requestId').ignore()
+    return parseCountResult(result.rowCount)
   }
 
   /**
@@ -39,10 +43,8 @@ export class AnchorRepository {
    * @param options
    * @returns A promise that resolve to the anchor associated to the request
    */
-  async findByRequest(request: Request, options: Options = {}): Promise<AnchorWithRequest | null> {
-    const { connection = this.connection } = options
-
-    const anchor = await connection(TABLE_NAME).where({ requestId: request.id }).first()
+  async findByRequest(request: Request): Promise<AnchorWithRequest | null> {
+    const anchor = await this.table.where({ requestId: request.id }).first()
 
     if (!anchor) {
       return anchor

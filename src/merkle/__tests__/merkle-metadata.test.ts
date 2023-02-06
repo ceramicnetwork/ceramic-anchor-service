@@ -1,6 +1,6 @@
-import { jest } from '@jest/globals'
+import { jest, describe, expect, beforeEach } from '@jest/globals'
 import { MockIpfsService, randomStreamID } from '../../__tests__/test-utils.js'
-import { MerkleTree } from '../merkle-tree.js'
+import type { MerkleTree } from '../merkle-tree.js'
 import { type Node, TreeMetadata } from '../merkle.js'
 import {
   BloomMetadata,
@@ -12,6 +12,7 @@ import {
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { Request } from '../../models/request.js'
 import { AnchorStatus } from '@ceramicnetwork/common'
+import { MerkleTreeFactory } from '../merkle-tree-factory.js'
 
 const TYPE_REGEX =
   /^jsnpm_@ceramicnetwork\/wasm-bloom-filter-v((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/
@@ -25,7 +26,7 @@ describe('Bloom filter', () => {
     ipfsService.reset()
   })
 
-  const createCandidate = async function (metadata: any): Promise<Candidate> {
+  function createCandidate(metadata: any): Candidate {
     const streamID = randomStreamID()
     const stream = {
       id: streamID,
@@ -33,24 +34,24 @@ describe('Bloom filter', () => {
       metadata,
       state: { anchorStatus: AnchorStatus.PENDING, log: [{ cid: streamID.cid }], metadata },
     }
-    const candidate = new Candidate(stream.id, [new Request()])
-    candidate.setTipToAnchor(stream as any)
-    return candidate
+    return new Candidate(stream.id, new Request({ cid: streamID.cid.toString() }), metadata)
   }
 
-  const makeMerkleTree = function () {
-    return new MerkleTree<CIDHolder, Candidate, TreeMetadata>(
+  function buildMerkleTree(
+    leaves: Array<Candidate>
+  ): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
+    const factory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
       new IpfsMerge(ipfsService),
       new IpfsLeafCompare(),
       new BloomMetadata()
     )
+    return factory.build(leaves)
   }
 
   test('Single stream minimal metadata', async () => {
-    const merkleTree = makeMerkleTree()
-    const candidates = [await createCandidate({ controllers: ['a'] })]
-    await merkleTree.build(candidates)
-    const metadata = merkleTree.getMetadata()
+    const candidates = [createCandidate({ controllers: ['a'] })]
+    const merkleTree = await buildMerkleTree(candidates)
+    const metadata = merkleTree.metadata
     expect(metadata.numEntries).toEqual(1)
     expect(metadata.streamIds).toHaveLength(1)
     expect(metadata.streamIds).toEqual([candidates[0].streamId.toString()])
@@ -63,14 +64,14 @@ describe('Bloom filter', () => {
   })
 
   test('Single stream with model', async () => {
-    const merkleTree = makeMerkleTree()
+    const model = randomStreamID()
     const streamMetadata = {
       controllers: ['a'],
-      model: 'model',
+      model: model.bytes,
     }
-    const candidates = [await createCandidate(streamMetadata)]
-    await merkleTree.build(candidates)
-    const metadata = merkleTree.getMetadata()
+    const candidates = [createCandidate(streamMetadata)]
+    const merkleTree = await buildMerkleTree(candidates)
+    const metadata = merkleTree.metadata
     expect(metadata.numEntries).toEqual(1)
     expect(metadata.streamIds).toHaveLength(1)
     expect(metadata.streamIds).toEqual([candidates[0].streamId.toString()])
@@ -81,32 +82,31 @@ describe('Bloom filter', () => {
     expect(bloomFilter.contains(`controller-a`)).toBeTruthy()
     expect(bloomFilter.contains(`controller-b`)).toBeFalsy()
     expect(bloomFilter.contains(`a`)).toBeFalsy()
-    expect(bloomFilter.contains(`model-model`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${model.toString()}`)).toBeTruthy()
   })
 
   test('Multiple streams with model', async () => {
-    const merkleTree = makeMerkleTree()
     const streamMetadata0 = {
       controllers: ['a'],
-      model: 'model0',
+      model: randomStreamID().bytes,
       family: 'family0',
       tags: ['a', 'b'],
     }
     const streamMetadata1 = {
       controllers: ['a'],
-      model: 'model1',
+      model: randomStreamID().bytes,
     }
     const streamMetadata2 = {
       controllers: ['b'],
-      model: 'model2',
+      model: randomStreamID().bytes,
     }
-    const candidates = await Promise.all([
+    const candidates = [
       createCandidate(streamMetadata0),
       createCandidate(streamMetadata1),
       createCandidate(streamMetadata2),
-    ])
-    await merkleTree.build(candidates)
-    const metadata = merkleTree.getMetadata()
+    ]
+    const merkleTree = await buildMerkleTree(candidates)
+    const metadata = merkleTree.metadata
     expect(metadata.numEntries).toEqual(3)
     expect(metadata.streamIds).toHaveLength(3)
     expect(metadata.streamIds).toEqual(
@@ -122,9 +122,9 @@ describe('Bloom filter', () => {
     expect(bloomFilter.contains(`controller-b`)).toBeTruthy()
     expect(bloomFilter.contains(`controller-c`)).toBeFalsy()
     expect(bloomFilter.contains(`a`)).toBeFalsy()
-    expect(bloomFilter.contains(`model-model0`)).toBeTruthy()
-    expect(bloomFilter.contains(`model-model1`)).toBeTruthy()
-    expect(bloomFilter.contains(`model-model2`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${candidates[0].model.toString()}`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${candidates[1].model.toString()}`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${candidates[2].model.toString()}`)).toBeTruthy()
     expect(bloomFilter.contains(`model-model3`)).toBeFalsy()
   })
 })
@@ -133,7 +133,7 @@ describe('IpfsLeafCompare sorting', () => {
   const leaves = new IpfsLeafCompare()
 
   const mockNode = (streamId: string, metadata: any): Node<Candidate> => {
-    return { data: { streamId, metadata } } as unknown as Node<Candidate>
+    return { data: { streamId, metadata, model: metadata.model } } as unknown as Node<Candidate>
   }
 
   const node0 = mockNode('id0', { controllers: ['a'] })

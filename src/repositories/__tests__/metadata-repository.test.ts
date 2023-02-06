@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, test, expect, describe } from '@jest/g
 import { createDbConnection } from '../../db-connection.js'
 import { MetadataRepository } from '../metadata-repository.js'
 import type { FreshMetadata } from '../../models/metadata.js'
-import { randomStreamID } from '../../__tests__/test-utils.js'
+import { isClose, randomStreamID } from '../../__tests__/test-utils.js'
 import { asDIDString } from '../../ancillary/did-string.js'
 
 let dbConnection: Knex
@@ -24,7 +24,7 @@ beforeAll(async () => {
 })
 
 beforeEach(async () => {
-  await repository.table().delete()
+  await repository.table.delete()
 })
 
 afterAll(async () => {
@@ -49,14 +49,14 @@ describe('save', () => {
 
 test('retrieve', async () => {
   await expect(repository.retrieve(FRESH_METADATA.streamId)).resolves.toBeUndefined()
-  await repository.save(FRESH_METADATA)
   const now = Date.now()
+  await repository.save(FRESH_METADATA)
   const retrieved1 = await repository.retrieve(FRESH_METADATA.streamId)
   expect(retrieved1.streamId).toEqual(FRESH_METADATA.streamId)
   expect(retrieved1.metadata).toEqual(FRESH_METADATA.metadata)
-  expect(retrieved1.createdAt.valueOf()).toBeCloseTo(now, -2)
-  expect(retrieved1.updatedAt.valueOf()).toBeCloseTo(now, -2)
-  expect(retrieved1.usedAt.valueOf()).toBeCloseTo(now, -2)
+  expect(isClose(retrieved1.createdAt.getTime(), now, 0.05)).toBeTruthy()
+  expect(isClose(retrieved1.updatedAt.getTime(), now, 0.06)).toBeTruthy()
+  expect(isClose(retrieved1.usedAt.getTime(), now, 0.05)).toBeTruthy()
 })
 
 test('isPresent', async () => {

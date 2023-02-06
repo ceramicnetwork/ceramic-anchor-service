@@ -3,12 +3,11 @@ import { jest } from '@jest/globals'
 import { CID } from 'multiformats/cid'
 
 import { create } from 'multiformats/hashes/digest'
-import type { CeramicService } from '../services/ceramic-service.js'
 import type { EventProducerService } from '../services/event-producer/event-producer-service.js'
 import type { IIpfsService, RetrieveRecordOptions } from '../services/ipfs-service.type.js'
 import { StreamID, CommitID } from '@ceramicnetwork/streamid'
 import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
-import { randomBytes } from '@stablelib/random'
+import { randomBytes, randomString } from '@stablelib/random'
 import { Request, RequestStatus } from '../models/request.js'
 import type { AbortOptions } from '../services/abort-options.type.js'
 import { Utils } from '../utils.js'
@@ -104,51 +103,6 @@ export class MockIpfsService implements IIpfsService {
   }
 }
 
-export class MockCeramicService implements CeramicService {
-  static inject = ['ipfsService'] as const
-
-  constructor(
-    private _ipfsService: IIpfsService,
-    private _streams: Record<string, any> = {},
-    private _cidIndex = 0
-  ) {}
-
-  async loadStream(streamId: StreamID): Promise<any> {
-    const stream = this._streams[streamId.toString()]
-    if (!stream) {
-      throw new Error(`No stream found with streamid ${streamId.toString()}`)
-    }
-    return stream
-  }
-
-  async pinStream(streamId: StreamID): Promise<any> {}
-
-  async multiQuery(queries: MultiQuery[]): Promise<Record<string, Stream>> {
-    const result = {}
-    for (const query of queries) {
-      const id = query.streamId.toString()
-      const stream = this._streams[id]
-      if (stream) {
-        result[id] = stream
-      }
-    }
-
-    return result
-  }
-
-  // Mock-only method to control what gets returned by loadStream()
-  putStream(id: StreamID | CommitID, stream: any) {
-    this._streams[id.toString()] = stream
-  }
-
-  async unpinStream(streamId: StreamID) {}
-
-  reset() {
-    this._cidIndex = 0
-    this._streams = {}
-  }
-}
-
 export class MockEventProducerService implements EventProducerService {
   emitAnchorEvent
 
@@ -177,6 +131,7 @@ export function generateRequest(override: Partial<Request>): Request {
   request.createdAt = new Date(Date.now() - Math.random() * MS_IN_HOUR)
   request.updatedAt = new Date(request.createdAt.getTime())
   request.timestamp = new Date(request.createdAt.getTime())
+  request.origin = `origin:random:${randomString(8)}`
 
   Object.assign(request, override)
 
@@ -213,4 +168,32 @@ export function generateRequests(
 
 export function times(n: number): Array<number> {
   return Array.from({ length: n }).map((_, i) => i)
+}
+
+/**
+ * Create an array of length `n` filled with values `value`.
+ */
+export function repeat<T>(n: number, value: T): Array<T> {
+  return Array.from<T>({ length: n }).fill(value)
+}
+
+/**
+ * Return true if `a` and `b` are close within `delta` %.
+ * Absolute difference between `a` and `b` should be less or equal to `delta * a` and `delta * b`.
+ *
+ * @param a - first number to compare
+ * @param b - second number to compare
+ * @param delta - allowed delta, default 0.01 means 1%
+ */
+export function isClose(a: number, b: number, delta = 0.01): boolean {
+  const difference = Math.abs(a - b)
+  return difference <= a * delta && difference <= b * delta
+}
+
+/**
+ * Unix timestamp (in seconds) from a Date.
+ * @param date
+ */
+export function seconds(date: Date): number {
+  return Math.floor(date.valueOf() / 1000)
 }
