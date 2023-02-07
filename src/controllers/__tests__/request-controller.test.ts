@@ -25,6 +25,7 @@ import { toCID } from '@ceramicnetwork/common'
 import { asDIDString } from '../../ancillary/did-string'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { MetadataRepository } from '../../repositories/metadata-repository.js'
+import {AnchorRequestParamsParser} from "../../../build/ancillary/anchor-request-params-parser";
 
 type Tokens = {
   requestController: RequestController
@@ -71,6 +72,7 @@ describe('createRequest', () => {
       .provideClass('ipfsService', MockIpfsService)
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('metadataService', MockMetadataService)
+      .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
       .provideClass('requestController', RequestController)
     controller = container.resolve('requestController')
   })

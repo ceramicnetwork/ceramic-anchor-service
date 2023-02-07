@@ -34,6 +34,7 @@ import { MetadataService } from './services/metadata-service.js'
 import { MetadataRepository } from './repositories/metadata-repository.js'
 import { AppMode } from './app-mode.js'
 import { UnreachableCaseError } from '@ceramicnetwork/common'
+import { AnchorRequestParamsParser } from './ancillary/anchor-request-params-parser.js'
 
 type DependenciesContext = {
   config: Config
@@ -51,6 +52,7 @@ type ProvidedContext = {
   schedulerService: SchedulerService
   requestPresentationService: IRequestPresentationService
   metadataService: IMetadataService
+  anchorRequestParamsParser: AnchorRequestParamsParser
 } & DependenciesContext
 
 /**
@@ -88,6 +90,7 @@ export class CeramicAnchorApp {
       .provideClass('anchorService', AnchorService)
       .provideClass('schedulerService', SchedulerService)
       .provideClass('requestPresentationService', RequestPresentationService)
+      .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
 
     try {
       Metrics.start(

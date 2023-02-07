@@ -4,10 +4,8 @@ import { toCID } from '@ceramicnetwork/common'
 import type { CID } from 'multiformats/cid'
 import { CARFactory } from 'cartonne'
 import * as DAG_JOSE from 'dag-jose'
-import { GenesisFields } from "../models/metadata.js"
-import { AnchorRequestCarFileReader } from "./anchor-request-car-file-reader.js"
-import { base64 } from 'multiformats/bases/base64'
-
+import { GenesisFields } from '../models/metadata.js'
+import { AnchorRequestCarFileReader } from './anchor-request-car-file-reader.js'
 
 export declare type RequestAnchorParamsV1 = {
   streamId?: StreamID
@@ -22,9 +20,14 @@ export declare type RequestAnchorParamsV2 = {
   genesisFields: GenesisFields
 }
 
+const carFactory = new CARFactory()
+carFactory.codecs.add(DAG_JOSE)
+
 export declare type RequestAnchorParams = RequestAnchorParamsV1 | RequestAnchorParamsV2
 
-export function isRequestAnchorParamsV2(input: RequestAnchorParams): input is RequestAnchorParamsV2 {
+export function isRequestAnchorParamsV2(
+  input: RequestAnchorParams
+): input is RequestAnchorParamsV2 {
   return input && (input as RequestAnchorParamsV2).genesisFields != undefined
 }
 
@@ -48,8 +51,6 @@ export class AnchorRequestParamsParser {
   }
 
   private _parseReqV2(req: ExpReq): RequestAnchorParamsV2 {
-    const carFactory = new CARFactory()
-    carFactory.codecs.add(DAG_JOSE)
     // TODO: CDB-2212 Store the car file somewhere for future reference/validation of signatures
     // (as it also includes the tip commit and optionally CACAO for the tip commit)
     const car = carFactory.fromBytes(req.body)
@@ -59,7 +60,7 @@ export class AnchorRequestParamsParser {
       streamId: carReader.streamId,
       timestamp: carReader.timestamp,
       tip: carReader.tip,
-      genesisFields: carReader.genesisFields
+      genesisFields: carReader.genesisFields,
     }
   }
 }

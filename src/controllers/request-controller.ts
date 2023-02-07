@@ -47,12 +47,14 @@ export class RequestController {
     'requestRepository',
     'requestPresentationService',
     'metadataService',
+    'anchorRequestParamsParser',
   ] as const
 
   constructor(
     private readonly requestRepository: RequestRepository,
     private readonly requestPresentationService: IRequestPresentationService,
-    private readonly metadataService: IMetadataService
+    private readonly metadataService: IMetadataService,
+    private readonly anchorRequestParamsParser: AnchorRequestParamsParser
   ) {}
 
   @Get(':cid')
@@ -92,7 +94,7 @@ export class RequestController {
 
       let requestParams: RequestAnchorParams
       try {
-        requestParams = (new AnchorRequestParamsParser()).parse(req)
+        requestParams = this.anchorRequestParamsParser.parse(req)
       } catch (err) {
         return this.getBadRequestResponse(req, res, err)
       }
