@@ -2,8 +2,8 @@ import { CloudWatchClient, PutMetricDataCommand } from "@aws-sdk/client-cloudwat
 
 export enum METRIC_NAMES {
 
-  register = 'registration_total',
-  revoke = 'revocation_total',
+  register = 'did_registration_total',
+  revoke = 'did_revocation_total',
   otp_request = 'otp_request_total'
 
 }
