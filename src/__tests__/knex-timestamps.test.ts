@@ -1,7 +1,7 @@
 import { test, expect } from '@jest/globals'
 import type { Knex } from 'knex'
 import { createDbConnection } from '../db-connection.js'
-import { randomStreamID } from './test-utils'
+import { isClose, randomStreamID, seconds } from './test-utils.js'
 
 let dbConnection: Knex
 
@@ -20,8 +20,7 @@ test('PG _now_ corresponds to JS _now_', async () => {
     .insert({ streamId: randomStreamID().toString(), metadata: {} })
     .returning(['usedAt'])
     .then((rows) => rows[0].usedAt)
-  const seconds = (timestamp: Date) => Math.floor(timestamp.valueOf() / 1000)
-  expect(seconds(nowPG)).toBeCloseTo(seconds(nowJS))
+  expect(isClose(seconds(nowPG), seconds(nowJS))).toBeTruthy()
 })
 
 test('JS-to-PG conversion ignores timezone', async () => {

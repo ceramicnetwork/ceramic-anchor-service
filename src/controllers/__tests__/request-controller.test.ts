@@ -7,20 +7,24 @@ import { RequestPresentationService } from '../../services/request-presentation-
 import { RequestRepository } from '../../repositories/request-repository.js'
 import { StatusCodes } from 'http-status-codes'
 import {
-  MockCeramicService,
   MockIpfsService,
   randomCID,
   randomStreamID,
+  times,
+  isClose,
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { RequestStatus } from '../../models/request.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import type { IMetadataService } from '../../services/metadata-service.js'
+import { DateTime } from 'luxon'
 import { mockRequest, mockResponse } from './mock-request.util.js'
 import { GenesisFields } from '../../models/metadata'
 import { bases } from 'multiformats/basics'
 import { toCID } from '@ceramicnetwork/common'
 import { asDIDString } from '../../ancillary/did-string'
+import { AnchorRepository } from '../../repositories/anchor-repository.js'
+import { MetadataRepository } from '../../repositories/metadata-repository.js'
 
 type Tokens = {
   requestController: RequestController
@@ -61,10 +65,10 @@ describe('createRequest', () => {
     container = createInjector()
       .provideValue('config', config)
       .provideValue('dbConnection', dbConnection)
-      .provideClass('requestRepository', RequestRepository)
-      .provideClass('anchorRepository', RequestRepository)
+      .provideClass('metadataRepository', MetadataRepository)
+      .provideFactory('requestRepository', RequestRepository.make)
+      .provideClass('anchorRepository', AnchorRepository)
       .provideClass('ipfsService', MockIpfsService)
-      .provideClass('ceramicService', MockCeramicService)
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('metadataService', MockMetadataService)
       .provideClass('requestController', RequestController)
@@ -76,7 +80,7 @@ describe('createRequest', () => {
   })
 
   describe('fresh request', () => {
-    test('cid is empty', async () => {
+    test('cid is empty: fail', async () => {
       const req = mockRequest({
         headers: {
           'Content-type': 'application/json'
@@ -89,8 +93,7 @@ describe('createRequest', () => {
         error: 'CID is empty',
       })
     })
-
-    test('streamId is empty', async () => {
+    test('streamId is empty: fail', async () => {
       const req = mockRequest({
         headers: {
           'Content-type': 'application/json'
@@ -107,7 +110,7 @@ describe('createRequest', () => {
       })
     })
 
-    test('cid is malformed', async () => {
+    test('cid is malformed: fail', async () => {
       const streamId = randomStreamID()
       const req = mockRequest({
         headers: {
@@ -127,7 +130,7 @@ describe('createRequest', () => {
       )
     })
 
-    test('streamId is malformed', async () => {
+    test('streamId is malformed: fail', async () => {
       const req = mockRequest({
         headers: {
           'Content-type': 'application/json'
@@ -176,8 +179,8 @@ describe('createRequest', () => {
       expect(createdRequest.streamId).toEqual(streamId.toString())
       expect(createdRequest.message).toEqual('Request is pending.')
       expect(createdRequest.timestamp.valueOf()).toEqual(timestamp.valueOf())
-      expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
+      expect(isClose(createdRequest.createdAt.getTime(), now.getTime())).toBeTruthy()
+      expect(isClose(createdRequest.updatedAt.getTime(), now.getTime())).toBeTruthy()
       expect(createdRequest.origin).toEqual(origin)
     })
 
@@ -233,9 +236,9 @@ describe('createRequest', () => {
       expect(createdRequest.status).toEqual(RequestStatus.PENDING)
       expect(createdRequest.streamId).toEqual(streamId.toString())
       expect(createdRequest.message).toEqual('Request is pending.')
-      expect(createdRequest.timestamp.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
+      expect(isClose(createdRequest.timestamp.getTime(), now.getTime())).toBeTruthy()
+      expect(isClose(createdRequest.createdAt.getTime(), now.getTime())).toBeTruthy()
+      expect(isClose(createdRequest.updatedAt.getTime(), now.getTime())).toBeTruthy()
       expect(createdRequest.origin).not.toBeNull()
     })
 
@@ -271,6 +274,21 @@ describe('createRequest', () => {
       await controller.createRequest(req, mockResponse())
       expect(fillSpy).toBeCalledWith(FAKE_STREAM_ID_2, FAKE_GENESIS_FIELDS)
     })
+
+    test('mark previous submissions REPLACED', async () => {
+      const cid = randomCID()
+      const streamId = randomStreamID()
+      const req = mockRequest({
+        body: {
+          cid: cid.toString(),
+          streamId: streamId.toString(),
+        },
+      })
+      const requestRepository = container.resolve('requestRepository')
+      const markPreviousReplacedSpy = jest.spyOn(requestRepository, 'markPreviousReplaced')
+      await controller.createRequest(req, mockResponse())
+      expect(markPreviousReplacedSpy).toBeCalledTimes(1)
+    })
   })
 
   describe('existing request', () => {
@@ -300,6 +318,51 @@ describe('createRequest', () => {
       const jsonFn1 = jest.spyOn(res1, 'json')
       const presentation1 = jsonFn1.mock.lastCall[0]
       expect(presentation1).toEqual(presentation0)
+    })
+  })
+
+  describe('requests in sequential order', () => {
+    // When request from the same origin arrive sequentially, we present them all as PENDING,
+    // And mark stale requests REPLACED internally.
+
+    test('respond with pending presentation', async () => {
+      const oneHourAgo = DateTime.fromISO('2020-01-02T03:04Z')
+      const streamId = randomStreamID()
+      const requests = times(3).map((n) => {
+        return {
+          cid: randomCID(),
+          streamId: streamId,
+          timestamp: oneHourAgo.plus({ minute: n }),
+        }
+      })
+
+      // Requests are presented as PENDING
+      for (const request of requests) {
+        const req = mockRequest({
+          body: {
+            cid: request.cid.toString(),
+            streamId: request.streamId.toString(),
+            timestamp: request.timestamp.toISO(),
+          },
+        })
+        const res = mockResponse()
+        await controller.createRequest(req, res)
+        const jsonSpy = jest.spyOn(res, 'json')
+        expect(jsonSpy).toBeCalledTimes(1)
+        const presentation = jsonSpy.mock.lastCall[0]
+        expect(presentation.cid).toEqual(request.cid.toString())
+        expect(presentation.streamId).toEqual(request.streamId.toString())
+        expect(presentation.status).toEqual(RequestStatus[RequestStatus.PENDING])
+      }
+
+      // All requests but the last should be REPLACED in the database
+      const requestRepository = container.resolve('requestRepository')
+      for (const replaced of requests.slice(0, -1)) {
+        const found = await requestRepository.findByCid(replaced.cid)
+        expect(found.status).toEqual(RequestStatus.REPLACED)
+      }
+      const lastRequest = await requestRepository.findByCid(requests[requests.length - 1].cid)
+      expect(lastRequest.status).toEqual(RequestStatus.PENDING)
     })
   })
 })
