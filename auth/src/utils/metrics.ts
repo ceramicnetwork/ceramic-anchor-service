@@ -2,9 +2,9 @@ import { CloudWatchClient, PutMetricDataCommand } from "@aws-sdk/client-cloudwat
 
 export enum METRIC_NAMES {
 
-  register = 'register',
-  revoke = 'revoke',
-  verify = 'verify'
+  register = 'registration_total',
+  revoke = 'revocation_total',
+  otp_request = 'otp_request_total'
 
 }
 
@@ -13,7 +13,7 @@ export class CloudMetrics {
   protected namespace
   protected cwclient
   constructor() {
-    this.base_name = process.env.METRIC_BASE_NAME || 'cas_admin-api-testing'
+    this.base_name = process.env.METRIC_BASE_NAME || 'cas_auth_did-testing'
     this.namespace = process.env.METRIC_NAMESPACE || 'CeramicAnchorService'
     try {
       this.cwclient = new CloudWatchClient({})
