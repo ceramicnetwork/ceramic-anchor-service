@@ -306,7 +306,7 @@ export class RequestRepository {
           // Note they will be updated to READY in the database but the request status will still be PENDING
           recordAnchorRequestMetrics(requests, anchoringDeadline)
 
-          logger.debug(`Updated ${updatedCount} requests to READY for ${streamIds.length} streams`)
+          logger.imp(`Updated ${updatedCount} requests to READY for ${streamIds.length} streams`)
 
           return requests
         },
