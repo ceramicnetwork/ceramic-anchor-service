@@ -187,7 +187,6 @@ export class AnchorService {
    */
   async anchorReadyRequests(): Promise<void> {
     logger.imp('Anchoring ready requests...')
-    logger.debug(`Loading requests from the database`)
     // FIXME PREV
     // const requests: Request[] = await this.requestRepository.findAndMarkAsProcessing()
     const requests = await this.requestRepository.batchProcessing(
@@ -202,7 +201,7 @@ export class AnchorService {
 
   private async _anchorRequests(requests: Request[]): Promise<void> {
     if (requests.length === 0) {
-      logger.debug('No pending CID requests found. Skipping anchor.')
+      logger.imp('No pending CID requests found. Skipping anchor.')
       return
     }
 
@@ -220,7 +219,7 @@ export class AnchorService {
       return
     } catch (err) {
       logger.warn(
-        `Updating PROCESSING requests to PENDING so they are retried in the next batch because an error occured while creating the anchors: ${err}`
+        `Updating PROCESSING requests to PENDING so they are retried in the next batch because an error occurred while creating the anchors: ${err}`
       )
       const acceptedRequests = candidates.map((candidate) => candidate.request).flat()
       await this.requestRepository.updateRequests({ status: RS.PENDING }, acceptedRequests)
@@ -309,8 +308,8 @@ export class AnchorService {
         return
       }
 
-      logger.debug(
-        `Emitting an anchor event beacuse ${updatedExpiredReadyRequestsCount} READY requests expired`
+      logger.imp(
+        `Emitting an anchor event because ${updatedExpiredReadyRequestsCount} READY requests expired`
       )
       Metrics.count(METRIC_NAMES.RETRY_EMIT_ANCHOR_EVENT, updatedExpiredReadyRequestsCount)
     } else {
@@ -322,6 +321,8 @@ export class AnchorService {
       if (updatedRequests.length === 0) {
         return
       }
+
+      logger.imp(`Emitting an anchor event with ${updatedRequests.length} new READY requests`)
     }
 
     await this.eventProducerService.emitAnchorEvent(uuidv4().toString()).catch((err) => {
