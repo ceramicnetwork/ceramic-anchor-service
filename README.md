@@ -78,4 +78,3 @@ Apache-2.0 OR MIT
 ## Team
 
 Built with  <img src="./resources/heart.png" width="20"/>  from the [3Box Labs](https://3box.io) team.
-
