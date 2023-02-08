@@ -1,19 +1,23 @@
 import 'reflect-metadata'
 import { jest } from '@jest/globals'
 import type { Knex } from 'knex'
-import { createDbConnection, clearTables } from '../../db-connection.js'
+import { clearTables, createDbConnection } from '../../db-connection.js'
 import { config } from 'node-config-ts'
-import {
-  RequestRepository,
-  PROCESSING_TIMEOUT,
-  FAILURE_RETRY_WINDOW,
-  TABLE_NAME,
-  FAILURE_RETRY_INTERVAL,
-} from '../request-repository.js'
+import { PROCESSING_TIMEOUT, RequestRepository } from '../request-repository.js'
 import { AnchorRepository } from '../anchor-repository.js'
-import { Request, REQUEST_MESSAGES, RequestStatus } from '../../models/request.js'
-import { generateRequests, generateRequest, randomStreamID } from '../../__tests__/test-utils.js'
+import { Request, RequestStatus } from '../../models/request.js'
+import {
+  generateRequest,
+  generateRequests,
+  randomCID,
+  randomStreamID,
+  times,
+} from '../../__tests__/test-utils.js'
 import { createInjector } from 'typed-inject'
+import { DateTime } from 'luxon'
+import { MetadataRepository } from '../metadata-repository'
+import { StreamID } from '@ceramicnetwork/streamid'
+import { asDIDString } from '../../ancillary/did-string'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -39,15 +43,12 @@ function generateReadyRequests(count: number): Array<Request> {
   return generateRequests({ status: RequestStatus.READY }, count, MS_IN_HOUR)
 }
 
-async function getAllRequests(connection: Knex): Promise<Array<Request>> {
-  return connection.table(TABLE_NAME).orderBy('createdAt', 'asc')
-}
-
 describe('request repository test', () => {
   jest.setTimeout(10000)
   let connection: Knex
   let connection2: Knex
   let requestRepository: RequestRepository
+  let metadataRepository: MetadataRepository
 
   beforeAll(async () => {
     connection = await createDbConnection()
@@ -56,10 +57,12 @@ describe('request repository test', () => {
     const c = createInjector()
       .provideValue('config', config)
       .provideValue('dbConnection', connection)
-      .provideClass('requestRepository', RequestRepository)
+      .provideClass('metadataRepository', MetadataRepository)
+      .provideFactory('requestRepository', RequestRepository.make)
       .provideClass('anchorRepository', AnchorRepository)
 
     requestRepository = c.resolve('requestRepository')
+    metadataRepository = c.resolve('metadataRepository')
   })
 
   beforeEach(async () => {
@@ -82,32 +85,6 @@ describe('request repository test', () => {
       requestRepository.createOrUpdate(request),
     ])
     expect(result1).toEqual(result2)
-  })
-
-  test('countPendingRequests', async () => {
-    const requests = [
-      generateRequest({
-        status: RequestStatus.PENDING,
-      }),
-      generateRequest({
-        status: RequestStatus.PROCESSING,
-      }),
-      generateRequest({
-        status: RequestStatus.READY,
-      }),
-      generateRequest({
-        status: RequestStatus.FAILED,
-      }),
-      generateRequest({
-        status: RequestStatus.COMPLETED,
-      }),
-      generateRequest({
-        status: RequestStatus.PENDING,
-      }),
-    ]
-    await requestRepository.createRequests(requests)
-
-    await expect(requestRepository.countPendingRequests()).resolves.toEqual(2)
   })
 
   describe('findRequestsToGarbageCollect', () => {
@@ -164,31 +141,118 @@ describe('request repository test', () => {
     expect(loadedRequests[1].cid).toEqual(requests[1].cid)
   })
 
-  test('findByStatus: retrieves all requests of a specified status', async () => {
-    const requests = [
-      generateRequests(
-        {
-          status: RequestStatus.READY,
-        },
-        3
-      ),
-      generateRequests(
-        {
-          status: RequestStatus.PENDING,
-        },
-        3
-      ),
-    ].flat()
+  describe('findByStatus', () => {
+    test('retrieve all requests of a specified status', async () => {
+      const requests = [
+        generateRequests(
+          {
+            status: RequestStatus.READY,
+          },
+          3
+        ),
+        generateRequests(
+          {
+            status: RequestStatus.PENDING,
+          },
+          3
+        ),
+      ].flat()
 
-    await requestRepository.createRequests(requests)
+      await requestRepository.createRequests(requests)
 
-    const createdRequests = await getAllRequests(connection)
-    expect(requests.length).toEqual(createdRequests.length)
+      const createdRequests = await requestRepository.allRequests()
+      expect(requests.length).toEqual(createdRequests.length)
 
-    const expected = createdRequests.filter(({ status }) => status === RequestStatus.READY)
-    const received = await requestRepository.findByStatus(RequestStatus.READY)
+      const expected = createdRequests.filter(({ status }) => status === RequestStatus.READY)
+      const received = await requestRepository.findByStatus(RequestStatus.READY)
 
-    expect(received).toEqual(expected)
+      expect(received).toEqual(expected)
+    })
+  })
+
+  describe('allWithoutMetadata', () => {
+    test('returns streamIds with no metadata', async () => {
+      const TOTAL = 5
+      const WITH_METADATA = 3
+      // Create TOTAL number of pending requests
+      const requests = generateRequests({ status: RequestStatus.PENDING }, TOTAL)
+      await requestRepository.createRequests(requests)
+      const metadataRepository = new MetadataRepository(connection)
+      // WITH_METADATA number of them have metadata
+      await Promise.all(
+        times(WITH_METADATA).map((index) => {
+          return metadataRepository.save({
+            streamId: StreamID.fromString(requests[index].streamId),
+            metadata: {
+              controllers: [asDIDString(`did:key:r${index}`)],
+            },
+          })
+        })
+      )
+      const withoutMetadata = await requestRepository.allWithoutMetadata(TOTAL)
+      const streamIds = requests.map((r) => StreamID.fromString(r.streamId))
+      streamIds.slice(0, WITH_METADATA).forEach((streamId) => {
+        expect(withoutMetadata).not.toContainEqual(streamId)
+      })
+      streamIds.slice(WITH_METADATA).forEach((streamId) => {
+        expect(withoutMetadata).toContainEqual(streamId)
+      })
+    })
+  })
+
+  describe('hasMetadata', () => {
+    test('return streams of the list which has metadata', async () => {
+      const TOTAL = 5
+      const WITH_METADATA = 3
+      // Create TOTAL number of pending requests
+      const requests = generateRequests({ status: RequestStatus.PENDING }, TOTAL)
+      await requestRepository.createRequests(requests)
+      const metadataRepository = new MetadataRepository(connection)
+      // WITH_METADATA number of them have metadata
+      await Promise.all(
+        times(WITH_METADATA).map((index) => {
+          return metadataRepository.save({
+            streamId: StreamID.fromString(requests[index].streamId),
+            metadata: {
+              controllers: [asDIDString(`did:key:r${index}`)],
+            },
+          })
+        })
+      )
+
+      const streamIds = requests.map((r) => StreamID.fromString(r.streamId))
+      const withMetadata = await requestRepository.hasMetadata(streamIds)
+      streamIds.slice(0, WITH_METADATA).forEach((streamId) => {
+        expect(withMetadata).toContainEqual(streamId)
+      })
+      streamIds.slice(WITH_METADATA).forEach((streamId) => {
+        expect(withMetadata).not.toContainEqual(streamId)
+      })
+    })
+  })
+
+  describe('countByStatus', () => {
+    test('return number of requests of a specified status', async () => {
+      const requests = [
+        generateRequests(
+          {
+            status: RequestStatus.READY,
+          },
+          3
+        ),
+        generateRequests(
+          {
+            status: RequestStatus.PENDING,
+          },
+          3
+        ),
+      ].flat()
+
+      await requestRepository.createRequests(requests)
+      await expect(requestRepository.countByStatus(RequestStatus.READY)).resolves.toEqual(3)
+      await expect(requestRepository.countByStatus(RequestStatus.PENDING)).resolves.toEqual(3)
+      await expect(requestRepository.countByStatus(RequestStatus.COMPLETED)).resolves.toEqual(0)
+    })
   })
 
   describe('findAndMarkReady', () => {
@@ -211,15 +275,22 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(requests.length).toEqual(createdRequests.length)
+
+      const pendingRequests = createdRequests.filter((r) => r.status === RequestStatus.PENDING)
+      for (const request of pendingRequests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: [asDIDString(`did:random:${Math.random()}`)],
+          },
+        })
+      }
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
       expect(updatedRequests.length).toEqual(streamLimit)
 
-      const pendingRequests = createdRequests.filter(
-        ({ status }) => RequestStatus.PENDING === status
-      )
       expect(updatedRequests.map(({ cid }) => cid)).toEqual(pendingRequests.map(({ cid }) => cid))
     })
 
@@ -267,8 +338,16 @@ describe('request repository test', () => {
       ].flat()
 
       await requestRepository.createRequests(requests)
+      for (const request of requests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: [asDIDString(`did:random:${Math.random()}`)],
+          },
+        })
+      }
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(requests.length).toEqual(createdRequests.length)
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
@@ -285,8 +364,16 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(createdRequests.length).toEqual(requests.length)
+      for (const request of createdRequests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: [asDIDString(`did:random:${Math.random()}`)],
+          },
+        })
+      }
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
       expect(updatedRequests.length).toEqual(streamLimit)
@@ -327,8 +414,16 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(createdRequests.length).toEqual(requests.length)
+      for (const request of createdRequests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: [asDIDString(`did:random:${Math.random()}`)],
+          },
+        })
+      }
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
       expect(updatedRequests.length).toEqual(streamLimit)
@@ -380,8 +475,16 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequest = await getAllRequests(connection)
-      expect(createdRequest.length).toEqual(requests.length)
+      const createdRequests = await requestRepository.allRequests()
+      expect(createdRequests.length).toEqual(requests.length)
+      for (const request of createdRequests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: [asDIDString(`did:random:${Math.random()}`)],
+          },
+        })
+      }
 
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
       expect(updatedRequests.length).toEqual(streamLimit + 1)
@@ -403,16 +506,17 @@ describe('request repository test', () => {
           },
           1
         ),
-        // failed request
-        generateRequests(
-          {
-            status: RequestStatus.FAILED,
-            streamId: repeatedStreamId,
-            createdAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
-            updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_MINUTE * 30),
-          },
-          1
-        ),
+        // TODO: https://linear.app/3boxlabs/issue/CDB-2221/turn-cas-failure-retry-back-on
+        // // failed request
+        // generateRequests(
+        //   {
+        //     status: RequestStatus.FAILED,
+        //     streamId: repeatedStreamId,
+        //     createdAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+        //     updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_MINUTE * 30),
+        //   },
+        //   1
+        // ),
         // PROCESSING request updated 4 hours ago
         generateRequests(
           {
@@ -471,8 +575,16 @@ describe('request repository test', () => {
       const requests = shouldBeIncluded.concat(shouldNotBeIncluded)
       await requestRepository.createRequests(requests)
 
-      const createdRequest = await getAllRequests(connection)
-      expect(createdRequest.length).toEqual(requests.length)
+      const createdRequests = await requestRepository.allRequests()
+      expect(createdRequests.length).toEqual(requests.length)
+      for (const request of createdRequests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: [asDIDString(`did:random:${Math.random()}`)],
+          },
+        })
+      }
 
       const updatedRequests = await requestRepository.findAndMarkReady(1)
       expect(updatedRequests.length).toEqual(shouldBeIncluded.length)
@@ -492,123 +604,137 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const originaUpdateRequest = requestRepository.updateRequests
-      requestRepository.updateRequests = (fields, requests, manager) => {
+      for (const request of requests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: [asDIDString(`did:random:${Math.random()}`)],
+          },
+        })
+      }
+
+      const withConnectionSpy = jest.spyOn(requestRepository, 'withConnection')
+      withConnectionSpy.mockImplementationOnce(() => requestRepository)
+
+      const originalUpdateRequest = requestRepository.updateRequests
+      requestRepository.updateRequests = () => {
         throw new Error('test error')
       }
 
       try {
         await expect(requestRepository.findAndMarkReady(streamLimit)).rejects.toThrow(/test error/)
-        const requestsAfterUpdate = await getAllRequests(connection)
+        const requestsAfterUpdate = await requestRepository.allRequests()
         expect(requestsAfterUpdate.length).toEqual(requests.length)
         expect(requestsAfterUpdate.every(({ status }) => status === RequestStatus.PENDING)).toEqual(
           true
         )
       } finally {
-        requestRepository.updateRequests = originaUpdateRequest
+        requestRepository.updateRequests = originalUpdateRequest
       }
     })
 
-    test('Marks failed requests as ready', async () => {
-      const streamLimit = 5
-      const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
-      const requests = [
-        generateRequests(
-          {
-            status: RequestStatus.FAILED,
-            createdAt: new Date(dateDuringRetryPeriod.getTime() + MS_IN_MINUTE),
-            updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
-            message: 'random',
-          },
-          1
-        ),
-        generateRequests(
-          {
-            status: RequestStatus.FAILED,
-            createdAt: dateDuringRetryPeriod,
-            updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
-          },
-          streamLimit - 1
-        ),
-      ].flat()
+    // TODO: https://linear.app/3boxlabs/issue/CDB-2221/turn-cas-failure-retry-back-on
 
-      await requestRepository.createRequests(requests)
+    // test('Marks failed requests as ready', async () => {
+    //   const streamLimit = 5
+    //   const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+    //   const requests = [
+    //     generateRequests(
+    //       {
+    //         status: RequestStatus.FAILED,
+    //         createdAt: new Date(dateDuringRetryPeriod.getTime() + MS_IN_MINUTE),
+    //         updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+    //         message: 'random',
+    //       },
+    //       1
+    //     ),
+    //     generateRequests(
+    //       {
+    //         status: RequestStatus.FAILED,
+    //         createdAt: dateDuringRetryPeriod,
+    //         updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+    //       },
+    //       streamLimit - 1
+    //     ),
+    //   ].flat()
 
-      const createdRequests = await getAllRequests(connection)
-      expect(createdRequests.length).toEqual(requests.length)
+    //   await requestRepository.createRequests(requests)
 
-      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
-      expect(updatedRequests.length).toEqual(streamLimit)
+    //   const createdRequests = await getAllRequests(connection)
+    //   expect(createdRequests.length).toEqual(requests.length)
 
-      expect(updatedRequests.map(({ cid }) => cid)).toEqual(createdRequests.map(({ cid }) => cid))
-    })
+    //   const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+    //   expect(updatedRequests.length).toEqual(streamLimit)
 
-    test('Will not mark expired failed requests as ready', async () => {
-      const streamLimit = 5
-      const dateBeforeRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW - MS_IN_HOUR)
+    //   expect(updatedRequests.map(({ cid }) => cid)).toEqual(createdRequests.map(({ cid }) => cid))
+    // })
 
-      const requests = generateRequests(
-        {
-          status: RequestStatus.FAILED,
-          createdAt: dateBeforeRetryPeriod,
-          updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
-        },
-        streamLimit
-      )
+    // test('Will not mark expired failed requests as ready', async () => {
+    //   const streamLimit = 5
+    //   const dateBeforeRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW - MS_IN_HOUR)
 
-      await requestRepository.createRequests(requests)
+    //   const requests = generateRequests(
+    //     {
+    //       status: RequestStatus.FAILED,
+    //       createdAt: dateBeforeRetryPeriod,
+    //       updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+    //     },
+    //     streamLimit
+    //   )
 
-      const createdRequests = await getAllRequests(connection)
-      expect(requests.length).toEqual(createdRequests.length)
+    //   await requestRepository.createRequests(requests)
 
-      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
-      expect(updatedRequests.length).toEqual(0)
-    })
+    //   const createdRequests = await getAllRequests(connection)
+    //   expect(requests.length).toEqual(createdRequests.length)
 
-    test('Will not mark failed requests that were rejected because of conflict resolution as ready', async () => {
-      const streamLimit = 5
-      const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+    //   const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+    //   expect(updatedRequests.length).toEqual(0)
+    // })
 
-      const requests = generateRequests(
-        {
-          status: RequestStatus.FAILED,
-          createdAt: dateDuringRetryPeriod,
-          updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
-          message: REQUEST_MESSAGES.conflictResolutionRejection,
-        },
-        streamLimit
-      )
+    // test('Will not mark failed requests that were rejected because of conflict resolution as ready', async () => {
+    //   const streamLimit = 5
+    //   const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
 
-      await requestRepository.createRequests(requests)
+    //   const requests = generateRequests(
+    //     {
+    //       status: RequestStatus.FAILED,
+    //       createdAt: dateDuringRetryPeriod,
+    //       updatedAt: new Date(Date.now() - FAILURE_RETRY_INTERVAL - MS_IN_HOUR),
+    //       message: REQUEST_MESSAGES.conflictResolutionRejection,
+    //     },
+    //     streamLimit
+    //   )
 
-      const createdRequests = await getAllRequests(connection)
-      expect(requests.length).toEqual(createdRequests.length)
+    //   await requestRepository.createRequests(requests)
 
-      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
-      expect(updatedRequests.length).toEqual(0)
-    })
+    //   const createdRequests = await getAllRequests(connection)
+    //   expect(requests.length).toEqual(createdRequests.length)
 
-    test('Will not mark failed requests that were tried recently as ready', async () => {
-      const streamLimit = 5
-      const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
+    //   const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+    //   expect(updatedRequests.length).toEqual(0)
+    // })
 
-      const requests = generateRequests(
-        {
-          status: RequestStatus.FAILED,
-          createdAt: dateDuringRetryPeriod,
-          updatedAt: new Date(Date.now() - MS_IN_HOUR),
-        },
-        streamLimit
-      )
+    // test('Will not mark failed requests that were tried recently as ready', async () => {
+    //   const streamLimit = 5
+    //   const dateDuringRetryPeriod = new Date(Date.now() - FAILURE_RETRY_WINDOW + MS_IN_HOUR)
 
-      await requestRepository.createRequests(requests)
+    //   const requests = generateRequests(
+    //     {
+    //       status: RequestStatus.FAILED,
+    //       createdAt: dateDuringRetryPeriod,
+    //       updatedAt: new Date(Date.now() - MS_IN_HOUR),
+    //     },
+    //     streamLimit
+    //   )
 
-      const createdRequests = await getAllRequests(connection)
-      expect(requests.length).toEqual(createdRequests.length)
+    //   await requestRepository.createRequests(requests)
 
-      const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
-      expect(updatedRequests.length).toEqual(0)
-    })
+    //   const createdRequests = await getAllRequests(connection)
+    //   expect(requests.length).toEqual(createdRequests.length)
+
+    //   const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
+    //   expect(updatedRequests.length).toEqual(0)
+    // })
   })
 
   describe('updateExpiringReadyRequests', () => {
@@ -629,13 +755,13 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(requests.length).toEqual(createdRequests.length)
 
       const retriedReadyRequestsCount = await requestRepository.updateExpiringReadyRequests()
       expect(retriedReadyRequestsCount).toEqual(expiredReadyRequestsCount)
 
-      const allReadyRequests = await getAllRequests(connection)
+      const allReadyRequests = await requestRepository.allRequests()
       expect(allReadyRequests.every(({ updatedAt }) => updatedAt > updatedTooLongAgo)).toEqual(true)
     })
 
@@ -645,11 +771,120 @@ describe('request repository test', () => {
 
       await requestRepository.createRequests(requests)
 
-      const createdRequests = await getAllRequests(connection)
+      const createdRequests = await requestRepository.allRequests()
       expect(requests.length).toEqual(createdRequests.length)
 
       const retriedReadyRequestsCount = await requestRepository.updateExpiringReadyRequests()
       expect(retriedReadyRequestsCount).toEqual(0)
     })
+  })
+
+  describe('markPreviousReplaced', () => {
+    test('mark older PENDING entries REPLACED', async () => {
+      const oneHourAgo = DateTime.fromISO('1900-01-01T00:00Z')
+      const streamId = randomStreamID()
+
+      // Create three COMPLETED requests. These should not be changed
+      const completedRequests = await Promise.all(
+        times(3).map(async (n) => {
+          const request = new Request({
+            cid: randomCID().toString(),
+            streamId: streamId.toString(),
+            timestamp: oneHourAgo.minus({ minute: n }).toJSDate(),
+            status: RequestStatus.COMPLETED,
+            origin: 'same-origin',
+          })
+          return requestRepository.createOrUpdate(request)
+        })
+      )
+
+      // PENDING but with a different streamId
+      const unrelatedStreamRequest = await requestRepository.createOrUpdate(
+        new Request({
+          cid: randomCID().toString(),
+          streamId: randomStreamID().toString(),
+          timestamp: oneHourAgo.toJSDate(),
+          status: RequestStatus.PENDING,
+          origin: 'same-origin',
+        })
+      )
+
+      // Create three PENDING requests at `oneHourAgo` plus some minutes
+      const requestsP = times(3).map(async (n) => {
+        const request = new Request({
+          cid: randomCID().toString(),
+          streamId: streamId.toString(),
+          timestamp: oneHourAgo.plus({ minute: n }).toJSDate(),
+          status: RequestStatus.PENDING,
+          origin: 'same-origin',
+        })
+        return requestRepository.createOrUpdate(request)
+      })
+      const requests = await Promise.all(requestsP)
+      const last = requests[requests.length - 1]
+      // First two requests should be marked REPLACED
+      const rowsAffected = await requestRepository.markPreviousReplaced(last)
+      expect(rowsAffected).toEqual(2)
+      const expectedAffected = requests.slice(0, rowsAffected)
+      for (const r of expectedAffected) {
+        const retrieved = await requestRepository.findByCid(r.cid)
+        expect(retrieved.status).toEqual(RequestStatus.REPLACED)
+      }
+      // Last request should be marked PENDING still
+      const lastRetrieved = await requestRepository.findByCid(last.cid)
+      expect(lastRetrieved.status).toEqual(RequestStatus.PENDING)
+
+      // COMPLETED requests should not be affected
+      for (const r of completedRequests) {
+        const retrieved = await requestRepository.findByCid(r.cid)
+        expect(retrieved).toEqual(r)
+      }
+
+      // Our unrelated request should not be affected
+      const retrieved = await requestRepository.findByCid(unrelatedStreamRequest.cid)
+      expect(retrieved).toEqual(unrelatedStreamRequest)
+    })
+  })
+
+  describe('batchProcessing', () => {
+    const MIN_LIMIT = 2
+    const MAX_LIMIT = 3
+
+    function createRequests(n: number): Promise<Request[]> {
+      return Promise.all(
+        times(n).map(() => {
+          return requestRepository.createOrUpdate(
+            generateRequest({
+              status: RequestStatus.READY,
+            })
+          )
+        })
+      )
+    }
+
+    // TODO CDB-2231 Reconsider if it should be here or not
+    test.skip('respect min limit', async () => {
+      // Do not touch rows if we have less than MIN_LIMIT of them
+      await createRequests(MIN_LIMIT - 1)
+      const returned = await requestRepository.batchProcessing(MIN_LIMIT, MAX_LIMIT)
+      expect(returned).toEqual([])
+    })
+    test('respect max limit', async () => {
+      const requests = await createRequests(MAX_LIMIT * 2)
+      const returned = await requestRepository.batchProcessing(0, MAX_LIMIT)
+      expect(returned.length).toEqual(MAX_LIMIT)
+      const requestsIds = requests.map((r) => r.id)
+      expect(returned.every((r) => requestsIds.includes(r.id))).toBeTruthy()
+      expect(returned.every((r) => r.status === RequestStatus.PROCESSING)).toBeTruthy()
+    })
+    test('update READY to PROCESSING', async () => {
+      const requests = await createRequests(MAX_LIMIT)
+      const returned = await requestRepository.batchProcessing(0, MAX_LIMIT)
+      expect(returned.length).toEqual(MAX_LIMIT)
+      expect(returned.map((r) => r.id).sort()).toEqual(requests.map((r) => r.id).sort())
+      expect(returned.every((r) => r.status === RequestStatus.PROCESSING)).toBeTruthy()
+    })
+    // FIXME
+    test.todo('respect request age')
   })
 })

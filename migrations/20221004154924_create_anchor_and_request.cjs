@@ -140,7 +140,7 @@ const createAnchorTable = async (knex, tableName) => {
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
-export async function up(knex) {
+async function up(knex) {
   await knex.raw('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
 
   const requestTableExists = await knex.schema.hasTable(REQUEST_TABLE_NAME)
@@ -170,8 +170,10 @@ export async function up(knex) {
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
-export async function down() {
+async function down() {
   throw new Error(
     'Cannot rollback as request and anchor tables may have existed prior to migration'
   )
 }
+
+module.exports = { up, down }

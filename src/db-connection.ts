@@ -1,9 +1,17 @@
 import { config } from 'node-config-ts'
+import type { Db } from 'node-config-ts'
 import type { Knex } from 'knex'
 import knex from 'knex'
 import snakeCase from 'lodash.snakecase'
 import camelCase from 'lodash.camelcase'
 import { logger } from './logger/index.js'
+import pg from 'pg'
+import postgresDate from 'postgres-date'
+
+// Parse "timestamp without timezone" like it is in UTC.
+pg.types.setTypeParser(1114, (value: string) => {
+  return postgresDate(`${value}Z`)
+})
 
 const KNEX_TABLES = ['knex_migrations', 'knex_migrations_lock']
 
@@ -31,9 +39,9 @@ async function runMigrations(connection: Knex) {
   }
 }
 
-export async function createDbConnection() {
+export async function createDbConnection(dbConfig: Db = config.db): Promise<Knex> {
   const knexConfig: Knex.Config = {
-    ...config.db,
+    ...dbConfig,
     // In our DB, identifiers have snake case formatting while in our code identifiers have camel case formatting.
     // We use the following transformers so we can always use camel case formatting in our code.
 

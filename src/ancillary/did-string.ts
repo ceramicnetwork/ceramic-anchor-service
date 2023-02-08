@@ -8,6 +8,16 @@ const METHOD = '([a-z0-9]+)'
 const METHOD_ID = `((?:${ID_CHAR}*:)*(${ID_CHAR}+))`
 const DID_MATCHER = new RegExp(`^did:${METHOD}:${METHOD_ID}$`)
 
+/**
+ * Verify if `input` is DID string, i.e. conforms to `did:method:id` format.
+ */
 export function isDIDString(input: string): input is DIDString {
   return Boolean(input && input.match(DID_MATCHER))
+}
+
+/**
+ * Type cast `input` as `DIDString`.
+ */
+export function asDIDString(input: string): DIDString {
+  return input as DIDString
 }

@@ -288,7 +288,7 @@ export class EthereumBlockchainService implements BlockchainService {
     if (!this.config.useSmartContractAnchors) {
       const rootStrHex = rootCid.toString(base16)
       const hexEncoded = '0x' + (rootStrHex.length % 2 == 0 ? rootStrHex : '0' + rootStrHex)
-      logger.imp(`Hex encoded root CID ${hexEncoded}`)
+      logger.debug(`Hex encoded root CID ${hexEncoded}`)
 
       return {
         to: this.wallet.address,
@@ -445,7 +445,7 @@ export class EthereumBlockchainService implements BlockchainService {
       type: 'walletBalance',
       balance: ethers.utils.formatUnits(startingWalletBalance, 'gwei'),
     })
-    logger.imp(`Current wallet balance is ` + startingWalletBalance)
+    logger.debug(`Current wallet balance is ` + startingWalletBalance)
 
     const result = await operation(startingWalletBalance)
 

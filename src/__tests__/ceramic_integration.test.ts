@@ -3,7 +3,7 @@ import 'dotenv/config'
 import { jest } from '@jest/globals'
 import { CeramicDaemon, DaemonConfig } from '@ceramicnetwork/cli'
 import { Ceramic } from '@ceramicnetwork/core'
-import { AnchorStatus, IpfsApi, Stream, SyncOptions } from '@ceramicnetwork/common'
+import { AnchorStatus, fetchJson, IpfsApi, Stream } from '@ceramicnetwork/common'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 
 import { create } from 'ipfs-core'
@@ -21,7 +21,7 @@ import { config } from 'node-config-ts'
 import cloneDeep from 'lodash.clonedeep'
 import { TileDocument } from '@ceramicnetwork/stream-tile'
 import { filter } from 'rxjs/operators'
-import { firstValueFrom, timeout, throwError, interval, concatMap } from 'rxjs'
+import { firstValueFrom, timeout, throwError } from 'rxjs'
 import { DID } from 'dids'
 import { Ed25519Provider } from 'key-did-provider-ed25519'
 import * as sha256 from '@stablelib/sha256'
@@ -29,14 +29,13 @@ import * as uint8arrays from 'uint8arrays'
 import * as random from '@stablelib/random'
 import * as KeyDidResolver from 'key-did-resolver'
 import { Utils } from '../utils.js'
-import { RequestRepository } from '../repositories/request-repository.js'
-import { Request, RequestStatus } from '../models/request.js'
-import { CID } from 'multiformats/cid'
+import { RequestStatus } from '../models/request.js'
 import { AnchorService } from '../services/anchor-service.js'
 import { METRIC_NAMES } from '../settings.js'
 import { Server } from 'http'
 import type { Injector } from 'typed-inject'
 import { createInjector } from 'typed-inject'
+import { teeDbConnection } from './tee-db-connection.util.js'
 
 process.env.NODE_ENV = 'test'
 
@@ -147,7 +146,7 @@ interface MinimalCASConfig {
 }
 
 async function makeCAS(
-  container: Injector<{}>,
+  container: Injector,
   dbConnection: Knex,
   minConfig: MinimalCASConfig
 ): Promise<CeramicAnchorApp> {
@@ -199,45 +198,6 @@ async function waitForAnchor(stream: Stream, timeoutMS = 30 * 1000): Promise<voi
   )
 }
 
-async function waitForTip(stream: Stream, tip: CID, timeoutMS = 30 * 1000): Promise<void> {
-  await firstValueFrom(
-    stream.pipe(
-      filter((state) => {
-        return state.log[state.log.length - 1].cid.toString() === tip.toString()
-      }),
-      timeout({
-        each: timeoutMS,
-        with: () =>
-          throwError(
-            () =>
-              new Error(
-                `Timeout waiting for ceramic to receive cid ${tip.toString()} for stream ${stream.id.toString()}`
-              )
-          ),
-      })
-    )
-  )
-}
-
-async function waitForNoReadyRequests(
-  requestRepo: RequestRepository,
-  timeoutMS = 30 * 1000
-): Promise<void> {
-  await firstValueFrom(
-    interval(1000).pipe(
-      concatMap(() => requestRepo.findByStatus(RequestStatus.READY)),
-      filter((requests) => requests.length == 0),
-      timeout({
-        each: timeoutMS,
-        with: () =>
-          throwError(
-            () => new Error(`Timeout waiting for requests to move from READY to PROCESSING`)
-          ),
-      })
-    )
-  )
-}
-
 describe('Ceramic Integration Test', () => {
   jest.setTimeout(60 * 1000 * 10)
 
@@ -265,6 +225,7 @@ describe('Ceramic Integration Test', () => {
   let dbConnection1: Knex
   let dbConnection2: Knex
 
+  let casPort1: number
   let cas1: CeramicAnchorApp
   let anchorService1: AnchorService
   let cas2: CeramicAnchorApp
@@ -338,7 +299,7 @@ describe('Ceramic Integration Test', () => {
       const daemonPort1 = await getPort()
       const daemonPort2 = await getPort()
       dbConnection1 = await createDbConnection()
-      const casPort1 = await getPort()
+      casPort1 = await getPort()
 
       cas1 = await makeCAS(createInjector(), dbConnection1, {
         mode: 'server',
@@ -350,8 +311,7 @@ describe('Ceramic Integration Test', () => {
       })
       await cas1.start()
       anchorService1 = cas1.container.resolve('anchorService')
-
-      dbConnection2 = await createDbConnection()
+      dbConnection2 = await teeDbConnection(dbConnection1)
       const casPort2 = await getPort()
       cas2 = await makeCAS(createInjector(), dbConnection2, {
         mode: 'server',
@@ -479,112 +439,6 @@ describe('Ceramic Integration Test', () => {
         },
         60 * 1000 * 3
       )
-
-      test(
-        'Anchors on different CAS instances can run in parallel',
-        async () => {
-          const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
-          const doc2 = await TileDocument.create(ceramic2, { cheese: 1 }, null, { anchor: true })
-
-          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
-          expect(doc2.state.anchorStatus).toEqual(AnchorStatus.PENDING)
-
-          // Marks one of the requests as READY. This causes the first anchorUpdate to only anchor that one request.
-          const requestRepo1 = cas1.container.resolve('requestRepository')
-          await requestRepo1.findAndMarkReady(1)
-
-          await Promise.all([
-            anchorUpdate(doc1, cas1, anchorService1),
-            // we wait for the first request to be picked up before we anchor the next request
-            waitForNoReadyRequests(requestRepo1).then(() =>
-              anchorUpdate(doc2, cas2, anchorService2)
-            ),
-          ])
-
-          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-          expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-
-          console.log('Test complete: Anchors on different CAS instances can run in parallel')
-        },
-        60 * 1000 * 3
-      )
-    })
-
-    describe('Consensus for anchors', () => {
-      test(
-        'Anchors latest available tip from network',
-        async () => {
-          const initialContent = { foo: 0 }
-          const updatedContent = { foo: 1 }
-
-          const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
-          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
-
-          // Perform update on ceramic2
-          const doc2 = await TileDocument.load(ceramic2, doc1.id)
-          await doc2.update(updatedContent, null, { anchor: false })
-
-          // Make sure that the ceramic CAS has received the newest version
-          const casDocRef = await casCeramic1.loadStream(doc1.id)
-          await waitForTip(casDocRef, doc2.tip)
-
-          // Make sure that cas1 updates the newest version that was created on ceramic2, even though
-          // the request that ceramic1 made against cas1 was for an older version.
-          await anchorUpdate(doc1, cas1, anchorService1)
-          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-          expect(doc1.content).toEqual(updatedContent)
-
-          console.log('Test complete: Anchors latest available tip from network')
-        },
-        60 * 1000 * 2
-      )
-
-      test('Anchor discovered through pubsub', async () => {
-        jest.setTimeout(60 * 1000 * 2)
-        // In ceramic the stream waits for a successful anchor by polling the request endpoint of the CAS.
-        // We alter the CAS' returned request anchor status so that it is always pending.
-        // The ceramic node will then have to hear about the successful anchor through pubsub
-        const requestRepo = cas1.container.resolve('requestRepository')
-        const original = requestRepo.findByCid
-        requestRepo.findByCid = async (cid: CID): Promise<Request> => {
-          const result: Request = await original.apply(requestRepo, [cid])
-
-          if (result) {
-            return Object.assign(result, { status: AnchorStatus.PENDING })
-          }
-
-          return result
-        }
-
-        try {
-          const initialContent = { foo: 0 }
-          const updatedContent = { foo: 1 }
-
-          const doc1 = await TileDocument.create(ceramic1, initialContent, null, { anchor: true })
-          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
-
-          const doc2 = await TileDocument.load(ceramic2, doc1.id)
-          await doc2.update(updatedContent, null, { anchor: false })
-
-          // Make sure that the ceramic CAS has received the newest version
-          const casDocRef = await casCeramic1.loadStream(doc1.id)
-          await waitForTip(casDocRef, doc2.tip)
-
-          await anchorUpdate(doc1, cas1, anchorService1)
-
-          expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-          expect(doc1.content).toEqual(updatedContent)
-
-          await waitForAnchor(doc2)
-          await doc2.sync({ sync: SyncOptions.NEVER_SYNC })
-          expect(doc2.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
-          expect(doc2.content).toEqual(updatedContent)
-        } finally {
-          requestRepo.findByCid = original
-        }
-
-        console.log('Test complete: Anchor discovered through pubsub')
-      })
     })
 
     test('Metrics produced on anchors', async () => {
@@ -601,6 +455,67 @@ describe('Ceramic Integration Test', () => {
       expect(metricsCountSpy).toHaveBeenCalledWith(METRIC_NAMES.ANCHOR_SUCCESS, 1)
 
       console.log('Test complete: Metrics counts anchor attempts')
+    })
+
+    test.skip('Can retrieve completed request when the request CID was not the stream tip when anchored', async () => {
+      const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
+      const originalTip = doc1.tip
+      await doc1.update({ foo: 2 }, null, { anchor: true })
+      const nextTip = doc1.tip
+
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+
+      await anchorUpdate(doc1, cas1, anchorService1)
+
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+
+      const nextTipRequest = await fetchJson(
+        'http://localhost:' + casPort1 + '/api/v0/requests/' + nextTip.toString()
+      )
+      expect(RequestStatus[nextTipRequest.status]).toEqual(RequestStatus.COMPLETED)
+
+      const originalTipRequest = await fetchJson(
+        'http://localhost:' + casPort1 + '/api/v0/requests/' + originalTip.toString()
+      )
+      expect(RequestStatus[originalTipRequest.status]).toEqual(RequestStatus.COMPLETED)
+    })
+
+    test('Can retreive completed request that was marked COMPLETE because its stream was already anchored', async () => {
+      const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: false })
+      const tipWithNoRequest = doc1.tip
+      await doc1.update({ foo: 2 }, null, { anchor: true })
+      const tipWithRequest = doc1.tip
+
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.PENDING)
+      await anchorUpdate(doc1, cas1, anchorService1)
+      expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
+
+      const tipWithRequestInfo = await fetchJson(
+        'http://localhost:' + casPort1 + '/api/v0/requests/' + tipWithRequest.toString()
+      )
+      expect(RequestStatus[tipWithRequestInfo.status]).toEqual(RequestStatus.COMPLETED)
+
+      await fetchJson('http://localhost:' + casPort1 + '/api/v0/requests', {
+        method: 'POST',
+        body: {
+          streamId: doc1.id.toString(),
+          docId: doc1.id.toString(),
+          cid: tipWithNoRequest.toString(),
+        },
+      })
+
+      const tipWithNoRequestBeforeAnchorInfo = await fetchJson(
+        'http://localhost:' + casPort1 + '/api/v0/requests/' + tipWithNoRequest.toString()
+      )
+      expect(RequestStatus[tipWithNoRequestBeforeAnchorInfo.status]).toEqual(RequestStatus.PENDING)
+
+      await anchorService1.emitAnchorEventIfReady()
+      await cas1.anchor()
+
+      const tipWithNoRequestAfterAnchorInfo = await fetchJson(
+        'http://localhost:' + casPort1 + '/api/v0/requests/' + tipWithNoRequest.toString()
+      )
+      expect(RequestStatus[tipWithNoRequestAfterAnchorInfo.status]).toEqual(RequestStatus.COMPLETED)
     })
   })
 })

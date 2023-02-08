@@ -1,57 +1,69 @@
-interface MergeFunction<N, M> {
+export interface MergeFunction<TValue, TMetadata> {
   /**
-   * Merges two nodes
-   * @param n1 - object1
-   * @param n2 - object2
+   * Merges two nodes.
+   * @param n1 - Node 1 to merge.
+   * @param n2 - Node 2 to merge.
    * @param metadata - optional tree metadata, generally only given when building the root node.
    */
-  merge(n1: Node<N>, n2: Node<N>, metadata: M | null): Promise<Node<N>>
+  merge(
+    n1: Node<TValue>,
+    n2: Node<TValue> | null,
+    metadata: TMetadata | null
+  ): Promise<Node<TValue>>
 }
 
-interface CompareFunction<L> {
+export interface CompareFunction<TValue> {
   /**
-   * Compares two Merkle leaf nodes
-   * @param n1
-   * @param n2
+   * Compares two Merkle tree nodes.
+   * @param n1 - Node 1 to compare.
+   * @param n2 - Node 2 to compare.
    */
-  compare(n1: Node<L>, n2: Node<L>): number
+  compare(n1: Node<TValue>, n2: Node<TValue>): number
 }
 
-interface MetadataFunction<L, M> {
+export interface MetadataFunction<TValue, TMetadata> {
   /**
    * Generates the tree metadata from the leaf nodes
-   * @param leafNodes
    */
-  generateMetadata(leafNodes: Array<Node<L>>): M
+  generateMetadata(leafNodes: Array<Node<TValue>>): TMetadata
 }
 
 /**
  * Interface of one Merkle node
  */
-class Node<N> {
-  parent?: Node<N>
+export class Node<TValue> {
+  parent?: Node<TValue>
 
-  constructor(readonly data: N, readonly left: Node<N>, readonly right: Node<N>) {}
+  constructor(
+    readonly data: TValue,
+    readonly left: Node<TValue> | null = null,
+    readonly right: Node<TValue> | null = null
+  ) {}
 
-  toString = (): string => {
-    return '' + this.data
+  toString(): string {
+    return String(this.data)
   }
 }
 
 /**
  * Path direction from the Merkle root node
  */
-enum PathDirection {
-  L,
-  R,
+export enum PathDirection {
+  L = 0,
+  R = 1,
 }
 
-export { Node, MergeFunction, CompareFunction, MetadataFunction, PathDirection }
+/**
+ * Serialize array of `PathDirection` entries to string.
+ */
+export function pathString(path: Array<PathDirection>): string {
+  return path.join('/')
+}
 
 /**
  * Metadata containing a bloom filter based on the metadata of the streams in the tree
  */
-interface BloomMetadata {
+export interface BloomMetadata {
   type: string
   data: any
 }
