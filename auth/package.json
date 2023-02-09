@@ -43,6 +43,7 @@
     "express": "^4.18.2",
     "express-asyncify": "^1.0.1",
     "express-validation": "^4.1.0",
+    "genversion": "^3.1.1",
     "key-did-provider-ed25519": "^2.0.1",
     "key-did-resolver": "^2.0.6",
     "luxon": "^3.1.1",
