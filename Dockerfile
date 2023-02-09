@@ -1,4 +1,7 @@
-FROM node:16 as base
+FROM node:19-slim AS build
+
+RUN apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get -qq install python3 make g++
 
 ARG CODE_VERSION="00000"
 
@@ -16,11 +19,20 @@ RUN npm run postinstall
 
 RUN npm run build
 
+RUN npm prune --production
+
+FROM node:19-slim AS slim
+
 EXPOSE 8081
+
+WORKDIR /cas
+
+# copy from build image
+COPY --from=build /cas/node_modules ./node_modules
 
 CMD npm run start
 
-FROM base as runner
+FROM slim AS runner
 
 ENV CAS_PATH=/cas
 
@@ -35,10 +47,11 @@ ENV AWS_ECS_FAMILY=${AWS_ECS_FAMILY}
 ENV DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
 ENV CLOUDWATCH_LOG_BASE_URL=${CLOUDWATCH_LOG_BASE_URL}
 
+WORKDIR /
+
+ADD runner /runner
+
 WORKDIR /runner
-
-COPY runner/package*.json runner/*.js ./
-
 RUN npm install
 
 WORKDIR /
