@@ -93,7 +93,7 @@ export class MockIpfsService implements IIpfsService {
     throw new Error(`MockIpfsService:retrieveRecord:timeout`)
   }
 
-  storeRecord = jest.fn(async (record: Record<string, unknown>, pin?: boolean): Promise<CID> => {
+  storeRecord = jest.fn(async (record: Record<string, unknown>, options?: AbortOptions): Promise<CID> => {
     const cid = randomCID()
     this._streams[cid.toString()] = record
     return cid

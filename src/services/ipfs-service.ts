@@ -108,7 +108,7 @@ export class IpfsService implements IIpfsService {
    * Sets the record and returns its CID.
    */
   storeRecord(record: Record<string, unknown>, options: AbortOptions = {}): Promise<CID> {
-    return this.ipfs.dag.put(record, { signal: options.signal, timeout: IPFS_PUT_TIMEOUT }).then((cid) => this.ipfs.dag.pin.add(cid))
+    return this.ipfs.dag.put(record, { signal: options.signal, timeout: IPFS_PUT_TIMEOUT }).then((cid) => this.ipfs.pin.add(cid))
   }
 
 
