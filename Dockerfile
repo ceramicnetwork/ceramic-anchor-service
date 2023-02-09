@@ -34,6 +34,9 @@ CMD npm run start
 
 FROM slim AS runner
 
+RUN apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get -qq install curl
+
 ENV CAS_PATH=/cas
 
 # For running on AWS ECS
