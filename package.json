@@ -107,7 +107,7 @@
     "eslint": "^8.7.0",
     "eslint-config-3box": "^0.4.1",
     "eslint-plugin-jest": "^27.1.5",
-    "ganache-core": "^2.13.2",
+    "ganache": "^7.7.4",
     "genversion": "^3.1.1",
     "get-port": "^6.0.0",
     "husky": "^8.0.2",

@@ -66,6 +66,7 @@ async function attempt<T>(
  * @param walletBalance - Available funds.
  */
 function handleInsufficientFundsError(txData: TransactionRequest, walletBalance: BigNumber): void {
+  console.log('tx.0', txData)
   const txCost = (txData.gasLimit as BigNumber).mul(txData.maxFeePerGas)
   if (txCost.gt(walletBalance)) {
     logEvent.ethereum({
@@ -294,6 +295,7 @@ export class EthereumBlockchainService implements BlockchainService {
         to: this.wallet.address,
         data: hexEncoded,
         nonce: baseNonce,
+        from: this.wallet.address
       }
     }
 
@@ -303,6 +305,7 @@ export class EthereumBlockchainService implements BlockchainService {
       to: this.config.blockchain.connectors.ethereum.contractAddress,
       data: transactionRequest.data,
       nonce: baseNonce,
+      from: this.wallet.address
     }
   }
 
