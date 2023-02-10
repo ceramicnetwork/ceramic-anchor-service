@@ -140,6 +140,8 @@ describe('ETH service connected to ganache', () => {
       const startBlockNumber = block.number
 
       const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
+      const ethBc = EthereumBlockchainService.make(testConfig)
+      await ethBc.connect()
       const tx = await ethBc.sendTransaction(cid)
       expect(tx).toBeDefined()
       const txReceipt = await providerForGanache.getTransactionReceipt(tx.txHash)
