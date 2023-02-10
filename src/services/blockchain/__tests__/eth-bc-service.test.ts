@@ -1,18 +1,17 @@
 import 'reflect-metadata'
-import { jest, describe, beforeAll, beforeEach, expect, test, afterAll } from '@jest/globals'
+import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals'
 import { CID } from 'multiformats/cid'
 import { config, Config } from 'node-config-ts'
 import { logger } from '../../../logger/index.js'
-import { ethers } from 'ethers'
+import { BigNumber, ethers } from 'ethers'
 import { BlockchainService } from '../blockchain-service.js'
 import { EthereumBlockchainService, MAX_RETRIES } from '../ethereum/ethereum-blockchain-service.js'
-import { BigNumber } from 'ethers'
 import { ErrorCode } from '@ethersproject/logger'
 import { readFile } from 'node:fs/promises'
 import cloneDeep from 'lodash.clonedeep'
 import { createInjector } from 'typed-inject'
-import { makeGanache } from '../../../__tests__/make-ganache.util.js'
 import type { GanacheServer } from '../../../__tests__/make-ganache.util.js'
+import { makeGanache } from '../../../__tests__/make-ganache.util.js'
 
 const deployContract = async (
   provider: ethers.providers.JsonRpcProvider

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { jest } from '@jest/globals'
+import { jest, describe, beforeAll, beforeEach, test, afterAll, expect } from '@jest/globals'
 import type { Knex } from 'knex'
 import { clearTables, createDbConnection } from '../../db-connection.js'
 import { config } from 'node-config-ts'

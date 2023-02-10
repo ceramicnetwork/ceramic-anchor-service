@@ -295,7 +295,7 @@ export class EthereumBlockchainService implements BlockchainService {
         to: this.wallet.address,
         data: hexEncoded,
         nonce: baseNonce,
-        from: this.wallet.address
+        from: this.wallet.address,
       }
     }
 
@@ -305,7 +305,7 @@ export class EthereumBlockchainService implements BlockchainService {
       to: this.config.blockchain.connectors.ethereum.contractAddress,
       data: transactionRequest.data,
       nonce: baseNonce,
-      from: this.wallet.address
+      from: this.wallet.address,
     }
   }
 

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { jest } from '@jest/globals'
+import { jest, describe, beforeAll, beforeEach, test, expect, afterAll } from '@jest/globals'
 
 import { Request, RequestStatus } from '../../models/request.js'
 import { AnchorService } from '../anchor-service.js'
@@ -23,7 +23,7 @@ import type { Knex } from 'knex'
 import { CID } from 'multiformats/cid'
 import { Candidate } from '../../merkle/merkle-objects.js'
 import { Anchor } from '../../models/anchor.js'
-import { AnchorStatus, LogEntry, toCID } from '@ceramicnetwork/common'
+import { toCID } from '@ceramicnetwork/common'
 import { Utils } from '../../utils.js'
 import { PubsubMessage } from '@ceramicnetwork/core'
 import { validate as validateUUID } from 'uuid'
@@ -81,26 +81,6 @@ async function anchorCandidates(
 
   await anchorService._persistAnchorResult(anchors, candidates)
   return anchors
-}
-function createStream(
-  id: StreamID,
-  log: CID[] | LogEntry[],
-  anchorStatus: AnchorStatus = AnchorStatus.PENDING
-) {
-  return {
-    id,
-    metadata: { controllers: ['this is totally a did'] },
-    state: {
-      log: log.map((logEntry) => {
-        const cid = CID.asCID(logEntry)
-        if (cid) return { cid }
-        return logEntry
-      }),
-      anchorStatus,
-      metadata: { controllers: ['this is totally a did'] },
-    },
-    tip: log[log.length - 1],
-  }
 }
 
 const mockIpfsClient = new MockIpfsClient()
@@ -544,7 +524,7 @@ describe('anchor service', () => {
 
     const original = anchorService._createAnchorCommit
     try {
-      anchorService._createAnchorCommit = async (candidate) => {
+      anchorService._createAnchorCommit = async () => {
         return null
       }
       await anchorCandidates(candidates, anchorService, ipfsService)

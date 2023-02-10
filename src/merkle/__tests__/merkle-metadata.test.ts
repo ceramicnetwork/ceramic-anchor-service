@@ -1,4 +1,4 @@
-import { jest, describe, expect, beforeEach } from '@jest/globals'
+import { jest, describe, expect, beforeEach, test } from '@jest/globals'
 import { MockIpfsService, randomStreamID } from '../../__tests__/test-utils.js'
 import type { MerkleTree } from '../merkle-tree.js'
 import { type Node, TreeMetadata } from '../merkle.js'
