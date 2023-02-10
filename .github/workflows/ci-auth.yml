@@ -34,14 +34,12 @@ jobs:
           export REST_API_ID=
           export REST_API_ROOT_RESOURCE_ID=
           export CAS_PERMISSIONED_SECURITY_GROUP_IDS=
-          export AWS_SECRET_ACCESS_KEY=
-          export AWS_ACCESS_KEY_ID=
-          export AWS_REGION=
           env
           node -v
           pnpm -v
-          ps ax
-          pnpm install
+          serverless --version
+          npx jest --version
+          npx --version
            
           # Start Serverless Offline
           pnpm run start:testing &
