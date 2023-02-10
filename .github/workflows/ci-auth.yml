@@ -18,6 +18,14 @@ jobs:
       -
         name: Setup pnpm
         run: |
+          npm install -g pnpm
+          pnpm install
+        working-directory: ./auth
+      -
+        name: Run tests
+        run: |
           export TESTING=true
-          pnpm run start:testing
+          # Start Serverless Offline
+          pnpm run start:testing &
           pnpm run test -- integration
+        working-directory: ./auth
