@@ -25,7 +25,10 @@ jobs:
         name: Run tests
         run: |
           export TESTING=true
+          export REST_API_ID=
+          export REST_API_ROOT_RESOURCE_ID=
+          export CAS_PERMISSIONED_SECURITY_GROUP_IDS=
           # Start Serverless Offline
           pnpm run start:testing &
-          #pnpm run test -- integration
+          pnpm run test -- integration
         working-directory: ./auth
