@@ -1,0 +1,25 @@
+name: CAS Auth tests
+
+on:
+  push: # all push events
+  workflow_dispatch: # manually triggered
+
+env:
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout code
+        uses: actions/checkout@v3
+      -
+        name: Start DynamoDB container
+        run: docker run -p 8000:8000 amazon/dynamodb-local
+      -
+        name: Setup pnpm
+        run: |
+          export TESTING=true
+          pnpm run start:testing
+          pnpm run test -- integration
