@@ -66,7 +66,6 @@ async function attempt<T>(
  * @param walletBalance - Available funds.
  */
 function handleInsufficientFundsError(txData: TransactionRequest, walletBalance: BigNumber): void {
-  console.log('tx.0', txData)
   const txCost = (txData.gasLimit as BigNumber).mul(txData.maxFeePerGas)
   if (txCost.gt(walletBalance)) {
     logEvent.ethereum({

@@ -27,8 +27,6 @@ const deployContract = async (
   )
   const contractData = await readFile(artifactFilename, 'utf-8').then(JSON.parse)
 
-  console.log('wallet.0', wallet.address)
-
   const factory = new ethers.ContractFactory(contractData.abi, contractData.bytecode.object, wallet)
   const contract = await factory.deploy()
   await contract.deployed()
