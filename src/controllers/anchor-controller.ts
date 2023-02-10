@@ -3,7 +3,7 @@ import { Request as ExpReq, Response as ExpRes } from 'express'
 import { logger } from '../logger/index.js'
 
 import cors from 'cors'
-import { Controller, Get, ClassMiddleware, Post } from '@overnightjs/core'
+import { Controller, ClassMiddleware, Post } from '@overnightjs/core'
 
 import { AnchorService } from '../services/anchor-service.js'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
