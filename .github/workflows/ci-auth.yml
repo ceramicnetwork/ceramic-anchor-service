@@ -4,12 +4,6 @@ on:
   push: # all push events
   workflow_dispatch: # manually triggered
 
-env:
-  AWS_ACCOUNT_ID: non
-  AWS_ACCESS_KEY_ID: non
-  AWS_SECRET_ACCESS_KEY: non
-  AWS_REGION: non
-
 jobs:
   test:
     name: Run tests
@@ -34,13 +28,14 @@ jobs:
           export REST_API_ID=
           export REST_API_ROOT_RESOURCE_ID=
           export CAS_PERMISSIONED_SECURITY_GROUP_IDS=
-          node -v
-          pnpm -v
-          ./node_modules/.bin/serverless --version
-          npx jest --version
-          npx --version
-          apt list --installed
-           
+          #node -v
+          #pnpm -v
+          #./node_modules/.bin/serverless --version
+          #npx jest --version
+          #npx --version
+          #apt list --installed
+          sleep 5           
+
           # Start Serverless Offline
           pnpm run start:testing &
           sleep 20
