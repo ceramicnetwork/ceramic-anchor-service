@@ -106,9 +106,22 @@ export class IpfsService implements IIpfsService {
 
   /**
    * Sets the record and returns its CID.
+   *
+   * The record will also be pinned non-recusively.
    */
   storeRecord(record: Record<string, unknown>, options: AbortOptions = {}): Promise<CID> {
-    return this.ipfs.dag.put(record, { signal: options.signal, timeout: IPFS_PUT_TIMEOUT }).then((cid) => this.ipfs.pin.add(cid))
+    return this.ipfs.dag.put(
+        record,
+        { signal: options.signal, timeout: IPFS_PUT_TIMEOUT }
+    ).then(
+        // Note: While dag.put has a pin flag it always recurses and
+        // we do not want to recurse so we explicitly call pin.add.
+        (cid) => this.ipfs.pin.add(cid, {
+            signal: options.signal,
+            timeout: IPFS_PUT_TIMEOUT,
+            recursive: false
+        })
+    )
   }
 
 

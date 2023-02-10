@@ -66,7 +66,16 @@ export class MockIpfsClient {
       }),
     }
     this.pin = {
-      add: jest.fn((cid: CID) => cid),
+      add: jest.fn((cid: CID, abortOptions: AbortOptions | {recusive: boolean} = {}) => {
+            return new Promise<CID>((resolve, reject) => {
+              if (abortOptions.signal) {
+                const done = () => reject(new Error(`MockIpfsClient: Thrown on abort signal`))
+                if (abortOptions.signal?.aborted) return done()
+                abortOptions.signal?.addEventListener('abort', done)
+              }
+              resolve(cid)
+            })
+        })
     }
 
     this._streams = {}

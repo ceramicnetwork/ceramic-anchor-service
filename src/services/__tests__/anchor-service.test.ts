@@ -1112,6 +1112,6 @@ describe('anchor service', () => {
     const cid = await ipfsService.storeRecord({})
     expect(mockIpfsClient.dag.put).toHaveBeenCalledTimes(1)
     expect(mockIpfsClient.pin.add).toHaveBeenCalledTimes(1)
-    expect(mockIpfsClient.pin.add).toHaveBeenCalledWith(cid)
+    expect(mockIpfsClient.pin.add).toHaveBeenCalledWith(cid, {signal: undefined, timeout: 30000, recursive: false})
   })
 })
