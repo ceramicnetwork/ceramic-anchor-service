@@ -28,6 +28,12 @@ jobs:
           export REST_API_ID=
           export REST_API_ROOT_RESOURCE_ID=
           export CAS_PERMISSIONED_SECURITY_GROUP_IDS=
+          env
+          node -v
+          pnpm -v
+          ps ax
+          pnpm install
+           
           # Start Serverless Offline
           pnpm run start:testing &
           sleep 20
