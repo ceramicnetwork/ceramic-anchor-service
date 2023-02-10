@@ -4,6 +4,12 @@ on:
   push: # all push events
   workflow_dispatch: # manually triggered
 
+env:
+  AWS_ACCOUNT_ID: non
+  AWS_ACCESS_KEY_ID: non
+  AWS_SECRET_ACCESS_KEY: non
+  AWS_REGION: non
+
 jobs:
   test:
     name: Run tests
