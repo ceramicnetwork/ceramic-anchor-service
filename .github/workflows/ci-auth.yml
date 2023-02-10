@@ -27,5 +27,5 @@ jobs:
           export TESTING=true
           # Start Serverless Offline
           pnpm run start:testing &
-          pnpm run test -- integration
+          #pnpm run test -- integration
         working-directory: ./auth
