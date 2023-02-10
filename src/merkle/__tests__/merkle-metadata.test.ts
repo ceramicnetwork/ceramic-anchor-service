@@ -56,6 +56,7 @@ describe('Bloom filter', () => {
     expect(metadata.streamIds).toHaveLength(1)
     expect(metadata.streamIds).toEqual([candidates[0].streamId.toString()])
     expect(isTypeString(metadata.bloomFilter.type)).toEqual(true)
+    expect(ipfsService.storeRecord).toHaveBeenCalledWith(metadata)
 
     const bloomFilter = BloomFilter.fromString(metadata.bloomFilter.data)
     expect(bloomFilter.contains(`streamid-${candidates[0].streamId.toString()}`)).toBeTruthy()
