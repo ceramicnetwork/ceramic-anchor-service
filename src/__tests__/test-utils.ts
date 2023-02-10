@@ -12,6 +12,7 @@ import { randomBytes } from '@stablelib/random'
 import { Request, RequestStatus } from '../models/request.js'
 import type { AbortOptions } from '../services/abort-options.type.js'
 import { Utils } from '../utils.js'
+import { AddOptions as PinAddOptions } from 'ipfs-core-types/src/pin'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -66,12 +67,12 @@ export class MockIpfsClient {
       }),
     }
     this.pin = {
-      add: jest.fn((cid: CID, abortOptions: AbortOptions | {recusive: boolean} = {}) => {
+      add: jest.fn((cid: CID, options?: PinAddOptions & AbortOptions) => {
             return new Promise<CID>((resolve, reject) => {
-              if (abortOptions.signal) {
+              if (options.signal) {
                 const done = () => reject(new Error(`MockIpfsClient: Thrown on abort signal`))
-                if (abortOptions.signal?.aborted) return done()
-                abortOptions.signal?.addEventListener('abort', done)
+                if (options.signal?.aborted) return done()
+                options.signal?.addEventListener('abort', done)
               }
               resolve(cid)
             })
