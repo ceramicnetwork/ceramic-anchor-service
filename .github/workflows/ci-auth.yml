@@ -40,6 +40,7 @@ jobs:
           serverless --version
           npx jest --version
           npx --version
+          apt list --installed
            
           # Start Serverless Offline
           pnpm run start:testing &
