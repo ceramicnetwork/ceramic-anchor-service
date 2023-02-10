@@ -28,19 +28,17 @@ jobs:
           pnpm install
         working-directory: ./auth
       -
-        name: Run tests
+        name: Run unit tests
+        run: |
+          pnpm run test --testPathIgnorePatterns=integration
+      -
+        name: Run integration tests
         run: |
           export TESTING=true
           export REST_API_ID=
           export REST_API_ROOT_RESOURCE_ID=
           export CAS_PERMISSIONED_SECURITY_GROUP_IDS=
-          #node -v
-          #pnpm -v
-          #./node_modules/.bin/serverless --version
-          #npx jest --version
-          #npx --version
-          #apt list --installed
-          sleep 5           
+          sleep 5
 
           # Start Serverless Offline
           pnpm run start:testing &

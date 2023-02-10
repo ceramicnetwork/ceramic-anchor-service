@@ -79,7 +79,7 @@ jobs:
 
       - run:
           name: test
-          command: npm run test && codecov
+          command: npm run test --testPathIgnorePatterns=/auth/ && codecov
           no_output_timeout: 30m
 
       - run:
