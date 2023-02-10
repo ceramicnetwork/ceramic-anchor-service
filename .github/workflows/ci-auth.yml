@@ -30,5 +30,6 @@ jobs:
           export CAS_PERMISSIONED_SECURITY_GROUP_IDS=
           # Start Serverless Offline
           pnpm run start:testing &
+          sleep 20
           pnpm run test -- integration
         working-directory: ./auth
