@@ -4,8 +4,6 @@ on:
   push: # all push events
   workflow_dispatch: # manually triggered
 
-env:
-
 jobs:
   test:
     name: Run tests
