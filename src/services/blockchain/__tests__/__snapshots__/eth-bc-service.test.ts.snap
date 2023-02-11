@@ -7,13 +7,6 @@ Transaction {
 }
 `;
 
-exports[`ETH service connected to ganache v1 should anchor to contract 1`] = `
-Transaction {
-  "chain": "eip155:1337",
-  "txHash": "0xf7f830ef89d55af5900d48db106d5bcfbc045aec70b29cde019d2cd1e58a7827",
-}
-`;
-
 exports[`ETH service with mock wallet build transaction request 1`] = `
 {
   "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
