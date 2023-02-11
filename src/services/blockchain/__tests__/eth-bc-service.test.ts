@@ -148,14 +148,15 @@ describe('ETH service connected to ganache', () => {
       const contractEvents = txReceipt.logs.map((log) => contract.interface.parseLog(log))
 
       expect(contractEvents.length).toEqual(1)
-      expect(contractEvents[0].name).toEqual('DidAnchor')
+      const didAnchorEvent = contractEvents[0]
+      expect(didAnchorEvent.name).toEqual('DidAnchor')
+      expect(didAnchorEvent.args['_root']).toEqual(
+        '0x5d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a'
+      )
 
       // checking the values against the snapshot is too brittle since ganache is time based so we test manually
       expect(tx.blockTimestamp).toBeGreaterThan(startTimestamp)
       expect(tx.blockNumber).toBeGreaterThan(startBlockNumber)
-      expect(tx.txHash).toEqual(
-        '0x9e3204905dd71233301286d07302f360a951abc3152c4269cb529a0f65936298'
-      )
     })
   })
 })
