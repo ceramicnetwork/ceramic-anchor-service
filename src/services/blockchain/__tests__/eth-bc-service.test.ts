@@ -1,18 +1,17 @@
 import 'reflect-metadata'
-import { jest } from '@jest/globals'
+import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals'
 import { CID } from 'multiformats/cid'
-import Ganache from 'ganache-core'
 import { config, Config } from 'node-config-ts'
 import { logger } from '../../../logger/index.js'
-import { ethers } from 'ethers'
+import { BigNumber, ethers } from 'ethers'
 import { BlockchainService } from '../blockchain-service.js'
 import { EthereumBlockchainService, MAX_RETRIES } from '../ethereum/ethereum-blockchain-service.js'
-import { BigNumber } from 'ethers'
 import { ErrorCode } from '@ethersproject/logger'
-import fs from 'fs'
-import getPort from 'get-port'
+import { readFile } from 'node:fs/promises'
 import cloneDeep from 'lodash.clonedeep'
 import { createInjector } from 'typed-inject'
+import type { GanacheServer } from '../../../__tests__/make-ganache.util.js'
+import { makeGanache } from '../../../__tests__/make-ganache.util.js'
 
 const deployContract = async (
   provider: ethers.providers.JsonRpcProvider
@@ -22,16 +21,11 @@ const deployContract = async (
     provider
   )
 
-  const contractData = JSON.parse(
-    fs
-      .readFileSync(
-        new URL(
-          '../../../../contracts/out/CeramicAnchorServiceV2.sol/CeramicAnchorServiceV2.json',
-          import.meta.url
-        )
-      )
-      .toString()
+  const artifactFilename = new URL(
+    '../../../../contracts/out/CeramicAnchorServiceV2.sol/CeramicAnchorServiceV2.json',
+    import.meta.url
   )
+  const contractData = await readFile(artifactFilename, 'utf-8').then(JSON.parse)
 
   const factory = new ethers.ContractFactory(contractData.abi, contractData.bytecode.object, wallet)
   const contract = await factory.deploy()
@@ -42,32 +36,19 @@ const deployContract = async (
 
 describe('ETH service connected to ganache', () => {
   jest.setTimeout(25000)
-  const blockchainStartTime = new Date(1586784002000)
-  let ganacheServer: Ganache.Server
+  let ganacheServer: GanacheServer
   let ethBc: BlockchainService
   let testConfig: Config
   let providerForGanache: ethers.providers.JsonRpcProvider
   let contract: ethers.Contract
 
   beforeAll(async () => {
-    const port = await getPort()
-
-    ganacheServer = Ganache.server({
-      gasLimit: 7000000,
-      time: blockchainStartTime,
-      mnemonic: 'move sense much taxi wave hurry recall stairs thank brother nut woman',
-      default_balance_ether: 100,
-      debug: true,
-      blockTime: 2,
-      network_id: 1337,
-      port,
-    })
-    await ganacheServer.listen(port)
-    providerForGanache = new ethers.providers.JsonRpcProvider(`http://localhost:${port}`)
+    ganacheServer = await makeGanache()
+    providerForGanache = new ethers.providers.JsonRpcProvider(ganacheServer.url.href)
     contract = await deployContract(providerForGanache)
 
     testConfig = cloneDeep(config)
-    testConfig.blockchain.connectors.ethereum.rpc.port = port.toString()
+    testConfig.blockchain.connectors.ethereum.rpc.port = ganacheServer.port.toString()
     testConfig.blockchain.connectors.ethereum.contractAddress = contract.address
     testConfig.useSmartContractAnchors = false
 
@@ -80,7 +61,7 @@ describe('ETH service connected to ganache', () => {
 
   afterAll(async () => {
     logger.imp(`Closing local Ethereum blockchain instance...`)
-    ganacheServer.close()
+    await ganacheServer.close()
   })
 
   describe('v0', () => {
@@ -154,25 +135,28 @@ describe('ETH service connected to ganache', () => {
     })
 
     test('should anchor to contract', async () => {
-      const block = await providerForGanache.getBlock(await providerForGanache.getBlockNumber())
+      const block = await providerForGanache.getBlock('latest')
       const startTimestamp = block.timestamp
       const startBlockNumber = block.number
 
       const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
+      const ethBc = EthereumBlockchainService.make(testConfig)
+      await ethBc.connect()
       const tx = await ethBc.sendTransaction(cid)
       expect(tx).toBeDefined()
       const txReceipt = await providerForGanache.getTransactionReceipt(tx.txHash)
       const contractEvents = txReceipt.logs.map((log) => contract.interface.parseLog(log))
 
       expect(contractEvents.length).toEqual(1)
-      expect(contractEvents[0].name).toEqual('DidAnchor')
+      const didAnchorEvent = contractEvents[0]
+      expect(didAnchorEvent.name).toEqual('DidAnchor')
+      expect(didAnchorEvent.args['_root']).toEqual(
+        '0x5d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a'
+      )
 
       // checking the values against the snapshot is too brittle since ganache is time based so we test manually
       expect(tx.blockTimestamp).toBeGreaterThan(startTimestamp)
       expect(tx.blockNumber).toBeGreaterThan(startBlockNumber)
-      expect(tx.txHash).toEqual(
-        '0x09d184cd4f62672de91fd5eaa7e7b1bf62ca1c2936281dc37201534b013c8f48'
-      )
     })
   })
 })

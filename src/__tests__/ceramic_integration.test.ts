@@ -1,6 +1,15 @@
 import 'reflect-metadata'
 import 'dotenv/config'
-import { jest } from '@jest/globals'
+import {
+  jest,
+  beforeAll,
+  beforeEach,
+  describe,
+  afterEach,
+  afterAll,
+  expect,
+  test,
+} from '@jest/globals'
 import { CeramicDaemon, DaemonConfig } from '@ceramicnetwork/cli'
 import { Ceramic } from '@ceramicnetwork/core'
 import { AnchorStatus, fetchJson, IpfsApi, Stream } from '@ceramicnetwork/common'
@@ -11,7 +20,8 @@ import { HttpApi } from 'ipfs-http-server'
 import * as dagJose from 'dag-jose'
 
 import express from 'express'
-import Ganache from 'ganache-core'
+import { makeGanache } from './make-ganache.util.js'
+import type { GanacheServer } from './make-ganache.util.js'
 import tmp from 'tmp-promise'
 import getPort from 'get-port'
 import type { Knex } from 'knex'
@@ -24,8 +34,6 @@ import { filter } from 'rxjs/operators'
 import { firstValueFrom, timeout, throwError } from 'rxjs'
 import { DID } from 'dids'
 import { Ed25519Provider } from 'key-did-provider-ed25519'
-import * as sha256 from '@stablelib/sha256'
-import * as uint8arrays from 'uint8arrays'
 import * as random from '@stablelib/random'
 import * as KeyDidResolver from 'key-did-resolver'
 import { Utils } from '../utils.js'
@@ -40,7 +48,7 @@ import { teeDbConnection } from './tee-db-connection.util.js'
 process.env.NODE_ENV = 'test'
 
 const randomNumber = Math.floor(Math.random() * 10000)
-const TOPIC = '/ceramic/local/' + randomNumber
+const TOPIC = `/ceramic/local/${randomNumber}`
 
 /**
  * Create an IPFS instance
@@ -74,7 +82,7 @@ async function swarmConnect(a: IpfsApi, b: IpfsApi) {
 async function makeCeramicCore(
   ipfs: IpfsApi,
   anchorServiceUrl: string,
-  ethereumRpcUrl: string | undefined
+  ethereumRpcUrl: URL | undefined
 ): Promise<Ceramic> {
   const tmpFolder = await tmp.dir({ unsafeCleanup: true })
   const ceramic = await Ceramic.create(ipfs, {
@@ -82,7 +90,7 @@ async function makeCeramicCore(
     pubsubTopic: TOPIC,
     stateStoreDirectory: tmpFolder.path,
     anchorServiceUrl,
-    ethereumRpcUrl,
+    ethereumRpcUrl: ethereumRpcUrl.href,
   })
   ceramic.did = makeDID()
   await ceramic.did.authenticate()
@@ -90,27 +98,10 @@ async function makeCeramicCore(
 }
 
 function makeDID(): DID {
-  const seed = random.randomString(32)
-  const digest = sha256.hash(uint8arrays.fromString(seed))
-  const provider = new Ed25519Provider(digest)
+  const seed = random.randomBytes(32)
+  const provider = new Ed25519Provider(seed)
   const resolver = KeyDidResolver.getResolver()
   return new DID({ provider, resolver })
-}
-
-async function makeGanache(startTime: Date, port: number): Promise<Ganache.Server> {
-  const ganacheServer = Ganache.server({
-    gasLimit: 7000000,
-    time: startTime,
-    mnemonic: 'move sense much taxi wave hurry recall stairs thank brother nut woman',
-    default_balance_ether: 100,
-    debug: true,
-    blockTime: 2,
-    network_id: 1337,
-    networkId: 1337,
-  })
-
-  await ganacheServer.listen(port)
-  return ganacheServer
 }
 
 class FauxAnchorLauncher {
@@ -156,11 +147,11 @@ async function makeCAS(
   configCopy.anchorControllerEnabled = true
   configCopy.merkleDepthLimit = 0
   configCopy.minStreamCount = 1
-  configCopy.ipfsConfig.url = 'http://localhost:' + minConfig.ipfsPort
+  configCopy.ipfsConfig.url = `http://localhost:${minConfig.ipfsPort}`
   configCopy.ipfsConfig.pubsubTopic = TOPIC
-  configCopy.ceramic.apiUrl = 'http://localhost:' + minConfig.ceramicPort
+  configCopy.ceramic.apiUrl = `http://localhost:${minConfig.ceramicPort}`
   configCopy.blockchain.connectors.ethereum.network = 'ganache'
-  configCopy.blockchain.connectors.ethereum.rpc.port = minConfig.ganachePort + ''
+  configCopy.blockchain.connectors.ethereum.rpc.port = String(minConfig.ganachePort)
   configCopy.useSmartContractAnchors = minConfig.useSmartContractAnchors
   return new CeramicAnchorApp(
     container.provideValue('config', configCopy).provideValue('dbConnection', dbConnection)
@@ -231,9 +222,7 @@ describe('Ceramic Integration Test', () => {
   let cas2: CeramicAnchorApp
   let anchorService2: AnchorService
 
-  const blockchainStartTime = new Date(1586784002000)
-  let ganachePort
-  let ganacheServer: Ganache.Server
+  let ganacheServer: GanacheServer
   let anchorLauncher: FauxAnchorLauncher
 
   beforeAll(async () => {
@@ -265,8 +254,7 @@ describe('Ceramic Integration Test', () => {
     }
 
     // Start up Ganache
-    ganachePort = await getPort()
-    ganacheServer = await makeGanache(blockchainStartTime, ganachePort)
+    ganacheServer = await makeGanache()
 
     // Start faux anchor launcher
     anchorLauncher = makeAnchorLauncher(8001)
@@ -305,7 +293,7 @@ describe('Ceramic Integration Test', () => {
         mode: 'server',
         ipfsPort: ipfsApiPort1,
         ceramicPort: daemonPort1,
-        ganachePort,
+        ganachePort: ganacheServer.port,
         port: casPort1,
         useSmartContractAnchors,
       })
@@ -317,19 +305,17 @@ describe('Ceramic Integration Test', () => {
         mode: 'server',
         ipfsPort: ipfsApiPort2,
         ceramicPort: daemonPort2,
-        ganachePort,
+        ganachePort: ganacheServer.port,
         port: casPort2,
         useSmartContractAnchors,
       })
       await cas2.start()
       anchorService2 = cas2.container.resolve('anchorService')
 
-      const ganacheURL = 'http://localhost:' + ganachePort
-
       // Make the Ceramic nodes that will be used by the CAS.
       ;[casCeramic1, casCeramic2] = await Promise.all([
-        makeCeramicCore(ipfs3, 'http://localhost:' + casPort1, ganacheURL),
-        makeCeramicCore(ipfs4, 'http://localhost:' + casPort2, ganacheURL),
+        makeCeramicCore(ipfs3, `http://localhost:${casPort1}`, ganacheServer.url),
+        makeCeramicCore(ipfs4, `http://localhost:${casPort2}`, ganacheServer.url),
       ])
       daemon1 = new CeramicDaemon(
         casCeramic1,
@@ -343,8 +329,8 @@ describe('Ceramic Integration Test', () => {
       await daemon2.listen()
 
       // Finally make the Ceramic nodes that will be used in the tests.
-      ceramic1 = await makeCeramicCore(ipfs5, 'http://localhost:' + casPort1, ganacheURL)
-      ceramic2 = await makeCeramicCore(ipfs6, 'http://localhost:' + casPort2, ganacheURL)
+      ceramic1 = await makeCeramicCore(ipfs5, `http://localhost:${casPort1}`, ganacheServer.url)
+      ceramic2 = await makeCeramicCore(ipfs6, `http://localhost:${casPort2}`, ganacheServer.url)
 
       // The two user-facing ceramic nodes need to have the same DID Provider so that they can modify
       // each others streams.
@@ -470,12 +456,12 @@ describe('Ceramic Integration Test', () => {
       expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
 
       const nextTipRequest = await fetchJson(
-        'http://localhost:' + casPort1 + '/api/v0/requests/' + nextTip.toString()
+        `http://localhost:${casPort1}/api/v0/requests/${nextTip.toString()}`
       )
       expect(RequestStatus[nextTipRequest.status]).toEqual(RequestStatus.COMPLETED)
 
       const originalTipRequest = await fetchJson(
-        'http://localhost:' + casPort1 + '/api/v0/requests/' + originalTip.toString()
+        `http://localhost:${casPort1}/api/v0/requests/${originalTip.toString()}`
       )
       expect(RequestStatus[originalTipRequest.status]).toEqual(RequestStatus.COMPLETED)
     })
@@ -491,11 +477,11 @@ describe('Ceramic Integration Test', () => {
       expect(doc1.state.anchorStatus).toEqual(AnchorStatus.ANCHORED)
 
       const tipWithRequestInfo = await fetchJson(
-        'http://localhost:' + casPort1 + '/api/v0/requests/' + tipWithRequest.toString()
+        `http://localhost:${casPort1}/api/v0/requests/${tipWithRequest.toString()}`
       )
       expect(RequestStatus[tipWithRequestInfo.status]).toEqual(RequestStatus.COMPLETED)
 
-      await fetchJson('http://localhost:' + casPort1 + '/api/v0/requests', {
+      await fetchJson(`http://localhost:${casPort1}/api/v0/requests`, {
         method: 'POST',
         body: {
           streamId: doc1.id.toString(),
@@ -505,7 +491,7 @@ describe('Ceramic Integration Test', () => {
       })
 
       const tipWithNoRequestBeforeAnchorInfo = await fetchJson(
-        'http://localhost:' + casPort1 + '/api/v0/requests/' + tipWithNoRequest.toString()
+        `http://localhost:${casPort1}/api/v0/requests/${tipWithNoRequest.toString()}`
       )
       expect(RequestStatus[tipWithNoRequestBeforeAnchorInfo.status]).toEqual(RequestStatus.PENDING)
 
@@ -513,7 +499,7 @@ describe('Ceramic Integration Test', () => {
       await cas1.anchor()
 
       const tipWithNoRequestAfterAnchorInfo = await fetchJson(
-        'http://localhost:' + casPort1 + '/api/v0/requests/' + tipWithNoRequest.toString()
+        `http://localhost:${casPort1}/api/v0/requests/${tipWithNoRequest.toString()}`
       )
       expect(RequestStatus[tipWithNoRequestAfterAnchorInfo.status]).toEqual(RequestStatus.COMPLETED)
     })

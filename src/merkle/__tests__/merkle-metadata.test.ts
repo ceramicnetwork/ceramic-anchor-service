@@ -1,4 +1,4 @@
-import { jest, describe, expect, beforeEach } from '@jest/globals'
+import { jest, describe, expect, beforeEach, test } from '@jest/globals'
 import { MockIpfsService, randomStreamID } from '../../__tests__/test-utils.js'
 import type { MerkleTree } from '../merkle-tree.js'
 import { type Node, TreeMetadata } from '../merkle.js'
@@ -17,6 +17,7 @@ import { MerkleTreeFactory } from '../merkle-tree-factory.js'
 const TYPE_REGEX =
   /^jsnpm_@ceramicnetwork\/wasm-bloom-filter-v((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/
 const isTypeString = (str: string) => Boolean(str.match(TYPE_REGEX))
+
 
 describe('Bloom filter', () => {
   jest.setTimeout(10000)
