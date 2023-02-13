@@ -1,3 +1,4 @@
+import { describe, test, expect, beforeAll } from '@jest/globals'
 import * as crypto from 'crypto'
 import { MergeFunction, Node } from '../merkle.js'
 import type { MerkleTree } from '../merkle-tree.js'
@@ -64,26 +65,23 @@ describe('Merkle tree proofs tests', () => {
   })
 
   describe('for each leaf', () => {
-    test.each(leaves)(
-      `should return a proof that calculates the root from leaf %p`,
-       (leaf) => {
-        const i = leaves.indexOf(leaf)
-        const proof = hashTree.getProof(i)
-        const hashedProof = hashProof(leaf, proof).toString('hex')
-        if (hashedProof !== root) {
-          const lettersProof = lettersTree.getProof(i)
-          // tslint:disable-next-line:no-console
-          console.log(
-            'The resulting hash of your proof is wrong. \n' +
-              `We were expecting: ${root} \n` +
-              `We received: ${hashedProof} \n` +
-              `In ${leaves.join('')} Merkle tree, the proof of ${leaves[i]} you gave us is: \n` +
-              lettersProof.map((node) => node.data).join('->')
-          )
-        }
-
-        expect(hashedProof).toStrictEqual(root)
+    test.each(leaves)(`should return a proof that calculates the root from leaf %p`, (leaf) => {
+      const i = leaves.indexOf(leaf)
+      const proof = hashTree.getProof(i)
+      const hashedProof = hashProof(leaf, proof).toString('hex')
+      if (hashedProof !== root) {
+        const lettersProof = lettersTree.getProof(i)
+        // tslint:disable-next-line:no-console
+        console.log(
+          'The resulting hash of your proof is wrong. \n' +
+            `We were expecting: ${root} \n` +
+            `We received: ${hashedProof} \n` +
+            `In ${leaves.join('')} Merkle tree, the proof of ${leaves[i]} you gave us is: \n` +
+            lettersProof.map((node) => node.data).join('->')
+        )
       }
-    )
+
+      expect(hashedProof).toStrictEqual(root)
+    })
   })
 })
