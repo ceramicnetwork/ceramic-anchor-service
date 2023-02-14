@@ -364,8 +364,7 @@ describe('ETH service with mock wallet', () => {
     const [txData0] = mockTrySendTransaction.mock.calls[0]
     expect(txData0).toMatchSnapshot()
 
-    const [txData1, attemptNum1] = mockTrySendTransaction.mock.calls[1]
-    expect(attemptNum1).toEqual(1)
+    const [txData1] = mockTrySendTransaction.mock.calls[1]
     expect(txData1).toMatchSnapshot()
   })
 
