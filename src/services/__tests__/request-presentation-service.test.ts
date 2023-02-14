@@ -1,6 +1,5 @@
 import { describe, expect, jest, test } from '@jest/globals'
 import { RequestStatus } from '../../models/request.js'
-import type { Config } from 'node-config-ts'
 import { RequestPresentationService } from '../request-presentation-service.js'
 import type {
   AnchorWithRequest,
@@ -8,14 +7,11 @@ import type {
 } from '../../repositories/anchor-repository.type.js'
 import { generateRequest } from '../../__tests__/test-utils.js'
 
-const CONFIG = {
-  schedulerIntervalMS: 1000,
-} as unknown as Config
-
 const anchorRepository = {
   findByRequest: jest.fn(),
 } as unknown as IAnchorRepository
-const service = new RequestPresentationService(CONFIG, anchorRepository)
+
+const service = new RequestPresentationService(anchorRepository)
 
 const REQUEST_OVERRIDE = {
   id: '889483296',
