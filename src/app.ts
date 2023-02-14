@@ -35,6 +35,7 @@ import { MetadataService } from './services/metadata-service.js'
 import { MetadataRepository } from './repositories/metadata-repository.js'
 import { AppMode } from './app-mode.js'
 import { UnreachableCaseError } from '@ceramicnetwork/common'
+import { HealthcheckService, IHealthcheckService } from './services/healthcheck-service.js'
 
 type DependenciesContext = {
   config: Config
@@ -52,6 +53,7 @@ type ProvidedContext = {
   schedulerService: SchedulerService
   requestPresentationService: IRequestPresentationService
   metadataService: IMetadataService
+  healthcheckService: IHealthcheckService
 } & DependenciesContext
 
 /**
@@ -88,6 +90,7 @@ export class CeramicAnchorApp {
       .provideClass('metadataService', MetadataService)
       .provideClass('anchorService', AnchorService)
       .provideClass('schedulerService', SchedulerService)
+      .provideClass('healthcheckService', HealthcheckService)
       .provideClass('requestPresentationService', RequestPresentationService)
 
     try {
@@ -100,7 +103,7 @@ export class CeramicAnchorApp {
       )
       Metrics.count('HELLO', 1)
       logger.imp('Metrics exporter started')
-    } catch (e) {
+    } catch (e: any) {
       logger.err(e)
       // start anchor service even if metrics threw an error
     }
@@ -210,7 +213,9 @@ export class CeramicAnchorApp {
     const anchorService = this.container.resolve('anchorService')
     await anchorService.anchorRequests().catch((error) => {
       logger.err(`Error when anchoring: ${error}`)
-      Metrics.count(METRIC_NAMES.ERROR_WHEN_ANCHORING, 1, {'message': error.message.substring(0,50)})
+      Metrics.count(METRIC_NAMES.ERROR_WHEN_ANCHORING, 1, {
+        message: error.message.substring(0, 50),
+      })
       logger.err('Exiting')
       process.exit(1)
     })
