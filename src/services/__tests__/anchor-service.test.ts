@@ -13,7 +13,6 @@ import { config, Config } from 'node-config-ts'
 import { StreamID } from '@ceramicnetwork/streamid'
 import {
   generateRequests,
-  MockEventProducerService,
   MockIpfsClient,
   randomStreamID,
   repeat,
@@ -34,8 +33,13 @@ import { MetadataRepository } from '../../repositories/metadata-repository.js'
 import { randomString } from '@stablelib/random'
 import { IMetadataService, MetadataService } from '../metadata-service.js'
 import { asDIDString } from '../../ancillary/did-string.js'
+import type { EventProducerService } from '../event-producer/event-producer-service.js'
 
-process.env.NODE_ENV = 'test'
+process.env['NODE_ENV'] = 'test'
+
+export class MockEventProducerService implements EventProducerService {
+  readonly emitAnchorEvent = jest.fn(() => Promise.resolve())
+}
 
 class FakeEthereumBlockchainService implements BlockchainService {
   chainId = 'impossible'
@@ -70,8 +74,8 @@ async function createRequest(
 
 async function anchorCandidates(
   candidates: Candidate[],
-  anchorService,
-  ipfsService
+  anchorService: AnchorService,
+  ipfsService: IIpfsService
 ): Promise<Anchor[]> {
   const merkleTree = await anchorService._buildMerkleTree(candidates)
   const ipfsProofCid = await ipfsService.storeRecord({})
@@ -157,7 +161,7 @@ describe('anchor service', () => {
   beforeEach(async () => {
     await clearTables(connection)
     mockIpfsClient.reset()
-    eventProducerService.reset()
+    eventProducerService.emitAnchorEvent.mockClear()
     await requestRepository.table.delete()
   })
 
