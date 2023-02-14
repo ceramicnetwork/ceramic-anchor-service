@@ -26,7 +26,6 @@ export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
 export const FAILURE_RETRY_INTERVAL = 1000 * 60 * 60 * 6 // 6H
 // application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
-const POSTGRES_PARAMETERIZED_QUERY_LIMIT = 65000
 
 /**
  * Records statistics about the set of requests
@@ -448,9 +447,9 @@ export class RequestRepository {
    * @returns
    */
   findRequestsToAnchor(now: Date): Knex.QueryBuilder {
-    const earliestFailedCreatedAtToRetry = new Date(now.getTime() - FAILURE_RETRY_WINDOW)
+    // const earliestFailedCreatedAtToRetry = new Date(now.getTime() - FAILURE_RETRY_WINDOW)
     const processingDeadline = new Date(now.getTime() - PROCESSING_TIMEOUT)
-    const latestFailedUpdatedAtToRetry = new Date(now.getTime() - FAILURE_RETRY_INTERVAL)
+    // const latestFailedUpdatedAtToRetry = new Date(now.getTime() - FAILURE_RETRY_INTERVAL)
 
     return this.table.where((builder) => {
       builder
@@ -477,7 +476,6 @@ export class RequestRepository {
 
   /**
    * Finds a batch of streams to anchor based on whether a stream's associated requests need to be anchored.
-   * @param connection
    * @param maxStreamLimit max size of the batch
    * @param minStreamLimit
    * @param anchoringDeadline
@@ -522,7 +520,6 @@ export class RequestRepository {
 
   /**
    * Finds a batch of requests to anchor that are are associated with the given streams
-   * @param connection
    * @param streamIds streams to anchor
    * @param now
    * @returns

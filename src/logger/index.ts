@@ -38,13 +38,13 @@ export const logger = loggerProvider.getDiagnosticsLogger()
 
 export const expressLoggers = buildExpressMiddleware()
 function buildExpressMiddleware() {
-  morgan.token<ExpReq, ExpRes>('original-url', function (req, res): any {
+  morgan.token<ExpReq, ExpRes>('original-url', function (req): any {
     return req.originalUrl
   })
-  morgan.token<ExpReq, ExpRes>('base-url', function (req, res): any {
+  morgan.token<ExpReq, ExpRes>('base-url', function (req): any {
     return req.baseUrl
   })
-  morgan.token<ExpReq, ExpRes>('path', function (req, res): any {
+  morgan.token<ExpReq, ExpRes>('path', function (req): any {
     return req.path
   })
 

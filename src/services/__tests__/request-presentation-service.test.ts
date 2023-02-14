@@ -1,7 +1,7 @@
 import { describe, expect, jest, test } from '@jest/globals'
 import { RequestStatus } from '../../models/request.js'
 import type { Config } from 'node-config-ts'
-import { RequestPresentationService } from '../request-presentation-service'
+import { RequestPresentationService } from '../request-presentation-service.js'
 import type {
   AnchorWithRequest,
   IAnchorRepository,

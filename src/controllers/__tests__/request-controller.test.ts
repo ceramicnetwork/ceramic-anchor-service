@@ -15,7 +15,6 @@ import {
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { RequestStatus } from '../../models/request.js'
-import type { StreamID } from '@ceramicnetwork/streamid'
 import type { IMetadataService } from '../../services/metadata-service.js'
 import { DateTime } from 'luxon'
 import { mockRequest, mockResponse } from './mock-request.util.js'
@@ -30,7 +29,7 @@ type Tokens = {
 }
 
 class MockMetadataService implements IMetadataService {
-  async fill(streamId: StreamID): Promise<void> {
+  async fill(): Promise<void> {
     return
   }
 
@@ -38,7 +37,7 @@ class MockMetadataService implements IMetadataService {
     throw new Error(`Not implemented: MockMetadataService::fillAll`)
   }
 
-  retrieve(streamId: StreamID): Promise<StoredMetadata | undefined> {
+  retrieve(): Promise<StoredMetadata | undefined> {
     throw new Error(`Not implemented: MockMetadataService::retrieve`)
   }
 }

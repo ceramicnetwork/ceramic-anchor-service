@@ -32,7 +32,7 @@ function toCamelCase(value) {
 }
 
 async function runMigrations(connection: Knex) {
-  const [_, pendingMigrations] = await connection.migrate.list()
+  const [, pendingMigrations] = await connection.migrate.list()
   if (pendingMigrations.length > 0) {
     logger.imp(`Running ${pendingMigrations.length} migrations`)
     await connection.migrate.latest()

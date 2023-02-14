@@ -21,9 +21,4 @@ export class HTTPEventProducerService implements EventProducerService {
       body: payload,
     })
   }
-
-  /**
-   * Destroy underlying resources
-   */
-  destroy(): void {}
 }

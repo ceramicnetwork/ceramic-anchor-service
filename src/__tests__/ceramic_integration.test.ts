@@ -244,8 +244,8 @@ describe('Ceramic Integration Test', () => {
 
     // Now make sure all ipfs nodes are connected to all other ipfs nodes
     const ipfsNodes = [ipfs1, ipfs2, ipfs3, ipfs4, ipfs5, ipfs6]
-    for (const [i, _] of ipfsNodes.entries()) {
-      for (const [j, _] of ipfsNodes.entries()) {
+    for (const [i] of ipfsNodes.entries()) {
+      for (const [j] of ipfsNodes.entries()) {
         if (i == j) {
           continue
         }

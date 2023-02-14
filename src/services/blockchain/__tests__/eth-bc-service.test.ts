@@ -277,9 +277,7 @@ describe('ETH service with mock wallet', () => {
       gasPrice: gasPrice,
       gasLimit: gasEstimate,
     }
-    const attempt = 0
-
-    const txResponse = await ethBc._trySendTransaction(txRequest, attempt)
+    const txResponse = await ethBc._trySendTransaction(txRequest)
     expect(txResponse).toMatchSnapshot()
     const tx = await ethBc._confirmTransactionSuccess(txResponse)
     expect(tx).toMatchSnapshot()
