@@ -7,7 +7,7 @@ import * as te from '../ancillary/io-ts-extra.js'
 import type { IMetadataRepository } from '../repositories/metadata-repository.js'
 import { ThrowDecoder } from '../ancillary/throw-decoder.js'
 import type { AbortOptions } from './abort-options.type.js'
-import type { Assert, IsExact } from 'conditional-type-checks'
+import { IsExact, assert } from 'conditional-type-checks'
 import { logger } from '../logger/index.js'
 
 /**
@@ -39,9 +39,9 @@ export const IpfsGenesisHeader = t.exact(
 
 /**
  * Fails on compile time if there is any divergence between `GenesisFields` and `IpfsGenesisHeader` shapes.
+ * The function is a no-op.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type ExactGenesisFields = Assert<IsExact<GenesisFields, t.TypeOf<typeof IpfsGenesisHeader>>, true>
+assert<IsExact<GenesisFields, t.TypeOf<typeof IpfsGenesisHeader>>>(true)
 
 /**
  * Identifier of DAG-JOSE codec.
