@@ -13,11 +13,11 @@ import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { Request } from '../../models/request.js'
 import { AnchorStatus } from '@ceramicnetwork/common'
 import { MerkleTreeFactory } from '../merkle-tree-factory.js'
+import { expectPresent } from '../../__tests__/expect-present.util.js'
 
 const TYPE_REGEX =
   /^jsnpm_@ceramicnetwork\/wasm-bloom-filter-v((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/
 const isTypeString = (str: string) => Boolean(str.match(TYPE_REGEX))
-
 
 describe('Bloom filter', () => {
   jest.setTimeout(10000)
@@ -50,17 +50,18 @@ describe('Bloom filter', () => {
   }
 
   test('Single stream minimal metadata', async () => {
-    const candidates = [createCandidate({ controllers: ['a'] })]
-    const merkleTree = await buildMerkleTree(candidates)
+    const candidate = createCandidate({ controllers: ['a'] })
+    const merkleTree = await buildMerkleTree([candidate])
     const metadata = merkleTree.metadata
+    expectPresent(metadata)
     expect(metadata.numEntries).toEqual(1)
     expect(metadata.streamIds).toHaveLength(1)
-    expect(metadata.streamIds).toEqual([candidates[0].streamId.toString()])
+    expect(metadata.streamIds).toEqual([candidate.streamId.toString()])
     expect(isTypeString(metadata.bloomFilter.type)).toEqual(true)
     expect(ipfsService.storeRecord).toHaveBeenCalledWith(metadata)
 
     const bloomFilter = BloomFilter.fromString(metadata.bloomFilter.data)
-    expect(bloomFilter.contains(`streamid-${candidates[0].streamId.toString()}`)).toBeTruthy()
+    expect(bloomFilter.contains(`streamid-${candidate.streamId.toString()}`)).toBeTruthy()
     expect(bloomFilter.contains(`controller-a`)).toBeTruthy()
     expect(bloomFilter.contains(`controller-b`)).toBeFalsy()
   })
@@ -71,16 +72,17 @@ describe('Bloom filter', () => {
       controllers: ['a'],
       model: model.bytes,
     }
-    const candidates = [createCandidate(streamMetadata)]
-    const merkleTree = await buildMerkleTree(candidates)
+    const candidate = createCandidate(streamMetadata)
+    const merkleTree = await buildMerkleTree([candidate])
     const metadata = merkleTree.metadata
+    expectPresent(metadata)
     expect(metadata.numEntries).toEqual(1)
     expect(metadata.streamIds).toHaveLength(1)
-    expect(metadata.streamIds).toEqual([candidates[0].streamId.toString()])
+    expect(metadata.streamIds).toEqual([candidate.streamId.toString()])
     expect(isTypeString(metadata.bloomFilter.type)).toEqual(true)
 
     const bloomFilter = BloomFilter.fromString(metadata.bloomFilter.data)
-    expect(bloomFilter.contains(`streamid-${candidates[0].streamId.toString()}`)).toBeTruthy()
+    expect(bloomFilter.contains(`streamid-${candidate.streamId.toString()}`)).toBeTruthy()
     expect(bloomFilter.contains(`controller-a`)).toBeTruthy()
     expect(bloomFilter.contains(`controller-b`)).toBeFalsy()
     expect(bloomFilter.contains(`a`)).toBeFalsy()
@@ -102,13 +104,14 @@ describe('Bloom filter', () => {
       controllers: ['b'],
       model: randomStreamID().bytes,
     }
-    const candidates = [
+    const candidates: [Candidate, Candidate, Candidate] = [
       createCandidate(streamMetadata0),
       createCandidate(streamMetadata1),
       createCandidate(streamMetadata2),
     ]
     const merkleTree = await buildMerkleTree(candidates)
     const metadata = merkleTree.metadata
+    expectPresent(metadata)
     expect(metadata.numEntries).toEqual(3)
     expect(metadata.streamIds).toHaveLength(3)
     expect(metadata.streamIds).toEqual(
@@ -124,9 +127,9 @@ describe('Bloom filter', () => {
     expect(bloomFilter.contains(`controller-b`)).toBeTruthy()
     expect(bloomFilter.contains(`controller-c`)).toBeFalsy()
     expect(bloomFilter.contains(`a`)).toBeFalsy()
-    expect(bloomFilter.contains(`model-${candidates[0].model.toString()}`)).toBeTruthy()
-    expect(bloomFilter.contains(`model-${candidates[1].model.toString()}`)).toBeTruthy()
-    expect(bloomFilter.contains(`model-${candidates[2].model.toString()}`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${candidates[0].model}`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${candidates[1].model}`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${candidates[2].model}`)).toBeTruthy()
     expect(bloomFilter.contains(`model-model3`)).toBeFalsy()
   })
 })
