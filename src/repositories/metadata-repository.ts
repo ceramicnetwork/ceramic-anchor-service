@@ -57,8 +57,8 @@ export class MetadataRepository implements IMetadataRepository {
     const result = await this.table
       .select<{ count: number | string }>(this.connection.raw(`COUNT(*)`))
       .where({ streamId: te.streamIdAsString.encode(streamId) })
-      .limit(1)
-    return parseCountResult(result[0].count) > 0
+      .first()
+    return parseCountResult(result?.count) > 0
   }
 
   /**
@@ -77,8 +77,8 @@ export class MetadataRepository implements IMetadataRepository {
    * Count all metadata entries in the database.
    */
   async countAll(): Promise<number> {
-    const result = await this.table.count('streamId')
-    return parseCountResult(result[0].count)
+    const result = await this.table.count('streamId').first()
+    return parseCountResult(result?.count)
   }
 
   /**
