@@ -34,11 +34,12 @@ import { randomString } from '@stablelib/random'
 import { IMetadataService, MetadataService } from '../metadata-service.js'
 import { asDIDString } from '../../ancillary/did-string.js'
 import type { EventProducerService } from '../event-producer/event-producer-service.js'
+import { expectPresent } from '../../__tests__/expect-present.util.js'
 
 process.env['NODE_ENV'] = 'test'
 
 export class MockEventProducerService implements EventProducerService {
-  readonly emitAnchorEvent = jest.fn(() => Promise.resolve())
+  readonly emitAnchorEvent = jest.fn((_body: string) => Promise.resolve())
 }
 
 class FakeEthereumBlockchainService implements BlockchainService {
@@ -256,8 +257,10 @@ describe('anchor service', () => {
     expect(anchors.map((a) => a.requestId).sort()).toEqual(requests.map((r) => r.id).sort())
     for (const i in anchors) {
       const anchor = anchors[i]
+      expectPresent(anchor)
       expect(anchor.proofCid).toEqual(ipfsProofCid.toString())
       const request = requests.find((r) => r.id === anchor.requestId)
+      expectPresent(request)
       expect(anchor.requestId).toEqual(request.id)
 
       const anchorRecord = await ipfsService.retrieveRecord(anchor.cid)
@@ -268,9 +271,13 @@ describe('anchor service', () => {
       expect(mockIpfsClient.pubsub.publish.mock.calls[i][1]).toBeInstanceOf(Uint8Array)
     }
 
+    expectPresent(anchors[0])
     expect(anchors[0].path).toEqual('0/0')
+    expectPresent(anchors[1])
     expect(anchors[1].path).toEqual('0/1')
+    expectPresent(anchors[2])
     expect(anchors[2].path).toEqual('1/0')
+    expectPresent(anchors[3])
     expect(anchors[3].path).toEqual('1/1')
   })
 
@@ -356,6 +363,7 @@ describe('anchor service', () => {
     // order from how the first request per stream was.
     for (let i = numStreams - 1; i >= 0; i--) {
       const prevRequest = requests[i]
+      expectPresent(prevRequest)
       const streamId = prevRequest.streamId
 
       const request = await createRequest(
@@ -470,7 +478,8 @@ describe('anchor service', () => {
     expect(candidates.length).toEqual(numRequests)
 
     const originalMockDagPut = mockIpfsClient.dag.put.getMockImplementation()
-    mockIpfsClient.dag.put.mockImplementation(async (ipfsAnchorCommit) => {
+    mockIpfsClient.dag.put.mockImplementation(async (ipfsAnchorCommit: any) => {
+      expectPresent(requests[1])
       if (ipfsAnchorCommit.prev && ipfsAnchorCommit.prev.toString() == requests[1].cid.toString()) {
         throw new Error('storing record failed')
       }
@@ -479,11 +488,12 @@ describe('anchor service', () => {
     })
 
     const originalMockPubsubPublish = mockIpfsClient.pubsub.publish.getMockImplementation()
-    mockIpfsClient.pubsub.publish.mockImplementation(async (topic, message) => {
+    mockIpfsClient.pubsub.publish.mockImplementation(async (topic: string, message: Uint8Array) => {
       const deserializedMessage = PubsubMessage.deserialize({
         data: message,
       }) as PubsubMessage.UpdateMessage
 
+      expectPresent(requests[3])
       if (deserializedMessage.stream.toString() == requests[3].streamId.toString()) {
         throw new Error('publishing update failed')
       }
@@ -493,10 +503,15 @@ describe('anchor service', () => {
 
     const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
     expect(anchors.length).toEqual(2)
-    expect(anchors.find((anchor) => anchor.requestId == requests[0].id)).toBeTruthy()
-    expect(anchors.find((anchor) => anchor.requestId == requests[1].id)).toBeFalsy()
-    expect(anchors.find((anchor) => anchor.requestId == requests[2].id)).toBeTruthy()
-    expect(anchors.find((anchor) => anchor.requestId == requests[3].id)).toBeFalsy()
+    const isFound = (r: Request) => anchors.find((anchor) => anchor.requestId === r.id)
+    expectPresent(requests[0])
+    expect(isFound(requests[0])).toBeTruthy()
+    expectPresent(requests[1])
+    expect(isFound(requests[1])).toBeFalsy()
+    expectPresent(requests[2])
+    expect(isFound(requests[2])).toBeTruthy()
+    expectPresent(requests[3])
+    expect(isFound(requests[3])).toBeFalsy()
   })
 
   test('will not throw if no anchor commits were created', async () => {
@@ -607,9 +622,11 @@ describe('anchor service', () => {
 
     test('Successful anchor pins request', async () => {
       const [request0] = await anchorRequests(1)
+      expectPresent(request0)
 
       // Request should be marked as completed and pinned
       const updatedRequest0 = await requestRepository.findByCid(toCID(request0.cid))
+      expectPresent(updatedRequest0)
       expect(updatedRequest0.status).toEqual(RequestStatus.COMPLETED)
       expect(updatedRequest0.cid).toEqual(request0.cid)
       expect(updatedRequest0.message).toEqual('CID successfully anchored.')
@@ -680,6 +697,7 @@ describe('anchor service', () => {
       expect(updatedRequests.every(({ updatedAt }) => updatedAt > updatedTooLongAgo)).toEqual(true)
 
       expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(1)
+      expectPresent(eventProducerService.emitAnchorEvent.mock.calls[0])
       expect(validateUUID(eventProducerService.emitAnchorEvent.mock.calls[0][0])).toEqual(true)
       requestRepositoryUpdateSpy.mockRestore()
     })
@@ -718,6 +736,7 @@ describe('anchor service', () => {
       await anchorService.emitAnchorEventIfReady()
 
       expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(1)
+      expectPresent(eventProducerService.emitAnchorEvent.mock.calls[0])
       expect(validateUUID(eventProducerService.emitAnchorEvent.mock.calls[0][0])).toEqual(true)
 
       const updatedRequests = await requestRepository.findByStatus(RequestStatus.READY)
@@ -734,9 +753,18 @@ describe('anchor service', () => {
         STREAM_LIMIT
       )
 
-      eventProducerService.emitAnchorEvent = jest.fn(() => {
-        return Promise.reject('test error')
-      })
+      for (const request of originalRequests) {
+        await metadataRepository.save({
+          streamId: StreamID.fromString(request.streamId),
+          metadata: {
+            controllers: ['did:foo'],
+          },
+        })
+      }
+
+      jest
+        .spyOn(eventProducerService, 'emitAnchorEvent')
+        .mockRejectedValueOnce(new Error(`test error`))
 
       await requestRepository.createRequests(originalRequests)
       await anchorService.emitAnchorEventIfReady()
