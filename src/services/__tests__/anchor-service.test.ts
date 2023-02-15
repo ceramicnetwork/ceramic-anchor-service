@@ -39,7 +39,9 @@ import { expectPresent } from '../../__tests__/expect-present.util.js'
 process.env['NODE_ENV'] = 'test'
 
 export class MockEventProducerService implements EventProducerService {
-  readonly emitAnchorEvent = jest.fn((_body: string) => Promise.resolve())
+  emitAnchorEvent(_body: string): Promise<void> {
+    return Promise.resolve(undefined)
+  }
 }
 
 class FakeEthereumBlockchainService implements BlockchainService {
@@ -162,7 +164,7 @@ describe('anchor service', () => {
   beforeEach(async () => {
     await clearTables(connection)
     mockIpfsClient.reset()
-    eventProducerService.emitAnchorEvent.mockClear()
+    jest.restoreAllMocks()
     await requestRepository.table.delete()
   })
 
@@ -658,11 +660,12 @@ describe('anchor service', () => {
       const requestRepositoryUpdateSpy = jest.spyOn(requestRepository, 'updateRequests')
 
       try {
+        const emitSpy = jest.spyOn(eventProducerService, 'emitAnchorEvent')
         await requestRepository.createRequests(originalRequests)
         await anchorService.emitAnchorEventIfReady()
 
         expect(requestRepositoryUpdateSpy).toHaveBeenCalledTimes(0)
-        expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(0)
+        expect(emitSpy).not.toBeCalled()
       } finally {
         requestRepositoryUpdateSpy.mockRestore()
       }
@@ -688,6 +691,7 @@ describe('anchor service', () => {
 
       await requestRepository.createRequests(originalRequests)
 
+      const emitSpy = jest.spyOn(eventProducerService, 'emitAnchorEvent')
       await anchorService.emitAnchorEventIfReady()
 
       expect(requestRepositoryUpdateSpy).toHaveBeenCalledTimes(1)
@@ -696,9 +700,9 @@ describe('anchor service', () => {
 
       expect(updatedRequests.every(({ updatedAt }) => updatedAt > updatedTooLongAgo)).toEqual(true)
 
-      expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(1)
-      expectPresent(eventProducerService.emitAnchorEvent.mock.calls[0])
-      expect(validateUUID(eventProducerService.emitAnchorEvent.mock.calls[0][0])).toEqual(true)
+      expect(emitSpy).toBeCalledTimes(1)
+      expectPresent(emitSpy.mock.calls[0])
+      expect(validateUUID(emitSpy.mock.calls[0][0])).toEqual(true)
       requestRepositoryUpdateSpy.mockRestore()
     })
 
@@ -710,10 +714,10 @@ describe('anchor service', () => {
         },
         MIN_STREAM_COUNT - 1
       )
-
       await requestRepository.createRequests(originalRequests)
+      const emitSpy = jest.spyOn(eventProducerService, 'emitAnchorEvent')
       await anchorService.emitAnchorEventIfReady()
-      expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(0)
+      expect(emitSpy).not.toBeCalled()
     })
 
     test('emits if requests were updated to ready', async () => {
@@ -733,11 +737,12 @@ describe('anchor service', () => {
           },
         })
       }
+      const emitSpy = jest.spyOn(eventProducerService, 'emitAnchorEvent')
       await anchorService.emitAnchorEventIfReady()
 
-      expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(1)
-      expectPresent(eventProducerService.emitAnchorEvent.mock.calls[0])
-      expect(validateUUID(eventProducerService.emitAnchorEvent.mock.calls[0][0])).toEqual(true)
+      expect(emitSpy.mock.calls.length).toEqual(1)
+      expectPresent(emitSpy.mock.calls[0])
+      expect(validateUUID(emitSpy.mock.calls[0][0])).toEqual(true)
 
       const updatedRequests = await requestRepository.findByStatus(RequestStatus.READY)
       expect(updatedRequests.map(({ cid }) => cid).sort()).toEqual(
@@ -771,6 +776,7 @@ describe('anchor service', () => {
     })
 
     test('Does not retry requests that are being updated simultaneously', async () => {
+      const emitSpy = jest.spyOn(eventProducerService, 'emitAnchorEvent')
       const config = injector.resolve('config')
       const updatedTooLongAgo = new Date(Date.now() - config.readyRetryIntervalMS - 1000)
 
@@ -806,7 +812,7 @@ describe('anchor service', () => {
 
       const updatedRequestsCount = await requestRepository.countByStatus(RequestStatus.READY)
       expect(updatedRequestsCount).toEqual(0)
-      expect(eventProducerService.emitAnchorEvent.mock.calls.length).toEqual(0)
+      expect(emitSpy).not.toBeCalled()
     })
   })
 
