@@ -48,6 +48,22 @@ export const streamIdAsString = new t.Type<StreamID, string, string>(
 )
 
 /**
+ * io-ts codec for StreamID encoded as Uint8Array.
+ */
+export const streamIdAsBytes = new t.Type<StreamID, Uint8Array, Uint8Array>(
+  'StreamID-as-string',
+  (input: unknown): input is StreamID => StreamID.isInstance(input),
+  (input: Uint8Array, context: t.Context) => {
+    try {
+      return t.success(StreamID.fromBytes(input))
+    } catch {
+      return t.failure(input, context)
+    }
+  },
+  (streamId) => streamId.bytes
+)
+
+/**
  * io-ts codec for CommitID encoded as string.
  */
 export const commitIdAsString = new t.Type<CommitID, string, string>(

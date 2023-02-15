@@ -21,6 +21,24 @@ describe('streamIdAsString', () => {
   })
 })
 
+describe('streamIdAsBytes', () => {
+  const streamId = randomStreamID()
+  test('decode: ok', () => {
+    const result = te.streamIdAsBytes.decode(streamId.bytes)
+    expect(isRight(result)).toEqual(true)
+    expect((result as Right<StreamID>).right).toEqual(streamId)
+  })
+  test('decode: not ok', () => {
+    const garbage = new Uint8Array([1, 2, 3])
+    const result = te.streamIdAsBytes.decode(garbage)
+    expect(isRight(result)).toEqual(false)
+  })
+  test('encode', () => {
+    const result = te.streamIdAsBytes.encode(streamId)
+    expect(result).toEqual(streamId.bytes)
+  })
+})
+
 describe('didString', () => {
   test('ok', () => {
     expect(isRight(te.didString.decode('did:method:foo'))).toBeTruthy()

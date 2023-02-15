@@ -2,7 +2,21 @@ import type { CIDHolder } from './cid-holder.type.js'
 import type { Request } from '../models/request.js'
 import type { GenesisFields } from '../models/metadata.js'
 import { CID } from 'multiformats/cid'
-import { StreamID } from '@ceramicnetwork/streamid'
+import { CommitID, StreamID } from '@ceramicnetwork/streamid'
+
+export interface ICandidateMetadata {
+  controllers: Array<string>
+  schema?: CommitID
+  family?: string
+  tags?: Array<string>
+  model?: StreamID
+}
+
+export interface ICandidate extends CIDHolder {
+  readonly cid: CID
+  readonly streamId: StreamID
+  readonly metadata: ICandidateMetadata
+}
 
 /**
  * Contains all the information about a single stream being anchored. Note that multiple Requests
@@ -10,7 +24,7 @@ import { StreamID } from '@ceramicnetwork/streamid'
  * same Stream within an anchor period), so Candidate serves to group all related Requests and keep
  * track of which CID should actually be anchored for this stream.
  */
-export class Candidate implements CIDHolder {
+export class Candidate implements ICandidate {
   readonly cid: CID
   readonly model: StreamID | undefined
 
@@ -25,7 +39,7 @@ export class Candidate implements CIDHolder {
     if (!request.cid) throw new Error(`No CID present for request`)
     this.cid = CID.parse(request.cid)
     this.metadata = metadata
-    this.model = this.metadata.model ? StreamID.fromBytes(this.metadata.model) : undefined
+    this.model = this.metadata.model
   }
 
   /**

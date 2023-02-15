@@ -13,7 +13,7 @@ export const GenesisFields = t.intersection(
       schema: t.string.pipe(te.commitIdAsString),
       family: t.string,
       tags: t.array(t.string),
-      model: t.string.pipe(te.uint8ArrayAsBase64),
+      model: t.string.pipe(te.uint8ArrayAsBase64).pipe(te.streamIdAsBytes),
     }),
   ],
   'GenesisFields'

@@ -6,7 +6,9 @@ import type { DiagnosticsLogger } from '@ceramicnetwork/common'
  * Implements IPFS merge CIDs
  */
 export class IpfsLeafCompare implements CompareFunction<Candidate> {
-  constructor(private readonly logger: DiagnosticsLogger) {}
+  constructor(private readonly logger: DiagnosticsLogger) {
+    this.compare = this.compare.bind(this)
+  }
 
   compare(left: Node<Candidate>, right: Node<Candidate>): number {
     try {
