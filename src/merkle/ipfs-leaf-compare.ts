@@ -1,20 +1,20 @@
 import type { CompareFunction, Node } from './merkle-elements.js'
-import type { Candidate } from './candidate.js'
+import type { ICandidate } from './candidate.js'
 import type { DiagnosticsLogger } from '@ceramicnetwork/common'
 
 /**
  * Implements IPFS merge CIDs
  */
-export class IpfsLeafCompare implements CompareFunction<Candidate> {
+export class IpfsLeafCompare implements CompareFunction<ICandidate> {
   constructor(private readonly logger: DiagnosticsLogger) {
     this.compare = this.compare.bind(this)
   }
 
-  compare(left: Node<Candidate>, right: Node<Candidate>): number {
+  compare(left: Node<ICandidate>, right: Node<ICandidate>): number {
     try {
       // Sort by model first
-      const leftModel = left.data.model?.toString()
-      const rightModel = right.data.model?.toString()
+      const leftModel = left.data.metadata.model?.toString()
+      const rightModel = right.data.metadata.model?.toString()
       if (leftModel !== rightModel) {
         if (leftModel != null) {
           return rightModel == null
