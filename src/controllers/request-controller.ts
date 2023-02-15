@@ -4,7 +4,7 @@ import { Request as ExpReq, Response as ExpRes } from 'express'
 import cors from 'cors'
 import { ClassMiddleware, Controller, Get, Post } from '@overnightjs/core'
 
-import { toCID } from '@ceramicnetwork/common'
+import { NonEmptyArray, toCID } from '@ceramicnetwork/common'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { Request, RequestStatus } from '../models/request.js'
 import { logger } from '../logger/index.js'
@@ -32,17 +32,14 @@ function parseOrigin(req: ExpReq): string {
       addresses = xForwardedForHeader
     }
   }
-  return addresses.split(',')[0].trim()
+  const addressesSplit = addresses.split(',') as NonEmptyArray<string>
+  return addressesSplit[0].trim()
 }
 
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
 export class RequestController {
-  static inject = [
-    'requestRepository',
-    'requestPresentationService',
-    'metadataService',
-  ] as const
+  static inject = ['requestRepository', 'requestPresentationService', 'metadataService'] as const
 
   constructor(
     private readonly requestRepository: RequestRepository,
@@ -51,11 +48,11 @@ export class RequestController {
   ) {}
 
   @Get(':cid')
-  private async getStatusForCid(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
-    logger.debug(`Get info for ${req.params.cid}`)
+  async getStatusForCid(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
+    logger.debug(`Get info for ${req.params['cid']}`)
 
     try {
-      const cid = toCID(req.params.cid)
+      const cid = toCID(req.params['cid'] as string)
       if (!cid) {
         return res.status(StatusCodes.BAD_REQUEST).json({
           error: 'CID is empty',
@@ -70,8 +67,8 @@ export class RequestController {
 
       const body = await this.requestPresentationService.body(request)
       return res.status(StatusCodes.OK).json(body)
-    } catch (err) {
-      const errmsg = `Loading request status for CID ${req.params.cid} failed: ${err.message}`
+    } catch (err: any) {
+      const errmsg = `Loading request status for CID ${req.params['cid']} failed: ${err.message}`
       logger.err(errmsg)
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: errmsg,
@@ -134,7 +131,7 @@ export class RequestController {
 
       const body = await this.requestPresentationService.body(storedRequest)
       return res.status(StatusCodes.CREATED).json(body)
-    } catch (err) {
+    } catch (err: any) {
       const errmsg = `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed: ${err.message}`
       logger.err(errmsg)
       logger.err(err) // Log stack trace
