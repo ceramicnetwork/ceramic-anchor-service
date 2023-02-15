@@ -21,6 +21,7 @@ import { mockRequest, mockResponse } from './mock-request.util.js'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { MetadataRepository } from '../../repositories/metadata-repository.js'
 import { StoredMetadata } from '../../models/metadata.js'
+import { expectPresent } from '../../__tests__/expect-present.util.js'
 
 type Tokens = {
   requestController: RequestController
@@ -101,6 +102,7 @@ describe('createRequest', () => {
       await controller.createRequest(req, res)
       expect(res.status).toBeCalledWith(StatusCodes.BAD_REQUEST)
       const jsonFn = jest.spyOn(res, 'json')
+      expectPresent(jsonFn.mock.calls[0])
       expect(jsonFn.mock.calls[0][0].error).toMatch(
         `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed`
       )
@@ -116,6 +118,7 @@ describe('createRequest', () => {
       await controller.createRequest(req, res)
       expect(res.status).toBeCalledWith(StatusCodes.BAD_REQUEST)
       const jsonFn = jest.spyOn(res, 'json')
+      expectPresent(jsonFn.mock.calls[0])
       expect(jsonFn.mock.calls[0][0].error).toMatch(
         `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed`
       )
@@ -143,7 +146,7 @@ describe('createRequest', () => {
       await controller.createRequest(req, res)
       expect(res.status).toBeCalledWith(StatusCodes.CREATED)
       const createdRequest = await requestRepository.findByCid(cid)
-      expect(createdRequest).toBeDefined()
+      expectPresent(createdRequest)
       expect(createdRequest.cid).toEqual(cid.toString())
       expect(createdRequest.status).toEqual(RequestStatus.PENDING)
       expect(createdRequest.streamId).toEqual(streamId.toString())
@@ -170,7 +173,7 @@ describe('createRequest', () => {
       await controller.createRequest(req, res)
       expect(res.status).toBeCalledWith(StatusCodes.CREATED)
       const createdRequest = await requestRepository.findByCid(cid)
-      expect(createdRequest).toBeDefined()
+      expectPresent(createdRequest)
       expect(createdRequest.cid).toEqual(cid.toString())
       expect(createdRequest.status).toEqual(RequestStatus.PENDING)
       expect(createdRequest.streamId).toEqual(streamId.toString())
@@ -228,12 +231,14 @@ describe('createRequest', () => {
       const res = mockResponse()
       await controller.createRequest(req, res)
       const jsonFn = jest.spyOn(res, 'json')
+      expectPresent(jsonFn.mock.lastCall)
       const presentation0 = jsonFn.mock.lastCall[0]
 
       // 1. Request existing request
       const res1 = mockResponse()
       await controller.createRequest(req, res1)
       const jsonFn1 = jest.spyOn(res1, 'json')
+      expectPresent(jsonFn1.mock.lastCall)
       const presentation1 = jsonFn1.mock.lastCall[0]
       expect(presentation1).toEqual(presentation0)
     })
@@ -267,6 +272,7 @@ describe('createRequest', () => {
         await controller.createRequest(req, res)
         const jsonSpy = jest.spyOn(res, 'json')
         expect(jsonSpy).toBeCalledTimes(1)
+        expectPresent(jsonSpy.mock.lastCall)
         const presentation = jsonSpy.mock.lastCall[0]
         expect(presentation.cid).toEqual(request.cid.toString())
         expect(presentation.streamId).toEqual(request.streamId.toString())
@@ -277,10 +283,14 @@ describe('createRequest', () => {
       const requestRepository = container.resolve('requestRepository')
       for (const replaced of requests.slice(0, -1)) {
         const found = await requestRepository.findByCid(replaced.cid)
+        expectPresent(found)
         expect(found.status).toEqual(RequestStatus.REPLACED)
       }
-      const lastRequest = await requestRepository.findByCid(requests[requests.length - 1].cid)
-      expect(lastRequest.status).toEqual(RequestStatus.PENDING)
+      const lastRequest = requests[requests.length - 1]
+      expectPresent(lastRequest)
+      const lastRequestRetrieved = await requestRepository.findByCid(lastRequest.cid)
+      expectPresent(lastRequestRetrieved)
+      expect(lastRequestRetrieved.status).toEqual(RequestStatus.PENDING)
     })
   })
 })
