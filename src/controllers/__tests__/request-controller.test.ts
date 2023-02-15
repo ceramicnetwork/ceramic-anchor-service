@@ -104,6 +104,7 @@ describe('createRequest', () => {
         error: "Invalid value undefined supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/streamId: StreamID-as-string",
       })
     })
+
     test('streamId is empty: fail', async () => {
       const req = mockRequest({
         headers: {

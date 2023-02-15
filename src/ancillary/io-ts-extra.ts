@@ -39,7 +39,7 @@ export const cidAsString = new t.Type<CID, string, string>(
   'CID-as-string',
   (input: unknown): input is CID => {
     try {
-      return !!CID.parse(input as string)
+      return !!CID.asCID(input)
     } catch (e) {
       return false
     }

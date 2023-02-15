@@ -57,6 +57,7 @@ export class MetadataService implements IMetadataService {
 
   async fill(streamId: StreamID, genesisFields: GenesisFields): Promise<void> {
     await this.storeMetadata(streamId, genesisFields)
+    logger.debug(`Filled metadata from a CAR file for ${streamId}`)
   }
 
   /**
