@@ -11,6 +11,7 @@ import { randomBytes, randomString } from '@stablelib/random'
 import { Request, RequestStatus } from '../models/request.js'
 import type { AbortOptions } from '../services/abort-options.type.js'
 import { Utils } from '../utils.js'
+import { AddOptions as PinAddOptions } from 'ipfs-core-types/src/pin'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -40,6 +41,7 @@ export class MockIpfsClient {
   private _streams: Record<string, any> = {}
   pubsub: any
   dag: any
+  pin: any
 
   reset() {
     this.pubsub = {
@@ -62,6 +64,18 @@ export class MockIpfsClient {
           resolve(cid)
         })
       }),
+    }
+    this.pin = {
+      add: jest.fn((cid: CID, options?: PinAddOptions & AbortOptions) => {
+            return new Promise<CID>((resolve, reject) => {
+              if (options.signal) {
+                const done = () => reject(new Error(`MockIpfsClient: Thrown on abort signal`))
+                if (options.signal?.aborted) return done()
+                options.signal?.addEventListener('abort', done)
+              }
+              resolve(cid)
+            })
+        })
     }
 
     this._streams = {}
@@ -88,11 +102,11 @@ export class MockIpfsService implements IIpfsService {
     throw new Error(`MockIpfsService:retrieveRecord:timeout`)
   }
 
-  async storeRecord(record: Record<string, unknown>): Promise<CID> {
+  storeRecord = jest.fn(async (record: Record<string, unknown>, options?: AbortOptions): Promise<CID> => {
     const cid = randomCID()
     this._streams[cid.toString()] = record
     return cid
-  }
+  })
 
   async publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID> {
     return this.storeRecord(anchorCommit as any)

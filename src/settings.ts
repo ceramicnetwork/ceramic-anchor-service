@@ -12,6 +12,7 @@ export enum METRIC_NAMES {
   CONFLICTING_REQUESTS = 'conflicting_requests',
   ERROR_IPFS = 'error_ipfs',
   ERROR_MULTIQUERY = 'error_multiquery',
+  ERROR_WHEN_ANCHORING = 'error_when_anchoring',
   FAILED_REQUESTS = 'failed_requests',
   FAILED_STREAM = 'failed_load_stream',
   FAILED_TIP = 'failed_load_tip',
@@ -25,7 +26,7 @@ export enum METRIC_NAMES {
 
   // Request repository
   DB_SERIALIZATION_ERROR = 'db_serialization_error',
-  
+
   // when a request is created, expired or completes
   REQUEST_CREATED = 'request_created',
   REQUEST_EXPIRED = 'request_expired',
@@ -43,7 +44,7 @@ export enum METRIC_NAMES {
   // request that moves from created -> success
   CREATED_SUCCESS_MS = 'created_success_ms',
 
-  // Anchor Controller 
+  // Anchor Controller
   ANCHOR_REQUESTS_BATCH_TIME = 'anchor_requests_batch_time',
   ANCHOR_REQUESTS_BATCH_FAILURE_TIME = 'anchor_requests_batch_failure_time',
 
