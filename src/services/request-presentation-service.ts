@@ -17,7 +17,8 @@ export class RequestPresentationService implements IRequestPresentationService {
    * @param request - Request to be rendered as JSON.
    */
   async body(request: Request): Promise<any> {
-    switch (request.status) {
+    const status = request.status as RequestStatus
+    switch (status) {
       case RequestStatus.COMPLETED: {
         const anchor = await this.anchorRepository.findByRequest(request)
         // TODO: This is a workaround, fix in CDB-2192
@@ -34,13 +35,13 @@ export class RequestPresentationService implements IRequestPresentationService {
 
         return {
           id: request.id,
-          status: RequestStatus[request.status],
+          status: RequestStatus[status],
           cid: request.cid,
           docId: request.streamId, // todo remove
           streamId: request.streamId,
           message: request.message,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.updatedAt.getTime(),
+          createdAt: request.createdAt?.getTime(),
+          updatedAt: request.updatedAt?.getTime(),
           // TODO: Remove this backwards compatibility field
           anchorRecord: anchorCommit,
           anchorCommit,
@@ -59,7 +60,7 @@ export class RequestPresentationService implements IRequestPresentationService {
         }
       }
       default:
-        throw new InvalidRequestStatusError(request.status)
+        throw new InvalidRequestStatusError(status)
     }
   }
 
@@ -70,13 +71,13 @@ export class RequestPresentationService implements IRequestPresentationService {
   private notCompleted(request: Request) {
     return {
       id: request.id,
-      status: RequestStatus[request.status],
+      status: RequestStatus[request.status!],
       cid: request.cid,
       docId: request.streamId, // TODO remove
       streamId: request.streamId,
       message: request.message,
-      createdAt: request.createdAt.getTime(),
-      updatedAt: request.updatedAt.getTime(),
+      createdAt: request.createdAt?.getTime(),
+      updatedAt: request.updatedAt?.getTime(),
     }
   }
 }
