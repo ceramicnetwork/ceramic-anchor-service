@@ -1,4 +1,4 @@
-import type { CID } from 'multiformats/cid'
+import { CID } from 'multiformats/cid'
 
 import type { MerkleTree } from '../merkle/merkle-tree.js'
 import { Node, pathString, TreeMetadata } from '../merkle/merkle.js'
@@ -33,6 +33,8 @@ import { CIDHolder } from '../merkle/cid-holder.type.js'
 import { Candidate } from '../merkle/candidate.js'
 import { IpfsMerge } from '../merkle/ipfs-merge.js'
 import { IpfsLeafCompare } from '../merkle/ipfs-leaf-compare.js'
+import { create as createMultihash } from 'multiformats/hashes/digest'
+import * as uint8arrays from 'uint8arrays'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
@@ -106,6 +108,21 @@ const logAnchorSummary = async (
     ...anchorSummary,
   })
 }
+
+const KECCAK_256_CODE = 0x1b
+const ETH_TX_CODE = 0x93
+
+/**
+ * Converts ETH address to CID
+ * @param hash - ETH hash
+ */
+function convertEthHashToCid(hash: string): CID {
+  const bytes = uint8arrays.fromString(hash, 'hex')
+  const multihash = createMultihash(KECCAK_256_CODE, bytes)
+  const cidVersion = 1
+  return CID.create(cidVersion, ETH_TX_CODE, multihash)
+}
+
 /**
  * Anchors CIDs to blockchain
  */
@@ -348,7 +365,7 @@ export class AnchorService {
    * @param merkleRootCid - CID of the root of the merkle tree that was anchored in 'tx'
    */
   async _createIPFSProof(tx: Transaction, merkleRootCid: CID): Promise<CID> {
-    const txHashCid = Utils.convertEthHashToCid(tx.txHash.slice(2))
+    const txHashCid = convertEthHashToCid(tx.txHash.slice(2))
     let ipfsAnchorProof = {
       root: merkleRootCid,
       chainId: tx.chain,
