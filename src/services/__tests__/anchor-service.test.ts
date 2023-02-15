@@ -294,7 +294,7 @@ describe('anchor service', () => {
     await requestRepository.findAndMarkReady(0)
 
     // First pass anchors half the pending requests
-    let requests = await requestRepository.batchProcessing(0, anchorLimit)
+    let requests = await requestRepository.batchProcessing(anchorLimit)
     expect(requests.length).toEqual(anchorLimit)
 
     const anchorPendingRequests = async function (requests: Request[]): Promise<void> {
@@ -375,7 +375,7 @@ describe('anchor service', () => {
 
     // First pass anchors half the pending requests
     await expect(requestRepository.countByStatus(RequestStatus.READY)).resolves.toEqual(anchorLimit)
-    const pendingRequests = await requestRepository.batchProcessing(0, anchorLimit)
+    const pendingRequests = await requestRepository.batchProcessing(anchorLimit)
     expect(pendingRequests.length).toEqual(anchorLimit)
     const [candidates] = await anchorService._findCandidates(pendingRequests, anchorLimit)
     expect(candidates.length).toEqual(anchorLimit)
