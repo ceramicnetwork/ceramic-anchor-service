@@ -1,7 +1,7 @@
 import type { Config } from 'node-config-ts'
 import cloneDeep from 'lodash.clonedeep'
 
-function replaceBools(o: object): void {
+function replaceBools(o: Record<string, any>): void {
   for (const prop of Object.keys(o)) {
     if (o[prop] === 'true' || o[prop] === 'false') {
       o[prop] = o[prop] === 'true'
@@ -29,7 +29,9 @@ export function normalizeConfig(config: Config): void {
  */
 export function cleanupConfigForLogging(config: Config): Record<string, any> {
   const configCopy = cloneDeep(config)
+  // @ts-ignore
   delete configCopy?.blockchain?.connectors?.ethereum?.account?.privateKey
+  // @ts-ignore
   delete configCopy?.anchorLauncherUrl
   return configCopy
 }
