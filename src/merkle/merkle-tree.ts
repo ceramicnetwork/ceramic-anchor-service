@@ -98,7 +98,7 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
    * @param element - Node element
    * @returns {Promise<boolean>}
    */
-  async verifyProof(proof: Node<TData>[], element: any): Promise<boolean> {
+  async verifyProof(proof: Node<TData>[], element: TData): Promise<boolean> {
     let current = new Node(element, null, null)
     for (const p of proof) {
       const parent = p.parent

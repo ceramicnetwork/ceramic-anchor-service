@@ -2,6 +2,7 @@ import { MerkleTree } from '../merkle-tree.js'
 import { expect, describe, test, beforeAll } from '@jest/globals'
 import { MerkleTreeFactory } from '../merkle-tree-factory.js'
 import { StringConcat } from './string-concat.js'
+import { expectPresent } from '../../__tests__/expect-present.util.js'
 
 const leaves: string[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
 const factory = new MerkleTreeFactory(new StringConcat())
@@ -18,7 +19,7 @@ describe('Merkle tree proof verification', () => {
       test.each(leaves)(`should verify the proof for leaf index %p`, async (leaf) => {
         const index = leaves.indexOf(leaf)
         const proof = tree.getProof(index)
-        const verified = await tree.verifyProof(proof, leaves[index])
+        const verified = await tree.verifyProof(proof, leaf)
         expect(verified).toBeTruthy()
       })
     })
@@ -27,6 +28,7 @@ describe('Merkle tree proof verification', () => {
       describe('verifying a different node with a proof', () => {
         test('should not verify the proof', async () => {
           const proof = tree.getProof(2)
+          expectPresent(leaves[3])
           const verified = await tree.verifyProof(proof, leaves[3])
           expect(verified).toBeFalsy()
         })
