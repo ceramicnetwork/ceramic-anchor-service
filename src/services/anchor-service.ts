@@ -22,7 +22,7 @@ import { METRIC_NAMES } from '../settings.js'
 import type { BlockchainService } from './blockchain/blockchain-service.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 
-import { BloomMetadata, IpfsLeafCompare } from '../merkle/merkle-objects.js'
+import { BloomMetadata } from '../merkle/merkle-objects.js'
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
@@ -32,6 +32,7 @@ import type { IMetadataService } from './metadata-service.js'
 import { CIDHolder } from '../merkle/cid-holder.type.js'
 import { Candidate } from '../merkle/candidate.js'
 import { IpfsMerge } from '../merkle/ipfs-merge.js'
+import { IpfsLeafCompare } from '../merkle/ipfs-leaf-compare.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
