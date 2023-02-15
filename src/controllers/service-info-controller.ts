@@ -19,10 +19,10 @@ export class ServiceInfoController {
   constructor(private readonly blockchainService: BlockchainService) {}
 
   @Get('supported_chains')
-  private async getSupportedChains(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
+  async getSupportedChains(_req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     try {
       return res.status(OK).json({ supportedChains: [this.blockchainService.chainId] })
-    } catch (err) {
+    } catch (err: any) {
       logger.err(`Loading supported chainIds from configured blockchain failed: ${err.message()}`)
       return res.status(SERVICE_UNAVAILABLE).send()
     }
