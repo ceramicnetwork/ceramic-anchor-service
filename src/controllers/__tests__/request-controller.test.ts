@@ -101,7 +101,7 @@ describe('createRequest', () => {
       await controller.createRequest(req, res)
       expect(res.status).toBeCalledWith(StatusCodes.BAD_REQUEST)
       expect(res.json).toBeCalledWith({
-        error: 'CID is empty',
+        error: "Invalid value undefined supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/streamId: StreamID-as-string",
       })
     })
     test('streamId is empty: fail', async () => {
@@ -117,7 +117,7 @@ describe('createRequest', () => {
       await controller.createRequest(req, res)
       expect(res.status).toBeCalledWith(StatusCodes.BAD_REQUEST)
       expect(res.json).toBeCalledWith({
-        error: 'Stream ID is empty',
+        error: "Invalid value undefined supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/streamId: StreamID-as-string",
       })
     })
 
@@ -137,7 +137,7 @@ describe('createRequest', () => {
       expect(res.status).toBeCalledWith(StatusCodes.BAD_REQUEST)
       const jsonFn = jest.spyOn(res, 'json')
       expect(jsonFn.mock.calls[0][0].error).toMatch(
-        `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed`
+        "Invalid value \"garbage\" supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/cid: CID-as-string"
       )
     })
 
@@ -156,7 +156,7 @@ describe('createRequest', () => {
       expect(res.status).toBeCalledWith(StatusCodes.BAD_REQUEST)
       const jsonFn = jest.spyOn(res, 'json')
       expect(jsonFn.mock.calls[0][0].error).toMatch(
-        `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed`
+        "Invalid value \"garbage\" supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/streamId: StreamID-as-string"
       )
     })
 

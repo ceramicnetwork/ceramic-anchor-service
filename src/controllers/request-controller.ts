@@ -103,13 +103,16 @@ export class RequestController {
       }
 
       if (f.either.isLeft(validation)) {
+        console.log("ARTUR WDOWIARSKI VALIDATION.LEFT: ", validation.left)
         const message = validation.left.map(getMessage)[0]
+        console.log("ARTUR WDOWIARSKI VALIDATION ERROR MESSAGE: ", message)
         return res.status(StatusCodes.BAD_REQUEST).json({
           error: message,
         })
       }
 
       const requestParams = validation.right
+      console.log("ARTUR WDOWIARSKI PARSED REQUESTPARAMS: ", requestParams)
 
       const cid = requestParams.cid
       const streamId = requestParams.streamId
