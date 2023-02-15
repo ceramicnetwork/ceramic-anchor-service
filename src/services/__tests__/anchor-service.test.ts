@@ -19,7 +19,7 @@ import {
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { CID } from 'multiformats/cid'
-import { Candidate } from '../../merkle/merkle-objects.js'
+import { Candidate } from '../../merkle/candidate.js'
 import { Anchor } from '../../models/anchor.js'
 import { toCID } from '@ceramicnetwork/common'
 import { Utils } from '../../utils.js'
