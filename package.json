@@ -57,8 +57,6 @@
     "@types/lodash.camelcase": "^4.3.7",
     "@types/lodash.snakecase": "^4.1.7",
     "cartonne": "^1.0.3",
-    "clean": "^4.0.2",
-    "colors": "1.4.0",
     "cors": "^2.8.5",
     "dag-jose": "^3.0.1",
     "dotenv": "^16.0.3",
