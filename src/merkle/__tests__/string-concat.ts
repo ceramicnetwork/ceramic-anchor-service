@@ -1,4 +1,4 @@
-import { MergeFunction, Node } from '../merkle.js'
+import { MergeFunction, Node } from '../merkle-elements.js'
 
 export class StringConcat implements MergeFunction<string, string> {
   async merge(n1: Node<string>, n2: Node<string>, m: string | null): Promise<Node<string>> {

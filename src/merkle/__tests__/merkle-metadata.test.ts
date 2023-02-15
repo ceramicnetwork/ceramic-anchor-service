@@ -1,7 +1,7 @@
 import { jest, describe, expect, beforeEach, test } from '@jest/globals'
 import { MockIpfsService, randomStreamID } from '../../__tests__/test-utils.js'
 import type { MerkleTree } from '../merkle-tree.js'
-import { type Node, TreeMetadata } from '../merkle.js'
+import { type Node, TreeMetadata } from '../merkle-elements.js'
 import { BloomMetadata } from '../bloom-metadata.js'
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { Request } from '../../models/request.js'

@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll } from '@jest/globals'
-import { MergeFunction, Node } from '../merkle.js'
+import { MergeFunction, Node } from '../merkle-elements.js'
 import type { MerkleTree } from '../merkle-tree.js'
 import { MerkleTreeFactory } from '../merkle-tree-factory.js'
 import { StringConcat } from './string-concat.js'

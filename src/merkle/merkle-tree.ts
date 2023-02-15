@@ -1,4 +1,4 @@
-import { type MergeFunction, Node, PathDirection } from './merkle.js'
+import { type MergeFunction, Node, PathDirection } from './merkle-elements.js'
 
 /**
  * Calculate path from Merkle tree root to `element`.

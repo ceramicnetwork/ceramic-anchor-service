@@ -1,7 +1,7 @@
 import { CID } from 'multiformats/cid'
 
 import type { MerkleTree } from '../merkle/merkle-tree.js'
-import { Node, pathString, TreeMetadata } from '../merkle/merkle.js'
+import { Node, pathString, TreeMetadata } from '../merkle/merkle-elements.js'
 
 import type { Config } from 'node-config-ts'
 

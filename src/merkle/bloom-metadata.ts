@@ -1,5 +1,5 @@
 import * as fs from 'fs'
-import { MetadataFunction, Node, TreeMetadata } from './merkle.js'
+import { MetadataFunction, Node, TreeMetadata } from './merkle-elements.js'
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { Candidate } from './candidate.js'
 

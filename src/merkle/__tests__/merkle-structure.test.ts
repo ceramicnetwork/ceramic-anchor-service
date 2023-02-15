@@ -1,4 +1,4 @@
-import { Node, CompareFunction, MetadataFunction } from '../merkle.js'
+import { Node, CompareFunction, MetadataFunction } from '../merkle-elements.js'
 import type { MerkleTree } from '../merkle-tree.js'
 import { MerkleTreeFactory } from '../merkle-tree-factory.js'
 import { expect, describe, test } from '@jest/globals'

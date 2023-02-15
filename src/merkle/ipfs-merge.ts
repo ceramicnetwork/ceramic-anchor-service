@@ -1,5 +1,4 @@
-import type { MergeFunction, TreeMetadata } from './merkle.js'
-import { Node } from './merkle.js'
+import { Node, type MergeFunction, type TreeMetadata } from './merkle-elements.js'
 import type { CIDHolder } from './cid-holder.type.js'
 import type { IIpfsService } from '../services/ipfs-service.type.js'
 import { logger } from '../logger/index.js'

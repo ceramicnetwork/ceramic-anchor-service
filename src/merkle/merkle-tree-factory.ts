@@ -1,5 +1,5 @@
-import type { CompareFunction, MergeFunction, MetadataFunction } from './merkle.js'
-import { Node } from './merkle.js'
+import type { CompareFunction, MergeFunction, MetadataFunction } from './merkle-elements.js'
+import { Node } from './merkle-elements.js'
 import { MerkleTree } from './merkle-tree.js'
 
 /**
