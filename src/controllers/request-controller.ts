@@ -111,7 +111,7 @@ export class RequestController {
 
       const requestParams = validation.right
 
-      const cid = requestParams.tip
+      const cid = requestParams.cid
       const streamId = requestParams.streamId
 
 

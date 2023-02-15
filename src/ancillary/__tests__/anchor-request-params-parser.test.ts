@@ -11,6 +11,8 @@ import { bases } from 'multiformats/basics'
 import { GenesisFields } from '../../models/metadata'
 import { asDIDString } from '../did-string'
 import { mockRequest } from '../../controllers/__tests__/mock-request.util.js'
+import * as t from 'io-ts'
+import { isRight, Right } from 'fp-ts/lib/Either.js'
 
 const FAKE_SIGNED_STREAM_ID = StreamID.fromString(
   'k2t6wzhkhabz5h9xxyrc6qoh1mcj6b0ul90xxkoin4t5bns89e3vh0gyyy1exj'
@@ -57,41 +59,50 @@ const CAR_FILE_REQUEST_EXAMPLE_UNSIGNED_GENESIS = mockRequest({
 
 const CAR_FILE_FAKE_GENESIS_FIELDS: GenesisFields = {
   controllers: [asDIDString('did:pkh:eip155:1:0x926eeb192c18b7be607a7e10c8e7a7e8d9f70742')],
-  model: bases['base64'].decode("mzgECAYUBEiCIsWIw6kon5HSV8g+usyjT1ohr++q6zx+OOGy/05bUjQ"),
+  model: bases['base64'].decode('mzgECAYUBEiCIsWIw6kon5HSV8g+usyjT1ohr++q6zx+OOGy/05bUjQ'),
 }
 
 describe('AnchoRequestParamsParser', () => {
+  const parser = new AnchorRequestParamsParser()
   test('parses legacy example 1 properly', () => {
-    const parsedParams: RequestAnchorParams = new AnchorRequestParamsParser().parse(
+    const validation: t.Validation<RequestAnchorParams> = parser.parse(
       LEGACY_REQUEST_EXAMPLE as ExpReq
     )
-    expect(parsedParams.streamId).toEqual(StreamID.fromString(LEGACY_REQUEST_EXAMPLE.body.streamId))
-    expect(parsedParams.tip).toEqual(toCID(LEGACY_REQUEST_EXAMPLE.body.cid))
-    expect(parsedParams.timestamp).toEqual(new Date(LEGACY_REQUEST_EXAMPLE.body.timestamp))
+    expect(isRight(validation)).toEqual(true)
+
+    const params: RequestAnchorParams = (validation as Right<RequestAnchorParams>).right
+
+    expect(params.streamId).toEqual(StreamID.fromString(LEGACY_REQUEST_EXAMPLE.body.streamId))
+    expect(params.cid).toEqual(toCID(LEGACY_REQUEST_EXAMPLE.body.cid))
+    expect(params.timestamp).toEqual(new Date(LEGACY_REQUEST_EXAMPLE.body.timestamp))
   })
 
   test('parses CAR with signed genesis properly', () => {
-    const parsedParams: RequestAnchorParams = new AnchorRequestParamsParser().parse(
+    const validation: t.Validation<RequestAnchorParams> = parser.parse(
       CAR_FILE_REQUEST_EXAMPLE_SIGNED_GENESIS as ExpReq
     )
+    expect(isRight(validation)).toEqual(true)
 
-    expect(parsedParams.streamId).toEqual(FAKE_SIGNED_STREAM_ID)
-    expect(parsedParams.tip).toEqual(FAKE_SIGNED_TIP)
-    expect(parsedParams.timestamp).toEqual(new Date(TIMESTAMP_ISO))
-    expect((parsedParams as RequestAnchorParamsV2).genesisFields).toEqual(
+    const params: RequestAnchorParams = (validation as Right<RequestAnchorParams>).right
+    expect(params.streamId).toEqual(FAKE_SIGNED_STREAM_ID)
+    expect(params.cid).toEqual(FAKE_SIGNED_TIP)
+    expect(params.timestamp).toEqual(new Date(TIMESTAMP_ISO))
+    expect((params as RequestAnchorParamsV2).genesisFields).toEqual(
       CAR_FILE_FAKE_GENESIS_FIELDS
     )
   })
 
   test('parses CAR with unsigned genesis properly', () => {
-    const parsedParams: RequestAnchorParams = new AnchorRequestParamsParser().parse(
+    const validation: t.Validation<RequestAnchorParams> = parser.parse(
       CAR_FILE_REQUEST_EXAMPLE_UNSIGNED_GENESIS as ExpReq
     )
+    expect(isRight(validation)).toEqual(true)
 
-    expect(parsedParams.streamId).toEqual(FAKE_UNSIGNED_STREAM_ID)
-    expect(parsedParams.tip).toEqual(FAKE_UNSIGNED_TIP)
-    expect(parsedParams.timestamp).toEqual(new Date(TIMESTAMP_ISO))
-    expect((parsedParams as RequestAnchorParamsV2).genesisFields).toEqual(
+    const params: RequestAnchorParams = (validation as Right<RequestAnchorParams>).right
+    expect(params.streamId).toEqual(FAKE_UNSIGNED_STREAM_ID)
+    expect(params.cid).toEqual(FAKE_UNSIGNED_TIP)
+    expect(params.timestamp).toEqual(new Date(TIMESTAMP_ISO))
+    expect((params as RequestAnchorParamsV2).genesisFields).toEqual(
       CAR_FILE_FAKE_GENESIS_FIELDS
     )
   })

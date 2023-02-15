@@ -11,7 +11,7 @@ import * as f from 'fp-ts'
 
 export const RequestAnchorParamsV1 = t.partial({
   streamId: te.streamIdAsString,
-  tip: te.cidAsString,
+  cid: te.cidAsString,
   timestamp: te.date
 }, 'RequestAnchorParamsV1')
 
@@ -21,7 +21,7 @@ export type RequestAnchorParamsV1 = t.TypeOf<typeof RequestAnchorParamsV1>
 export declare type RequestAnchorParamsV2 = {
   streamId: StreamID
   timestamp: Date
-  tip: CID
+  cid: CID
   genesisFields: GenesisFields
 }
 
@@ -60,7 +60,7 @@ export class AnchorRequestParamsParser {
     return f.either.right({
       streamId: carReader.streamId,
       timestamp: carReader.timestamp,
-      tip: carReader.tip,
+      cid: carReader.tip,
       genesisFields: carReader.genesisFields,
     })
   }
