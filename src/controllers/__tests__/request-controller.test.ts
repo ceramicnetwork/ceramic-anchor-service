@@ -65,6 +65,8 @@ class MockMetadataService implements IMetadataService {
   }
 }
 
+// TODO: CDB-2287 Add tests checking for expected errors when missing/malformed CID/StreamID/GenesisCommit
+// are detected in a CAR file
 describe('createRequest', () => {
   let dbConnection: Knex
   let container: Injector<Tokens>
