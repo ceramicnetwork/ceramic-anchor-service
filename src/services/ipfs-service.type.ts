@@ -1,7 +1,7 @@
 import type { AnchorCommit } from '@ceramicnetwork/common'
 import type { StreamID } from '@ceramicnetwork/streamid'
 import type { CID } from 'multiformats/cid'
-import type { AbortOptions } from './abort-options.type.js'
+import type { AbortOptions } from '../ancillary/abort-options.type.js'
 
 export type RetrieveRecordOptions = {
   path?: string

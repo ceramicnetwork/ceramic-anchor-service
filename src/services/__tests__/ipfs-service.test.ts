@@ -8,7 +8,7 @@ import {
 } from '../ipfs-service.js'
 import { MockIpfsClient, times } from '../../__tests__/test-utils.js'
 import type { IPFS } from 'ipfs-core-types'
-import type { AbortOptions } from '../abort-options.type.js'
+import type { AbortOptions } from '../../ancillary/abort-options.type.js'
 import type { CID } from 'multiformats/cid'
 import { DelayAbortedError, Utils } from '../../utils.js'
 

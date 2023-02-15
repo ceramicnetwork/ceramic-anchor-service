@@ -8,7 +8,7 @@ import { StreamID } from '@ceramicnetwork/streamid'
 import { AnchorCommit } from '@ceramicnetwork/common'
 import { randomBytes, randomString } from '@stablelib/random'
 import { Request, RequestStatus } from '../models/request.js'
-import type { AbortOptions } from '../services/abort-options.type.js'
+import type { AbortOptions } from '../ancillary/abort-options.type.js'
 import { Utils } from '../utils.js'
 
 const MS_IN_MINUTE = 1000 * 60

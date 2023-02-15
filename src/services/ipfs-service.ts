@@ -12,7 +12,7 @@ import * as http from 'http'
 import * as https from 'https'
 import { PubsubMessage } from '@ceramicnetwork/core'
 import type { IIpfsService, RetrieveRecordOptions } from './ipfs-service.type.js'
-import type { AbortOptions } from './abort-options.type.js'
+import type { AbortOptions } from '../ancillary/abort-options.type.js'
 
 const { serialize, MsgType } = PubsubMessage
 

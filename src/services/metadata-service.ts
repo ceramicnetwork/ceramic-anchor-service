@@ -6,7 +6,7 @@ import * as t from 'io-ts'
 import * as te from '../ancillary/io-ts-extra.js'
 import type { IMetadataRepository } from '../repositories/metadata-repository.js'
 import { ThrowDecoder } from '../ancillary/throw-decoder.js'
-import type { AbortOptions } from './abort-options.type.js'
+import type { AbortOptions } from '../ancillary/abort-options.type.js'
 import { IsExact, assert } from 'conditional-type-checks'
 import { logger } from '../logger/index.js'
 
