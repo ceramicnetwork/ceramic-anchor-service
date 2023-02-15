@@ -4,7 +4,7 @@ import { MerkleTreeFactory } from '../merkle-tree-factory.js'
 import { StringConcat } from './string-concat.js'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 
-const leaves: string[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+const leaves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
 const factory = new MerkleTreeFactory(new StringConcat())
 
 let tree: MerkleTree<string, string, string>
