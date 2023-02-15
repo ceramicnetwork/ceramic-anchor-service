@@ -2,7 +2,7 @@ import { jest, describe, expect, beforeEach, test } from '@jest/globals'
 import { MockIpfsService, randomStreamID } from '../../__tests__/test-utils.js'
 import type { MerkleTree } from '../merkle-tree.js'
 import { type Node, TreeMetadata } from '../merkle.js'
-import { BloomMetadata, IpfsLeafCompare, IpfsMerge } from '../merkle-objects.js'
+import { BloomMetadata, IpfsLeafCompare } from '../merkle-objects.js'
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { Request } from '../../models/request.js'
 import { AnchorStatus } from '@ceramicnetwork/common'
@@ -10,6 +10,7 @@ import { MerkleTreeFactory } from '../merkle-tree-factory.js'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 import type { CIDHolder } from '../cid-holder.type.js'
 import { Candidate } from '../candidate.js'
+import { IpfsMerge } from '../ipfs-merge.js'
 
 const TYPE_REGEX =
   /^jsnpm_@ceramicnetwork\/wasm-bloom-filter-v((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/

@@ -1,11 +1,7 @@
 import * as fs from 'fs'
-import { CompareFunction, MergeFunction, MetadataFunction, Node, TreeMetadata } from './merkle.js'
-
+import { CompareFunction, MetadataFunction, Node, TreeMetadata } from './merkle.js'
 import { logger } from '../logger/index.js'
-import type { IIpfsService } from '../services/ipfs-service.type.js'
-
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
-import { CIDHolder } from './cid-holder.type.js'
 import { Candidate } from './candidate.js'
 
 const packageJson = JSON.parse(
@@ -18,30 +14,6 @@ const packageJson = JSON.parse(
 const BLOOM_FILTER_TYPE = 'jsnpm_@ceramicnetwork/wasm-bloom-filter'
 const BLOOM_FILTER_FALSE_POSITIVE_RATE = 0.0001
 const bloomFilterVersion = packageJson['version']
-
-/**
- * Implements IPFS merge CIDs
- */
-export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
-  constructor(private readonly ipfsService: IIpfsService) {}
-
-  async merge(
-    left: Node<CIDHolder>,
-    right: Node<CIDHolder> | null = null,
-    metadata: TreeMetadata | null = null
-  ): Promise<Node<CIDHolder>> {
-    const merged = [left.data.cid, right?.data?.cid || null]
-
-    if (metadata) {
-      const metadataCid = await this.ipfsService.storeRecord(metadata)
-      merged.push(metadataCid)
-    }
-
-    const mergedCid = await this.ipfsService.storeRecord(merged)
-    logger.debug('Merkle node ' + mergedCid + ' created.')
-    return new Node<CIDHolder>({ cid: mergedCid }, left, right)
-  }
-}
 
 /**
  * Implements IPFS merge CIDs
