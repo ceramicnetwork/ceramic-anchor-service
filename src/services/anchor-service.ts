@@ -165,7 +165,7 @@ export class AnchorService {
     this.maxStreamLimit = this.merkleDepthLimit > 0 ? Math.pow(2, this.merkleDepthLimit) : 0
     this.minStreamLimit = minStreamCount || Math.floor(this.maxStreamLimit / 2)
 
-    const ipfsMerge = new IpfsMerge(this.ipfsService)
+    const ipfsMerge = new IpfsMerge(this.ipfsService, logger)
     const ipfsCompare = new IpfsLeafCompare(logger)
     const bloomMetadata = new BloomMetadata()
     this.merkleTreeFactory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(

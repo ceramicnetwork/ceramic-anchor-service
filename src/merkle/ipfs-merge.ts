@@ -1,13 +1,16 @@
 import { Node, type MergeFunction, type TreeMetadata } from './merkle-elements.js'
 import type { CIDHolder } from './cid-holder.type.js'
 import type { IIpfsService } from '../services/ipfs-service.type.js'
-import { logger } from '../logger/index.js'
+import type { DiagnosticsLogger } from '@ceramicnetwork/common'
 
 /**
  * Implements IPFS merge CIDs
  */
 export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
-  constructor(private readonly ipfsService: IIpfsService) {}
+  constructor(
+    private readonly ipfsService: IIpfsService,
+    private readonly logger: DiagnosticsLogger
+  ) {}
 
   async merge(
     left: Node<CIDHolder>,
@@ -22,7 +25,7 @@ export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
     }
 
     const mergedCid = await this.ipfsService.storeRecord(merged)
-    logger.debug('Merkle node ' + mergedCid + ' created.')
+    this.logger.debug('Merkle node ' + mergedCid + ' created.')
     return new Node<CIDHolder>({ cid: mergedCid }, left, right)
   }
 }

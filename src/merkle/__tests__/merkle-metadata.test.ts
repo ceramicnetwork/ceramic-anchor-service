@@ -41,7 +41,7 @@ describe('Bloom filter', () => {
     leaves: Array<Candidate>
   ): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
     const factory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
-      new IpfsMerge(ipfsService),
+      new IpfsMerge(ipfsService, logger),
       new IpfsLeafCompare(logger),
       new BloomMetadata()
     )
