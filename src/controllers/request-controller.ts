@@ -18,6 +18,9 @@ import {
   isRequestAnchorParamsV2
 } from "../ancillary/anchor-request-params-parser.js"
 import bodyParser from 'body-parser'
+import * as t from 'io-ts'
+import * as f from 'fp-ts'
+import { getMessage } from "../ancillary/throw-decoder.js"
 
 /*
  * Get origin from a request from X-Forwarded-For.
@@ -92,27 +95,25 @@ export class RequestController {
     try {
       logger.debug(`Create request ${JSON.stringify(req.body)}`)
 
-      let requestParams: RequestAnchorParams
+      let validation: t.Validation<RequestAnchorParams>
       try {
-        requestParams = this.anchorRequestParamsParser.parse(req)
+        validation = this.anchorRequestParamsParser.parse(req)
       } catch (err) {
         return this.getBadRequestResponse(req, res, err)
       }
 
+      if (f.either.isLeft(validation)) {
+        const message = validation.left.map(getMessage)[0]
+        return res.status(StatusCodes.BAD_REQUEST).json({
+          error: message,
+        })
+      }
+
+      const requestParams = validation.right
+
       const cid = requestParams.tip
       const streamId = requestParams.streamId
 
-      if (!cid) {
-        return res.status(StatusCodes.BAD_REQUEST).json({
-          error: 'CID is empty',
-        })
-      }
-
-      if (!streamId) {
-        return res.status(StatusCodes.BAD_REQUEST).json({
-          error: 'Stream ID is empty',
-        })
-      }
 
       let timestamp = requestParams.timestamp ?? new Date()
 

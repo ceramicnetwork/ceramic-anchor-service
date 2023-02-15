@@ -1,17 +1,22 @@
 import { Request as ExpReq } from 'express'
 import { StreamID } from '@ceramicnetwork/streamid'
-import { toCID } from '@ceramicnetwork/common'
 import type { CID } from 'multiformats/cid'
 import { CARFactory } from 'cartonne'
 import * as DAG_JOSE from 'dag-jose'
 import { GenesisFields } from '../models/metadata.js'
 import { AnchorRequestCarFileReader } from './anchor-request-car-file-reader.js'
+import * as t from 'io-ts'
+import * as te from '../ancillary/io-ts-extra.js'
+import * as f from 'fp-ts'
 
-export declare type RequestAnchorParamsV1 = {
-  streamId?: StreamID
-  timestamp?: Date
-  tip?: CID
-}
+export const RequestAnchorParamsV1 = t.partial({
+  streamId: te.streamIdAsString,
+  tip: te.cidAsString,
+  timestamp: te.date
+}, 'RequestAnchorParamsV1')
+
+
+export type RequestAnchorParamsV1 = t.TypeOf<typeof RequestAnchorParamsV1>
 
 export declare type RequestAnchorParamsV2 = {
   streamId: StreamID
@@ -32,7 +37,7 @@ export function isRequestAnchorParamsV2(
 }
 
 export class AnchorRequestParamsParser {
-  parse(req: ExpReq): RequestAnchorParams {
+  parse(req: ExpReq): t.Validation<RequestAnchorParams> {
     if (req.get('Content-Type') !== 'application/vnd.ipld.car') {
       // Legacy requests
       return this._parseReqV1(req)
@@ -42,25 +47,21 @@ export class AnchorRequestParamsParser {
     }
   }
 
-  private _parseReqV1(req: ExpReq): RequestAnchorParamsV1 {
-    return {
-      streamId: req.body.streamId ? StreamID.fromString(req.body.streamId) : undefined,
-      tip: req.body.cid ? toCID(req.body.cid) : undefined,
-      timestamp: req.body.timestamp ? new Date(req.body.timestamp) : undefined,
-    }
+  private _parseReqV1(req: ExpReq): t.Validation<RequestAnchorParamsV1> {
+    return RequestAnchorParamsV1.decode(req.body)
   }
 
-  private _parseReqV2(req: ExpReq): RequestAnchorParamsV2 {
+  private _parseReqV2(req: ExpReq): t.Validation<RequestAnchorParamsV2> {
     // TODO: CDB-2212 Store the car file somewhere for future reference/validation of signatures
     // (as it also includes the tip commit and optionally CACAO for the tip commit)
     const car = carFactory.fromBytes(req.body)
     const carReader = new AnchorRequestCarFileReader(car)
 
-    return {
+    return f.either.right({
       streamId: carReader.streamId,
       timestamp: carReader.timestamp,
       tip: carReader.tip,
       genesisFields: carReader.genesisFields,
-    }
+    })
   }
 }

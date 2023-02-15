@@ -1,4 +1,5 @@
 import * as t from 'io-ts'
+import { CID } from 'multiformats/cid'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import * as uint8arrays from 'uint8arrays'
 import { isDIDString } from './did-string.js'
@@ -29,6 +30,22 @@ export const uint8ArrayAsBase64 = new t.Type<Uint8Array, string, string>(
     }
   },
   (value: Uint8Array): string => uint8arrays.toString(value, 'base64')
+)
+
+/**
+ * io-ts codec for CID encoded as string.
+ */
+export const cidAsString = new t.Type<CID, string, string>(
+  'CID-as-string',
+  (input: unknown): input is CID => CID.asCID(input) !== null,
+  (input: string, context: t.Context) => {
+    try {
+      return t.success(CID.asCID(input))
+    } catch {
+      return t.failure(input, context)
+    }
+  },
+  (cid) => cid.toString()
 )
 
 /**
@@ -95,6 +112,8 @@ export const controllers = t.refinement(
   '[DIDString]'
 )
 
+
+
 /**
  * io-ts codec for enums
  * @param enumName - name of the codec
@@ -112,3 +131,4 @@ export function fromEnum<EnumType>(enumName: string, theEnum: Record<string, str
   )
 }
 export { fromEnum as enum }
+
