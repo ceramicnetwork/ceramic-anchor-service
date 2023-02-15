@@ -18,6 +18,7 @@ import { DateTime } from 'luxon'
 import { MetadataRepository } from '../metadata-repository.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { asDIDString } from '../../ancillary/did-string.js'
+import { expectPresent } from '../../__tests__/expect-present.util.js'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -102,14 +103,18 @@ describe('request repository test', () => {
 
       const expiredRequests = await requestRepository.findRequestsToGarbageCollect()
       expect(expiredRequests.length).toEqual(2)
+      expectPresent(expiredRequests[0])
+      expectPresent(requests[3])
       expect(expiredRequests[0].cid).toEqual(requests[3].cid)
+      expectPresent(expiredRequests[1])
+      expectPresent(requests[1])
       expect(expiredRequests[1].cid).toEqual(requests[1].cid)
     })
 
     test("Don't cleanup streams who have both old and new requests", async () => {
       // Create two requests that are expired and should be garbage collected, and two that should not
       // be.
-      const requests = [
+      const requests: [Request, Request, Request, Request] = [
         generateCompletedRequest(false, false),
         generateCompletedRequest(true, false),
         generateCompletedRequest(false, true),
@@ -124,16 +129,21 @@ describe('request repository test', () => {
 
       const expiredRequests = await requestRepository.findRequestsToGarbageCollect()
       expect(expiredRequests.length).toEqual(1)
+      expectPresent(expiredRequests[0])
       expect(expiredRequests[0].cid).toEqual(requests[1].cid)
     })
   })
 
   test('findAndMarkAsProcessing: process requests oldest to newest', async () => {
     const requests = generateReadyRequests(2)
+    expectPresent(requests[0])
+    expectPresent(requests[1])
     await requestRepository.createRequests(requests)
     const loadedRequests = await requestRepository.findAndMarkAsProcessing()
 
     expect(loadedRequests.length).toEqual(2)
+    expectPresent(loadedRequests[0])
+    expectPresent(loadedRequests[1])
     expect(loadedRequests[0].createdAt.getTime()).toBeLessThan(
       loadedRequests[1].createdAt.getTime()
     )
@@ -181,8 +191,10 @@ describe('request repository test', () => {
       // WITH_METADATA number of them have metadata
       await Promise.all(
         times(WITH_METADATA).map((index) => {
+          const r = requests[index]
+          expectPresent(r)
           return metadataRepository.save({
-            streamId: StreamID.fromString(requests[index].streamId),
+            streamId: StreamID.fromString(r.streamId),
             metadata: {
               controllers: [asDIDString(`did:key:r${index}`)],
             },
@@ -211,8 +223,10 @@ describe('request repository test', () => {
       // WITH_METADATA number of them have metadata
       await Promise.all(
         times(WITH_METADATA).map((index) => {
+          const r = requests[index]
+          expectPresent(r)
           return metadataRepository.save({
-            streamId: StreamID.fromString(requests[index].streamId),
+            streamId: StreamID.fromString(r.streamId),
             metadata: {
               controllers: [asDIDString(`did:key:r${index}`)],
             },
@@ -388,14 +402,13 @@ describe('request repository test', () => {
       // 4h ago (timeout is 3h)
       const dateOfTimedOutProcessingRequest = new Date(Date.now() - PROCESSING_TIMEOUT - MS_IN_HOUR)
 
-      const expiredProcessing = generateRequests(
+      const expiredProcessing = generateRequest(
         // processing request that needs to be retried
         {
           status: RequestStatus.PROCESSING,
           createdAt: new Date(Date.now() - MS_IN_HOUR * 24),
           updatedAt: dateOfTimedOutProcessingRequest,
-        },
-        1
+        }
       )
       const requests = [
         expiredProcessing,
@@ -435,7 +448,7 @@ describe('request repository test', () => {
         .map(({ cid }) => cid)
 
       expect(updatedRequests.map(({ cid }) => cid)).toEqual([
-        expiredProcessing[0].cid,
+        expiredProcessing.cid,
         ...earliestPendingRequestCids,
       ])
     })
@@ -471,7 +484,9 @@ describe('request repository test', () => {
         ),
       ].flat()
       const repeatedRequest1 = requests[0]
+      expectPresent(repeatedRequest1)
       const repeatedRequest2 = requests[1]
+      expectPresent(repeatedRequest2)
 
       await requestRepository.createRequests(requests)
 
@@ -822,16 +837,19 @@ describe('request repository test', () => {
       })
       const requests = await Promise.all(requestsP)
       const last = requests[requests.length - 1]
+      expectPresent(last)
       // First two requests should be marked REPLACED
       const rowsAffected = await requestRepository.markPreviousReplaced(last)
       expect(rowsAffected).toEqual(2)
       const expectedAffected = requests.slice(0, rowsAffected)
       for (const r of expectedAffected) {
         const retrieved = await requestRepository.findByCid(r.cid)
+        expectPresent(retrieved)
         expect(retrieved.status).toEqual(RequestStatus.REPLACED)
       }
       // Last request should be marked PENDING still
       const lastRetrieved = await requestRepository.findByCid(last.cid)
+      expectPresent(lastRetrieved)
       expect(lastRetrieved.status).toEqual(RequestStatus.PENDING)
 
       // COMPLETED requests should not be affected
@@ -866,12 +884,12 @@ describe('request repository test', () => {
     test.skip('respect min limit', async () => {
       // Do not touch rows if we have less than MIN_LIMIT of them
       await createRequests(MIN_LIMIT - 1)
-      const returned = await requestRepository.batchProcessing(MIN_LIMIT, MAX_LIMIT)
+      const returned = await requestRepository.batchProcessing(MAX_LIMIT)
       expect(returned).toEqual([])
     })
     test('respect max limit', async () => {
       const requests = await createRequests(MAX_LIMIT * 2)
-      const returned = await requestRepository.batchProcessing(0, MAX_LIMIT)
+      const returned = await requestRepository.batchProcessing(MAX_LIMIT)
       expect(returned.length).toEqual(MAX_LIMIT)
       const requestsIds = requests.map((r) => r.id)
       expect(returned.every((r) => requestsIds.includes(r.id))).toBeTruthy()
@@ -879,7 +897,7 @@ describe('request repository test', () => {
     })
     test('update READY to PROCESSING', async () => {
       const requests = await createRequests(MAX_LIMIT)
-      const returned = await requestRepository.batchProcessing(0, MAX_LIMIT)
+      const returned = await requestRepository.batchProcessing(MAX_LIMIT)
       expect(returned.length).toEqual(MAX_LIMIT)
       expect(returned.map((r) => r.id).sort()).toEqual(requests.map((r) => r.id).sort())
       expect(returned.every((r) => r.status === RequestStatus.PROCESSING)).toBeTruthy()
