@@ -37,6 +37,7 @@ function calculateProof<TData, TLeaf extends TData>(
   }
 
   const proofNode = parent.left === element ? parent.right : parent.left
+  if (!proofNode) throw new Error(`Empty proof node`)
   return calculateProof(parent, result.concat(proofNode))
 }
 
@@ -62,7 +63,7 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
     /**
      * Tree metadata
      */
-    readonly metadata: TMetadata
+    readonly metadata: TMetadata | null
   ) {}
 
   /**
@@ -74,7 +75,9 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
    * @returns Array of proof Nodes.
    */
   getProof(elemIndex: number): Array<Node<TData>> {
-    return calculateProof(this.leafNodes[elemIndex])
+    const leaf = this.leafNodes[elemIndex]
+    if (!leaf) throw new Error(`Empty leaf at index ${elemIndex}`)
+    return calculateProof(leaf)
   }
 
   /**
@@ -84,7 +87,9 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
    * the element requested
    */
   getDirectPathFromRoot(elemIndex: number): PathDirection[] {
-    return pathFromRoot(this.leafNodes[elemIndex])
+    const leaf = this.leafNodes[elemIndex]
+    if (!leaf) throw new Error(`Empty leaf at index ${elemIndex}`)
+    return pathFromRoot(leaf)
   }
 
   /**
@@ -96,10 +101,12 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
   async verifyProof(proof: Node<TData>[], element: any): Promise<boolean> {
     let current = new Node(element, null, null)
     for (const p of proof) {
-      const left = p.parent.left == p
+      const parent = p.parent
+      if (!parent) throw new Error(`No parent for node ${p}`)
+      const isLeft = parent.left == p
       const isRoot = p == proof[proof.length - 1]
       const metadata = isRoot ? this.metadata : null
-      if (left) {
+      if (isLeft) {
         current = await this.mergeFn.merge(p, current, metadata)
       } else {
         current = await this.mergeFn.merge(current, p, metadata)
