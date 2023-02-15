@@ -37,10 +37,17 @@ export const uint8ArrayAsBase64 = new t.Type<Uint8Array, string, string>(
  */
 export const cidAsString = new t.Type<CID, string, string>(
   'CID-as-string',
-  (input: unknown): input is CID => CID.asCID(input) !== null,
+  (input: unknown): input is CID => {
+    try {
+      return !!CID.parse(input as string)
+    } catch (e) {
+      return false
+    }
+  },
   (input: string, context: t.Context) => {
     try {
-      return t.success(CID.asCID(input))
+      const cid = CID.parse(input)
+      return t.success(cid)
     } catch {
       return t.failure(input, context)
     }
