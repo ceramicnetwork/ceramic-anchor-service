@@ -12,6 +12,7 @@ import type { CIDHolder } from '../cid-holder.type.js'
 import { Candidate } from '../candidate.js'
 import { IpfsMerge } from '../ipfs-merge.js'
 import { IpfsLeafCompare } from '../ipfs-leaf-compare.js'
+import { logger } from '../../logger/index.js'
 
 const TYPE_REGEX =
   /^jsnpm_@ceramicnetwork\/wasm-bloom-filter-v((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/
@@ -41,7 +42,7 @@ describe('Bloom filter', () => {
   ): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
     const factory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
       new IpfsMerge(ipfsService),
-      new IpfsLeafCompare(),
+      new IpfsLeafCompare(logger),
       new BloomMetadata()
     )
     return factory.build(leaves)
@@ -133,7 +134,7 @@ describe('Bloom filter', () => {
 })
 
 describe('IpfsLeafCompare sorting', () => {
-  const leaves = new IpfsLeafCompare()
+  const leaves = new IpfsLeafCompare(logger)
 
   const mockNode = (streamId: string, metadata: any): Node<Candidate> => {
     return { data: { streamId, metadata, model: metadata.model } } as unknown as Node<Candidate>

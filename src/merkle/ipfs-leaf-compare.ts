@@ -1,11 +1,13 @@
-import type { CompareFunction, Node } from './merkle.js'
+import type { CompareFunction, Node } from './merkle-elements.js'
 import type { Candidate } from './candidate.js'
-import { logger } from '../logger/index.js'
+import type { DiagnosticsLogger } from '@ceramicnetwork/common'
 
 /**
  * Implements IPFS merge CIDs
  */
 export class IpfsLeafCompare implements CompareFunction<Candidate> {
+  constructor(private readonly logger: DiagnosticsLogger) {}
+
   compare(left: Node<Candidate>, right: Node<Candidate>): number {
     try {
       // Sort by model first
@@ -32,7 +34,7 @@ export class IpfsLeafCompare implements CompareFunction<Candidate> {
       // Sort by stream ID
       return left.data.streamId.toString().localeCompare(right.data.streamId.toString())
     } catch (err) {
-      logger.err(
+      this.logger.err(
         `Error while comparing stream ${left.data.streamId.toString()} to stream ${right.data.streamId.toString()}. Error: ${err}`
       )
       throw err
