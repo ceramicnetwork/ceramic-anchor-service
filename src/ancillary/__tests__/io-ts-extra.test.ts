@@ -49,7 +49,9 @@ describe('commitId', () => {
     expect(commitId.equals(decoded)).toBeTruthy()
   })
   test('decode: fail', () => {
+    // @ts-ignore TS does not expect `null` as a parameter
     expect(isRight(te.commitIdAsString.decode(null))).toBeFalsy()
+    // @ts-ignore TS does not expect `undefined` as a parameter
     expect(isRight(te.commitIdAsString.decode(undefined))).toBeFalsy()
     expect(isRight(te.commitIdAsString.decode(''))).toBeFalsy()
     expect(isRight(te.commitIdAsString.decode('garbage'))).toBeFalsy()
