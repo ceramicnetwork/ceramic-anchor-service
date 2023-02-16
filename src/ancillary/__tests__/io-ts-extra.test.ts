@@ -1,8 +1,26 @@
 import { describe, test, expect } from '@jest/globals'
 import * as te from '../io-ts-extra.js'
 import { isRight, Right } from 'fp-ts/lib/Either.js'
-import { randomStreamID } from '../../__tests__/test-utils.js'
+import { randomCID, randomStreamID } from '../../__tests__/test-utils.js'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
+import { CID } from 'multiformats/cid'
+
+describe('cidAsString', () => {
+  const cid = randomCID()
+  test('decode: ok', () => {
+    const result = te.cidAsString.decode(cid.toString())
+    expect(isRight(result)).toEqual(true)
+    expect((result as Right<CID>).right).toEqual(cid)
+  })
+  test('decode: not ok', () => {
+    const result = te.cidAsString.decode('garbage')
+    expect(isRight(result)).toEqual(false)
+  })
+  test('encode', () => {
+    const result = te.cidAsString.encode(cid)
+    expect(result).toEqual(cid.toString())
+  })
+})
 
 describe('streamIdAsString', () => {
   const streamId = randomStreamID()
