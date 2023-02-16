@@ -1,4 +1,9 @@
-export function generatePolicy(principalId: string, policyDocumentOptions?: { effect: string, resource: string}, usageIdentifierKey?: string) {
+export function generatePolicy(
+    principalId: string,
+    policyDocumentOptions?: { effect: string, resource: string},
+    usageIdentifierKey?: string,
+    context?: any
+) {
     const authResponse: any = {
         principalId,
     }
@@ -17,9 +22,7 @@ export function generatePolicy(principalId: string, policyDocumentOptions?: { ef
 
     if (usageIdentifierKey) {
         authResponse.usageIdentifierKey = usageIdentifierKey
-        authResponse.context = {
-            "authId": usageIdentifierKey
-        }
+        authResponse.context = context
     }
     return authResponse
 }

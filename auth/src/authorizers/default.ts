@@ -1,4 +1,4 @@
-import { APIGatewayAuthorizerEvent, APIGatewayEvent, APIGatewayRequestAuthorizerEvent } from 'aws-lambda'
+import { APIGatewayRequestAuthorizerEvent } from 'aws-lambda'
 import { EC2 } from 'aws-sdk'
 import { VerifyJWSResult } from 'dids'
 import { Joi } from 'express-validation'
@@ -71,6 +71,7 @@ async function allowRegisteredDID(event: APIGatewayRequestAuthorizerEvent, callb
   if (result) {
     const did = result.didResolutionResult.didDocument?.id
     const nonce = result.payload?.nonce
+    const body = result.payload?.body
     if (!did) {
       console.error('Missing did')
     } else if (!nonce) {
@@ -85,7 +86,11 @@ async function allowRegisteredDID(event: APIGatewayRequestAuthorizerEvent, callb
         const data = await db.addNonce(did, nonce)
         if (data) {
           if (data.did == did && data.nonce == nonce) {
-            return callback(null, generatePolicy(did, {effect: 'Allow', resource: event.methodArn}, did))
+            const context = {
+              "did": did,
+              "bodyHash": body
+            }
+            return callback(null, generatePolicy(did, {effect: 'Allow', resource: event.methodArn}, did, context))
           }
         }
       }
