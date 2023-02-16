@@ -1,5 +1,6 @@
 import bodyParser from 'body-parser'
 import { Server } from '@overnightjs/core'
+import { auth } from './auth/index.js'
 import { expressLoggers, logger } from './logger/index.js'
 
 import * as http from 'http'
@@ -16,6 +17,7 @@ export class CeramicAnchorServer extends Server {
     this.app.use(bodyParser.json())
     this.app.use(bodyParser.urlencoded({ extended: true }))
     this.app.use(expressLoggers)
+    this.app.use(auth)
     this.addControllers(controllers)
   }
 
