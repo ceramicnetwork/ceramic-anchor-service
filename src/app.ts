@@ -5,6 +5,7 @@ import { Config } from 'node-config-ts'
 import type { Knex } from 'knex'
 import { logger } from './logger/index.js'
 import { CeramicAnchorServer } from './server.js'
+import { METRIC_NAMES } from './settings.js'
 import { IpfsService } from './services/ipfs-service.js'
 import type { IIpfsService } from './services/ipfs-service.type.js'
 import { AnchorService } from './services/anchor-service.js'
@@ -209,6 +210,7 @@ export class CeramicAnchorApp {
     const anchorService = this.container.resolve('anchorService')
     await anchorService.anchorRequests().catch((error) => {
       logger.err(`Error when anchoring: ${error}`)
+      Metrics.count(METRIC_NAMES.ERROR_WHEN_ANCHORING, 1, {'message': error.message.substring(0,50)})
       logger.err('Exiting')
       process.exit(1)
     })

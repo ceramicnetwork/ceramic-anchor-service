@@ -1,4 +1,4 @@
-import { describe, expect, jest, test } from '@jest/globals'
+import { describe, expect, jest, test, beforeAll, afterAll } from '@jest/globals'
 import { createDbConnection } from '../../db-connection.js'
 import { createInjector, Injector } from 'typed-inject'
 import { config } from 'node-config-ts'
@@ -21,6 +21,7 @@ import { DateTime } from 'luxon'
 import { mockRequest, mockResponse } from './mock-request.util.js'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { MetadataRepository } from '../../repositories/metadata-repository.js'
+import { StoredMetadata } from '../../models/metadata.js'
 
 type Tokens = {
   requestController: RequestController
@@ -31,6 +32,14 @@ type Tokens = {
 class MockMetadataService implements IMetadataService {
   async fill(streamId: StreamID): Promise<void> {
     return
+  }
+
+  fillAll(): Promise<void> {
+    throw new Error(`Not implemented: MockMetadataService::fillAll`)
+  }
+
+  retrieve(streamId: StreamID): Promise<StoredMetadata | undefined> {
+    throw new Error(`Not implemented: MockMetadataService::retrieve`)
   }
 }
 

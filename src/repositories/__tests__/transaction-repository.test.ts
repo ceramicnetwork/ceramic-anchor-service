@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { jest } from '@jest/globals'
+import { jest, describe, beforeAll, afterAll, test, expect } from '@jest/globals'
 import type { Knex } from 'knex'
 import { Utils } from '../../utils.js'
 import { createDbConnection } from '../../db-connection.js'

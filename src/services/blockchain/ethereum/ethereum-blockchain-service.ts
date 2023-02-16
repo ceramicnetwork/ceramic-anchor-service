@@ -124,10 +124,10 @@ function make(config: Config): EthereumBlockchainService {
   let provider
   if (url) {
     logger.imp(`Connecting ethereum provider to url: ${url}`)
-    provider = new ethers.providers.JsonRpcProvider(url)
+    provider = new ethers.providers.StaticJsonRpcProvider(url)
   } else if (host && port) {
     logger.imp(`Connecting ethereum provider to host: ${host} and port ${port}`)
-    provider = new ethers.providers.JsonRpcProvider(`${host}:${port}`)
+    provider = new ethers.providers.StaticJsonRpcProvider(`${host}:${port}`)
   } else {
     logger.imp(`Connecting ethereum to default provider for network ${ethereum.network}`)
     provider = ethers.getDefaultProvider(ethereum.network)
@@ -144,17 +144,23 @@ make.inject = ['config'] as const
  */
 export class EthereumBlockchainService implements BlockchainService {
   private _chainId: number
-  private readonly _network: string
-  private readonly _transactionTimeoutSecs: number
-  private readonly _contract: Contract
+  private readonly network: string
+  private readonly transactionTimeoutSecs: number
+  private readonly contract: Contract
+  private readonly overrideGasConfig: boolean
+  private readonly gasLimit: number
+  private readonly useSmartContractAnchors: boolean
+  private readonly contractAddress: string
 
-  constructor(private readonly config: Config, private readonly wallet: ethers.Wallet) {
-    this._network = this.config.blockchain.connectors.ethereum.network
-    this._transactionTimeoutSecs = this.config.blockchain.connectors.ethereum.transactionTimeoutSecs
-    this._contract = new ethers.Contract(
-      this.config.blockchain.connectors.ethereum.contractAddress,
-      ABI
-    )
+  constructor(config: Config, private readonly wallet: ethers.Wallet) {
+    this.useSmartContractAnchors = config.useSmartContractAnchors
+    const ethereumConfig = config.blockchain.connectors.ethereum
+    this.network = ethereumConfig.network
+    this.transactionTimeoutSecs = ethereumConfig.transactionTimeoutSecs
+    this.contract = new ethers.Contract(ethereumConfig.contractAddress, ABI)
+    this.overrideGasConfig = ethereumConfig.overrideGasConfig
+    this.gasLimit = ethereumConfig.gasLimit
+    this.contractAddress = ethereumConfig.contractAddress
   }
 
   static make = make
@@ -163,9 +169,9 @@ export class EthereumBlockchainService implements BlockchainService {
    * Connects to blockchain
    */
   async connect(): Promise<void> {
-    logger.imp(`Connecting to ${this._network} blockchain...`)
+    logger.imp(`Connecting to ${this.network} blockchain...`)
     await this._loadChainId()
-    logger.imp(`Connected to ${this._network} blockchain with chain ID ${this.chainId}`)
+    logger.imp(`Connected to ${this.network} blockchain with chain ID ${this.chainId}`)
   }
 
   /**
@@ -201,43 +207,44 @@ export class EthereumBlockchainService implements BlockchainService {
    * @private
    */
   async setGasPrice(txData: TransactionRequest, attempt: number): Promise<void> {
-    if (this.config.blockchain.connectors.ethereum.overrideGasConfig) {
-      txData.gasLimit = BigNumber.from(this.config.blockchain.connectors.ethereum.gasLimit)
+    if (this.overrideGasConfig) {
+      txData.gasLimit = BigNumber.from(this.gasLimit)
       logger.debug('Overriding Gas limit: ' + txData.gasLimit.toString())
-    } else {
-      const feeData = await this.wallet.provider.getFeeData()
-      // Add extra to gas price for each subsequent attempt
-      const is1559 = Boolean(feeData.maxFeePerGas && feeData.maxPriorityFeePerGas)
-      if (is1559) {
-        // When attempt 0, use currently estimated maxPriorityFeePerGas; otherwise use previous transaction maxPriorityFeePerGas
-        const prevPriorityFee = BigNumber.from(
-          txData.maxPriorityFeePerGas || feeData.maxPriorityFeePerGas
-        )
-        const nextPriorityFee = EthereumBlockchainService.increaseGasPricePerAttempt(
-          feeData.maxPriorityFeePerGas,
-          attempt,
-          prevPriorityFee
-        )
-        txData.maxPriorityFeePerGas = nextPriorityFee
-        const baseFee = feeData.maxFeePerGas.sub(feeData.maxPriorityFeePerGas)
-        txData.maxFeePerGas = baseFee.add(nextPriorityFee)
-        logger.debug(
-          `Estimated maxPriorityFeePerGas: ${nextPriorityFee.toString()} wei; maxFeePerGas: ${txData.maxFeePerGas.toString()} wei`
-        )
-      } else {
-        // When attempt 0, use currently estimated gasPrice; otherwise use previous transaction gasPrice
-        const prevGasPrice = BigNumber.from(txData.gasPrice || feeData.gasPrice)
-        txData.gasPrice = EthereumBlockchainService.increaseGasPricePerAttempt(
-          feeData.gasPrice,
-          attempt,
-          prevGasPrice
-        )
-        logger.debug(`Estimated gasPrice: ${txData.gasPrice.toString()} wei`)
-      }
-
-      txData.gasLimit = await this.wallet.provider.estimateGas(txData)
-      logger.debug('Estimated Gas limit: ' + txData.gasLimit.toString())
+      return
     }
+
+    const feeData = await this.wallet.provider.getFeeData()
+    // Add extra to gas price for each subsequent attempt
+    const is1559 = Boolean(feeData.maxFeePerGas && feeData.maxPriorityFeePerGas)
+    if (is1559) {
+      // When attempt 0, use currently estimated maxPriorityFeePerGas; otherwise use previous transaction maxPriorityFeePerGas
+      const prevPriorityFee = BigNumber.from(
+        txData.maxPriorityFeePerGas || feeData.maxPriorityFeePerGas
+      )
+      const nextPriorityFee = EthereumBlockchainService.increaseGasPricePerAttempt(
+        feeData.maxPriorityFeePerGas,
+        attempt,
+        prevPriorityFee
+      )
+      txData.maxPriorityFeePerGas = nextPriorityFee
+      const baseFee = feeData.maxFeePerGas.sub(feeData.maxPriorityFeePerGas)
+      txData.maxFeePerGas = baseFee.add(nextPriorityFee)
+      logger.debug(
+        `Estimated maxPriorityFeePerGas: ${nextPriorityFee.toString()} wei; maxFeePerGas: ${txData.maxFeePerGas.toString()} wei`
+      )
+    } else {
+      // When attempt 0, use currently estimated gasPrice; otherwise use previous transaction gasPrice
+      const prevGasPrice = BigNumber.from(txData.gasPrice || feeData.gasPrice)
+      txData.gasPrice = EthereumBlockchainService.increaseGasPricePerAttempt(
+        feeData.gasPrice,
+        attempt,
+        prevGasPrice
+      )
+      logger.debug(`Estimated gasPrice: ${txData.gasPrice.toString()} wei`)
+    }
+
+    txData.gasLimit = await this.wallet.provider.estimateGas(txData)
+    logger.debug('Estimated Gas limit: ' + txData.gasLimit.toString())
   }
 
   /**
@@ -285,24 +292,26 @@ export class EthereumBlockchainService implements BlockchainService {
     logger.debug('Preparing ethereum transaction')
     const baseNonce = await this.wallet.provider.getTransactionCount(this.wallet.address)
 
-    if (!this.config.useSmartContractAnchors) {
+    if (!this.useSmartContractAnchors) {
       const rootStrHex = rootCid.toString(base16)
       const hexEncoded = '0x' + (rootStrHex.length % 2 == 0 ? rootStrHex : '0' + rootStrHex)
-      logger.imp(`Hex encoded root CID ${hexEncoded}`)
+      logger.debug(`Hex encoded root CID ${hexEncoded}`)
 
       return {
         to: this.wallet.address,
         data: hexEncoded,
         nonce: baseNonce,
+        from: this.wallet.address,
       }
     }
 
     const hexEncoded = '0x' + uint8arrays.toString(rootCid.bytes.slice(4), 'base16')
-    const transactionRequest = await this._contract.populateTransaction.anchorDagCbor(hexEncoded)
+    const transactionRequest = await this.contract.populateTransaction.anchorDagCbor(hexEncoded)
     return {
-      to: this.config.blockchain.connectors.ethereum.contractAddress,
+      to: this.contractAddress,
       data: transactionRequest.data,
       nonce: baseNonce,
+      from: this.wallet.address,
     }
   }
 
@@ -321,7 +330,7 @@ export class EthereumBlockchainService implements BlockchainService {
       type: 'txRequest',
       tx: txData,
     })
-    logger.imp(`Sending transaction to Ethereum ${this._network} network...`)
+    logger.imp(`Sending transaction to Ethereum ${this.network} network...`)
     const txResponse: TransactionResponse = await this.wallet.sendTransaction(txData)
     logEvent.ethereum({
       type: 'txResponse',
@@ -348,7 +357,7 @@ export class EthereumBlockchainService implements BlockchainService {
     const txReceipt: TransactionReceipt = await this.wallet.provider.waitForTransaction(
       txResponse.hash,
       NUM_BLOCKS_TO_WAIT,
-      this._transactionTimeoutSecs * 1000
+      this.transactionTimeoutSecs * 1000
     )
     logEvent.ethereum({
       type: 'txReceipt',
@@ -362,7 +371,7 @@ export class EthereumBlockchainService implements BlockchainService {
       statusMessage = 'unknown'
     }
     logger.imp(
-      `Transaction completed on Ethereum ${this._network} network. Transaction hash: ${txReceipt.transactionHash}. Status: ${statusMessage}.`
+      `Transaction completed on Ethereum ${this.network} network. Transaction hash: ${txReceipt.transactionHash}. Status: ${statusMessage}.`
     )
     if (status == TX_FAILURE) {
       throw new Error('Transaction completed with a failure status')
@@ -416,7 +425,7 @@ export class EthereumBlockchainService implements BlockchainService {
             if (code === ErrorCode.INSUFFICIENT_FUNDS) {
               handleInsufficientFundsError(txData, walletBalance)
             } else if (code === ErrorCode.TIMEOUT) {
-              handleTimeoutError(this._transactionTimeoutSecs)
+              handleTimeoutError(this.transactionTimeoutSecs)
             } else if (code === ErrorCode.NONCE_EXPIRED) {
               // If this happens it most likely means that one of our previous attempts timed out, but
               // then actually wound up being successfully mined
@@ -445,7 +454,7 @@ export class EthereumBlockchainService implements BlockchainService {
       type: 'walletBalance',
       balance: ethers.utils.formatUnits(startingWalletBalance, 'gwei'),
     })
-    logger.imp(`Current wallet balance is ` + startingWalletBalance)
+    logger.debug(`Current wallet balance is ` + startingWalletBalance)
 
     const result = await operation(startingWalletBalance)
 
