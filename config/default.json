@@ -11,6 +11,7 @@
   "merkleDepthLimit": 0,
   "minStreamCount": 1024,
   "readyRetryIntervalMS": 300000,
+  "requireAuth": false,
   "schedulerIntervalMS": 300000,
   "ipfsConfig": {
     "url": "http://localhost:5001",

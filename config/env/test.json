@@ -3,6 +3,7 @@
   "expirationPeriod": 0,
   "loadStreamTimeoutMs": 1000,
   "readyRetryIntervalMS": 10000,
+  "requireAuth": false,
   "schedulerIntervalMS": 10000,
   "ceramic": {
     "validateRecords": false
