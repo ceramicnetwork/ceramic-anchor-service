@@ -1,7 +1,3 @@
-# org: ukstv
-# app: aws-node-http-api-project
-# Comment out above to deploy to your own infra
-
 service: cas-did-auth
 frameworkVersion: '3'
 useDotenv: true
