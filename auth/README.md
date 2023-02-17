@@ -8,9 +8,9 @@
 2. `pnpm install`
 3. `pnpm run deploy`
 
-This will output the API endpoint you will cal. Save this endpoint.
-
 ## Offline
+
+Instead of deploying to the cloud, you can run the API locally in offline mode.
 
 1. Run dynamodb on port 8000
 ```sh
@@ -21,17 +21,9 @@ docker run -p 8000:8000 amazon/dynamodb-local
 pnpm run start
 ```
 
+> This will output the API endpoint you will call. Save this endpoint.
+
 > Admin username and password are set to `admin` when in offline mode.
-
-## Testing
-
-Add the env var `TESTING` is set to true to run integration tests
-```sh
-pnpm run start:testing
-# in another terminal
-pnpm run test -- integration
-```
-
 
 ## Running
 
@@ -88,4 +80,21 @@ curl --request PATCH \
   --url https://cas-dev.3boxlabs.com/api/v0/auth/did/<did> \
   --header 'Content-Type: application/json' \
   --data '{"email": "<email>", "otp": "<otp>"}'
+```
+
+## Testing
+
+1. Start dynamodb on port 8000, in one terminal
+```sh
+docker run -p 8000:8000 amazon/dynamodb-local
+```
+
+1. Start the API in testing mode, in another terminal
+```sh
+pnpm run start:testing
+```
+
+1. Run the tests
+```sh
+pnpm run test
 ```
