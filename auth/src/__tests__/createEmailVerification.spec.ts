@@ -19,12 +19,14 @@ test('createEmailVerification', async () => {
       _getRevokedOTPs: jest.fn(() => {
         return Promise.resolve(revokedOTPs)
       }),
-      _checkOTPExpired: jest.fn(),
+      _checkOTPExpired: jest.fn((item) => {
+        return false
+      }),
       _expireOTP: jest.fn(() => {
         revokedOTPs.shift()
         return Promise.resolve()
       }),
-      _revokeOTP: jest.fn((item) => {
+      _revokeOTP: jest.fn((item: any) => {
         activeOTPs.shift()
         revokedOTPs.push(item.otp)
         return Promise.resolve()
