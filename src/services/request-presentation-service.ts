@@ -1,7 +1,7 @@
-import type { AnchorRepository } from '../repositories/anchor-repository.js'
 import type { Request } from '../models/request.js'
 import { InvalidRequestStatusError, RequestStatus } from '../models/request.js'
 import type { Config } from 'node-config-ts'
+import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import type { IRequestPresentationService } from './request-presentation-service.type.js'
 
 /**
@@ -12,7 +12,7 @@ export class RequestPresentationService implements IRequestPresentationService {
 
   static inject = ['config', 'anchorRepository'] as const
 
-  constructor(config: Config, private readonly anchorRepository: AnchorRepository) {
+  constructor(config: Config, private readonly anchorRepository: IAnchorRepository) {
     this.schedulerIntervalMS = config.schedulerIntervalMS
   }
 
@@ -25,6 +25,18 @@ export class RequestPresentationService implements IRequestPresentationService {
     switch (request.status) {
       case RequestStatus.COMPLETED: {
         const anchor = await this.anchorRepository.findByRequest(request)
+        // TODO: This is a workaround, fix in CDB-2192
+        const anchorCommit = {
+          cid: anchor ? anchor.cid : request.cid,
+          content: {
+            // okay to be undefined because it is not used by ceramic node
+            path: anchor?.path,
+            prev: request.cid,
+            // okay to be undefined because it is not used by ceramic node
+            proof: anchor?.proofCid,
+          },
+        }
+
         return {
           id: request.id,
           status: RequestStatus[request.status],
@@ -34,72 +46,42 @@ export class RequestPresentationService implements IRequestPresentationService {
           message: request.message,
           createdAt: request.createdAt.getTime(),
           updatedAt: request.updatedAt.getTime(),
-          anchorRecord: {
-            // TODO: Remove this backwards compatibility field
-            cid: anchor.cid,
-            content: {
-              path: anchor.path,
-              prev: request.cid,
-              proof: anchor.proofCid,
-            },
-          },
-          anchorCommit: {
-            cid: anchor.cid,
-            content: {
-              path: anchor.path,
-              prev: request.cid,
-              proof: anchor.proofCid,
-            },
-          },
+          // TODO: Remove this backwards compatibility field
+          anchorRecord: anchorCommit,
+          anchorCommit,
         }
       }
-      case RequestStatus.PENDING: {
-        return {
-          id: request.id,
-          status: RequestStatus[request.status],
-          cid: request.cid,
-          docId: request.streamId, // TODO remove
-          streamId: request.streamId,
-          message: request.message,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.updatedAt.getTime(),
-        }
-      }
+      case RequestStatus.PENDING:
       case RequestStatus.PROCESSING:
-        return {
-          id: request.id,
-          status: RequestStatus[request.status],
-          cid: request.cid,
-          docId: request.streamId, // TODO remove
-          streamId: request.streamId,
-          message: request.message,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.updatedAt.getTime(),
-        }
       case RequestStatus.FAILED:
-        return {
-          id: request.id,
-          status: RequestStatus[request.status],
-          cid: request.cid,
-          docId: request.streamId, // TODO remove
-          streamId: request.streamId,
-          message: request.message,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.updatedAt.getTime(),
-        }
       case RequestStatus.READY:
+        return this.notCompleted(request)
+      case RequestStatus.REPLACED: {
+        const asNotCompleted = this.notCompleted(request)
         return {
-          id: request.id,
-          status: RequestStatus[request.status],
-          cid: request.cid,
-          docId: request.streamId, // TODO remove
-          streamId: request.streamId,
-          message: request.message,
-          createdAt: request.createdAt.getTime(),
-          updatedAt: request.updatedAt.getTime(),
+          ...asNotCompleted,
+          status: RequestStatus[RequestStatus.FAILED],
         }
+      }
       default:
         throw new InvalidRequestStatusError(request.status)
+    }
+  }
+
+  /**
+   * Vanilla presentation of a non-complete request.
+   * Display status as is.
+   */
+  private notCompleted(request: Request) {
+    return {
+      id: request.id,
+      status: RequestStatus[request.status],
+      cid: request.cid,
+      docId: request.streamId, // TODO remove
+      streamId: request.streamId,
+      message: request.message,
+      createdAt: request.createdAt.getTime(),
+      updatedAt: request.updatedAt.getTime(),
     }
   }
 }

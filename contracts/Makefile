@@ -18,9 +18,9 @@ endif
 
 
 SHELL = /bin/bash
-	
+
 build:
-	forge build
+	forge build --use 0.8.17
 	ls -lah out/
 t:
 	forge test -vvvvv

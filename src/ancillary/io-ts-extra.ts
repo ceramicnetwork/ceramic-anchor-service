@@ -1,4 +1,5 @@
 import * as t from 'io-ts'
+import { CID } from 'multiformats/cid'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import * as uint8arrays from 'uint8arrays'
 import { isDIDString } from './did-string.js'
@@ -29,6 +30,29 @@ export const uint8ArrayAsBase64 = new t.Type<Uint8Array, string, string>(
     }
   },
   (value: Uint8Array): string => uint8arrays.toString(value, 'base64')
+)
+
+/**
+ * io-ts codec for CID encoded as string.
+ */
+export const cidAsString = new t.Type<CID, string, string>(
+  'CID-as-string',
+  (input: unknown): input is CID => {
+    try {
+      return !!CID.asCID(input)
+    } catch (e) {
+      return false
+    }
+  },
+  (input: string, context: t.Context) => {
+    try {
+      const cid = CID.parse(input)
+      return t.success(cid)
+    } catch {
+      return t.failure(input, context)
+    }
+  },
+  (cid) => cid.toString()
 )
 
 /**
@@ -90,7 +114,28 @@ export const didString = t.refinement(t.string, isDIDString, 'did-string')
  * io-ts codec for controllers array: `[DIDString]`.
  */
 export const controllers = t.refinement(
-  t.array(didString),
+  t.array(t.string),
   (array) => array.length === 1,
   '[DIDString]'
 )
+
+
+
+/**
+ * io-ts codec for enums
+ * @param enumName - name of the codec
+ * @param theEnum - TS enum to pass
+ */
+export function fromEnum<EnumType>(enumName: string, theEnum: Record<string, string | number>) {
+  const isEnumValue = (input: unknown): input is EnumType =>
+    Object.values<unknown>(theEnum).includes(input)
+
+  return new t.Type<EnumType>(
+    enumName,
+    isEnumValue,
+    (input, context) => (isEnumValue(input) ? t.success(input) : t.failure(input, context)),
+    t.identity
+  )
+}
+export { fromEnum as enum }
+

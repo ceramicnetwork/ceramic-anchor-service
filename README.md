@@ -40,6 +40,7 @@ docker compose down
 ## Usage (Node.js)
 
 In order to run the simulation you need to install [Node.js](https://nodejs.org).
+Only major version 16 of Node.js is supported.
 
 Configuration file is located under `./config` directory.
 

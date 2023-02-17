@@ -1,11 +1,11 @@
 import 'reflect-metadata'
+import { jest, describe, test, expect } from '@jest/globals'
 import { SchedulerService } from '../scheduler-service.js'
 import { config } from 'node-config-ts'
-import { jest } from '@jest/globals'
 import { createInjector } from 'typed-inject'
 
 const injector = createInjector()
-  .provideValue('config', Object.assign({}, config, { schedulerIntervalMS: 3000 }))
+  .provideValue('config', Object.assign({}, config, { schedulerIntervalMS: 1000 }))
   .provideClass('schedulerService', SchedulerService)
 
 describe('scheduler service', () => {
