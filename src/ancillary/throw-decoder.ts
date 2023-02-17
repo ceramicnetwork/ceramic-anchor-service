@@ -21,7 +21,7 @@ function getContextPath(context: t.Context): string {
   return context.map(({ key, type }) => `${key}: ${type.name}`).join('/')
 }
 
-function getMessage(e: t.ValidationError): string {
+export function getMessage(e: t.ValidationError): string {
   return e.message !== undefined
     ? e.message
     : `Invalid value ${stringify(e.value)} supplied to ${getContextPath(e.context)}`

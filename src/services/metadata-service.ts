@@ -14,8 +14,9 @@ import { logger } from '../logger/index.js'
  * Public interface for MetadataService.
  */
 export interface IMetadataService {
-  fillAll(streamIds: Array<StreamID>, options?: AbortOptions): Promise<void>
-  fill(streamId: StreamID, options?: AbortOptions): Promise<void>
+  fill(streamId: StreamID, genesisFields: GenesisFields): Promise<void>
+  fillAllFromIpfs(streamIds: Array<StreamID>, options?: AbortOptions): Promise<void>
+  fillFromIpfs(streamId: StreamID, options?: AbortOptions): Promise<void>
   retrieve(streamId: StreamID): Promise<StoredMetadata | undefined>
 }
 
@@ -55,10 +56,15 @@ export class MetadataService implements IMetadataService {
     private readonly ipfsService: IIpfsService
   ) {}
 
+  async fill(streamId: StreamID, genesisFields: GenesisFields): Promise<void> {
+    await this.storeMetadata(streamId, genesisFields)
+    logger.debug(`Filled metadata from a CAR file for ${streamId}`)
+  }
+
   /**
    * Retrieve genesis header fields from IPFS, store to the database.
    */
-  async fill(streamId: StreamID, options: AbortOptions = {}): Promise<void> {
+  async fillFromIpfs(streamId: StreamID, options: AbortOptions = {}): Promise<void> {
     const isPresent = await this.metadataRepository.isPresent(streamId)
     if (isPresent) return // Do not perform same work of retrieving from IPFS twice
     const genesisFields = await this.retrieveFromGenesis(streamId, options)
@@ -102,11 +108,11 @@ export class MetadataService implements IMetadataService {
     })
   }
 
-  async fillAll(streamIds: Array<StreamID>, options?: AbortOptions): Promise<void> {
+  async fillAllFromIpfs(streamIds: Array<StreamID>, options?: AbortOptions): Promise<void> {
     await Promise.all(
       streamIds.map(async (streamId) => {
         try {
-          await this.fill(streamId, options)
+          await this.fillFromIpfs(streamId, options)
         } catch (e) {
           logger.err(`Can not fill metadata for ${streamId}: ${e}`)
         }

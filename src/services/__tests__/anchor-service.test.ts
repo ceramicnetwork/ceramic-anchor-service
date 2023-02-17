@@ -174,7 +174,7 @@ describe('anchor service', () => {
         },
       })
       const streamId = new StreamID(1, genesisCID)
-      await metadataService.fill(streamId)
+      await metadataService.fillFromIpfs(streamId)
       const cid = await ipfsService.storeRecord({})
 
       const request = new Request()
@@ -226,7 +226,7 @@ describe('anchor service', () => {
         },
       })
       const streamId = new StreamID(1, genesisCID)
-      await metadataService.fill(streamId)
+      await metadataService.fillFromIpfs(streamId)
       const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
       requests.push(request)
     }
@@ -282,7 +282,7 @@ describe('anchor service', () => {
         },
       })
       const streamId = new StreamID(1, genesisCID)
-      await metadataService.fill(streamId)
+      await metadataService.fillFromIpfs(streamId)
 
       await createRequest(streamId.toString(), ipfsService, requestRepository)
     }
@@ -332,7 +332,7 @@ describe('anchor service', () => {
         },
       })
       const streamId = new StreamID(1, genesisCID)
-      await metadataService.fill(streamId)
+      await metadataService.fillFromIpfs(streamId)
 
       const status = failedIndex > 0 ? RequestStatus.FAILED : RequestStatus.PENDING
       const request = await createRequest(
@@ -427,7 +427,7 @@ describe('anchor service', () => {
         },
       })
       const streamId = new StreamID(1, genesisCID)
-      await metadataService.fill(streamId)
+      await metadataService.fillFromIpfs(streamId)
       await createRequest(streamId.toString(), ipfsService, requestRepository)
     }
 
@@ -454,7 +454,7 @@ describe('anchor service', () => {
         },
       })
       const streamId = new StreamID(1, genesisCID)
-      await metadataService.fill(streamId)
+      await metadataService.fillFromIpfs(streamId)
       await createRequest(streamId.toString(), ipfsService, requestRepository)
     }
 
@@ -510,7 +510,7 @@ describe('anchor service', () => {
         },
       })
       const streamId = new StreamID(1, genesisCID)
-      await metadataService.fill(streamId)
+      await metadataService.fillFromIpfs(streamId)
       await createRequest(streamId.toString(), ipfsService, requestRepository)
     }
 
@@ -547,7 +547,7 @@ describe('anchor service', () => {
         },
       })
       const streamId = new StreamID(1, genesisCID)
-      await metadataService.fill(streamId)
+      await metadataService.fillFromIpfs(streamId)
       await createRequest(streamId.toString(), ipfsService, requestRepository)
     }
 
@@ -584,7 +584,7 @@ describe('anchor service', () => {
           },
         })
         const streamId = new StreamID(1, genesisCID)
-        await metadataService.fill(streamId)
+        await metadataService.fillFromIpfs(streamId)
         streamIds.push(streamId)
       }
       // const streamIds = Array.from({ length: numRequests }).map(() => randomStreamID())
