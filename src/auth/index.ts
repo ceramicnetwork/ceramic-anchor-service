@@ -8,15 +8,15 @@ function buildExpressMiddleware() {
     return function(req: Request, res: Response, next: NextFunction) {
         if (req.headers) {
             if (req.headers.did && req.body) {
-                const bodyHash = buildBodyHash(req.headers['content-type'], req.body)
-                return req.headers.bodyHash == bodyHash
+                const digest = buildBodyDigest(req.headers['content-type'], req.body)
+                return req.headers.digest == digest
             }
         }
         next()
     }
 }
 
-function buildBodyHash(contentType: string, body: any): string | undefined {
+function buildBodyDigest(contentType: string, body: any): string | undefined {
     if (!body) return
 
     let hash: Hash
@@ -25,7 +25,7 @@ function buildBodyHash(contentType: string, body: any): string | undefined {
       if (contentType.includes('application/vnd.ipld.car')) {
         const carFactory = new CARFactory()
         const car = carFactory.fromBytes(u8a.fromString(body, 'binary'))
-        hash = createHash('sha256').update(car.roots[0].toString())
+        return car.roots[0].toString()
       } else if (contentType.includes('application/json')) {
         hash = createHash('sha256').update(JSON.stringify(body))
       }

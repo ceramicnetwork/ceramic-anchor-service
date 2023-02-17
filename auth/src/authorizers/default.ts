@@ -71,7 +71,7 @@ async function allowRegisteredDID(event: APIGatewayRequestAuthorizerEvent, callb
   if (result) {
     const did = result.didResolutionResult.didDocument?.id
     const nonce = result.payload?.nonce
-    const body = result.payload?.body
+    const digest = result.payload?.body
     if (!did) {
       console.error('Missing did')
     } else if (!nonce) {
@@ -88,7 +88,7 @@ async function allowRegisteredDID(event: APIGatewayRequestAuthorizerEvent, callb
           if (data.did == did && data.nonce == nonce) {
             const context = {
               "did": did,
-              "bodyHash": body
+              "digest": digest
             }
             return callback(null, generatePolicy(did, {effect: 'Allow', resource: event.methodArn}, did, context))
           }
