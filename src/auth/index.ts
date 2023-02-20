@@ -33,7 +33,7 @@ function buildExpressMiddleware() {
 function buildBodyDigest(contentType: string, body: any): string | undefined {
     if (!body) return
 
-    let hash: sha256.SHA256
+    let hash: Uint8Array
 
     if (contentType) {
       if (contentType.includes('application/vnd.ipld.car')) {
@@ -41,14 +41,14 @@ function buildBodyDigest(contentType: string, body: any): string | undefined {
         const car = carFactory.fromBytes(body)
         return car.roots[0].toString()
       } else if (contentType.includes('application/json')) {
-        hash = new sha256.SHA256().update(u8a.fromString(JSON.stringify(body)))
+        hash = sha256.hash(u8a.fromString(JSON.stringify(body)))
       }
     }
 
     if (!hash) {
       // Default to hashing stringified body
-      hash = new sha256.SHA256().update(u8a.fromString(JSON.stringify(body)))
+      hash = sha256.hash(u8a.fromString(JSON.stringify(body)))
     }
 
-    return `0x${u8a.toString(hash.digest(), 'base16')}`
+    return `0x${u8a.toString(hash, 'base16')}`
   }
