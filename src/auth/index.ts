@@ -1,5 +1,5 @@
+import * as sha256 from '@stablelib/sha256'
 import { CARFactory } from 'cartonne'
-import { Hash, createHash } from 'crypto'
 import { NextFunction, Request, Response } from 'express'
 import * as u8a from 'uint8arrays'
 
@@ -19,22 +19,22 @@ function buildExpressMiddleware() {
 function buildBodyDigest(contentType: string, body: any): string | undefined {
     if (!body) return
 
-    let hash: Hash
+    let hash: sha256.SHA256
 
     if (contentType) {
       if (contentType.includes('application/vnd.ipld.car')) {
         const carFactory = new CARFactory()
-        const car = carFactory.fromBytes(u8a.fromString(body, 'binary'))
+        const car = carFactory.fromBytes(body)
         return car.roots[0].toString()
       } else if (contentType.includes('application/json')) {
-        hash = createHash('sha256').update(JSON.stringify(body))
+        hash = new sha256.SHA256().update(u8a.fromString(JSON.stringify(body)))
       }
     }
 
     if (!hash) {
       // Default to hashing stringified body
-      hash = createHash('sha256').update(JSON.stringify(body))
+      hash = new sha256.SHA256().update(u8a.fromString(JSON.stringify(body)))
     }
 
-    return hash.digest('hex')
+    return `0x${u8a.toString(hash.digest(), 'base16')}`
   }

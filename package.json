@@ -54,6 +54,7 @@
     "@ceramicnetwork/streamid": "^2.10.0-rc.0",
     "@ceramicnetwork/wasm-bloom-filter": "^0.1.0",
     "@overnightjs/core": "^1.7.6",
+    "@stablelib/sha256": "^1.0.1",
     "@types/lodash.camelcase": "^4.3.7",
     "@types/lodash.snakecase": "^4.1.7",
     "cartonne": "^1.0.3",

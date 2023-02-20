@@ -38,6 +38,8 @@
     "@ceramicnetwork/http-client": "^2.3.1",
     "@ceramicnetwork/stream-tile": "^2.4.0",
     "@stablelib/random": "^1.0.1",
+    "@stablelib/sha256": "^1.0.1",
+    "@stablelib/uuid": "^1.0.1",
     "@types/luxon": "^3.1.0",
     "aws-sdk": "^2.1192.0",
     "body-parser": "^1.20.1",
@@ -54,7 +56,6 @@
     "node-fetch": "^3.3.0",
     "serverless-http": "^3.1.0",
     "serverless-offline": "^11.5.0",
-    "uint8arrays": "^3.1.0",
-    "uuid": "^9.0.0"
+    "uint8arrays": "^3.1.0"
   }
 }

@@ -1,7 +1,6 @@
-import { createHash } from 'crypto'
-import { Joi } from 'express-validation'
+import * as sha256 from '@stablelib/sha256'
 import { DateTime } from 'luxon'
-import { authBasicValidation } from '../validators/did.js'
+import * as u8a from 'uint8arrays'
 import { now } from './datetime.js'
 
 export const authBasicRegex = new RegExp(/Basic .*/)
@@ -24,8 +23,8 @@ export function checkUserIsAdmin(authorization: string) {
         return false
     }
 
-    const u = createHash('sha256').update(process.env.ADMIN_USERNAME).digest('hex')
-    const p = createHash('sha256').update(process.env.ADMIN_PASSWORD).digest('hex')
+    const u = sha256HashString(process.env.ADMIN_USERNAME)
+    const p = sha256HashString(process.env.ADMIN_PASSWORD)
     return (u == username) && (p == password)
 }
 
@@ -61,8 +60,18 @@ export function encodeAdminCredentials(
         const date = DateTime.now().plus({ hours: 4 })
         expirationUnixTimestamp = date.toUnixInteger()
     }
-    const u = createHash('sha256').update(username).digest('hex')
-    const p = createHash('sha256').update(password).digest('hex')
+    const u = sha256HashString(username)
+    const p = sha256HashString(password)
     const credentials = `${u}#${expirationUnixTimestamp}:${p}`
     return Buffer.from(credentials).toString('base64')
+}
+
+/**
+ * Returns sha256 hash of string as hex code
+ * @param s Any string
+ * @returns Sha256 hash digest as hex code string
+ */
+function sha256HashString(s: string): string {
+    const hash = new sha256.SHA256().update(u8a.fromString(s))
+    return `0x${u8a.toString(hash.digest(), 'base16')}`
 }
