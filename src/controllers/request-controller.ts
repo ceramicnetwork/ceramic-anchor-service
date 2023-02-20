@@ -115,7 +115,7 @@ export class RequestController {
       const streamId = requestParams.streamId
 
 
-      let timestamp = requestParams.timestamp ?? new Date()
+      const timestamp = requestParams.timestamp ?? new Date()
 
       const found = await this.requestRepository.findByCid(cid)
       if (found) {

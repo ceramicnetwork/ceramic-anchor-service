@@ -40,6 +40,7 @@ export const IpfsGenesisHeader = t.exact(
 /**
  * Fails on compile time if there is any divergence between `GenesisFields` and `IpfsGenesisHeader` shapes.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type ExactGenesisFields = Assert<IsExact<GenesisFields, t.TypeOf<typeof IpfsGenesisHeader>>, true>
 
 /**

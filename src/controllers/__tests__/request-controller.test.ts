@@ -19,14 +19,14 @@ import { StreamID } from '@ceramicnetwork/streamid'
 import type { IMetadataService } from '../../services/metadata-service.js'
 import { DateTime } from 'luxon'
 import { mockRequest, mockResponse } from './mock-request.util.js'
-import { GenesisFields } from '../../models/metadata'
+import { GenesisFields } from '../../models/metadata.js'
 import { bases } from 'multiformats/basics'
 import { toCID } from '@ceramicnetwork/common'
-import { asDIDString } from '../../ancillary/did-string'
+import { asDIDString } from '../../ancillary/did-string.js'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { MetadataRepository } from '../../repositories/metadata-repository.js'
-import { AnchorRequestParamsParser } from '../../../build/ancillary/anchor-request-params-parser'
 import { StoredMetadata } from '../../models/metadata.js'
+import { AnchorRequestParamsParser } from '../../ancillary/anchor-request-params-parser.js'
 
 type Tokens = {
   requestController: RequestController
@@ -48,20 +48,24 @@ const FAKE_GENESIS_FIELDS: GenesisFields = {
 }
 
 class MockMetadataService implements IMetadataService {
-  async fill(streamId: StreamID, genesisFields: GenesisFields): Promise<void> {
+  async fill(): Promise<void> {
     return
   }
 
-  async fillFromIpfs(streamId: StreamID): Promise<void> {
+  async fillFromIpfs(): Promise<void> {
     return
   }
 
   fillAll(): Promise<void> {
-    throw new Error(`Not implemented: MockMetadataService::fillAll`)
+    return
   }
 
-  retrieve(streamId: StreamID): Promise<StoredMetadata | undefined> {
-    throw new Error(`Not implemented: MockMetadataService::retrieve`)
+  retrieve(): Promise<StoredMetadata | undefined> {
+    return
+  }
+
+  fillAllFromIpfs(): Promise<void> {
+    return
   }
 }
 
@@ -103,7 +107,8 @@ describe('createRequest', () => {
       await controller.createRequest(req, res)
       expect(res.status).toBeCalledWith(StatusCodes.BAD_REQUEST)
       expect(res.json).toBeCalledWith({
-        error: "Invalid value undefined supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/streamId: StreamID-as-string",
+        error:
+          'Invalid value undefined supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/streamId: StreamID-as-string',
       })
     })
 
@@ -120,7 +125,8 @@ describe('createRequest', () => {
       await controller.createRequest(req, res)
       expect(res.status).toBeCalledWith(StatusCodes.BAD_REQUEST)
       expect(res.json).toBeCalledWith({
-        error: "Invalid value undefined supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/streamId: StreamID-as-string",
+        error:
+          'Invalid value undefined supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/streamId: StreamID-as-string',
       })
     })
 
@@ -140,7 +146,7 @@ describe('createRequest', () => {
       expect(res.status).toBeCalledWith(StatusCodes.BAD_REQUEST)
       const jsonFn = jest.spyOn(res, 'json')
       expect(jsonFn.mock.calls[0][0].error).toMatch(
-        "Invalid value \"garbage\" supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/cid: CID-as-string"
+        'Invalid value "garbage" supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/cid: CID-as-string'
       )
     })
 
@@ -159,7 +165,7 @@ describe('createRequest', () => {
       expect(res.status).toBeCalledWith(StatusCodes.BAD_REQUEST)
       const jsonFn = jest.spyOn(res, 'json')
       expect(jsonFn.mock.calls[0][0].error).toMatch(
-        "Invalid value \"garbage\" supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/streamId: StreamID-as-string"
+        'Invalid value "garbage" supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/streamId: StreamID-as-string'
       )
     })
 

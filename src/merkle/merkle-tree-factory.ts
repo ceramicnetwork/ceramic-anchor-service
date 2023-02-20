@@ -1,6 +1,5 @@
 import type { CompareFunction, MergeFunction, MetadataFunction } from './merkle.js'
 import { Node } from './merkle.js'
-import type { NonEmptyArray } from '@ceramicnetwork/common'
 import { MerkleTree } from './merkle-tree.js'
 
 /**

@@ -8,8 +8,8 @@ import {
 import { StreamID } from '@ceramicnetwork/streamid'
 import { toCID } from '@ceramicnetwork/common'
 import { bases } from 'multiformats/basics'
-import { GenesisFields } from '../../models/metadata'
-import { asDIDString } from '../did-string'
+import { GenesisFields } from '../../models/metadata.js'
+import { asDIDString } from '../did-string.js'
 import { mockRequest } from '../../controllers/__tests__/mock-request.util.js'
 import * as t from 'io-ts'
 import { isRight, Right } from 'fp-ts/lib/Either.js'
@@ -87,9 +87,7 @@ describe('AnchoRequestParamsParser', () => {
     expect(params.streamId).toEqual(FAKE_SIGNED_STREAM_ID)
     expect(params.cid).toEqual(FAKE_SIGNED_TIP)
     expect(params.timestamp).toEqual(new Date(TIMESTAMP_ISO))
-    expect((params as RequestAnchorParamsV2).genesisFields).toEqual(
-      CAR_FILE_FAKE_GENESIS_FIELDS
-    )
+    expect((params as RequestAnchorParamsV2).genesisFields).toEqual(CAR_FILE_FAKE_GENESIS_FIELDS)
   })
 
   test('parses CAR with unsigned genesis properly', () => {
@@ -102,8 +100,6 @@ describe('AnchoRequestParamsParser', () => {
     expect(params.streamId).toEqual(FAKE_UNSIGNED_STREAM_ID)
     expect(params.cid).toEqual(FAKE_UNSIGNED_TIP)
     expect(params.timestamp).toEqual(new Date(TIMESTAMP_ISO))
-    expect((params as RequestAnchorParamsV2).genesisFields).toEqual(
-      CAR_FILE_FAKE_GENESIS_FIELDS
-    )
+    expect((params as RequestAnchorParamsV2).genesisFields).toEqual(CAR_FILE_FAKE_GENESIS_FIELDS)
   })
 })

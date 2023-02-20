@@ -9,7 +9,7 @@ import type { IIpfsService } from '../services/ipfs-service.type.js'
 
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { StreamID } from '@ceramicnetwork/streamid'
-import { GenesisFields } from '../models/metadata'
+import type { GenesisFields } from '../models/metadata.js'
 
 const packageJson = JSON.parse(
   fs.readFileSync(

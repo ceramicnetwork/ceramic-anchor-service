@@ -1,6 +1,5 @@
 import type { Request } from '../models/request.js'
 import { InvalidRequestStatusError, RequestStatus } from '../models/request.js'
-import type { Config } from 'node-config-ts'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import type { IRequestPresentationService } from './request-presentation-service.type.js'
 
@@ -8,13 +7,9 @@ import type { IRequestPresentationService } from './request-presentation-service
  * Render anchoring Request as JSON for a client to consume.
  */
 export class RequestPresentationService implements IRequestPresentationService {
-  private readonly schedulerIntervalMS: number
+  static inject = ['anchorRepository'] as const
 
-  static inject = ['config', 'anchorRepository'] as const
-
-  constructor(config: Config, private readonly anchorRepository: IAnchorRepository) {
-    this.schedulerIntervalMS = config.schedulerIntervalMS
-  }
+  constructor(private readonly anchorRepository: IAnchorRepository) {}
 
   /**
    * Rich JSON of a request.

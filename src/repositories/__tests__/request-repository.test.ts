@@ -15,9 +15,9 @@ import {
 } from '../../__tests__/test-utils.js'
 import { createInjector } from 'typed-inject'
 import { DateTime } from 'luxon'
-import { MetadataRepository } from '../metadata-repository'
+import { MetadataRepository } from '../metadata-repository.js'
 import { StreamID } from '@ceramicnetwork/streamid'
-import { asDIDString } from '../../ancillary/did-string'
+import { asDIDString } from '../../ancillary/did-string.js'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60

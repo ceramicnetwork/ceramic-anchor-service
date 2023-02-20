@@ -7,7 +7,6 @@ import { AnchorService } from '../anchor-service.js'
 import { clearTables, createDbConnection } from '../../db-connection.js'
 
 import { RequestRepository } from '../../repositories/request-repository.js'
-import { IpfsService } from '../ipfs-service.js'
 import type { IIpfsService } from '../ipfs-service.type.js'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { config, Config } from 'node-config-ts'
@@ -31,10 +30,10 @@ import { TransactionRepository } from '../../repositories/transaction-repository
 import type { BlockchainService } from '../blockchain/blockchain-service'
 import type { Transaction } from '../../models/transaction.js'
 import { createInjector, Injector } from 'typed-inject'
-import { MetadataRepository } from '../../repositories/metadata-repository'
+import { MetadataRepository } from '../../repositories/metadata-repository.js'
 import { randomString } from '@stablelib/random'
-import { IMetadataService, MetadataService } from '../metadata-service'
-import { asDIDString } from '../../ancillary/did-string'
+import { IMetadataService, MetadataService } from '../metadata-service.js'
+import { asDIDString } from '../../ancillary/did-string.js'
 
 process.env.NODE_ENV = 'test'
 
@@ -237,7 +236,7 @@ describe('anchor service', () => {
 
     await requestRepository.findAndMarkReady(0)
 
-    const [candidates, _] = await anchorService._findCandidates(requests, 0)
+    const [candidates] = await anchorService._findCandidates(requests, 0)
     const merkleTree = await anchorService._buildMerkleTree(candidates)
     const ipfsProofCid = await ipfsService.storeRecord({})
 
@@ -295,7 +294,7 @@ describe('anchor service', () => {
     expect(requests.length).toEqual(anchorLimit)
 
     const anchorPendingRequests = async function (requests: Request[]): Promise<void> {
-      const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
+      const [candidates] = await anchorService._findCandidates(requests, anchorLimit)
       expect(candidates.length).toEqual(anchorLimit)
 
       await anchorCandidates(candidates, anchorService, ipfsService)
@@ -374,7 +373,7 @@ describe('anchor service', () => {
     await expect(requestRepository.countByStatus(RequestStatus.READY)).resolves.toEqual(anchorLimit)
     const pendingRequests = await requestRepository.batchProcessing(0, anchorLimit)
     expect(pendingRequests.length).toEqual(anchorLimit)
-    const [candidates, _] = await anchorService._findCandidates(pendingRequests, anchorLimit)
+    const [candidates] = await anchorService._findCandidates(pendingRequests, anchorLimit)
     expect(candidates.length).toEqual(anchorLimit)
 
     await anchorCandidates(candidates, anchorService, ipfsService)
@@ -436,7 +435,7 @@ describe('anchor service', () => {
 
     const requests = await requestRepository.findByStatus(RequestStatus.READY)
     expect(requests.length).toEqual(numRequests)
-    const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
+    const [candidates] = await anchorService._findCandidates(requests, anchorLimit)
     expect(candidates.length).toEqual(numRequests)
     await anchorCandidates(candidates, anchorService, ipfsService)
 
@@ -463,7 +462,7 @@ describe('anchor service', () => {
     const requests = await requestRepository.findByStatus(RequestStatus.READY)
 
     expect(requests.length).toEqual(numRequests)
-    const [candidates, _] = await anchorService._findCandidates(requests, 0)
+    const [candidates] = await anchorService._findCandidates(requests, 0)
     expect(candidates.length).toEqual(numRequests)
 
     const originalMockDagPut = mockIpfsClient.dag.put.getMockImplementation()
@@ -519,7 +518,7 @@ describe('anchor service', () => {
 
     const requests = await requestRepository.findByStatus(RequestStatus.READY)
     expect(requests.length).toEqual(numRequests)
-    const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
+    const [candidates] = await anchorService._findCandidates(requests, anchorLimit)
     expect(candidates.length).toEqual(numRequests)
 
     const original = anchorService._createAnchorCommit
@@ -556,7 +555,7 @@ describe('anchor service', () => {
 
     let requests = await requestRepository.findByStatus(RequestStatus.READY)
     expect(requests.length).toEqual(numRequests)
-    const [candidates, _] = await anchorService._findCandidates(requests, anchorLimit)
+    const [candidates] = await anchorService._findCandidates(requests, anchorLimit)
     expect(candidates.length).toEqual(numRequests)
     await anchorCandidates(candidates, anchorService, ipfsService)
 
@@ -595,7 +594,7 @@ describe('anchor service', () => {
         )
       )
 
-      const [candidates, _] = await anchorService._findCandidates(requests, 0)
+      const [candidates] = await anchorService._findCandidates(requests, 0)
       await anchorCandidates(candidates, anchorService, ipfsService)
       expect(candidates.length).toEqual(numRequests)
 
@@ -783,6 +782,10 @@ describe('anchor service', () => {
     const cid = await ipfsService.storeRecord({})
     expect(mockIpfsClient.dag.put).toHaveBeenCalledTimes(1)
     expect(mockIpfsClient.pin.add).toHaveBeenCalledTimes(1)
-    expect(mockIpfsClient.pin.add).toHaveBeenCalledWith(cid, {signal: undefined, timeout: 30000, recursive: false})
+    expect(mockIpfsClient.pin.add).toHaveBeenCalledWith(cid, {
+      signal: undefined,
+      timeout: 30000,
+      recursive: false,
+    })
   })
 })

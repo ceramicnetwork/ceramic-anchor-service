@@ -318,12 +318,8 @@ export class EthereumBlockchainService implements BlockchainService {
   /**
    * One attempt at submitting the prepared TransactionRequest to the ethereum blockchain.
    * @param txData
-   * @param attemptNum
    */
-  async _trySendTransaction(
-    txData: TransactionRequest,
-    attemptNum: number
-  ): Promise<TransactionResponse> {
+  async _trySendTransaction(txData: TransactionRequest): Promise<TransactionResponse> {
     logger.imp('Transaction data:' + JSON.stringify(txData))
 
     logEvent.ethereum({
@@ -414,7 +410,7 @@ export class EthereumBlockchainService implements BlockchainService {
       return attempt(MAX_RETRIES, async (attemptNum) => {
         try {
           await this.setGasPrice(txData, attemptNum)
-          const txResponse = await this._trySendTransaction(txData, attemptNum)
+          const txResponse = await this._trySendTransaction(txData)
           txResponses.push(txResponse)
           return await this._confirmTransactionSuccess(txResponse)
         } catch (err) {

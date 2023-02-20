@@ -34,7 +34,6 @@ import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import { MerkleTreeFactory } from '../merkle/merkle-tree-factory.js'
-import { SyncOptions } from '@ceramicnetwork/common'
 import type { IMetadataService } from './metadata-service.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
