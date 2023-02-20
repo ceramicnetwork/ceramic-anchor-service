@@ -61,7 +61,7 @@ export class MerkleTree<TData, TLeaf extends TData, TMetadata> {
      */
     readonly leafNodes: Array<Node<TLeaf>>,
     /**
-     * Tree metadata
+     * Tree metadata. Would not be considered for a proof if not available.
      */
     readonly metadata: TMetadata | null
   ) {}
