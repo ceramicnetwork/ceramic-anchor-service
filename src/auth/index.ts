@@ -33,7 +33,7 @@ function buildExpressMiddleware() {
 function buildBodyDigest(contentType: string, body: any): string | undefined {
     if (!body) return
 
-    let hash: sha256.SHA256
+    let hash: Uint8Array
 
     if (contentType) {
       if (contentType.includes('application/vnd.ipld.car')) {
