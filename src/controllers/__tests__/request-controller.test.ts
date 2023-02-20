@@ -226,6 +226,7 @@ describe('createRequest', () => {
 
       expect(res.status).toBeCalledWith(StatusCodes.CREATED)
       const createdRequest = await requestRepository.findByCid(FAKE_TIP)
+      expectPresent(createdRequest)
       expect(createdRequest).toBeDefined()
       expect(createdRequest.cid).toEqual(FAKE_TIP.toString())
       expect(createdRequest.status).toEqual(RequestStatus.PENDING)

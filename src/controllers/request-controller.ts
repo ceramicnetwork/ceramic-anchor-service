@@ -2,7 +2,7 @@ import { StatusCodes } from 'http-status-codes'
 import { Request as ExpReq, Response as ExpRes } from 'express'
 
 import cors from 'cors'
-import {ClassMiddleware, Controller, Get, Middleware, Post} from '@overnightjs/core'
+import { ClassMiddleware, Controller, Get, Middleware, Post } from '@overnightjs/core'
 
 import { NonEmptyArray, toCID } from '@ceramicnetwork/common'
 import { Request, RequestStatus } from '../models/request.js'
@@ -15,12 +15,12 @@ import type { IMetadataService } from '../services/metadata-service.js'
 import {
   RequestAnchorParams,
   AnchorRequestParamsParser,
-  isRequestAnchorParamsV2
-} from "../ancillary/anchor-request-params-parser.js"
+  isRequestAnchorParamsV2,
+} from '../ancillary/anchor-request-params-parser.js'
 import bodyParser from 'body-parser'
 import * as t from 'io-ts'
 import * as f from 'fp-ts'
-import { getMessage } from "../ancillary/throw-decoder.js"
+import { getMessage } from '../ancillary/throw-decoder.js'
 
 /*
  * Get origin from a request from X-Forwarded-For.
@@ -91,7 +91,7 @@ export class RequestController {
   }
 
   @Post()
-  @Middleware([bodyParser.raw({type: 'application/vnd.ipld.car'})])
+  @Middleware([bodyParser.raw({ type: 'application/vnd.ipld.car' })])
   async createRequest(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     try {
       logger.debug(`Create request ${JSON.stringify(req.body)}`)
@@ -99,7 +99,7 @@ export class RequestController {
       let validation: t.Validation<RequestAnchorParams>
       try {
         validation = this.anchorRequestParamsParser.parse(req)
-      } catch (err) {
+      } catch (err: any) {
         return this.getBadRequestResponse(req, res, err)
       }
 
@@ -114,7 +114,6 @@ export class RequestController {
 
       const cid = requestParams.cid
       const streamId = requestParams.streamId
-
 
       const timestamp = requestParams.timestamp ?? new Date()
 

@@ -39,7 +39,7 @@ import { expectPresent } from '../../__tests__/expect-present.util.js'
 process.env['NODE_ENV'] = 'test'
 
 export class MockEventProducerService implements EventProducerService {
-  emitAnchorEvent(_body: string): Promise<void> {
+  emitAnchorEvent(): Promise<void> {
     return Promise.resolve(undefined)
   }
 }

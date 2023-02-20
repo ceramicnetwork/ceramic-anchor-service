@@ -13,19 +13,22 @@ export class AnchorRequestCarFileReader {
 
   private get root(): Record<string, any> {
     const rootCid = this.carFile.roots[0]
-    return this.carFile.get(rootCid)
+    if (!rootCid) throw new Error(`Can not get root CID`)
+    const entry = this.carFile.get(rootCid)
+    if (!entry) throw new Error(`Can not get root entry by cid ${rootCid}`)
+    return entry
   }
 
   get timestamp(): Date {
-    return new Date(this.root.timestamp)
+    return new Date(this.root['timestamp'])
   }
 
   get streamId(): StreamID {
-    return StreamID.fromBytes(this.root.streamId)
+    return StreamID.fromBytes(this.root['streamId'])
   }
 
   get tip(): CID {
-    return this.root.tip
+    return this.root['tip']
   }
 
   get genesisFields(): GenesisFields {
