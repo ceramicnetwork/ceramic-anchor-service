@@ -5,11 +5,25 @@ import * as u8a from 'uint8arrays'
 
 export const auth = buildExpressMiddleware()
 function buildExpressMiddleware() {
+  /**
+   * @dev If the request has a did header, it means we have already confirmed the did
+   * is registered. If the request has no did, it means we have already
+   * confirmed the IP address making the request is on our allowlist. If the
+   * request contains a body, it means we have already verified the digest
+   * header can be trusted here.
+   * All of this logic mentioned above lives outside of this app.
+   * Notice that the absense of a did header or body bypasses any checks below
+   * this app will still work if the logice above is not in place.
+   */
     return function(req: Request, res: Response, next: NextFunction) {
         if (req.headers) {
             if (req.headers.did && req.body) {
                 const digest = buildBodyDigest(req.headers['content-type'], req.body)
-                return req.headers.digest == digest
+                if (req.headers.digest == digest) {
+                  next()
+                } else {
+                  throw Error('Body digest verification failed')
+                }
             }
         }
         next()
