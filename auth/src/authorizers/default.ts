@@ -1,3 +1,4 @@
+import { Networks } from '@ceramicnetwork/common'
 import { APIGatewayRequestAuthorizerEvent } from 'aws-lambda'
 import { EC2 } from 'aws-sdk'
 import { VerifyJWSResult } from 'dids'
@@ -20,6 +21,10 @@ export const handler = async (event: APIGatewayRequestAuthorizerEvent, context, 
   console.log(event)
   console.log(context)
 
+  if (process.env.CERAMIC_NETWORK == Networks.TESTNET_CLAY) {
+    return allowAll(event, callback)
+  }
+
   const { error, value } = authSchema.validate({ authorization: event.headers?.Authorization });
   if (error) {
     console.error(error)
@@ -36,6 +41,11 @@ export const handler = async (event: APIGatewayRequestAuthorizerEvent, context, 
   }
 
   return callback('Unauthorized')
+}
+
+function allowAll(event: APIGatewayRequestAuthorizerEvent, callback: any): any {
+  const ip = event.requestContext.identity.sourceIp
+  return callback(null, generatePolicy(ip, {effect: 'Allow', resource: event.methodArn }))
 }
 
 async function allowPermissionedIPAddress(event: APIGatewayRequestAuthorizerEvent, callback: any): Promise<any> {
