@@ -50,5 +50,5 @@ function buildBodyDigest(contentType: string, body: any): string | undefined {
       hash = sha256.hash(u8a.fromString(JSON.stringify(body)))
     }
 
-    return `0x${u8a.toString(hash.digest(), 'base16')}`
+    return `0x${u8a.toString(hash, 'base16')}`
   }
