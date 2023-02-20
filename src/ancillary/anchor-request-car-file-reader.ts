@@ -1,6 +1,6 @@
-import { CAR, CARFactory, CarBlock } from 'cartonne'
-import { StreamID } from '@ceramicnetwork/streamid'
+import type { CAR } from 'cartonne'
 import type { CID } from 'multiformats/cid'
+import { StreamID } from '@ceramicnetwork/streamid'
 import { GenesisFields } from '../models/metadata.js'
 import { ThrowDecoder } from './throw-decoder.js'
 import { IpfsGenesisHeader } from '../services/metadata-service.js'
@@ -37,8 +37,7 @@ export class AnchorRequestCarFileReader {
       )
     }
 
-    const genesisRecord = this.carFile.get(genesisCid)
-    let genesisFieldsRecord = genesisRecord
+    let genesisFieldsRecord = this.carFile.get(genesisCid)
     if (genesisCid.code === DAG_JOSE_CODEC) {
       const genesisBlock = this.carFile.get(genesisCid)
       genesisFieldsRecord = this.carFile.get(genesisBlock.link)
