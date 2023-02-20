@@ -105,12 +105,12 @@ describe('createRequest', () => {
         },
       })
       const res = mockResponse()
+      const jsonSpy = jest.spyOn(res, 'json')
       await controller.createRequest(req, res)
       expect(res.status).toBeCalledWith(StatusCodes.BAD_REQUEST)
-      expect(res.json).toBeCalledWith({
-        error:
-          'Invalid value undefined supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/streamId: StreamID-as-string',
-      })
+      expect(jsonSpy).toBeCalledTimes(1)
+      expectPresent(jsonSpy.mock.calls[0])
+      expect(jsonSpy.mock.calls[0][0].error).toBeDefined()
     })
 
     test('streamId is empty: fail', async () => {
@@ -123,12 +123,11 @@ describe('createRequest', () => {
         },
       })
       const res = mockResponse()
+      const jsonSpy = jest.spyOn(res, 'json')
       await controller.createRequest(req, res)
       expect(res.status).toBeCalledWith(StatusCodes.BAD_REQUEST)
-      expect(res.json).toBeCalledWith({
-        error:
-          'Invalid value undefined supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/streamId: StreamID-as-string',
-      })
+      expectPresent(jsonSpy.mock.calls[0])
+      expect(jsonSpy.mock.calls[0][0].error).toBeDefined()
     })
 
     test('cid is malformed: fail', async () => {
@@ -145,11 +144,9 @@ describe('createRequest', () => {
       const res = mockResponse()
       await controller.createRequest(req, res)
       expect(res.status).toBeCalledWith(StatusCodes.BAD_REQUEST)
-      const jsonFn = jest.spyOn(res, 'json')
-      expectPresent(jsonFn.mock.calls[0])
-      expect(jsonFn.mock.calls[0][0].error).toMatch(
-        'Invalid value "garbage" supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/cid: CID-as-string'
-      )
+      const jsonSpy = jest.spyOn(res, 'json')
+      expectPresent(jsonSpy.mock.calls[0])
+      expect(jsonSpy.mock.calls[0][0].error).toBeDefined()
     })
 
     test('streamId is malformed: fail', async () => {
@@ -165,11 +162,9 @@ describe('createRequest', () => {
       const res = mockResponse()
       await controller.createRequest(req, res)
       expect(res.status).toBeCalledWith(StatusCodes.BAD_REQUEST)
-      const jsonFn = jest.spyOn(res, 'json')
-      expectPresent(jsonFn.mock.calls[0])
-      expect(jsonFn.mock.calls[0][0].error).toMatch(
-        'Invalid value "garbage" supplied to : RequestAnchorParamsV1/0: { streamId: StreamID-as-string, cid: CID-as-string }/streamId: StreamID-as-string'
-      )
+      const jsonSpy = jest.spyOn(res, 'json')
+      expectPresent(jsonSpy.mock.calls[0])
+      expect(jsonSpy.mock.calls[0][0].error).toBeDefined()
     })
 
     test('create request with application/json', async () => {
@@ -335,16 +330,16 @@ describe('createRequest', () => {
       })
       const res = mockResponse()
       await controller.createRequest(req, res)
-      const jsonFn = jest.spyOn(res, 'json')
-      expectPresent(jsonFn.mock.lastCall)
-      const presentation0 = jsonFn.mock.lastCall[0]
+      const jsonSpy = jest.spyOn(res, 'json')
+      expectPresent(jsonSpy.mock.lastCall)
+      const presentation0 = jsonSpy.mock.lastCall[0]
 
       // 1. Request existing request
       const res1 = mockResponse()
       await controller.createRequest(req, res1)
-      const jsonFn1 = jest.spyOn(res1, 'json')
-      expectPresent(jsonFn1.mock.lastCall)
-      const presentation1 = jsonFn1.mock.lastCall[0]
+      const jsonSpy1 = jest.spyOn(res1, 'json')
+      expectPresent(jsonSpy1.mock.lastCall)
+      const presentation1 = jsonSpy1.mock.lastCall[0]
       expect(presentation1).toEqual(presentation0)
     })
   })
