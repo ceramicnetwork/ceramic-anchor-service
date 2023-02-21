@@ -19,7 +19,7 @@
   "type": "module",
   "sideEffects": false,
   "scripts": {
-    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --forceExit --coverage --runInBand",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --testPathIgnorePatterns=/auth/ --forceExit --coverage --runInBand",
     "coverage": "./node_modules/.bin/nyc npm run test",
     "build": "./node_modules/.bin/genversion --es6 src/version.ts && ./node_modules/.bin/tsc --project tsconfig.json",
     "format": "./node_modules/.bin/prettier --write 'src/**/*{.ts,.tsx,.js}'",
@@ -54,6 +54,7 @@
     "@ceramicnetwork/streamid": "^2.10.0-rc.0",
     "@ceramicnetwork/wasm-bloom-filter": "^0.1.0",
     "@overnightjs/core": "^1.7.6",
+    "@stablelib/sha256": "^1.0.1",
     "@types/lodash.camelcase": "^4.3.7",
     "@types/lodash.snakecase": "^4.1.7",
     "cartonne": "^1.0.3",
@@ -80,6 +81,7 @@
     "rxjs": "^7.5.2",
     "tsm": "^2.2.2",
     "typed-inject": "^3.0.1",
+    "uint8arrays": "^3.0.0",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

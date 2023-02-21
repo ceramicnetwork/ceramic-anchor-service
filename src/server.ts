@@ -1,21 +1,26 @@
 import bodyParser from 'body-parser'
 import { Server } from '@overnightjs/core'
+import { auth } from './auth/index.js'
 import { expressLoggers, logger } from './logger/index.js'
 
 import * as http from 'http'
+import { Config } from 'node-config-ts'
 
 const DEFAULT_SERVER_PORT = 8081
 
 export class CeramicAnchorServer extends Server {
   private _server?: http.Server
 
-  constructor(controllers: any[]) {
+  constructor(controllers: any[], config: Config) {
     super(true)
 
     this.app.set('trust proxy', true)
     this.app.use(bodyParser.json())
     this.app.use(bodyParser.urlencoded({ extended: true }))
     this.app.use(expressLoggers)
+    if (config.requireAuth == true) {
+      this.app.use(auth)
+    }
     this.addControllers(controllers)
   }
 

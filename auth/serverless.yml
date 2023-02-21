@@ -1,0 +1,101 @@
+service: cas-did-auth
+frameworkVersion: '3'
+useDotenv: true
+
+plugins:
+  - serverless-esbuild
+  - serverless-lift
+  - serverless-offline
+
+custom:
+  region: us-east-2
+  esbuild:
+    minify: true
+    watch:
+      # anymatch-compatible definition (https://github.com/es128/anymatch)
+      pattern: ['./index.ts', 'src/**/*.ts'] # default .
+      ignore: ['.serverless/**/*', '.build'] # default ['.build', 'dist', 'node_modules']
+
+provider:
+  name: aws
+  region: ${opt:region, self:custom.region}
+  runtime: nodejs16.x
+  memorySize: 2048
+  apiGateway:
+    restApiId: ${env:REST_API_ID}
+    restApiRootResourceId: ${env:REST_API_ROOT_RESOURCE_ID}
+    description: 'Provisioned in Terraform'
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: 'ec2:DescribeSecurityGroups'
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - dynamodb:*
+          Resource:
+            - ${construct:configDb.tableArn}
+            - ${construct:didDb.tableArn}
+            - ${construct:otpDb.tableArn}
+        - Effect: Allow
+          Action:
+            - ses:SendEmail
+          Resource:
+            - 'arn:aws:ses:*:*:identity/3boxlabs.com'
+        - Effect: Allow
+          Action: 'apiGateway:*'
+          Resource: '*'
+
+constructs:
+  configDb:
+    type: database/dynamodb-single-table
+    gsiCount: 1
+  didDb:
+    type: database/dynamodb-single-table
+    gsiCount: 1
+  otpDb:
+    type: database/dynamodb-single-table
+    gsiCount: 1
+
+functions:
+  authApi:
+    handler: src/handlers/api.handler
+    events:
+      - http:
+          method: 'any'
+          path: '/api/v0/auth/{proxy+}'
+    environment:
+      ADMIN_USERNAME: ${env:CAS_AUTH_ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${env:CAS_AUTH_ADMIN_PASSWORD}
+      API_DEFAULT_USAGE_PLAN_ID: ${env:CAS_AUTH_DEFAULT_USAGE_PLAN_ID}
+      DB_CONFIG_TABLE_NAME: ${construct:configDb.tableName}
+      DB_DID_TABLE_NAME: ${construct:didDb.tableName}
+      DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
+      TESTING: ${env:TESTING}
+  authorizer:
+    handler: src/authorizers/default.handler
+    environment:
+      ADMIN_USERNAME: ${env:CAS_AUTH_ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${env:CAS_AUTH_ADMIN_PASSWORD}
+      API_DEFAULT_USAGE_PLAN_ID: ${env:CAS_AUTH_DEFAULT_USAGE_PLAN_ID}
+      CERAMIC_NETWORK: ${env:CERAMIC_NETWORK}
+      DB_CONFIG_TABLE_NAME: ${construct:configDb.tableName}
+      DB_DID_TABLE_NAME: ${construct:didDb.tableName}
+      DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
+      PERMISSIONED_SECURITY_GROUP_IDS: ${env:CAS_PERMISSIONED_SECURITY_GROUP_IDS}
+      TESTING: ${env:TESTING}
+resources:
+  Resources:
+    authorizerLambdaPermissions:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName:
+          Fn::GetAtt: [ AuthorizerLambdaFunction, Arn]
+        Action: lambda:InvokeFunction
+        Principal:
+          Fn::Join: [ "",
+          [
+            "apigateway.",
+            Ref: AWS::URLSuffix
+          ]]

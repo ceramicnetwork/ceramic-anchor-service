@@ -11,6 +11,7 @@
   "merkleDepthLimit": "@@MERKLE_DEPTH_LIMIT",
   "minStreamCount": "@@MIN_STREAM_COUNT",
   "readyRetryIntervalMS": "@@READY_RETRY_INTERVAL_MS",
+  "requireAuth": "@@REQUIRE_AUTH",
   "schedulerIntervalMS": "@@SCHEDULER_INTERVAL_MS",
   "ipfsConfig": {
     "url": "@@IPFS_API_URL",

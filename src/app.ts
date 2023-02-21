@@ -200,7 +200,7 @@ export class CeramicAnchorApp {
       const anchorController = this.container.injectClass(AnchorController)
       controllers.push(anchorController)
     }
-    this._server = new CeramicAnchorServer(controllers)
+    this._server = new CeramicAnchorServer(controllers, this.config)
     await this._server.start(this.config.port)
   }
 
