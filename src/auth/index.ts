@@ -17,9 +17,9 @@ function buildExpressMiddleware() {
    */
     return function(req: Request, res: Response, next: NextFunction) {
         if (req.headers) {
-            if (req.headers.did && req.body) {
+            if (req.headers['did'] && req.body) {
                 const digest = buildBodyDigest(req.headers['content-type'], req.body)
-                if (req.headers.digest == digest) {
+                if (req.headers['digest'] == digest) {
                   next()
                 } else {
                   throw Error('Body digest verification failed')
@@ -30,15 +30,16 @@ function buildExpressMiddleware() {
     }
 }
 
-function buildBodyDigest(contentType: string, body: any): string | undefined {
+function buildBodyDigest(contentType: string | undefined, body: any): string | undefined {
     if (!body) return
 
-    let hash: Uint8Array
+    let hash: Uint8Array | undefined
 
     if (contentType) {
       if (contentType.includes('application/vnd.ipld.car')) {
         const carFactory = new CARFactory()
         const car = carFactory.fromBytes(body)
+        if (!car.roots[0]) throw Error('Missing CAR root')
         return car.roots[0].toString()
       } else if (contentType.includes('application/json')) {
         hash = sha256.hash(u8a.fromString(JSON.stringify(body)))
