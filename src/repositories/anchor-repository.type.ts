@@ -8,6 +8,6 @@ export interface AnchorWithRequest extends Anchor {
 
 export interface IAnchorRepository {
   createAnchors(anchors: Array<Anchor>): Promise<number>
-  findByRequest(request: Request): Promise<AnchorWithRequest>
+  findByRequest(request: Request): Promise<AnchorWithRequest | null>
   withConnection(connection: Knex): IAnchorRepository
 }

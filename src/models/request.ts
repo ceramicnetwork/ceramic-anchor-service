@@ -39,10 +39,10 @@ export const RequestCodec = t.intersection([
     origin: t.string,
   }),
 ])
-export const DATABASE_FIELDS: Array<string> = RequestCodec.types.reduce(
-  (fields, t) => fields.concat(Object.keys(t.props)),
-  []
-)
+export const DATABASE_FIELDS: Array<string> = RequestCodec.types.reduce((fields: string[], t) => {
+  const keys = Object.keys(t.props)
+  return fields.concat(keys)
+}, [])
 
 export class Request {
   id: string
@@ -58,14 +58,23 @@ export class Request {
 
   constructor(params: Partial<Request> = {}) {
     // TODO Proper input types
+    // @ts-ignore
     this.id = params.id
+    // @ts-ignore
     this.status = params.status
+    // @ts-ignore
     this.cid = params.cid
+    // @ts-ignore
     this.streamId = params.streamId
+    // @ts-ignore
     this.message = params.message
+    // @ts-ignore
     this.pinned = params.pinned
+    // @ts-ignore
     this.createdAt = params.createdAt
+    // @ts-ignore
     this.updatedAt = params.updatedAt
+    // @ts-ignore
     this.timestamp = params.timestamp
     this.origin = params.origin
   }
@@ -92,9 +101,10 @@ export interface RequestUpdateFields {
   pinned?: boolean
 }
 
-export const REQUEST_MESSAGES = {
-  conflictResolutionRejection: 'Request has failed. Updated was rejected by conflict resolution.',
-}
+// TODO CDB-2221 https://linear.app/3boxlabs/issue/CDB-2221/turn-cas-failure-retry-back-on
+// export const REQUEST_MESSAGES = {
+//   conflictResolutionRejection: 'Request has failed. Updated was rejected by conflict resolution.',
+// }
 
 export class InvalidRequestStatusError extends Error {
   constructor(status: never) {

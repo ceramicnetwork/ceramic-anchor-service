@@ -220,7 +220,10 @@ export class RequestRepository {
    */
   async findByCid(cid: CID | string): Promise<Request | undefined> {
     const found = await this.table.where({ cid: String(cid) }).first()
-    if (found) return new Request(found)
+    if (found) {
+      return new Request(found)
+    }
+    return undefined
   }
 
   /**
@@ -377,8 +380,11 @@ export class RequestRepository {
    * Return number of requests by status.
    */
   async countByStatus(status: RequestStatus): Promise<number> {
-    const result = await this.table.where({ status }).count('id').first()
-    return parseCountResult(result.count)
+    const result = await this.table
+      .where({ status: status })
+      .count<{ count: string | number }>('id')
+      .first()
+    return parseCountResult(result?.count)
   }
 
   /**
@@ -398,7 +404,8 @@ export class RequestRepository {
             return 0
           }
 
-          const earliestNotTimedOut = readyDeadline < readyRequests[0].updatedAt.getTime()
+          const earliestNotTimedOut =
+            readyRequests[0] && readyDeadline < readyRequests[0].updatedAt.getTime()
           if (earliestNotTimedOut) {
             return 0
           }
@@ -489,7 +496,10 @@ export class RequestRepository {
     now: Date
   ): Promise<Array<string>> {
     const query = this.findRequestsToAnchor(now)
-      .select(['streamId', this.connection.raw('MIN(request.created_at) as min_created_at')])
+      .select<[{ streamId: string; minCreatedAt: Date }]>([
+        'streamId',
+        this.connection.raw('MIN(request.created_at) as min_created_at'),
+      ])
       .orderBy('min_created_at', 'asc')
       .groupBy('streamId')
 
@@ -505,11 +515,13 @@ export class RequestRepository {
 
     // Return a batch of streams only if we have enough streams to fill a batch or the earliest stream request is expired
     const enoughStreams = streamsToAnchor.length >= minStreamLimit
-    const earliestIsExpired = streamsToAnchor[0].minCreatedAt < anchoringDeadline
+    const firstStreamToAnchor = streamsToAnchor[0]
+    const earliestIsExpired =
+      firstStreamToAnchor && firstStreamToAnchor.minCreatedAt < anchoringDeadline
 
     if (!enoughStreams && !earliestIsExpired) {
       logger.debug(
-        `No streams are ready to anchor because there are not enough streams for a batch ${streamsToAnchor.length}/${minStreamLimit} and the earliest request is not expired (created at ${streamsToAnchor[0].minCreatedAt})`
+        `No streams are ready to anchor because there are not enough streams for a batch ${streamsToAnchor.length}/${minStreamLimit} and the earliest request is not expired (created at ${firstStreamToAnchor?.minCreatedAt})`
       )
 
       return []
@@ -539,7 +551,9 @@ export class RequestRepository {
    * @param maxStreamLimit - Get up to `maxStreamLimit` entries. `0` means there is no upper limit.
    * @return Requests with PROCESSING status.
    */
-  async batchProcessing(minStreamLimit: number, maxStreamLimit: number): Promise<Array<Request>> {
+  // TODO CDB-2231 Reconsider if minStreamLimit should be here or not
+  // async batchProcessing(minStreamLimit: number, maxStreamLimit: number): Promise<Array<Request>> {
+  async batchProcessing(maxStreamLimit: number): Promise<Array<Request>> {
     let whereInSubQuery = this.table.select('id').where({ status: RequestStatus.READY })
     if (maxStreamLimit > 0) whereInSubQuery = whereInSubQuery.limit(maxStreamLimit)
 

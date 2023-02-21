@@ -16,8 +16,16 @@
     "outDir": "build",
     "inlineSources": true,
     "esModuleInterop": true,
-    "pretty": true
+    "pretty": true,
+    "strict": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   },
-  "include": ["./src/**/*", "./config/**/*"],
+  "include": ["./src/**/*", "./config/**/*", "./types/**/*"],
   "exclude": ["node_modules", "**/*.test.ts"]
 }

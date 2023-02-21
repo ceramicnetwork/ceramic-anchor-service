@@ -3,7 +3,6 @@ import { jest } from '@jest/globals'
 import { CID } from 'multiformats/cid'
 
 import { create } from 'multiformats/hashes/digest'
-import type { EventProducerService } from '../services/event-producer/event-producer-service.js'
 import type { IIpfsService, RetrieveRecordOptions } from '../services/ipfs-service.type.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { AnchorCommit } from '@ceramicnetwork/common'
@@ -65,7 +64,7 @@ export class MockIpfsClient {
       }),
     }
     this.pin = {
-      add: jest.fn((cid: CID, options?: AbortOptions) => {
+      add: jest.fn((cid: CID, options: AbortOptions = {}) => {
         return new Promise<CID>((resolve, reject) => {
           if (options.signal) {
             const done = () => reject(new Error(`MockIpfsClient: Thrown on abort signal`))
@@ -111,18 +110,6 @@ export class MockIpfsService implements IIpfsService {
 
   reset() {
     this._streams = {}
-  }
-}
-
-export class MockEventProducerService implements EventProducerService {
-  emitAnchorEvent
-
-  constructor() {
-    this.reset()
-  }
-
-  reset() {
-    this.emitAnchorEvent = jest.fn(() => Promise.resolve())
   }
 }
 

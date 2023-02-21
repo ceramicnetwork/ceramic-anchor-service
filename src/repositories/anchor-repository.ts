@@ -28,7 +28,6 @@ export class AnchorRepository implements IAnchorRepository {
   /**
    * Creates anchors
    * @param anchors - Anchors
-   * @param options
    * @returns A promise that resolve to the number of anchors created
    */
   async createAnchors(anchors: Array<Anchor>): Promise<number> {
@@ -40,7 +39,6 @@ export class AnchorRepository implements IAnchorRepository {
    *
    * Gets anchor metadata
    * @param request - Request
-   * @param options
    * @returns A promise that resolve to the anchor associated to the request
    */
   async findByRequest(request: Request): Promise<AnchorWithRequest | null> {

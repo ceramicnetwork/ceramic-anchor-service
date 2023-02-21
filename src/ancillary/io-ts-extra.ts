@@ -90,10 +90,10 @@ export const commitIdAsString = new t.Type<CommitID, string, string>(
 /**
  * io-ts codec for JS `Date` encoded as ISO8601 string, and decoded from string or `Date` instance.
  */
-export const date = new t.Type<Date, string, Date | string>(
+export const date = new t.Type<Date, string, unknown>(
   'Date-as-ISOString',
   (input: unknown): input is Date => input instanceof Date,
-  function (this: t.Type<Date>, input: Date | string, context: t.Context) {
+  function (this: t.Type<Date>, input: unknown, context: t.Context) {
     if (this.is(input)) return t.success(input)
     if (typeof input === 'string') {
       const parsed = new Date(input)
