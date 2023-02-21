@@ -13,15 +13,7 @@ class StringCompare implements CompareFunction<string> {
 
 class StringConcatMetadata implements MetadataFunction<string, string> {
   generateMetadata(leaves: Array<Node<string>>): string {
-    let res
-    for (const node of leaves) {
-      if (res) {
-        res = res + ' + ' + node.data
-      } else {
-        res = node.data
-      }
-    }
-    return res
+    return leaves.map((l) => l.data).join(' + ')
   }
 }
 
@@ -132,27 +124,21 @@ describe('Merkle tree structure tests', () => {
   })
 })
 
-const findNodeDepth = async (node: Node<any>): Promise<number> => {
-  if (!node) {
-    return 0
-  }
-
+const findNodeDepth = (node: Node<any>): number => {
   let depth = 0
-  while (node) {
+  while (node.parent) {
+    depth += 1
     node = node.parent
-    depth++
   }
   return depth
 }
 
-const findMinAndMaxNodeDepth = async (
-  tree: MerkleTree<any, any, any>
-): Promise<[number, number]> => {
+const findMinAndMaxNodeDepth = (tree: MerkleTree<any, any, any>): [number, number] => {
   let minDepth = tree.leafNodes.length
   let maxDepth = 0
 
   for (const node of tree.leafNodes) {
-    const depth = await findNodeDepth(node)
+    const depth = findNodeDepth(node)
     if (depth < minDepth) {
       minDepth = depth
     }
@@ -175,7 +161,7 @@ describe('Merkle tree balance test', () => {
     for (const leaves of inputs) {
       const merkleTree = await STRING_CONCAT_FACTORY.build(leaves)
 
-      const [minDepth, maxDepth] = await findMinAndMaxNodeDepth(merkleTree)
+      const [minDepth, maxDepth] = findMinAndMaxNodeDepth(merkleTree)
       // There shouldn't be more than 1 level difference between the deepest and shallowest nodes in the tree
       expect(maxDepth - minDepth).toBeLessThanOrEqual(1)
     }

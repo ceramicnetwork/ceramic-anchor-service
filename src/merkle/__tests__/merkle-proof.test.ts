@@ -4,6 +4,7 @@ import { MergeFunction, Node } from '../merkle.js'
 import type { MerkleTree } from '../merkle-tree.js'
 import { MerkleTreeFactory } from '../merkle-tree-factory.js'
 import { StringConcat } from './string-concat.js'
+import { expectPresent } from '../../__tests__/expect-present.util.js'
 
 // use the crypto module to create a sha256 hash from the node passed in
 const sha256 = (data: any): Uint8Array => {
@@ -38,11 +39,13 @@ const hashProof = (value: any, proof: Node<Uint8Array>[]): any => {
   let data: Uint8Array = sha256(value)
   for (let i = 0; i < proof.length; i++) {
     let buffers: Uint8Array[]
-    const left = proof[i].parent.left === proof[i]
+    const element = proof[i]
+    expectPresent(element)
+    const left = element.parent?.left === proof[i]
     if (left) {
-      buffers = new Array<Uint8Array>(proof[i].data, data)
+      buffers = new Array<Uint8Array>(element.data, data)
     } else {
-      buffers = new Array<Uint8Array>(data, proof[i].data)
+      buffers = new Array<Uint8Array>(data, element.data)
     }
     data = sha256(Buffer.concat(buffers))
   }

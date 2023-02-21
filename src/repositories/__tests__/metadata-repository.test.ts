@@ -5,6 +5,7 @@ import { MetadataRepository } from '../metadata-repository.js'
 import type { FreshMetadata } from '../../models/metadata.js'
 import { isClose, randomStreamID } from '../../__tests__/test-utils.js'
 import { asDIDString } from '../../ancillary/did-string.js'
+import { expectPresent } from '../../__tests__/expect-present.util.js'
 
 let dbConnection: Knex
 let repository: MetadataRepository
@@ -52,6 +53,7 @@ test('retrieve', async () => {
   const now = Date.now()
   await repository.save(FRESH_METADATA)
   const retrieved1 = await repository.retrieve(FRESH_METADATA.streamId)
+  expectPresent(retrieved1)
   expect(retrieved1.streamId).toEqual(FRESH_METADATA.streamId)
   expect(retrieved1.metadata).toEqual(FRESH_METADATA.metadata)
   expect(isClose(retrieved1.createdAt.getTime(), now, 0.05)).toBeTruthy()
@@ -74,6 +76,7 @@ test('touch', async () => {
   await repository.save(FRESH_METADATA)
   const now0 = new Date()
   const retrieved0 = await repository.retrieve(streamId)
+  expectPresent(retrieved0)
   expect(retrieved0.usedAt.valueOf()).toBeCloseTo(now0.valueOf(), -2)
 
   // Update `usedAt` to 15 hours from _now_
@@ -81,11 +84,13 @@ test('touch', async () => {
   whenTouched.setHours(whenTouched.getHours() + 15) // Move 15 hours forward, for example
   await repository.touch(streamId, whenTouched)
   const retrieved1 = await repository.retrieve(streamId)
+  expectPresent(retrieved1)
   expect(retrieved1.usedAt).toEqual(whenTouched)
 
   // Use _now_ as default value
   const now1 = new Date()
   await repository.touch(streamId)
   const retrieved2 = await repository.retrieve(streamId)
+  expectPresent(retrieved2)
   expect(retrieved2.usedAt.valueOf()).toBeCloseTo(now1.valueOf(), -2)
 })

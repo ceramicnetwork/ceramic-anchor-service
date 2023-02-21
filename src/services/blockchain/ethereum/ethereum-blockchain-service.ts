@@ -66,7 +66,7 @@ async function attempt<T>(
  * @param walletBalance - Available funds.
  */
 function handleInsufficientFundsError(txData: TransactionRequest, walletBalance: BigNumber): void {
-  const txCost = (txData.gasLimit as BigNumber).mul(txData.maxFeePerGas)
+  const txCost = (txData.gasLimit as BigNumber).mul(txData.maxFeePerGas!)
   if (txCost.gt(walletBalance)) {
     logEvent.ethereum({
       type: 'insufficientFunds',
@@ -74,12 +74,7 @@ function handleInsufficientFundsError(txData: TransactionRequest, walletBalance:
       balance: ethers.utils.formatUnits(walletBalance, 'gwei'),
     })
 
-    const errMsg =
-      'Transaction cost is greater than our current balance. [txCost: ' +
-      txCost.toHexString() +
-      ', balance: ' +
-      walletBalance.toHexString() +
-      ']'
+    const errMsg = `Transaction cost is greater than our current balance. [txCost: ${txCost.toHexString()}, balance: ${walletBalance.toHexString()}]`
     logger.err(errMsg)
     throw new Error(errMsg)
   }
@@ -143,7 +138,7 @@ make.inject = ['config'] as const
  * Ethereum blockchain service
  */
 export class EthereumBlockchainService implements BlockchainService {
-  private _chainId: number
+  private _chainId: number | undefined
   private readonly network: string
   private readonly transactionTimeoutSecs: number
   private readonly contract: Contract
@@ -215,28 +210,32 @@ export class EthereumBlockchainService implements BlockchainService {
 
     const feeData = await this.wallet.provider.getFeeData()
     // Add extra to gas price for each subsequent attempt
-    const is1559 = Boolean(feeData.maxFeePerGas && feeData.maxPriorityFeePerGas)
-    if (is1559) {
+    const maxFeePerGas = feeData.maxFeePerGas
+    const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas
+    // Is EIP-1559
+    if (maxPriorityFeePerGas && maxFeePerGas) {
       // When attempt 0, use currently estimated maxPriorityFeePerGas; otherwise use previous transaction maxPriorityFeePerGas
       const prevPriorityFee = BigNumber.from(
         txData.maxPriorityFeePerGas || feeData.maxPriorityFeePerGas
       )
       const nextPriorityFee = EthereumBlockchainService.increaseGasPricePerAttempt(
-        feeData.maxPriorityFeePerGas,
+        maxPriorityFeePerGas,
         attempt,
         prevPriorityFee
       )
       txData.maxPriorityFeePerGas = nextPriorityFee
-      const baseFee = feeData.maxFeePerGas.sub(feeData.maxPriorityFeePerGas)
+      const baseFee = maxFeePerGas.sub(maxPriorityFeePerGas)
       txData.maxFeePerGas = baseFee.add(nextPriorityFee)
       logger.debug(
         `Estimated maxPriorityFeePerGas: ${nextPriorityFee.toString()} wei; maxFeePerGas: ${txData.maxFeePerGas.toString()} wei`
       )
     } else {
+      const feeDataGasPrice = feeData.gasPrice
+      if (!feeDataGasPrice) throw new Error(`Unavailable gas price for pre-EIP-1559 transaction`)
       // When attempt 0, use currently estimated gasPrice; otherwise use previous transaction gasPrice
       const prevGasPrice = BigNumber.from(txData.gasPrice || feeData.gasPrice)
       txData.gasPrice = EthereumBlockchainService.increaseGasPricePerAttempt(
-        feeData.gasPrice,
+        feeDataGasPrice,
         attempt,
         prevGasPrice
       )
@@ -285,6 +284,7 @@ export class EthereumBlockchainService implements BlockchainService {
    * Invalid to call before calling connect()
    */
   get chainId(): string {
+    if (!this._chainId) throw new Error(`No chainId available`)
     return caipChainId(this._chainId)
   }
 
@@ -306,6 +306,7 @@ export class EthereumBlockchainService implements BlockchainService {
     }
 
     const hexEncoded = '0x' + uint8arrays.toString(rootCid.bytes.slice(4), 'base16')
+    // @ts-ignore `anchorDagCbor` is a Solidity function
     const transactionRequest = await this.contract.populateTransaction.anchorDagCbor(hexEncoded)
     return {
       to: this.contractAddress,
@@ -318,12 +319,8 @@ export class EthereumBlockchainService implements BlockchainService {
   /**
    * One attempt at submitting the prepared TransactionRequest to the ethereum blockchain.
    * @param txData
-   * @param attemptNum
    */
-  async _trySendTransaction(
-    txData: TransactionRequest,
-    attemptNum: number
-  ): Promise<TransactionResponse> {
+  async _trySendTransaction(txData: TransactionRequest): Promise<TransactionResponse> {
     logger.imp('Transaction data:' + JSON.stringify(txData))
 
     logEvent.ethereum({
@@ -343,6 +340,7 @@ export class EthereumBlockchainService implements BlockchainService {
       raw: txResponse.raw,
     })
 
+    if (!this._chainId) throw new Error(`No chainId available`)
     assertSameChainId(txResponse.chainId, this._chainId)
     return txResponse
   }
@@ -394,9 +392,11 @@ export class EthereumBlockchainService implements BlockchainService {
     txResponses: Array<TransactionResponse>
   ): Promise<Transaction> {
     for (let i = txResponses.length - 1; i >= 0; i--) {
+      const txResponse = txResponses[i]
+      if (!txResponse) continue
       try {
-        return await this._confirmTransactionSuccess(txResponses[i])
-      } catch (err) {
+        return await this._confirmTransactionSuccess(txResponse)
+      } catch (err: any) {
         logger.err(err)
       }
     }
@@ -414,19 +414,18 @@ export class EthereumBlockchainService implements BlockchainService {
       return attempt(MAX_RETRIES, async (attemptNum) => {
         try {
           await this.setGasPrice(txData, attemptNum)
-          const txResponse = await this._trySendTransaction(txData, attemptNum)
+          const txResponse = await this._trySendTransaction(txData)
           txResponses.push(txResponse)
           return await this._confirmTransactionSuccess(txResponse)
-        } catch (err) {
+        } catch (err: any) {
           logger.err(err)
-
           const { code } = err
-          if (code) {
-            if (code === ErrorCode.INSUFFICIENT_FUNDS) {
-              handleInsufficientFundsError(txData, walletBalance)
-            } else if (code === ErrorCode.TIMEOUT) {
-              handleTimeoutError(this.transactionTimeoutSecs)
-            } else if (code === ErrorCode.NONCE_EXPIRED) {
+          switch (code) {
+            case ErrorCode.INSUFFICIENT_FUNDS:
+              return handleInsufficientFundsError(txData, walletBalance)
+            case ErrorCode.TIMEOUT:
+              return handleTimeoutError(this.transactionTimeoutSecs)
+            case ErrorCode.NONCE_EXPIRED:
               // If this happens it most likely means that one of our previous attempts timed out, but
               // then actually wound up being successfully mined
               logEvent.ethereum({
@@ -437,7 +436,8 @@ export class EthereumBlockchainService implements BlockchainService {
                 throw err
               }
               return this._checkForPreviousTransactionSuccess(txResponses)
-            }
+            default:
+              return undefined
           }
         }
       })

@@ -15,7 +15,7 @@ pg.types.setTypeParser(1114, (value: string) => {
 
 const KNEX_TABLES = ['knex_migrations', 'knex_migrations_lock']
 
-function toCamelCase(value) {
+function toCamelCase(value: any): any {
   if (Array.isArray(value)) {
     return value.map(toCamelCase)
   }
@@ -32,7 +32,7 @@ function toCamelCase(value) {
 }
 
 async function runMigrations(connection: Knex) {
-  const [_, pendingMigrations] = await connection.migrate.list()
+  const [, pendingMigrations] = await connection.migrate.list()
   if (pendingMigrations.length > 0) {
     logger.imp(`Running ${pendingMigrations.length} migrations`)
     await connection.migrate.latest()

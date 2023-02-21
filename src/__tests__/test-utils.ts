@@ -3,15 +3,13 @@ import { jest } from '@jest/globals'
 import { CID } from 'multiformats/cid'
 
 import { create } from 'multiformats/hashes/digest'
-import type { EventProducerService } from '../services/event-producer/event-producer-service.js'
 import type { IIpfsService, RetrieveRecordOptions } from '../services/ipfs-service.type.js'
-import { StreamID, CommitID } from '@ceramicnetwork/streamid'
-import { AnchorCommit, MultiQuery, Stream } from '@ceramicnetwork/common'
+import { StreamID } from '@ceramicnetwork/streamid'
+import { AnchorCommit } from '@ceramicnetwork/common'
 import { randomBytes, randomString } from '@stablelib/random'
 import { Request, RequestStatus } from '../models/request.js'
 import type { AbortOptions } from '../services/abort-options.type.js'
 import { Utils } from '../utils.js'
-import { AddOptions as PinAddOptions } from 'ipfs-core-types/src/pin'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -66,16 +64,16 @@ export class MockIpfsClient {
       }),
     }
     this.pin = {
-      add: jest.fn((cid: CID, options?: PinAddOptions & AbortOptions) => {
-            return new Promise<CID>((resolve, reject) => {
-              if (options.signal) {
-                const done = () => reject(new Error(`MockIpfsClient: Thrown on abort signal`))
-                if (options.signal?.aborted) return done()
-                options.signal?.addEventListener('abort', done)
-              }
-              resolve(cid)
-            })
+      add: jest.fn((cid: CID, options: AbortOptions = {}) => {
+        return new Promise<CID>((resolve, reject) => {
+          if (options.signal) {
+            const done = () => reject(new Error(`MockIpfsClient: Thrown on abort signal`))
+            if (options.signal?.aborted) return done()
+            options.signal?.addEventListener('abort', done)
+          }
+          resolve(cid)
         })
+      }),
     }
 
     this._streams = {}
@@ -84,8 +82,6 @@ export class MockIpfsClient {
 
 export class MockIpfsService implements IIpfsService {
   private _streams: Record<string, any> = {}
-
-  constructor() {}
 
   async init(): Promise<void> {
     // Do Nothing
@@ -102,33 +98,19 @@ export class MockIpfsService implements IIpfsService {
     throw new Error(`MockIpfsService:retrieveRecord:timeout`)
   }
 
-  storeRecord = jest.fn(async (record: Record<string, unknown>, options?: AbortOptions): Promise<CID> => {
+  storeRecord = jest.fn(async (record: Record<string, unknown>): Promise<CID> => {
     const cid = randomCID()
     this._streams[cid.toString()] = record
     return cid
   })
 
-  async publishAnchorCommit(anchorCommit: AnchorCommit, streamId: StreamID): Promise<CID> {
+  async publishAnchorCommit(anchorCommit: AnchorCommit): Promise<CID> {
     return this.storeRecord(anchorCommit as any)
   }
 
   reset() {
     this._streams = {}
   }
-}
-
-export class MockEventProducerService implements EventProducerService {
-  emitAnchorEvent
-
-  constructor() {
-    this.reset()
-  }
-
-  reset() {
-    this.emitAnchorEvent = jest.fn(() => Promise.resolve())
-  }
-
-  destroy(): void {}
 }
 
 /**

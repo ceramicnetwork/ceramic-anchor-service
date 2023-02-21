@@ -1,7 +1,7 @@
 import type { CID } from 'multiformats/cid'
 
 import type { MerkleTree } from '../merkle/merkle-tree.js'
-import { pathString, TreeMetadata } from '../merkle/merkle.js'
+import { Node, pathString, TreeMetadata } from '../merkle/merkle.js'
 
 import type { Config } from 'node-config-ts'
 
@@ -34,7 +34,6 @@ import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import { MerkleTreeFactory } from '../merkle/merkle-tree-factory.js'
-import { SyncOptions } from '@ceramicnetwork/common'
 import type { IMetadataService } from './metadata-service.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
@@ -154,7 +153,7 @@ export class AnchorService {
     const ipfsMerge = new IpfsMerge(this.ipfsService)
     const ipfsCompare = new IpfsLeafCompare()
     const bloomMetadata = new BloomMetadata()
-    this.merkleTreeFactory = new MerkleTreeFactory(
+    this.merkleTreeFactory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
       ipfsMerge,
       ipfsCompare,
       bloomMetadata,
@@ -189,10 +188,7 @@ export class AnchorService {
     logger.imp('Anchoring ready requests...')
     // FIXME PREV
     // const requests: Request[] = await this.requestRepository.findAndMarkAsProcessing()
-    const requests = await this.requestRepository.batchProcessing(
-      this.minStreamLimit,
-      this.maxStreamLimit
-    )
+    const requests = await this.requestRepository.batchProcessing(this.maxStreamLimit)
     await this._anchorRequests(requests)
 
     // Sleep 5 seconds before exiting the process to give time for the logs to flush.
@@ -342,7 +338,7 @@ export class AnchorService {
   ): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
     try {
       return await this.merkleTreeFactory.build(candidates)
-    } catch (e) {
+    } catch (e: any) {
       throw new Error('Merkle tree cannot be created: ' + e.toString())
     }
   }
@@ -393,7 +389,8 @@ export class AnchorService {
     const anchors = []
 
     for (let i = 0; i < leafNodes.length; i++) {
-      const candidate = leafNodes[i].data
+      const leafNode = leafNodes[i] as Node<Candidate>
+      const candidate = leafNode.data
       logger.debug(
         `Creating anchor commit #${i + 1} of ${
           leafNodes.length
@@ -585,7 +582,7 @@ export class AnchorService {
     }
 
     for (let i = 0; i < candidates.length; i++) {
-      const candidate = candidates[i]
+      const candidate = candidates[i] as Candidate
 
       if (numSelectedCandidates >= candidateLimit) {
         // No need to process this candidate, we've already filled our anchor batch

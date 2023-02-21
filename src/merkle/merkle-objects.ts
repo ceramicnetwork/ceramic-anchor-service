@@ -9,7 +9,7 @@ import type { IIpfsService } from '../services/ipfs-service.type.js'
 
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { StreamID } from '@ceramicnetwork/streamid'
-import { GenesisFields } from '../models/metadata'
+import type { GenesisFields } from '../models/metadata.js'
 
 const packageJson = JSON.parse(
   fs.readFileSync(
@@ -44,6 +44,7 @@ export class Candidate implements CIDHolder {
     readonly metadata: GenesisFields
   ) {
     this.request = request
+    if (!request.cid) throw new Error(`No CID present for request`)
     this.cid = CID.parse(request.cid)
     this.metadata = metadata
     this.model = this.metadata.model ? StreamID.fromBytes(this.metadata.model) : undefined
@@ -141,7 +142,7 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
       const candidate = node.data
       streamIds.push(candidate.streamId.toString())
       bloomFilterEntries.add(`streamid-${candidate.streamId.toString()}`)
-      if (candidate.metadata.model) {
+      if (candidate.model) {
         bloomFilterEntries.add(`model-${candidate.model.toString()}`)
       }
       for (const controller of candidate.metadata.controllers) {

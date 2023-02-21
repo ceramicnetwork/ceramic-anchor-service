@@ -5,7 +5,9 @@ import path from 'path'
 import { LoggerProvider, LogLevel } from '@ceramicnetwork/common'
 import { RotatingFileStream } from '@ceramicnetwork/logger'
 
-const LOG_LEVEL = (config.logger.level && LogLevel[config.logger.level]) || LogLevel.important
+const LOG_LEVEL =
+  (config.logger.level && LogLevel[config.logger.level as unknown as LogLevel]) ||
+  LogLevel.important
 const LOG_TO_FILES = config.logger.logToFiles || false
 // LOG_PATH defaults to `ceramic-anchor-service/logs/`
 let LOG_PATH = config.logger.filePath || path.join(path.resolve(import.meta.url, '../../'), 'logs/')
@@ -38,13 +40,13 @@ export const logger = loggerProvider.getDiagnosticsLogger()
 
 export const expressLoggers = buildExpressMiddleware()
 function buildExpressMiddleware() {
-  morgan.token<ExpReq, ExpRes>('original-url', function (req, res): any {
+  morgan.token<ExpReq, ExpRes>('original-url', function (req): any {
     return req.originalUrl
   })
-  morgan.token<ExpReq, ExpRes>('base-url', function (req, res): any {
+  morgan.token<ExpReq, ExpRes>('base-url', function (req): any {
     return req.baseUrl
   })
-  morgan.token<ExpReq, ExpRes>('path', function (req, res): any {
+  morgan.token<ExpReq, ExpRes>('path', function (req): any {
     return req.path
   })
 

@@ -9,15 +9,18 @@ import * as t from 'io-ts'
 import * as te from '../ancillary/io-ts-extra.js'
 import * as f from 'fp-ts'
 
-export const RequestAnchorParamsV1 = t.intersection([
-  t.type({
-    streamId: te.streamIdAsString,
-    cid: te.cidAsString,
-  }),
-  t.partial({
-    timestamp: te.date
-  })
-], 'RequestAnchorParamsV1')
+export const RequestAnchorParamsV1 = t.intersection(
+  [
+    t.type({
+      streamId: t.string.pipe(te.streamIdAsString),
+      cid: t.string.pipe(te.cidAsString),
+    }),
+    t.partial({
+      timestamp: te.date,
+    }),
+  ],
+  'RequestAnchorParamsV1'
+)
 
 export type RequestAnchorParamsV1 = t.TypeOf<typeof RequestAnchorParamsV1>
 
