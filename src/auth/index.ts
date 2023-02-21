@@ -15,7 +15,7 @@ function buildExpressMiddleware() {
    * Notice that the absense of a did header or body bypasses any checks below
    * this app will still work if the logice above is not in place.
    */
-    return function(req: Request, res: Response, next: NextFunction) {
+    return function(req: Request, _res: Response, next: NextFunction) {
         if (req.headers) {
             if (req.headers['did'] && req.body) {
                 const digest = buildBodyDigest(req.headers['content-type'], req.body)
