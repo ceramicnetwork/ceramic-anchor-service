@@ -19,6 +19,7 @@ const TYPE_REGEX =
   /^jsnpm_@ceramicnetwork\/wasm-bloom-filter-v((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/
 const isTypeString = (str: string) => Boolean(str.match(TYPE_REGEX))
 
+
 describe('Bloom filter', () => {
   jest.setTimeout(10000)
   const ipfsService = new MockIpfsService()
