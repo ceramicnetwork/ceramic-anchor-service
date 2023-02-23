@@ -9,7 +9,7 @@ on:
     inputs:
       branch:
         description: 'Branch to deploy (one of: develop, release-candidate, main)'
-        required: true
+        required: false
 
 env:
   # Secrets
