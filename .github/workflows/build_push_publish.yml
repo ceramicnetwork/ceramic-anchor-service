@@ -2,16 +2,16 @@
 name: Build, push, publish CAS
 
 on:
-#  push:
-#    branches:
+ push:
+   branches:
 #      - main
 #      - "release-candidate"
-#      - develop
+     - 'temp/debug'
   workflow_dispatch:
     inputs:
       branch:
         description: 'Branch to deploy (one of: develop, release-candidate, main)'
-        required: false
+        required: true
 
 env:
   # Secrets
@@ -47,6 +47,10 @@ jobs:
           echo "::set-output name=ECR_REPOSITORY::ceramic-tnet-cas"
           echo "::set-output name=IMAGE_TAG::tnet"
           echo "::set-output name=IMAGE_TAG_2::release-candidate"
+        elif [[ "${{ env.BRANCH }}" == "develop" ]]; then
+          echo "::set-output name=ECR_REPOSITORY::ceramic-qa-cas"
+          echo "::set-output name=IMAGE_TAG::qa"
+          echo "::set-output name=IMAGE_TAG_2::develop"
         else
           echo "::set-output name=ECR_REPOSITORY::ceramic-dev-cas"
           echo "::set-output name=IMAGE_TAG::dev"
@@ -91,7 +95,7 @@ jobs:
 
         QA_ECR_TAGS=""
         QA_RUNNER_ECR_TAGS=""
-        if [[ $IMAGE_TAG == "dev" ]]; then
+        if [[ $IMAGE_TAG == "qa" ]]; then
           QA_ECR_IMAGE_ID="${{ steps.login-ecr.outputs.registry }}/ceramic-qa-cas"
           QA_ECR_TAGS="-t $QA_ECR_IMAGE_ID:qa -t $QA_ECR_IMAGE_ID:$SHA_TAG -t $QA_ECR_IMAGE_ID:$FULL_SHA_TAG -t $QA_ECR_IMAGE_ID:$IMAGE_TAG -t $QA_ECR_IMAGE_ID:$IMAGE_TAG_2"
           QA_RUNNER_ECR_IMAGE_ID="$QA_ECR_IMAGE_ID-runner"
