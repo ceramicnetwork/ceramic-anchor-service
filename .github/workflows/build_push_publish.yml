@@ -2,11 +2,9 @@
 name: Build, push, publish CAS
 
 on:
- push:
-   branches:
-#      - main
-#      - "release-candidate"
-     - 'temp/debug'
+  push:
+    branches:
+      - 'temp/debug'
   workflow_dispatch:
     inputs:
       branch:
