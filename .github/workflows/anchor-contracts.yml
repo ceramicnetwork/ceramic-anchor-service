@@ -3,6 +3,9 @@ name: anchor-contract-pipeline
 on:
   push:
     branches: [ '**' ]
+    paths-ignore:
+      - '.github/**'
+      - 'auth/**'
 
 env:
   FOUNDRY_PROFILE: ci

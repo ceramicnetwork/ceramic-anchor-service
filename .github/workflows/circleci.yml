@@ -2,6 +2,9 @@ name: Trigger CircleCI tests
 
 on:
   push: # all push events
+    paths-ignore:
+      - '.github/**'
+      - 'auth/**'
   workflow_dispatch: # manually triggered
 
 jobs:

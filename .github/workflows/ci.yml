@@ -3,6 +3,9 @@ name: Dagger CI Workflow
 on:
   repository_dispatch:
     types: [test-success]
+    paths-ignore:
+      - '.github/**'
+      - 'auth/**'
   workflow_dispatch: # manually triggered
 
 env:

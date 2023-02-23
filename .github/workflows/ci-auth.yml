@@ -1,7 +1,9 @@
 name: CAS Auth tests
 
 on:
-  push: # all push events
+  push:
+    paths:
+      - 'auth/**'
   workflow_dispatch: # manually triggered
 
 env:
