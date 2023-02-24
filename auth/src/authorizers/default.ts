@@ -81,7 +81,7 @@ async function allowRegisteredDID(event: APIGatewayRequestAuthorizerEvent, callb
   if (result) {
     const did = result.didResolutionResult.didDocument?.id
     const nonce = result.payload?.nonce
-    const digest = result.payload?.body
+    const digest = result.payload?.digest
     if (!did) {
       console.error('Missing did')
     } else if (!nonce) {
