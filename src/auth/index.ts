@@ -21,14 +21,14 @@ function buildExpressMiddleware() {
                 if (Object.keys(req.body).length > 0) {
                     const digest = buildBodyDigest(req.headers['content-type'], req.body)
                     if (req.headers['digest'] == digest) {
-                      next()
+                      return next()
                     } else {
                       throw Error('Body digest verification failed')
                     }
                 }
             }
         }
-        next()
+        return next()
     }
 }
 
