@@ -18,11 +18,13 @@ function buildExpressMiddleware() {
     return function(req: Request, _res: Response, next: NextFunction) {
         if (req.headers) {
             if (req.headers['did'] && req.body) {
-                const digest = buildBodyDigest(req.headers['content-type'], req.body)
-                if (req.headers['digest'] == digest) {
-                  next()
-                } else {
-                  throw Error('Body digest verification failed')
+                if (Object.keys(req.body).length > 0) {
+                    const digest = buildBodyDigest(req.headers['content-type'], req.body)
+                    if (req.headers['digest'] == digest) {
+                      next()
+                    } else {
+                      throw Error('Body digest verification failed')
+                    }
                 }
             }
         }
