@@ -81,7 +81,7 @@
     "rxjs": "^7.5.2",
     "tsm": "^2.2.2",
     "typed-inject": "^3.0.1",
-    "uint8arrays": "^3.0.0",
+    "uint8arrays": "^4.0.3",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
