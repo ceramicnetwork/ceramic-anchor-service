@@ -51,7 +51,7 @@
     "@ceramicnetwork/core": "^2.23.0-rc.1",
     "@ceramicnetwork/logger": "^2.5.0",
     "@ceramicnetwork/observability": "^1.0.7",
-    "@ceramicnetwork/streamid": "^2.10.0-rc.0",
+    "@ceramicnetwork/streamid": "^2.12.0",
     "@ceramicnetwork/wasm-bloom-filter": "^0.1.0",
     "@overnightjs/core": "^1.7.6",
     "@stablelib/sha256": "^1.0.1",
