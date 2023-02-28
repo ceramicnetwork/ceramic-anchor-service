@@ -1,6 +1,10 @@
-import type { CompareFunction, MergeFunction, MetadataFunction } from './merkle.js'
-import { Node } from './merkle.js'
 import { MerkleTree } from './merkle-tree.js'
+import {
+  Node,
+  type MetadataFunction,
+  type MergeFunction,
+  type CompareFunction,
+} from '@ceramicnetwork/anchor-utils'
 
 /**
  * When no leaves present.

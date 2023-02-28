@@ -1,10 +1,10 @@
 import { describe, test, expect, beforeAll } from '@jest/globals'
 import * as crypto from 'crypto'
-import { MergeFunction, Node } from '../merkle.js'
 import type { MerkleTree } from '../merkle-tree.js'
 import { MerkleTreeFactory } from '../merkle-tree-factory.js'
 import { StringConcat } from './string-concat.js'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
+import { Node, type MergeFunction } from '@ceramicnetwork/anchor-utils'
 
 // use the crypto module to create a sha256 hash from the node passed in
 const sha256 = (data: any): Uint8Array => {

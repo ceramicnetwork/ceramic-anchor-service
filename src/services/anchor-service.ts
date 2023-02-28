@@ -1,7 +1,6 @@
 import type { CID } from 'multiformats/cid'
 
 import type { MerkleTree } from '../merkle/merkle-tree.js'
-import { Node, pathString, TreeMetadata } from '../merkle/merkle.js'
 
 import type { Config } from 'node-config-ts'
 
@@ -29,7 +28,12 @@ import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import { MerkleTreeFactory } from '../merkle/merkle-tree-factory.js'
 import type { IMetadataService } from './metadata-service.js'
-import { type CIDHolder } from '@ceramicnetwork/anchor-utils'
+import {
+  pathString,
+  type CIDHolder,
+  type TreeMetadata,
+  type Node,
+} from '@ceramicnetwork/anchor-utils'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 

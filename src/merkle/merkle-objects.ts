@@ -1,7 +1,6 @@
 import { CID } from 'multiformats/cid'
 import * as fs from 'fs'
 
-import { CompareFunction, MergeFunction, MetadataFunction, Node, TreeMetadata } from './merkle.js'
 import { Request } from '../models/request.js'
 
 import { logger } from '../logger/index.js'
@@ -9,7 +8,16 @@ import type { IIpfsService } from '../services/ipfs-service.type.js'
 
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { StreamID } from '@ceramicnetwork/streamid'
-import type { CIDHolder, ICandidate, ICandidateMetadata } from '@ceramicnetwork/anchor-utils'
+import {
+  Node,
+  type CIDHolder,
+  type CompareFunction,
+  type ICandidate,
+  type ICandidateMetadata,
+  type MergeFunction,
+  type MetadataFunction,
+  type TreeMetadata,
+} from '@ceramicnetwork/anchor-utils'
 
 const packageJson = JSON.parse(
   fs.readFileSync(

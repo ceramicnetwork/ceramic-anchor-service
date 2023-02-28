@@ -1,8 +1,8 @@
-import { Node, CompareFunction, MetadataFunction } from '../merkle.js'
 import type { MerkleTree } from '../merkle-tree.js'
 import { MerkleTreeFactory } from '../merkle-tree-factory.js'
 import { expect, describe, test } from '@jest/globals'
 import { StringConcat } from './string-concat.js'
+import type { Node, CompareFunction, MetadataFunction } from '@ceramicnetwork/anchor-utils'
 
 // tslint:disable-next-line:max-classes-per-file
 class StringCompare implements CompareFunction<string> {

@@ -1,4 +1,4 @@
-import { MergeFunction, Node, PathDirection } from './merkle.js'
+import { PathDirection, Node, type MergeFunction } from '@ceramicnetwork/anchor-utils'
 
 /**
  * Calculate path from Merkle tree root to `element`.

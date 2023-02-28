@@ -1,7 +1,7 @@
 import { describe, test, expect } from '@jest/globals'
-import { PathDirection, pathString } from '../merkle.js'
 import { MerkleTreeFactory } from '../merkle-tree-factory.js'
 import { StringConcat } from './string-concat.js'
+import { PathDirection, pathString } from '@ceramicnetwork/anchor-utils'
 
 const factory = new MerkleTreeFactory<string, string, string>(new StringConcat())
 
