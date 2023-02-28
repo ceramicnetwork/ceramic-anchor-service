@@ -50,6 +50,7 @@
     "@ceramicnetwork/common": "^2.18.0-rc.1",
     "@ceramicnetwork/core": "^2.23.0-rc.1",
     "@ceramicnetwork/logger": "^2.5.0",
+    "@ceramicnetwork/anchor-utils": "^1.6.0",
     "@ceramicnetwork/observability": "^1.0.7",
     "@ceramicnetwork/streamid": "^2.10.0-rc.0",
     "@ceramicnetwork/wasm-bloom-filter": "^0.1.0",
