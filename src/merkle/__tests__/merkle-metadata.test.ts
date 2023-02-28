@@ -1,17 +1,19 @@
 import { jest, describe, expect, beforeEach, test } from '@jest/globals'
 import { MockIpfsService, randomStreamID } from '../../__tests__/test-utils.js'
-import { BloomMetadata, Candidate, IpfsLeafCompare, IpfsMerge } from '../merkle-objects.js'
+import { BloomMetadata, Candidate, IpfsLeafCompare } from '../merkle-objects.js'
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { Request } from '../../models/request.js'
 import { AnchorStatus } from '@ceramicnetwork/common'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 import {
   MerkleTreeFactory,
+  IpfsMerge,
   type CIDHolder,
   type TreeMetadata,
   type Node,
   type MerkleTree,
 } from '@ceramicnetwork/anchor-utils'
+import { logger } from '../../logger/index.js'
 
 const TYPE_REGEX =
   /^jsnpm_@ceramicnetwork\/wasm-bloom-filter-v((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/
@@ -40,7 +42,7 @@ describe('Bloom filter', () => {
     leaves: Array<Candidate>
   ): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
     const factory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
-      new IpfsMerge(ipfsService),
+      new IpfsMerge(ipfsService, logger),
       new IpfsLeafCompare(),
       new BloomMetadata()
     )

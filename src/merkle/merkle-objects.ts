@@ -4,17 +4,14 @@ import * as fs from 'fs'
 import { Request } from '../models/request.js'
 
 import { logger } from '../logger/index.js'
-import type { IIpfsService } from '../services/ipfs-service.type.js'
 
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { StreamID } from '@ceramicnetwork/streamid'
 import {
   Node,
-  type CIDHolder,
   type CompareFunction,
   type ICandidate,
   type ICandidateMetadata,
-  type MergeFunction,
   type MetadataFunction,
   type TreeMetadata,
 } from '@ceramicnetwork/anchor-utils'
@@ -69,30 +66,6 @@ export class Candidate implements ICandidate {
 
   markAsAnchored(): void {
     this._alreadyAnchored = true
-  }
-}
-
-/**
- * Implements IPFS merge CIDs
- */
-export class IpfsMerge implements MergeFunction<CIDHolder, TreeMetadata> {
-  constructor(private readonly ipfsService: IIpfsService) {}
-
-  async merge(
-    left: Node<CIDHolder>,
-    right: Node<CIDHolder> | null = null,
-    metadata: TreeMetadata | null = null
-  ): Promise<Node<CIDHolder>> {
-    const merged = [left.data.cid, right?.data?.cid || null]
-
-    if (metadata) {
-      const metadataCid = await this.ipfsService.storeRecord(metadata)
-      merged.push(metadataCid)
-    }
-
-    const mergedCid = await this.ipfsService.storeRecord(merged)
-    logger.debug('Merkle node ' + mergedCid + ' created.')
-    return new Node<CIDHolder>({ cid: mergedCid }, left, right)
   }
 }
 
