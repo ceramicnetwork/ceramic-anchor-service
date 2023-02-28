@@ -75,7 +75,7 @@ export const streamIdAsString = new t.Type<StreamID, string, string>(
  * io-ts codec for StreamID encoded as Uint8Array bytes.
  */
 export const streamIdAsBytes = new t.Type<StreamID, Uint8Array, Uint8Array>(
-  'StreamID-as-string',
+  'StreamID-as-bytes',
   (input: unknown): input is StreamID => StreamID.isInstance(input),
   (input: Uint8Array, context: t.Context) => {
     try {
