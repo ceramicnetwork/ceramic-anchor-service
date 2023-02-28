@@ -13,6 +13,7 @@ import * as https from 'https'
 import { PubsubMessage } from '@ceramicnetwork/core'
 import type { IIpfsService, RetrieveRecordOptions } from './ipfs-service.type.js'
 import type { AbortOptions } from './abort-options.type.js'
+import { Semaphore } from 'await-semaphore'
 
 const { serialize, MsgType } = PubsubMessage
 
@@ -49,6 +50,7 @@ export class IpfsService implements IIpfsService {
   private readonly cache: LRUCache<string, any>
   private readonly pubsubTopic: string
   private readonly ipfs: IPFS
+  private readonly semaphore: Semaphore
 
   static inject = ['config'] as const
 
@@ -56,6 +58,7 @@ export class IpfsService implements IIpfsService {
     this.cache = new LRUCache<string, any>({ max: MAX_CACHE_ENTRIES })
     this.ipfs = ipfs
     this.pubsubTopic = config.ipfsConfig.pubsubTopic
+    this.semaphore = new Semaphore(config.ipfsConfig.concurrentGetLimit)
   }
 
   /**
@@ -86,10 +89,12 @@ export class IpfsService implements IIpfsService {
         if (found) {
           return found
         }
-        const record = await this.ipfs.dag.get(toCID(cid), {
-          path: options.path,
-          timeout: IPFS_GET_TIMEOUT,
-          signal: options.signal,
+        const record = await this.semaphore.use(async () => {
+          return this.ipfs.dag.get(toCID(cid), {
+            path: options.path,
+            timeout: IPFS_GET_TIMEOUT,
+            signal: options.signal,
+          })
         })
         const value = record.value
         logger.debug(`Successfully retrieved ${cacheKey}`)
@@ -110,20 +115,17 @@ export class IpfsService implements IIpfsService {
    * The record will also be pinned non-recusively.
    */
   storeRecord(record: Record<string, unknown>, options: AbortOptions = {}): Promise<CID> {
-    return this.ipfs.dag.put(
-        record,
-        { signal: options.signal, timeout: IPFS_PUT_TIMEOUT }
-    ).then(
-        // Note: While dag.put has a pin flag it always recurses and
-        // we do not want to recurse so we explicitly call pin.add.
-        (cid) => this.ipfs.pin.add(cid, {
-            signal: options.signal,
-            timeout: IPFS_PUT_TIMEOUT,
-            recursive: false
+    return this.ipfs.dag.put(record, { signal: options.signal, timeout: IPFS_PUT_TIMEOUT }).then(
+      // Note: While dag.put has a pin flag it always recurses and
+      // we do not want to recurse so we explicitly call pin.add.
+      (cid) =>
+        this.ipfs.pin.add(cid, {
+          signal: options.signal,
+          timeout: IPFS_PUT_TIMEOUT,
+          recursive: false,
         })
     )
   }
-
 
   /**
    * Stores `anchorCommit` to ipfs and publishes an update pubsub message to the Ceramic pubsub topic

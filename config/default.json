@@ -16,7 +16,8 @@
   "ipfsConfig": {
     "url": "http://localhost:5001",
     "pubsubTopic": "/ceramic/testnet-clay",
-    "timeout": 120000
+    "timeout": 120000,
+    "concurrentGetLimit": 100
   },
   "ceramic": {
     "apiUrl": "http://localhost:7007",

@@ -15,6 +15,7 @@ import { DelayAbortedError, Utils } from '../../utils.js'
 const FAUX_CONFIG = {
   ipfsConfig: {
     pubsubTopic: '/faux',
+    concurrentGetLimit: 100,
   },
 } as Config
 
@@ -26,6 +27,10 @@ let service: IpfsService
 beforeEach(() => {
   mockIpfsClient = new MockIpfsClient()
   service = new IpfsService(FAUX_CONFIG, mockIpfsClient as unknown as IPFS)
+})
+
+afterEach(() => {
+  jest.resetAllMocks()
 })
 
 describe('storeRecord', () => {
@@ -103,6 +108,10 @@ describe('retrieveRecord', () => {
     })
     const retrieveRecordP = service.retrieveRecord(cid, { signal: abortController.signal })
     abortController.abort()
+
+    // Do not retry if an exception is due to AbortSignal
+    await expect(retrieveRecordP).rejects.toThrow(DelayAbortedError)
+
     // Delay is huge, so ipfs.dag.get is called just once
     expect(dagGetSpy).toBeCalledTimes(1)
     // Pass original AbortSignal to ipfs.dag.get
@@ -110,7 +119,5 @@ describe('retrieveRecord', () => {
       timeout: IPFS_GET_TIMEOUT,
       signal: abortController.signal,
     })
-    // Do not retry if an exception is due to AbortSignal
-    await expect(retrieveRecordP).rejects.toThrow(DelayAbortedError)
   })
 })
