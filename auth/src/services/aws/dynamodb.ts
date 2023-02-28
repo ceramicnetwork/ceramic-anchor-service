@@ -199,6 +199,7 @@ export class DynamoDB implements Database {
             if (err instanceof ResourceNotFoundException) {
                 console.error('Resource not found')
             } else {
+                console.error('Error trying to get registration for did', did)
                 console.error(err)
             }
         }
