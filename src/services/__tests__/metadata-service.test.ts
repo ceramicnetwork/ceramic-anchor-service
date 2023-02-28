@@ -13,7 +13,6 @@ import { createDbConnection } from '../../db-connection.js'
 import { MockIpfsService } from '../../__tests__/test-utils.js'
 import { IpfsGenesisHeader, MetadataService } from '../metadata-service.js'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
-import { randomBytes } from '@stablelib/random'
 import { MetadataRepository } from '../../repositories/metadata-repository.js'
 import cloneDeep from 'lodash.clonedeep'
 import { ThrowDecoder } from '../../ancillary/throw-decoder.js'
@@ -24,11 +23,15 @@ const SCHEMA_COMMIT_ID = CommitID.fromString(
 const HEADER_RECORD = {
   controllers: ['did:key:controller'],
   family: 'family',
-  model: randomBytes(32),
+  model: SCHEMA_COMMIT_ID.baseID.bytes,
   schema: SCHEMA_COMMIT_ID.toString(),
   tags: ['tag0', 'tag1'],
 }
-const GENESIS_FIELDS = { ...HEADER_RECORD, schema: SCHEMA_COMMIT_ID }
+const GENESIS_FIELDS = {
+  ...HEADER_RECORD,
+  schema: SCHEMA_COMMIT_ID,
+  model: SCHEMA_COMMIT_ID.baseID,
+}
 
 const ipfsService = new MockIpfsService()
 let dbConnection: Knex

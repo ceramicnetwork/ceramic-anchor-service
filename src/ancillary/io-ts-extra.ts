@@ -72,6 +72,22 @@ export const streamIdAsString = new t.Type<StreamID, string, string>(
 )
 
 /**
+ * io-ts codec for StreamID encoded as Uint8Array bytes.
+ */
+export const streamIdAsBytes = new t.Type<StreamID, Uint8Array, Uint8Array>(
+  'StreamID-as-bytes',
+  (input: unknown): input is StreamID => StreamID.isInstance(input),
+  (input: Uint8Array, context: t.Context) => {
+    try {
+      return t.success(StreamID.fromBytes(input))
+    } catch {
+      return t.failure(input, context)
+    }
+  },
+  (streamId) => streamId.bytes
+)
+
+/**
  * io-ts codec for CommitID encoded as string.
  */
 export const commitIdAsString = new t.Type<CommitID, string, string>(
@@ -119,8 +135,6 @@ export const controllers = t.refinement(
   '[DIDString]'
 )
 
-
-
 /**
  * io-ts codec for enums
  * @param enumName - name of the codec
@@ -138,4 +152,3 @@ export function fromEnum<EnumType>(enumName: string, theEnum: Record<string, str
   )
 }
 export { fromEnum as enum }
-

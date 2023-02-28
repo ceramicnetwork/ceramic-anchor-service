@@ -1,24 +1,22 @@
 import { jest, describe, expect, beforeEach, test } from '@jest/globals'
+import { logger } from '../../logger/index.js'
 import { MockIpfsService, randomStreamID } from '../../__tests__/test-utils.js'
-import type { MerkleTree } from '../merkle-tree.js'
-import { type Node, TreeMetadata } from '../merkle.js'
+import { BloomMetadata } from '../bloom-metadata.js'
+import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
+import { expectPresent } from '../../__tests__/expect-present.util.js'
 import {
-  BloomMetadata,
-  Candidate,
-  CIDHolder,
   IpfsLeafCompare,
   IpfsMerge,
-} from '../merkle-objects.js'
-import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
-import { Request } from '../../models/request.js'
-import { AnchorStatus } from '@ceramicnetwork/common'
-import { MerkleTreeFactory } from '../merkle-tree-factory.js'
-import { expectPresent } from '../../__tests__/expect-present.util.js'
+  MerkleTreeFactory,
+  type CIDHolder,
+  type ICandidate,
+  type MerkleTree,
+  type TreeMetadata,
+} from '@ceramicnetwork/anchor-utils'
 
 const TYPE_REGEX =
   /^jsnpm_@ceramicnetwork\/wasm-bloom-filter-v((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/
 const isTypeString = (str: string) => Boolean(str.match(TYPE_REGEX))
-
 
 describe('Bloom filter', () => {
   jest.setTimeout(10000)
@@ -28,23 +26,21 @@ describe('Bloom filter', () => {
     ipfsService.reset()
   })
 
-  function createCandidate(metadata: any): Candidate {
+  function createCandidate(metadata: any): ICandidate {
     const streamID = randomStreamID()
-    const stream = {
-      id: streamID,
-      tip: streamID.cid,
+    return {
+      cid: streamID.cid,
+      streamId: streamID,
       metadata,
-      state: { anchorStatus: AnchorStatus.PENDING, log: [{ cid: streamID.cid }], metadata },
     }
-    return new Candidate(stream.id, new Request({ cid: streamID.cid.toString() }), metadata)
   }
 
   function buildMerkleTree(
-    leaves: Array<Candidate>
-  ): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
-    const factory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
-      new IpfsMerge(ipfsService),
-      new IpfsLeafCompare(),
+    leaves: Array<ICandidate>
+  ): Promise<MerkleTree<CIDHolder, ICandidate, TreeMetadata>> {
+    const factory = new MerkleTreeFactory<CIDHolder, ICandidate, TreeMetadata>(
+      new IpfsMerge(ipfsService, logger),
+      new IpfsLeafCompare(logger),
       new BloomMetadata()
     )
     return factory.build(leaves)
@@ -52,6 +48,7 @@ describe('Bloom filter', () => {
 
   test('Single stream minimal metadata', async () => {
     const candidate = createCandidate({ controllers: ['a'] })
+    const storeRecordSpy = jest.spyOn(ipfsService, 'storeRecord')
     const merkleTree = await buildMerkleTree([candidate])
     const metadata = merkleTree.metadata
     expectPresent(metadata)
@@ -59,7 +56,7 @@ describe('Bloom filter', () => {
     expect(metadata.streamIds).toHaveLength(1)
     expect(metadata.streamIds).toEqual([candidate.streamId.toString()])
     expect(isTypeString(metadata.bloomFilter.type)).toEqual(true)
-    expect(ipfsService.storeRecord).toHaveBeenCalledWith(metadata)
+    expect(storeRecordSpy).toHaveBeenCalledWith(metadata)
 
     const bloomFilter = BloomFilter.fromString(metadata.bloomFilter.data)
     expect(bloomFilter.contains(`streamid-${candidate.streamId.toString()}`)).toBeTruthy()
@@ -71,7 +68,7 @@ describe('Bloom filter', () => {
     const model = randomStreamID()
     const streamMetadata = {
       controllers: ['a'],
-      model: model.bytes,
+      model: model,
     }
     const candidate = createCandidate(streamMetadata)
     const merkleTree = await buildMerkleTree([candidate])
@@ -105,7 +102,7 @@ describe('Bloom filter', () => {
       controllers: ['b'],
       model: randomStreamID().bytes,
     }
-    const candidates: [Candidate, Candidate, Candidate] = [
+    const candidates: [ICandidate, ICandidate, ICandidate] = [
       createCandidate(streamMetadata0),
       createCandidate(streamMetadata1),
       createCandidate(streamMetadata2),
@@ -128,55 +125,9 @@ describe('Bloom filter', () => {
     expect(bloomFilter.contains(`controller-b`)).toBeTruthy()
     expect(bloomFilter.contains(`controller-c`)).toBeFalsy()
     expect(bloomFilter.contains(`a`)).toBeFalsy()
-    expect(bloomFilter.contains(`model-${candidates[0].model}`)).toBeTruthy()
-    expect(bloomFilter.contains(`model-${candidates[1].model}`)).toBeTruthy()
-    expect(bloomFilter.contains(`model-${candidates[2].model}`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${candidates[0].metadata.model}`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${candidates[1].metadata.model}`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${candidates[2].metadata.model}`)).toBeTruthy()
     expect(bloomFilter.contains(`model-model3`)).toBeFalsy()
-  })
-})
-
-describe('IpfsLeafCompare sorting', () => {
-  const leaves = new IpfsLeafCompare()
-
-  const mockNode = (streamId: string, metadata: any): Node<Candidate> => {
-    return { data: { streamId, metadata, model: metadata.model } } as unknown as Node<Candidate>
-  }
-
-  const node0 = mockNode('id0', { controllers: ['a'] })
-  const node1 = mockNode('id1', {
-    controllers: ['b'],
-    model: 'model1',
-  })
-  const node2 = mockNode('id2', {
-    controllers: ['a'],
-    model: 'model2',
-  })
-  const node3 = mockNode('id3', {
-    controllers: ['b'],
-    model: 'model2',
-  })
-  const node4 = mockNode('id4', {
-    controllers: ['b'],
-    model: 'model2',
-  })
-
-  test('model ordering - single model', () => {
-    // Pick node1 that contains a model
-    expect(leaves.compare(node0, node1)).toBe(1)
-  })
-
-  test('model ordering - two models', () => {
-    // Pick node1, sorted by model name
-    expect(leaves.compare(node1, node2)).toBe(-1)
-  })
-
-  test('controller ordering', () => {
-    // Same model, compare by controller, pick node2 sorted by controller name
-    expect(leaves.compare(node2, node3)).toBe(-1)
-  })
-
-  test('streamID ordering', () => {
-    // Same model and controller, pick node3 sorted by stream ID
-    expect(leaves.compare(node3, node4)).toBe(-1)
   })
 })

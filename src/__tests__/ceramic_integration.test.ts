@@ -17,7 +17,6 @@ import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 
 import { create } from 'ipfs-core'
 import { HttpApi } from 'ipfs-http-server'
-import * as dagJose from 'dag-jose'
 
 import express from 'express'
 import { makeGanache } from './make-ganache.util.js'
@@ -58,7 +57,6 @@ async function createIPFS(apiPort?: number): Promise<IpfsApi> {
   const swarmPort = await getPort()
 
   const config = {
-    ipld: { codecs: [dagJose] },
     repo: `${tmpFolder.path}/ipfs${swarmPort}/`,
     config: {
       Addresses: {
@@ -90,7 +88,14 @@ async function makeCeramicCore(
     pubsubTopic: TOPIC,
     stateStoreDirectory: tmpFolder.path,
     anchorServiceUrl,
-    ethereumRpcUrl: ethereumRpcUrl.href,
+    // TODO CDB-2317 Remove `indexing` config when Ceramic Core allows that
+    indexing: {
+      db: "TODO",
+      allowQueriesBeforeHistoricalSync: false,
+      disableComposedb: true,
+      enableHistoricalSync: false,
+    },
+    ethereumRpcUrl: ethereumRpcUrl?.href,
   })
   ceramic.did = makeDID()
   await ceramic.did.authenticate()

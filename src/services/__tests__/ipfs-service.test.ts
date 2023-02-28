@@ -1,4 +1,4 @@
-import { jest, describe, test, expect, beforeEach } from '@jest/globals'
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals'
 import type { Config } from 'node-config-ts'
 import {
   IPFS_GET_RETRIES,
@@ -46,6 +46,19 @@ describe('storeRecord', () => {
     expect(dagPutSpy).toBeCalledWith(RECORD, {
       signal: abortController.signal,
       timeout: IPFS_PUT_TIMEOUT,
+    })
+  })
+
+  test('pin records', async () => {
+    const dagPutSpy = jest.spyOn(mockIpfsClient.dag, 'put')
+    const pinAddSpy = jest.spyOn(mockIpfsClient.pin, 'add')
+    const cid = await service.storeRecord({})
+    expect(dagPutSpy).toBeCalledTimes(1)
+    expect(pinAddSpy).toBeCalledTimes(1)
+    expect(pinAddSpy).toBeCalledWith(cid, {
+      signal: undefined,
+      timeout: IPFS_PUT_TIMEOUT,
+      recursive: false,
     })
   })
 })
@@ -102,7 +115,7 @@ describe('retrieveRecord', () => {
     const dagGetSpy = jest.spyOn(mockIpfsClient.dag, 'get')
     // Simulate ipfs.dag.get call that throws when aborted
     times(IPFS_GET_RETRIES - 1).forEach(() => {
-      dagGetSpy.mockImplementationOnce(async (cid: CID, options: AbortOptions) => {
+      dagGetSpy.mockImplementationOnce(async (cid: CID, options: AbortOptions = {}) => {
         await Utils.delay(10000, options.signal)
       })
     })

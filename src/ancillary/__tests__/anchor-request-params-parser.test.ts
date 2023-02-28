@@ -59,7 +59,9 @@ const CAR_FILE_REQUEST_EXAMPLE_UNSIGNED_GENESIS = mockRequest({
 
 const CAR_FILE_FAKE_GENESIS_FIELDS: GenesisFields = {
   controllers: [asDIDString('did:pkh:eip155:1:0x926eeb192c18b7be607a7e10c8e7a7e8d9f70742')],
-  model: bases['base64'].decode('mzgECAYUBEiCIsWIw6kon5HSV8g+usyjT1ohr++q6zx+OOGy/05bUjQ'),
+  model: StreamID.fromBytes(
+    bases['base64'].decode('mzgECAYUBEiCIsWIw6kon5HSV8g+usyjT1ohr++q6zx+OOGy/05bUjQ')
+  ),
 }
 
 describe('AnchoRequestParamsParser', () => {

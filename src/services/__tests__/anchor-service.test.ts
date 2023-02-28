@@ -2,7 +2,7 @@ import 'reflect-metadata'
 import { jest, describe, beforeAll, beforeEach, test, expect, afterAll } from '@jest/globals'
 
 import { Request, RequestStatus } from '../../models/request.js'
-import { AnchorService } from '../anchor-service.js'
+import { AnchorService, Candidate } from '../anchor-service.js'
 
 import { clearTables, createDbConnection } from '../../db-connection.js'
 
@@ -13,17 +13,15 @@ import { config, Config } from 'node-config-ts'
 import { StreamID } from '@ceramicnetwork/streamid'
 import {
   generateRequests,
-  MockIpfsClient,
+  MockIpfsService,
   randomStreamID,
   repeat,
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { CID } from 'multiformats/cid'
-import { Candidate } from '../../merkle/merkle-objects.js'
 import { Anchor } from '../../models/anchor.js'
 import { toCID } from '@ceramicnetwork/common'
 import { Utils } from '../../utils.js'
-import { PubsubMessage } from '@ceramicnetwork/core'
 import { validate as validateUUID } from 'uuid'
 import { TransactionRepository } from '../../repositories/transaction-repository.js'
 import type { BlockchainService } from '../blockchain/blockchain-service'
@@ -35,6 +33,7 @@ import { IMetadataService, MetadataService } from '../metadata-service.js'
 import { asDIDString } from '../../ancillary/did-string.js'
 import type { EventProducerService } from '../event-producer/event-producer-service.js'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
+import type { AbortOptions } from '../abort-options.type.js'
 
 process.env['NODE_ENV'] = 'test'
 
@@ -89,19 +88,6 @@ async function anchorCandidates(
   return anchors
 }
 
-const mockIpfsClient = new MockIpfsClient()
-jest.unstable_mockModule('ipfs-http-client', () => {
-  const originalModule = jest.requireActual('ipfs-http-client') as any
-
-  return {
-    __esModule: true,
-    ...originalModule,
-    create: () => {
-      return mockIpfsClient
-    },
-  }
-})
-
 const MERKLE_DEPTH_LIMIT = 3
 const READY_RETRY_INTERVAL_MS = 1000
 const STREAM_LIMIT = Math.pow(2, MERKLE_DEPTH_LIMIT)
@@ -129,8 +115,6 @@ describe('anchor service', () => {
   let metadataRepository: MetadataRepository
 
   beforeAll(async () => {
-    const { IpfsService } = await import('../ipfs-service.js')
-
     connection = await createDbConnection()
     injector = createInjector()
       .provideValue('dbConnection', connection)
@@ -147,7 +131,7 @@ describe('anchor service', () => {
       .provideFactory('requestRepository', RequestRepository.make)
       .provideClass('transactionRepository', TransactionRepository)
       .provideClass('blockchainService', FakeEthereumBlockchainService)
-      .provideClass('ipfsService', IpfsService)
+      .provideClass('ipfsService', MockIpfsService)
       .provideClass('eventProducerService', MockEventProducerService)
       .provideClass('metadataService', MetadataService)
       .provideClass('anchorService', AnchorService)
@@ -163,7 +147,6 @@ describe('anchor service', () => {
 
   beforeEach(async () => {
     await clearTables(connection)
-    mockIpfsClient.reset()
     jest.restoreAllMocks()
     await requestRepository.table.delete()
   })
@@ -243,6 +226,7 @@ describe('anchor service', () => {
 
     await requestRepository.findAndMarkReady(0)
 
+    const publishSpy = jest.spyOn(ipfsService, 'publishAnchorCommit')
     const [candidates] = await anchorService._findCandidates(requests, 0)
     const merkleTree = await anchorService._buildMerkleTree(candidates)
     const ipfsProofCid = await ipfsService.storeRecord({})
@@ -252,8 +236,7 @@ describe('anchor service', () => {
     expect(candidates.length).toEqual(requests.length)
     expect(anchors.length).toEqual(candidates.length)
 
-    expect(mockIpfsClient.pubsub.publish.mock.calls.length).toEqual(anchors.length)
-    const config = injector.resolve('config')
+    expect(publishSpy).toBeCalledTimes(anchors.length)
 
     // All requests are anchored, in a different order because of IpfsLeafCompare
     expect(anchors.map((a) => a.requestId).sort()).toEqual(requests.map((r) => r.id).sort())
@@ -269,8 +252,10 @@ describe('anchor service', () => {
       expect(anchorRecord.prev.toString()).toEqual(request.cid)
       expect(anchorRecord.proof).toEqual(ipfsProofCid)
       expect(anchorRecord.path).toEqual(anchor.path)
-      expect(mockIpfsClient.pubsub.publish.mock.calls[i][0]).toEqual(config.ipfsConfig.pubsubTopic)
-      expect(mockIpfsClient.pubsub.publish.mock.calls[i][1]).toBeInstanceOf(Uint8Array)
+      expect(publishSpy.mock.calls[i]).toEqual([
+        anchorRecord,
+        StreamID.fromString(request.streamId),
+      ])
     }
 
     expectPresent(anchors[0])
@@ -479,28 +464,26 @@ describe('anchor service', () => {
     const [candidates] = await anchorService._findCandidates(requests, 0)
     expect(candidates.length).toEqual(numRequests)
 
-    const originalMockDagPut = mockIpfsClient.dag.put.getMockImplementation()
-    mockIpfsClient.dag.put.mockImplementation(async (ipfsAnchorCommit: any) => {
+    const storeRecordOriginal = ipfsService.storeRecord.bind(ipfsService)
+    const storeRecordSpy = jest.spyOn(ipfsService, 'storeRecord')
+    storeRecordSpy.mockImplementation(async (record: any, options?: AbortOptions) => {
       expectPresent(requests[1])
-      if (ipfsAnchorCommit.prev && ipfsAnchorCommit.prev.toString() == requests[1].cid.toString()) {
-        throw new Error('storing record failed')
+      if (record.prev && record.prev.toString() == requests[1].cid.toString()) {
+        throw new Error('Storing record failed')
       }
 
-      return originalMockDagPut(ipfsAnchorCommit)
+      return storeRecordOriginal(record, options)
     })
 
-    const originalMockPubsubPublish = mockIpfsClient.pubsub.publish.getMockImplementation()
-    mockIpfsClient.pubsub.publish.mockImplementation(async (topic: string, message: Uint8Array) => {
-      const deserializedMessage = PubsubMessage.deserialize({
-        data: message,
-      }) as PubsubMessage.UpdateMessage
-
+    const publishAnchorCommitOriginal = ipfsService.publishAnchorCommit.bind(ipfsService)
+    const publishAnchorCommitSpy = jest.spyOn(ipfsService, 'publishAnchorCommit')
+    publishAnchorCommitSpy.mockImplementation(async (anchorCommit, streamId, options) => {
       expectPresent(requests[3])
-      if (deserializedMessage.stream.toString() == requests[3].streamId.toString()) {
+      if (streamId.toString() == requests[3].streamId.toString()) {
         throw new Error('publishing update failed')
       }
 
-      return originalMockPubsubPublish(topic, message)
+      return publishAnchorCommitOriginal(anchorCommit, streamId, options)
     })
 
     const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
@@ -814,23 +797,5 @@ describe('anchor service', () => {
       expect(updatedRequestsCount).toEqual(0)
       expect(emitSpy).not.toBeCalled()
     })
-  })
-
-  test('IpfsService storeRecord() pins records', async () => {
-    const cid = await ipfsService.storeRecord({})
-    expect(mockIpfsClient.dag.put).toHaveBeenCalledTimes(1)
-    expect(mockIpfsClient.pin.add).toHaveBeenCalledTimes(1)
-    expect(mockIpfsClient.pin.add).toHaveBeenCalledWith(cid, {
-      signal: undefined,
-      timeout: 30000,
-      recursive: false,
-    })
-  })
-
-  test('IpfsService storeRecord() pins records', async () => {
-    const cid = await ipfsService.storeRecord({})
-    expect(mockIpfsClient.dag.put).toHaveBeenCalledTimes(1)
-    expect(mockIpfsClient.pin.add).toHaveBeenCalledTimes(1)
-    expect(mockIpfsClient.pin.add).toHaveBeenCalledWith(cid, {signal: undefined, timeout: 30000, recursive: false})
   })
 })

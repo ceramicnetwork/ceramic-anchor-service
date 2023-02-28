@@ -1,7 +1,4 @@
-import type { CID } from 'multiformats/cid'
-
-import type { MerkleTree } from '../merkle/merkle-tree.js'
-import { Node, pathString, TreeMetadata } from '../merkle/merkle.js'
+import { CID } from 'multiformats/cid'
 
 import type { Config } from 'node-config-ts'
 
@@ -22,19 +19,24 @@ import { METRIC_NAMES } from '../settings.js'
 import type { BlockchainService } from './blockchain/blockchain-service.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 
-import {
-  BloomMetadata,
-  Candidate,
-  CIDHolder,
-  IpfsLeafCompare,
-  IpfsMerge,
-} from '../merkle/merkle-objects.js'
+import { BloomMetadata } from '../merkle/bloom-metadata.js'
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
-import { MerkleTreeFactory } from '../merkle/merkle-tree-factory.js'
 import type { IMetadataService } from './metadata-service.js'
+import {
+  pathString,
+  MerkleTreeFactory,
+  IpfsLeafCompare,
+  IpfsMerge,
+  type MerkleTree,
+  type CIDHolder,
+  type TreeMetadata,
+  type Node,
+  ICandidate,
+  ICandidateMetadata,
+} from '@ceramicnetwork/anchor-utils'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
@@ -68,6 +70,48 @@ type AnchorSummary = {
   reanchoredCount: number
   // requests that can be retried in a later batch
   canRetryCount: number
+}
+
+/**
+ * Contains all the information about a single stream being anchored. Note that multiple Requests
+ * can correspond to the same Stream (if, for example, multiple back-to-back updates are done to the
+ * same Stream within an anchor period), so Candidate serves to group all related Requests and keep
+ * track of which CID should actually be anchored for this stream.
+ */
+export class Candidate implements ICandidate {
+  readonly cid: CID
+  readonly model: StreamID | undefined
+
+  private _alreadyAnchored = false
+
+  constructor(
+    readonly streamId: StreamID,
+    readonly request: Request,
+    readonly metadata: ICandidateMetadata
+  ) {
+    this.request = request
+    if (!request.cid) throw new Error(`No CID present for request`)
+    this.cid = CID.parse(request.cid)
+    this.metadata = metadata
+    this.model = this.metadata.model
+  }
+
+  /**
+   * Returns true if this Stream was already anchored at the time that it was loaded during the
+   * anchoring process (most likely by another anchoring service after the creation of the original
+   * Request(s)).
+   */
+  get alreadyAnchored(): boolean {
+    return this._alreadyAnchored
+  }
+
+  shouldAnchor(): boolean {
+    return !this._alreadyAnchored
+  }
+
+  markAsAnchored(): void {
+    this._alreadyAnchored = true
+  }
 }
 
 const logAnchorSummary = async (
@@ -150,8 +194,8 @@ export class AnchorService {
     this.maxStreamLimit = this.merkleDepthLimit > 0 ? Math.pow(2, this.merkleDepthLimit) : 0
     this.minStreamLimit = minStreamCount || Math.floor(this.maxStreamLimit / 2)
 
-    const ipfsMerge = new IpfsMerge(this.ipfsService)
-    const ipfsCompare = new IpfsLeafCompare()
+    const ipfsMerge = new IpfsMerge(this.ipfsService, logger)
+    const ipfsCompare = new IpfsLeafCompare(logger)
     const bloomMetadata = new BloomMetadata()
     this.merkleTreeFactory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
       ipfsMerge,

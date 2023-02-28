@@ -3,7 +3,6 @@ import LRUCache from 'lru-cache'
 import { create as createIpfsClient } from 'ipfs-http-client'
 import type { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
-import * as dagJose from 'dag-jose'
 import type { IPFS } from 'ipfs-core-types'
 import { AnchorCommit, toCID } from '@ceramicnetwork/common'
 import type { StreamID } from '@ceramicnetwork/streamid'
@@ -39,9 +38,6 @@ function buildIpfsClient(config: Config): IPFS {
   return createIpfsClient({
     url: config.ipfsConfig.url,
     timeout: config.ipfsConfig.timeout,
-    ipld: {
-      codecs: [dagJose],
-    },
     agent: buildHttpAgent(config.ipfsConfig.url),
   })
 }
@@ -114,17 +110,19 @@ export class IpfsService implements IIpfsService {
    *
    * The record will also be pinned non-recusively.
    */
-  storeRecord(record: Record<string, unknown>, options: AbortOptions = {}): Promise<CID> {
-    return this.ipfs.dag.put(record, { signal: options.signal, timeout: IPFS_PUT_TIMEOUT }).then(
-      // Note: While dag.put has a pin flag it always recurses and
-      // we do not want to recurse so we explicitly call pin.add.
-      (cid) =>
-        this.ipfs.pin.add(cid, {
-          signal: options.signal,
-          timeout: IPFS_PUT_TIMEOUT,
-          recursive: false,
-        })
-    )
+  async storeRecord(record: Record<string, unknown>, options: AbortOptions = {}): Promise<CID> {
+    const cid = await this.ipfs.dag.put(record, {
+      signal: options.signal,
+      timeout: IPFS_PUT_TIMEOUT,
+    })
+    // Note: While dag.put has a pin flag it always recurses and
+    // we do not want to recurse so we explicitly call pin.add.
+    await this.ipfs.pin.add(cid, {
+      signal: options.signal,
+      timeout: IPFS_PUT_TIMEOUT,
+      recursive: false,
+    })
+    return cid
   }
 
   /**

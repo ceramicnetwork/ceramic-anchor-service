@@ -45,7 +45,9 @@ const FAKE_TIP = toCID('bagcqceransp4tpxraev7xfqz5b2kxsj37pffwt2ahh2hfzt4uegvtzc
 const FAKE_TIMESTAMP = new Date('2023-01-25T17:32:42.971Z')
 const FAKE_GENESIS_FIELDS: GenesisFields = {
   controllers: [asDIDString('did:pkh:eip155:1:0x926eeb192c18b7be607a7e10c8e7a7e8d9f70742')],
-  model: bases['base64'].decode('mzgECAYUBEiCIsWIw6kon5HSV8g+usyjT1ohr++q6zx+OOGy/05bUjQ'),
+  model: StreamID.fromBytes(
+    bases['base64'].decode('mzgECAYUBEiCIsWIw6kon5HSV8g+usyjT1ohr++q6zx+OOGy/05bUjQ')
+  ),
 }
 
 class MockMetadataService implements IMetadataService {
