@@ -52,6 +52,7 @@ describe('Bloom filter', () => {
 
   test('Single stream minimal metadata', async () => {
     const candidate = createCandidate({ controllers: ['a'] })
+    const storeRecordSpy = jest.spyOn(ipfsService, 'storeRecord')
     const merkleTree = await buildMerkleTree([candidate])
     const metadata = merkleTree.metadata
     expectPresent(metadata)
@@ -59,7 +60,7 @@ describe('Bloom filter', () => {
     expect(metadata.streamIds).toHaveLength(1)
     expect(metadata.streamIds).toEqual([candidate.streamId.toString()])
     expect(isTypeString(metadata.bloomFilter.type)).toEqual(true)
-    expect(ipfsService.storeRecord).toHaveBeenCalledWith(metadata)
+    expect(storeRecordSpy).toHaveBeenCalledWith(metadata)
 
     const bloomFilter = BloomFilter.fromString(metadata.bloomFilter.data)
     expect(bloomFilter.contains(`streamid-${candidate.streamId.toString()}`)).toBeTruthy()
