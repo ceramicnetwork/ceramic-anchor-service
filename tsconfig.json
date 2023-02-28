@@ -24,7 +24,7 @@
     "noPropertyAccessFromIndexSignature": true,
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "noUnusedParameters": false
   },
   "include": ["./src/**/*", "./config/**/*", "./types/**/*"],
   "exclude": ["node_modules", "**/*.test.ts"]
