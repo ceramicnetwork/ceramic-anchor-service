@@ -32,16 +32,20 @@ export function randomStreamID(type: string | number = 'tile'): StreamID {
 }
 
 export class MockIpfsClient {
-  constructor() {
-    this.reset()
+  private _streams: Record<string, any> = {}
+
+  pubsub: any
+
+  dag: {
+    get: (cid: CID, options?: AbortOptions) => Promise<any>
+    put: (record: Record<string, unknown>, abortOptions?: AbortOptions) => Promise<CID>
   }
 
-  private _streams: Record<string, any> = {}
-  pubsub: any
-  dag: any
   pin: any
 
-  reset() {
+  constructor() {
+    this.reset()
+
     this.pubsub = {
       subscribe: jest.fn(() => Promise.resolve()),
       publish: jest.fn(() => Promise.resolve()),
@@ -75,7 +79,9 @@ export class MockIpfsClient {
         })
       }),
     }
+  }
 
+  reset() {
     this._streams = {}
   }
 }
@@ -98,11 +104,11 @@ export class MockIpfsService implements IIpfsService {
     throw new Error(`MockIpfsService:retrieveRecord:timeout`)
   }
 
-  storeRecord = jest.fn(async (record: Record<string, unknown>): Promise<CID> => {
+  async storeRecord(record: Record<string, unknown>): Promise<CID> {
     const cid = randomCID()
     this._streams[cid.toString()] = record
     return cid
-  })
+  }
 
   async publishAnchorCommit(anchorCommit: AnchorCommit): Promise<CID> {
     return this.storeRecord(anchorCommit as any)
