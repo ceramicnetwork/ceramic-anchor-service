@@ -2,7 +2,7 @@ import 'reflect-metadata'
 import { jest, describe, beforeAll, beforeEach, test, expect, afterAll } from '@jest/globals'
 
 import { Request, RequestStatus } from '../../models/request.js'
-import { AnchorService } from '../anchor-service.js'
+import { AnchorService, Candidate } from '../anchor-service.js'
 
 import { clearTables, createDbConnection } from '../../db-connection.js'
 
@@ -19,7 +19,6 @@ import {
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { CID } from 'multiformats/cid'
-import { Candidate } from '../../merkle/merkle-objects.js'
 import { Anchor } from '../../models/anchor.js'
 import { toCID } from '@ceramicnetwork/common'
 import { Utils } from '../../utils.js'

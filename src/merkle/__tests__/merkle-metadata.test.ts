@@ -1,19 +1,18 @@
 import { jest, describe, expect, beforeEach, test } from '@jest/globals'
+import { logger } from '../../logger/index.js'
 import { MockIpfsService, randomStreamID } from '../../__tests__/test-utils.js'
-import { BloomMetadata, Candidate } from '../merkle-objects.js'
+import { BloomMetadata } from '../merkle-objects.js'
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
-import { Request } from '../../models/request.js'
-import { AnchorStatus } from '@ceramicnetwork/common'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 import {
-  MerkleTreeFactory,
-  IpfsMerge,
   IpfsLeafCompare,
+  IpfsMerge,
+  MerkleTreeFactory,
   type CIDHolder,
-  type TreeMetadata,
+  type ICandidate,
   type MerkleTree,
+  type TreeMetadata,
 } from '@ceramicnetwork/anchor-utils'
-import { logger } from '../../logger/index.js'
 
 const TYPE_REGEX =
   /^jsnpm_@ceramicnetwork\/wasm-bloom-filter-v((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/
@@ -27,21 +26,19 @@ describe('Bloom filter', () => {
     ipfsService.reset()
   })
 
-  function createCandidate(metadata: any): Candidate {
+  function createCandidate(metadata: any): ICandidate {
     const streamID = randomStreamID()
-    const stream = {
-      id: streamID,
-      tip: streamID.cid,
+    return {
+      cid: streamID.cid,
+      streamId: streamID,
       metadata,
-      state: { anchorStatus: AnchorStatus.PENDING, log: [{ cid: streamID.cid }], metadata },
     }
-    return new Candidate(stream.id, new Request({ cid: streamID.cid.toString() }), metadata)
   }
 
   function buildMerkleTree(
-    leaves: Array<Candidate>
-  ): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
-    const factory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
+    leaves: Array<ICandidate>
+  ): Promise<MerkleTree<CIDHolder, ICandidate, TreeMetadata>> {
+    const factory = new MerkleTreeFactory<CIDHolder, ICandidate, TreeMetadata>(
       new IpfsMerge(ipfsService, logger),
       new IpfsLeafCompare(logger),
       new BloomMetadata()
@@ -105,7 +102,7 @@ describe('Bloom filter', () => {
       controllers: ['b'],
       model: randomStreamID().bytes,
     }
-    const candidates: [Candidate, Candidate, Candidate] = [
+    const candidates: [ICandidate, ICandidate, ICandidate] = [
       createCandidate(streamMetadata0),
       createCandidate(streamMetadata1),
       createCandidate(streamMetadata2),
@@ -128,9 +125,9 @@ describe('Bloom filter', () => {
     expect(bloomFilter.contains(`controller-b`)).toBeTruthy()
     expect(bloomFilter.contains(`controller-c`)).toBeFalsy()
     expect(bloomFilter.contains(`a`)).toBeFalsy()
-    expect(bloomFilter.contains(`model-${candidates[0].model}`)).toBeTruthy()
-    expect(bloomFilter.contains(`model-${candidates[1].model}`)).toBeTruthy()
-    expect(bloomFilter.contains(`model-${candidates[2].model}`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${candidates[0].metadata.model}`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${candidates[1].metadata.model}`)).toBeTruthy()
+    expect(bloomFilter.contains(`model-${candidates[2].metadata.model}`)).toBeTruthy()
     expect(bloomFilter.contains(`model-model3`)).toBeFalsy()
   })
 })
