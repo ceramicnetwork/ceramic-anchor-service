@@ -27,7 +27,11 @@ const HEADER_RECORD = {
   schema: SCHEMA_COMMIT_ID.toString(),
   tags: ['tag0', 'tag1'],
 }
-const GENESIS_FIELDS = { ...HEADER_RECORD, schema: SCHEMA_COMMIT_ID }
+const GENESIS_FIELDS = {
+  ...HEADER_RECORD,
+  schema: SCHEMA_COMMIT_ID,
+  model: SCHEMA_COMMIT_ID.baseID,
+}
 
 const ipfsService = new MockIpfsService()
 let dbConnection: Knex

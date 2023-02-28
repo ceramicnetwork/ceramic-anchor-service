@@ -5,7 +5,6 @@ import { type Node, TreeMetadata } from '../merkle.js'
 import {
   BloomMetadata,
   Candidate,
-  CIDHolder,
   IpfsLeafCompare,
   IpfsMerge,
 } from '../merkle-objects.js'
@@ -14,6 +13,7 @@ import { Request } from '../../models/request.js'
 import { AnchorStatus } from '@ceramicnetwork/common'
 import { MerkleTreeFactory } from '../merkle-tree-factory.js'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
+import { type CIDHolder } from '@ceramicnetwork/anchor-utils'
 
 const TYPE_REGEX =
   /^jsnpm_@ceramicnetwork\/wasm-bloom-filter-v((([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)$/

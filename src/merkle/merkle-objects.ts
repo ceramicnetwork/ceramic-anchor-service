@@ -9,7 +9,7 @@ import type { IIpfsService } from '../services/ipfs-service.type.js'
 
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { StreamID } from '@ceramicnetwork/streamid'
-import type { ICandidate, ICandidateMetadata } from '@ceramicnetwork/anchor-utils'
+import type { CIDHolder, ICandidate, ICandidateMetadata } from '@ceramicnetwork/anchor-utils'
 
 const packageJson = JSON.parse(
   fs.readFileSync(
@@ -21,10 +21,6 @@ const packageJson = JSON.parse(
 const BLOOM_FILTER_TYPE = 'jsnpm_@ceramicnetwork/wasm-bloom-filter'
 const BLOOM_FILTER_FALSE_POSITIVE_RATE = 0.0001
 const bloomFilterVersion = packageJson['version']
-
-export interface CIDHolder {
-  cid: CID
-}
 
 /**
  * Contains all the information about a single stream being anchored. Note that multiple Requests
