@@ -19,7 +19,7 @@ import { METRIC_NAMES } from '../settings.js'
 import type { BlockchainService } from './blockchain/blockchain-service.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 
-import { BloomMetadata, Candidate, IpfsLeafCompare } from '../merkle/merkle-objects.js'
+import { BloomMetadata, Candidate } from '../merkle/merkle-objects.js'
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
@@ -28,6 +28,7 @@ import type { IMetadataService } from './metadata-service.js'
 import {
   pathString,
   MerkleTreeFactory,
+  IpfsLeafCompare,
   IpfsMerge,
   type MerkleTree,
   type CIDHolder,
@@ -150,7 +151,7 @@ export class AnchorService {
     this.minStreamLimit = minStreamCount || Math.floor(this.maxStreamLimit / 2)
 
     const ipfsMerge = new IpfsMerge(this.ipfsService, logger)
-    const ipfsCompare = new IpfsLeafCompare()
+    const ipfsCompare = new IpfsLeafCompare(logger)
     const bloomMetadata = new BloomMetadata()
     this.merkleTreeFactory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
       ipfsMerge,

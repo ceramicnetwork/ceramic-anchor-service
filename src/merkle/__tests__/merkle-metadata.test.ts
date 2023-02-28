@@ -1,6 +1,6 @@
 import { jest, describe, expect, beforeEach, test } from '@jest/globals'
 import { MockIpfsService, randomStreamID } from '../../__tests__/test-utils.js'
-import { BloomMetadata, Candidate, IpfsLeafCompare } from '../merkle-objects.js'
+import { BloomMetadata, Candidate } from '../merkle-objects.js'
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { Request } from '../../models/request.js'
 import { AnchorStatus } from '@ceramicnetwork/common'
@@ -8,9 +8,9 @@ import { expectPresent } from '../../__tests__/expect-present.util.js'
 import {
   MerkleTreeFactory,
   IpfsMerge,
+  IpfsLeafCompare,
   type CIDHolder,
   type TreeMetadata,
-  type Node,
   type MerkleTree,
 } from '@ceramicnetwork/anchor-utils'
 import { logger } from '../../logger/index.js'
@@ -43,7 +43,7 @@ describe('Bloom filter', () => {
   ): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
     const factory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
       new IpfsMerge(ipfsService, logger),
-      new IpfsLeafCompare(),
+      new IpfsLeafCompare(logger),
       new BloomMetadata()
     )
     return factory.build(leaves)
@@ -132,51 +132,5 @@ describe('Bloom filter', () => {
     expect(bloomFilter.contains(`model-${candidates[1].model}`)).toBeTruthy()
     expect(bloomFilter.contains(`model-${candidates[2].model}`)).toBeTruthy()
     expect(bloomFilter.contains(`model-model3`)).toBeFalsy()
-  })
-})
-
-describe('IpfsLeafCompare sorting', () => {
-  const leaves = new IpfsLeafCompare()
-
-  const mockNode = (streamId: string, metadata: any): Node<Candidate> => {
-    return { data: { streamId, metadata, model: metadata.model } } as unknown as Node<Candidate>
-  }
-
-  const node0 = mockNode('id0', { controllers: ['a'] })
-  const node1 = mockNode('id1', {
-    controllers: ['b'],
-    model: 'model1',
-  })
-  const node2 = mockNode('id2', {
-    controllers: ['a'],
-    model: 'model2',
-  })
-  const node3 = mockNode('id3', {
-    controllers: ['b'],
-    model: 'model2',
-  })
-  const node4 = mockNode('id4', {
-    controllers: ['b'],
-    model: 'model2',
-  })
-
-  test('model ordering - single model', () => {
-    // Pick node1 that contains a model
-    expect(leaves.compare(node0, node1)).toBe(1)
-  })
-
-  test('model ordering - two models', () => {
-    // Pick node1, sorted by model name
-    expect(leaves.compare(node1, node2)).toBe(-1)
-  })
-
-  test('controller ordering', () => {
-    // Same model, compare by controller, pick node2 sorted by controller name
-    expect(leaves.compare(node2, node3)).toBe(-1)
-  })
-
-  test('streamID ordering', () => {
-    // Same model and controller, pick node3 sorted by stream ID
-    expect(leaves.compare(node3, node4)).toBe(-1)
   })
 })
