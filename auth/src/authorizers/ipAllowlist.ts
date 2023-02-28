@@ -63,5 +63,6 @@ export const ALLOWED_IP_ADDRESSES: Record<string, string> = {
     "35.84.164.207": "Carbon Title",
     "172.218.36.181": "steph@3box",
     "50.17.239.165": "Protico",
-    "167.99.152.53": "Spect Network"
+    "167.99.152.53": "Spect Network",
+    "136.56.26.176": "mohsin@3box"
 }
