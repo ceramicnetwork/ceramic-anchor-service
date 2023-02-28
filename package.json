@@ -58,7 +58,7 @@
     "@types/lodash.camelcase": "^4.3.7",
     "@types/lodash.snakecase": "^4.1.7",
     "await-semaphore": "^0.1.3",
-    "cartonne": "^1.0.3",
+    "cartonne": "^2.0.0",
     "conditional-type-checks": "^1.0.6",
     "cors": "^2.8.5",
     "dag-jose": "^3.0.1",
