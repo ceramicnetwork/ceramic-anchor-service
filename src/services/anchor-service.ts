@@ -19,7 +19,7 @@ import { METRIC_NAMES } from '../settings.js'
 import type { BlockchainService } from './blockchain/blockchain-service.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 
-import { BloomMetadata } from '../merkle/merkle-objects.js'
+import { BloomMetadata } from '../merkle/bloom-metadata.js'
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'

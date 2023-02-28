@@ -1,7 +1,7 @@
 import { jest, describe, expect, beforeEach, test } from '@jest/globals'
 import { logger } from '../../logger/index.js'
 import { MockIpfsService, randomStreamID } from '../../__tests__/test-utils.js'
-import { BloomMetadata } from '../merkle-objects.js'
+import { BloomMetadata } from '../bloom-metadata.js'
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 import {
