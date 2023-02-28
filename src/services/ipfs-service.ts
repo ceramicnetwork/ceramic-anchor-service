@@ -21,6 +21,7 @@ export const IPFS_GET_TIMEOUT = 30000 // 30 seconds
 const MAX_CACHE_ENTRIES = 100
 export const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
 const PUBSUB_DELAY = 100
+const DEFAULT_CONCURRENT_GET_LIMIT = 100
 
 function buildHttpAgent(endpoint: string | undefined): http.Agent {
   const agentOptions = {
@@ -54,7 +55,8 @@ export class IpfsService implements IIpfsService {
     this.cache = new LRUCache<string, any>({ max: MAX_CACHE_ENTRIES })
     this.ipfs = ipfs
     this.pubsubTopic = config.ipfsConfig.pubsubTopic
-    this.semaphore = new Semaphore(config.ipfsConfig.concurrentGetLimit)
+    const concurrentGetLimit = config.ipfsConfig.concurrentGetLimit || DEFAULT_CONCURRENT_GET_LIMIT
+    this.semaphore = new Semaphore(concurrentGetLimit)
   }
 
   /**
