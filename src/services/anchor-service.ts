@@ -1,7 +1,5 @@
 import type { CID } from 'multiformats/cid'
 
-import type { MerkleTree } from '../merkle/merkle-tree.js'
-
 import type { Config } from 'node-config-ts'
 
 import { logEvent, logger } from '../logger/index.js'
@@ -26,10 +24,11 @@ import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
-import { MerkleTreeFactory } from '../merkle/merkle-tree-factory.js'
 import type { IMetadataService } from './metadata-service.js'
 import {
   pathString,
+  MerkleTreeFactory,
+  type MerkleTree,
   type CIDHolder,
   type TreeMetadata,
   type Node,
