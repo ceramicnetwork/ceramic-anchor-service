@@ -1,12 +1,12 @@
 import { Networks } from '@ceramicnetwork/common'
 import { APIGatewayRequestAuthorizerEvent } from 'aws-lambda'
-import { EC2 } from 'aws-sdk'
 import { VerifyJWSResult } from 'dids'
 import { Joi } from 'express-validation'
 import { DynamoDB } from '../services/aws/dynamodb.js'
 import { didRegex, parseSignature } from '../utils/did.js'
 import { generatePolicy } from '../utils/iam.js'
 import { authBearerValidation, nonceValidation } from '../validators/did.js'
+import { ALLOWED_IP_ADDRESSES } from './ipAllowlist.js'
 
 const authSchema = Joi.object({
   authorization: authBearerValidation.optional()
@@ -49,22 +49,12 @@ function allowAll(event: APIGatewayRequestAuthorizerEvent, callback: any): any {
 }
 
 async function allowPermissionedIPAddress(event: APIGatewayRequestAuthorizerEvent, callback: any): Promise<any> {
-  const ec2 = new EC2({apiVersion: '2016-11-15'})
-    const permissionedSecurityGroupIds = process.env.PERMISSIONED_SECURITY_GROUP_IDS?.split(' ') || []
     const ip = event.requestContext.identity.sourceIp
     console.log('ip', ip)
-    const request = ec2.describeSecurityGroups({
-      Filters: [{Name: 'ip-permission.cidr', Values: [`${ip}/32`] }],
-      GroupIds: permissionedSecurityGroupIds
-    })
-    try {
-      const data = await request.promise()
-      console.log(data)
-      if (!data.SecurityGroups) throw new Error('No security groups found with this IP')
-      if (data.SecurityGroups.length < 1) throw new Error('No security groups found with this IP')
+    if (ALLOWED_IP_ADDRESSES[ip]) {
       return callback(null, generatePolicy(ip, {effect: 'Allow', resource: event.methodArn}, ip))
-    } catch (err) {
-      console.error(err)
+    } else {
+      console.error('Not in allowed IP address list')
       return callback('Unauthorized')
     }
 }
