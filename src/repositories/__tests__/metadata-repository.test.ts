@@ -14,7 +14,7 @@ const FRESH_METADATA: FreshMetadata = {
   streamId: randomStreamID(),
   metadata: {
     controllers: [asDIDString('did:key:controller')],
-    model: new Uint8Array([1, 2, 3]),
+    model: randomStreamID(),
     tags: ['hello'],
   },
 }

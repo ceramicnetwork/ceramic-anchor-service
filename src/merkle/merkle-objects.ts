@@ -9,7 +9,7 @@ import type { IIpfsService } from '../services/ipfs-service.type.js'
 
 import { BloomFilter } from '@ceramicnetwork/wasm-bloom-filter'
 import { StreamID } from '@ceramicnetwork/streamid'
-import type { GenesisFields } from '../models/metadata.js'
+import type { ICandidate, ICandidateMetadata } from '@ceramicnetwork/anchor-utils'
 
 const packageJson = JSON.parse(
   fs.readFileSync(
@@ -32,7 +32,7 @@ export interface CIDHolder {
  * same Stream within an anchor period), so Candidate serves to group all related Requests and keep
  * track of which CID should actually be anchored for this stream.
  */
-export class Candidate implements CIDHolder {
+export class Candidate implements ICandidate {
   readonly cid: CID
   readonly model: StreamID | undefined
 
@@ -41,13 +41,13 @@ export class Candidate implements CIDHolder {
   constructor(
     readonly streamId: StreamID,
     readonly request: Request,
-    readonly metadata: GenesisFields
+    readonly metadata: ICandidateMetadata
   ) {
     this.request = request
     if (!request.cid) throw new Error(`No CID present for request`)
     this.cid = CID.parse(request.cid)
     this.metadata = metadata
-    this.model = this.metadata.model ? StreamID.fromBytes(this.metadata.model) : undefined
+    this.model = this.metadata.model
   }
 
   /**
@@ -133,8 +133,8 @@ export class IpfsLeafCompare implements CompareFunction<Candidate> {
 /**
  * Implements IPFS merge CIDs
  */
-export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> {
-  generateMetadata(leaves: Array<Node<Candidate>>): TreeMetadata {
+export class BloomMetadata implements MetadataFunction<ICandidate, TreeMetadata> {
+  generateMetadata(leaves: Array<Node<ICandidate>>): TreeMetadata {
     const bloomFilterEntries = new Set<string>()
     const streamIds = []
 
@@ -142,8 +142,8 @@ export class BloomMetadata implements MetadataFunction<Candidate, TreeMetadata> 
       const candidate = node.data
       streamIds.push(candidate.streamId.toString())
       bloomFilterEntries.add(`streamid-${candidate.streamId.toString()}`)
-      if (candidate.model) {
-        bloomFilterEntries.add(`model-${candidate.model.toString()}`)
+      if (candidate.metadata.model) {
+        bloomFilterEntries.add(`model-${candidate.metadata.model.toString()}`)
       }
       for (const controller of candidate.metadata.controllers) {
         bloomFilterEntries.add(`controller-${controller}`)

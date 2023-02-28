@@ -32,7 +32,7 @@ export const IpfsGenesisHeader = t.exact(
       schema: t.string.pipe(te.commitIdAsString),
       family: t.string,
       tags: t.array(t.string),
-      model: te.uint8array,
+      model: te.uint8array.pipe(te.streamIdAsBytes),
     }),
   ])
 )
