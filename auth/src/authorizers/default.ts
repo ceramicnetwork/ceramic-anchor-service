@@ -25,14 +25,17 @@ export const handler = async (event: APIGatewayRequestAuthorizerEvent, context, 
     return allowAll(event, callback)
   }
 
+  // Check for allowed IP addresses before checking the authorization header, but fall through if the IP address isn't
+  // in the allow list.
+  const res = await allowPermissionedIPAddress(event, callback)
+  if (res != null) {
+    return res
+  }
+
   const { error, value } = authSchema.validate({ authorization: event.headers?.Authorization });
   if (error) {
     console.error(error)
     return callback('Unauthorized')
-  }
-
-  if (!value.authorization) {
-    return await allowPermissionedIPAddress(event, callback)
   }
 
   const jws = value.authorization.split('Bearer ')[1]
@@ -54,8 +57,9 @@ async function allowPermissionedIPAddress(event: APIGatewayRequestAuthorizerEven
     if (ALLOWED_IP_ADDRESSES[ip]) {
       return callback(null, generatePolicy(ip, {effect: 'Allow', resource: event.methodArn}, ip))
     } else {
-      console.error('Not in allowed IP address list')
-      return callback('Unauthorized')
+      // Not an error, log and fall through.
+      console.log('Not in allowed IP address list')
+      return null
     }
 }
 
