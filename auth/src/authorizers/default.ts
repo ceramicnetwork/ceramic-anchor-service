@@ -38,9 +38,11 @@ export const handler = async (event: APIGatewayRequestAuthorizerEvent, context, 
     return callback('Unauthorized')
   }
 
-  const jws = value.authorization.split('Bearer ')[1]
-  if (jws) {
-    return await allowRegisteredDID(event, callback, jws)
+  if (value?.authorization) {
+    const jws = value.authorization.split('Bearer ')[1]
+    if (jws) {
+      return await allowRegisteredDID(event, callback, jws)
+    }
   }
 
   return callback('Unauthorized')
