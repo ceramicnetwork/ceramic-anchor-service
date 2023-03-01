@@ -83,7 +83,6 @@ functions:
       DB_CONFIG_TABLE_NAME: ${construct:configDb.tableName}
       DB_DID_TABLE_NAME: ${construct:didDb.tableName}
       DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
-      PERMISSIONED_SECURITY_GROUP_IDS: ${env:CAS_PERMISSIONED_SECURITY_GROUP_IDS}
       TESTING: ${env:TESTING}
 resources:
   Resources:
