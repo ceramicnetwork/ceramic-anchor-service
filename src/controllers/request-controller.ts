@@ -23,14 +23,16 @@ import * as f from 'fp-ts'
 import { getMessage } from '../ancillary/throw-decoder.js'
 
 /*
- * Get origin from a request from X-Forwarded-For.
+ * Get origin from a request from `did` header.
+ *
+ * If not found, use X-Forwarded-For header as origin.
  * Parsing according to https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#parsing
  *
  * If no header found, use IP address of the requester.
- *
- * TODO CDB-2185 Get it from DID signer first.
  */
 function parseOrigin(req: ExpReq): string {
+  const didHeader = req.get('did')
+  if (didHeader) return didHeader
   let addresses = req.ip
   const xForwardedForHeader = req.get('X-Forwarded-For')
   if (xForwardedForHeader) {
