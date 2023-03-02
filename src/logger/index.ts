@@ -49,6 +49,9 @@ function buildExpressMiddleware() {
   morgan.token<ExpReq, ExpRes>('path', function (req): any {
     return req.path
   })
+  morgan.token<ExpReq, ExpRes>('sourceIp', function (req): any {
+    return req.get('sourceIp')
+  })
 
   const logger = loggerProvider.makeServiceLogger('http-access')
   return morgan(ACCESS_LOG_FMT, { stream: logger })

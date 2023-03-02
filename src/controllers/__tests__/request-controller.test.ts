@@ -421,4 +421,30 @@ describe('createRequest', () => {
     expectPresent(createdRequest)
     expect(createdRequest.origin).toEqual(didHeader)
   })
+
+  test('accept sourceIp from header as origin', async () => {
+    const cid = randomCID()
+    const streamId = randomStreamID()
+    const timestamp = new Date()
+    const sourceIp = '101.0.0.7'
+    const req = mockRequest({
+      headers: {
+        'Content-type': 'application/json',
+        sourceIp: sourceIp,
+        'X-Forwarded-For': [`2001:db8:85a3:8d3:1319:8a2e:370:7348`],
+      },
+      body: {
+        cid: cid.toString(),
+        streamId: streamId.toString(),
+        timestamp: timestamp.toISOString(),
+      },
+    })
+    const res = mockResponse()
+    await controller.createRequest(req, res)
+    expect(res.status).toBeCalledWith(StatusCodes.CREATED)
+    const requestRepository = container.resolve('requestRepository')
+    const createdRequest = await requestRepository.findByCid(cid)
+    expectPresent(createdRequest)
+    expect(createdRequest.origin).toEqual(sourceIp)
+  })
 })
