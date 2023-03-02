@@ -31,6 +31,8 @@ import { getMessage } from '../ancillary/throw-decoder.js'
  * TODO CDB-2185 Get it from DID signer first.
  */
 function parseOrigin(req: ExpReq): string {
+  const didHeader = req.get('did')
+  if (didHeader) return didHeader
   let addresses = req.ip
   const xForwardedForHeader = req.get('X-Forwarded-For')
   if (xForwardedForHeader) {
