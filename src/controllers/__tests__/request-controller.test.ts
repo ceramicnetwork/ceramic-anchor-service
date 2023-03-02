@@ -395,4 +395,30 @@ describe('createRequest', () => {
       expect(lastRequestRetrieved.status).toEqual(RequestStatus.PENDING)
     })
   })
+
+  test('accept did from header as origin', async () => {
+    const cid = randomCID()
+    const streamId = randomStreamID()
+    const timestamp = new Date()
+    const didHeader = 'did:key:foo'
+    const req = mockRequest({
+      headers: {
+        'Content-type': 'application/json',
+        did: didHeader,
+        'X-Forwarded-For': [`2001:db8:85a3:8d3:1319:8a2e:370:7348`],
+      },
+      body: {
+        cid: cid.toString(),
+        streamId: streamId.toString(),
+        timestamp: timestamp.toISOString(),
+      },
+    })
+    const res = mockResponse()
+    await controller.createRequest(req, res)
+    expect(res.status).toBeCalledWith(StatusCodes.CREATED)
+    const requestRepository = container.resolve('requestRepository')
+    const createdRequest = await requestRepository.findByCid(cid)
+    expectPresent(createdRequest)
+    expect(createdRequest.origin).toEqual(didHeader)
+  })
 })
