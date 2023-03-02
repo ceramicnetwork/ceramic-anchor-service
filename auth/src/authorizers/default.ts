@@ -50,7 +50,10 @@ export const handler = async (event: APIGatewayRequestAuthorizerEvent, context, 
 
 function allowAll(event: APIGatewayRequestAuthorizerEvent, callback: any): any {
   const ip = event.requestContext.identity.sourceIp
-  return callback(null, generatePolicy(ip, {effect: 'Allow', resource: event.methodArn }))
+  const context = {
+    "sourceIp": ip
+  }
+  return callback(null, generatePolicy(ip, {effect: 'Allow', resource: event.methodArn }, ip, context))
 }
 
 async function allowPermissionedIPAddress(event: APIGatewayRequestAuthorizerEvent, callback: any): Promise<[boolean, any]> {
@@ -66,6 +69,7 @@ async function allowPermissionedIPAddress(event: APIGatewayRequestAuthorizerEven
 }
 
 async function allowRegisteredDID(event: APIGatewayRequestAuthorizerEvent, callback, jws: string): Promise<any> {
+  const ip = event.requestContext.identity.sourceIp
   let result: VerifyJWSResult | undefined
   try {
     result = await parseSignature(jws)
@@ -94,7 +98,8 @@ async function allowRegisteredDID(event: APIGatewayRequestAuthorizerEvent, callb
           if (data.did == did && data.nonce == nonce) {
             const context = {
               "did": did,
-              "digest": digest
+              "digest": digest,
+              "sourceIp": ip
             }
             return callback(null, generatePolicy(did, {effect: 'Allow', resource: event.methodArn}, did, context))
           }

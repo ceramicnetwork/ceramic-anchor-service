@@ -33,6 +33,8 @@ import { getMessage } from '../ancillary/throw-decoder.js'
 function parseOrigin(req: ExpReq): string {
   const didHeader = req.get('did')
   if (didHeader) return didHeader
+  const sourceIp = req.get('sourceIp')
+  if (sourceIp) return sourceIp
   let addresses = req.ip
   const xForwardedForHeader = req.get('X-Forwarded-For')
   if (xForwardedForHeader) {
