@@ -35,7 +35,7 @@ async function runMigrations(connection: Knex) {
   const [, pendingMigrations] = await connection.migrate.list()
   if (pendingMigrations.length > 0) {
     logger.imp(`Running ${pendingMigrations.length} migrations`)
-    await connection.migrate.latest()
+    await connection.migrate.latest({ extension: 'cjs' })
   }
 }
 
