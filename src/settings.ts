@@ -58,7 +58,7 @@ export enum METRIC_NAMES {
   PIN_FAILED = 'pin_failed',
 
   // Request Controller
-  ANCHOR_REQUESTED = 'anchor_requested'
+  ANCHOR_REQUESTED = 'anchor_requested',
 
   // Controller errors
   ERROR_CREATING_REQUEST = 'error_creating_request'
