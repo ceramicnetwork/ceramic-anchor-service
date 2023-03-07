@@ -59,4 +59,8 @@ export enum METRIC_NAMES {
 
   // Request Controller
   ANCHOR_REQUESTED = 'anchor_requested'
+
+  // Controller errors
+  ERROR_CREATING_REQUEST = 'error_creating_request'
+
 }
