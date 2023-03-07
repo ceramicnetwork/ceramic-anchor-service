@@ -42,7 +42,11 @@ export const handler = async (event: APIGatewayRequestAuthorizerEvent, context, 
     const jws = value.authorization.split('Bearer ')[1]
     if (jws) {
       return await allowRegisteredDID(event, callback, jws)
+    } else {
+      console.error('Missing jws')
     }
+  } else {
+    console.error('Missing Authorization header value')
   }
 
   return callback('Unauthorized')
@@ -103,9 +107,13 @@ async function allowRegisteredDID(event: APIGatewayRequestAuthorizerEvent, callb
             }
             return callback(null, generatePolicy(did, {effect: 'Allow', resource: event.methodArn}, did, context))
           }
+        } else {
+          console.error('No data returned from add nonce')
         }
       }
     }
+  } else {
+    console.error('Missing parse signature result')
   }
 
   return callback('Unauthorized')
