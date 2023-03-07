@@ -19,7 +19,7 @@ const EVENTS_LOG_NAME = 'events'
 const METRICS_LOG_NAME = 'metrics'
 
 const ACCESS_LOG_FMT =
-  'ip=:remote-addr ts=:date[iso] method=:method original_url=:original-url base_url=:base-url path=:path http_version=:http-version req_header:req[header] status=:status content_length=:res[content-length] content_type=":res[content-type]" ref=:referrer user_agent=:user-agent elapsed_ms=:total-time[3]'
+  'ip=:remote-addr source_ip=:source-ip ts=:date[iso] method=:method original_url=:original-url base_url=:base-url path=:path http_version=:http-version req_header=:req[header] status=:status content_length=:res[content-length] content_type=":res[content-type]" ref=:referrer did=":did" user_agent=":user-agent" elapsed_ms=:total-time[3]'
 
 interface ServiceLog {
   type: string
@@ -49,8 +49,11 @@ function buildExpressMiddleware() {
   morgan.token<ExpReq, ExpRes>('path', function (req): any {
     return req.path
   })
-  morgan.token<ExpReq, ExpRes>('sourceIp', function (req): any {
+  morgan.token<ExpReq, ExpRes>('source-ip', function (req): any {
     return req.get('sourceIp')
+  })
+  morgan.token<ExpReq, ExpRes>('did', function (req): any {
+    return req.get('did')
   })
 
   const logger = loggerProvider.makeServiceLogger('http-access')
