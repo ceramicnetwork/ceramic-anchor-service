@@ -40,6 +40,7 @@ function buildBodyDigest(contentType: string | undefined, body: any): string | u
     if (contentType) {
       if (contentType.includes('application/vnd.ipld.car')) {
         const carFactory = new CARFactory()
+        console.log('Will build a car file from req.body', body)
         const car = carFactory.fromBytes(body)
         if (!car.roots[0]) throw Error('Missing CAR root')
         return car.roots[0].toString()
