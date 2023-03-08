@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "TESTING=false CAS_AUTH_ADMIN_USERNAME=admin CAS_AUTH_ADMIN_PASSWORD=admin CAS_AUTH_DEFAULT_USAGE_PLAN_ID=123 CERAMIC_NETWORK=dev-unstable ./node_modules/.bin/serverless offline",
-    "start:testing": "TESTING=true CAS_AUTH_ADMIN_USERNAME=admin CAS_AUTH_ADMIN_PASSWORD=admin CAS_AUTH_DEFAULT_USAGE_PLAN_ID=123 CERAMIC_NETWORK=dev-unstable ./node_modules/.bin/serverless offline",
+    "start": "TESTING=false CAS_AUTH_ADMIN_USERNAME=admin CAS_AUTH_ADMIN_PASSWORD=admin CAS_AUTH_DEFAULT_USAGE_PLAN_ID=123 CERAMIC_NETWORK=dev-unstable METRIC_BASE_NAME= METRIC_NAMESPACE= ./node_modules/.bin/serverless offline",
+    "start:testing": "TESTING=true CAS_AUTH_ADMIN_USERNAME=admin CAS_AUTH_ADMIN_PASSWORD=admin CAS_AUTH_DEFAULT_USAGE_PLAN_ID=123 CERAMIC_NETWORK=dev-unstable METRIC_BASE_NAME= METRIC_NAMESPACE= ./node_modules/.bin/serverless offline",
     "admin:build-credentials": "node ./scripts/build-credentials.js",
     "deploy:dev": "TESTING=false ./node_modules/.bin/serverless deploy --stage dev",
     "deploy:qa": "TESTING=false ./node_modules/.bin/serverless deploy --stage qa",
