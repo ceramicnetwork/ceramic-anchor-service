@@ -2,6 +2,7 @@ import * as sha256 from '@stablelib/sha256'
 import { CARFactory } from 'cartonne'
 import { NextFunction, Request, Response } from 'express'
 import * as u8a from 'uint8arrays'
+import * as DAG_JOSE from 'dag-jose'
 
 export const auth = buildExpressMiddleware()
 function buildExpressMiddleware() {
@@ -40,6 +41,7 @@ function buildBodyDigest(contentType: string | undefined, body: any): string | u
     if (contentType) {
       if (contentType.includes('application/vnd.ipld.car')) {
         const carFactory = new CARFactory()
+        carFactory.codecs.add(DAG_JOSE)
         const car = carFactory.fromBytes(body)
         if (!car.roots[0]) throw Error('Missing CAR root')
         return car.roots[0].toString()
