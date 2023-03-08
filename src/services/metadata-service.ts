@@ -21,20 +21,39 @@ export interface IMetadataService {
 }
 
 /**
- * Validation for genesis header retrieved from IPFS.
+ * Codec for genesis header retrieved from IPFS.
  */
 export const IpfsGenesisHeader = t.exact(
   t.intersection([
-    t.type({
-      controllers: te.controllers,
-    }),
-    t.partial({
-      schema: t.string.pipe(te.commitIdAsString),
-      family: t.string,
-      tags: t.array(t.string),
-      model: te.uint8array.pipe(te.streamIdAsBytes),
-    }),
-  ])
+    t.type(
+      {
+        controllers: te.controllers,
+      },
+      'mandatory'
+    ),
+    t.partial(
+      {
+        schema: t.string.pipe(te.commitIdAsString),
+        family: t.string,
+        tags: t.array(t.string),
+        model: te.uint8array.pipe(te.streamIdAsBytes),
+      },
+      'optional'
+    ),
+  ]),
+  'IpfsGenesisHeader'
+)
+
+/**
+ * Codec for genesis content retrieved from IPFS. Only `header` field is extracted here.
+ */
+export const IpfsGenesis = t.exact(
+  t.type(
+    {
+      header: IpfsGenesisHeader,
+    },
+    'IpfsGenesis'
+  )
 )
 
 /**

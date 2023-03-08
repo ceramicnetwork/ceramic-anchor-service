@@ -18,20 +18,46 @@ function stringify(v: any): string {
 }
 
 function getContextPath(context: t.Context): string {
-  return context.map(({ key, type }) => `${key}: ${type.name}`).join('/')
+  return context
+    .map((entry) => {
+      console.log('entry.0', entry)
+      return `${entry.key}: ${entry.type.name}`
+    })
+    .join('/')
 }
 
 export function getMessage(e: t.ValidationError): string {
-  return e.message !== undefined
-    ? e.message
-    : `Invalid value ${stringify(e.value)} supplied to ${getContextPath(e.context)}`
-}
-
-export class ValidationError extends Error {
-  constructor(readonly messages: Array<string>) {
-    super(`Validation error: ${messages.join(';')}`)
+  if (e.message) {
+    return e.message
+  } else {
+    return `Invalid value ${stringify(e.value)} supplied to ${getContextPath(e.context)}`
   }
 }
+
+const ACTUAL_VALUE_LIMIT = 128
+
+/**
+ * Prepare error messages. Truncate actual passed value by `ACTUAL_VALUE_LIMIT` characters.
+ */
+function makeErrorMessage(errors: Array<t.ValidationError>): string {
+  const messages = errors.reduce<Array<string>>((acc, error) => {
+    const context = error.context
+    const path = context.reduce<string[]>((acc, entry) => acc.concat(entry.key), []).join('/')
+    const errorEntry = context[context.length - 1]!
+    const typeExpected = errorEntry.type.name
+    let asString = JSON.stringify(errorEntry.actual)
+    if (asString.length > ACTUAL_VALUE_LIMIT)
+      asString = `${asString.slice(0, ACTUAL_VALUE_LIMIT)}...`
+    if (path) {
+      return acc.concat(`Invalid value at ${path}: expected ${typeExpected} got ${asString}`)
+    } else {
+      return acc.concat(`Invalid value: expected ${typeExpected} got ${asString}`)
+    }
+  }, [])
+  return messages.join(';')
+}
+
+export class ValidationError extends Error {}
 
 /**
  * If decoding fails, throw an error.
@@ -40,7 +66,7 @@ export const ThrowDecoder = {
   decode<A, O, I>(type: t.Type<A, O, I>, input: I): A {
     const validation = type.decode(input)
     if (isLeft(validation)) {
-      throw new ValidationError(validation.left.map(getMessage))
+      throw new ValidationError(makeErrorMessage(validation.left))
     }
     return validation.right
   },

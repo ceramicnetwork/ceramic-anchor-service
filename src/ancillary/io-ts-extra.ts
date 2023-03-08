@@ -132,7 +132,7 @@ export const didString = t.refinement(t.string, isDIDString, 'did-string')
 export const controllers = t.refinement(
   t.array(t.string),
   (array) => array.length === 1,
-  '[DIDString]'
+  '[controllers]'
 )
 
 /**
