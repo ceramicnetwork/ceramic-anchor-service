@@ -31,9 +31,7 @@ export class CloudMetrics {
             'MetricName': metric_name, 
             'Value': value } ],
          'Namespace': this.namespace})
-      console.log("Sending " + cmd)
       await this.cwclient.send(cmd)
-      console.log("Sent!")
     } catch (e) {
       console.log(`Error logging metrics: ${e}`)
     }
