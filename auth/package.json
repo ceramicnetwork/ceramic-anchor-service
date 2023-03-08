@@ -36,6 +36,7 @@
     "ts-jest": "^29.0.3"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.287.0",
     "@aws-sdk/client-dynamodb": "^3.216.0",
     "@aws-sdk/util-dynamodb": "^3.216.0",
     "@babel/plugin-proposal-decorators": "^7.20.13",
