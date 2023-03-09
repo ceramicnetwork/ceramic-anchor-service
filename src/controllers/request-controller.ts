@@ -97,6 +97,7 @@ export class RequestController {
   @Post()
   @Middleware([bodyParser.raw({ type: 'application/vnd.ipld.car' })])
   async createRequest(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
+    const origin = parseOrigin(req)
     try {
       logger.debug(`Create request ${JSON.stringify(req.body)}`)
 
@@ -104,7 +105,7 @@ export class RequestController {
       try {
         validation = this.anchorRequestParamsParser.parse(req)
       } catch (err: any) {
-        return this.getBadRequestResponse(req, res, err)
+        return this.getBadRequestResponse(req, res, err, origin)
       }
 
       if (f.either.isLeft(validation)) {
@@ -140,7 +141,7 @@ export class RequestController {
 
       const request = new Request()
       request.cid = cid.toString()
-      request.origin = parseOrigin(req)
+      request.origin = origin
       request.streamId = streamId.toString()
       request.status = RequestStatus.PENDING
       request.message = 'Request is pending.'
@@ -156,12 +157,12 @@ export class RequestController {
       const body = await this.requestPresentationService.body(storedRequest)
       return res.status(StatusCodes.CREATED).json(body)
     } catch (err: any) {
-      return this.getBadRequestResponse(req, res, err)
+      return this.getBadRequestResponse(req, res, err, origin)
     }
   }
 
-  private getBadRequestResponse(req: ExpReq, res: ExpRes, err: Error): ExpRes {
-    const errmsg = `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed: ${err.message}`
+  private getBadRequestResponse(req: ExpReq, res: ExpRes, err: Error, origin: string): ExpRes {
+    const errmsg = `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} from ${origin} failed: ${err.message}`
     logger.err(errmsg)
     logger.err(err) // Log stack trace
     return res.status(StatusCodes.BAD_REQUEST).json({
