@@ -148,16 +148,12 @@ export class RequestController {
       const body = await this.requestPresentationService.body(storedRequest)
       return res.status(StatusCodes.CREATED).json(body)
     } catch (err: any) {
-      return this.getBadRequestResponse(req, res, err)
+      const errmsg = `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed: ${err.message}`
+      logger.err(errmsg)
+      logger.err(err) // Log stack trace
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        error: errmsg,
+      })
     }
-  }
-
-  private getBadRequestResponse(req: ExpReq, res: ExpRes, err: Error): ExpRes {
-    const errmsg = `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} failed: ${err.message}`
-    logger.err(errmsg)
-    logger.err(err) // Log stack trace
-    return res.status(StatusCodes.BAD_REQUEST).json({
-      error: errmsg,
-    })
   }
 }
