@@ -33,6 +33,30 @@ export const uint8ArrayAsBase64 = new t.Type<Uint8Array, string, string>(
 )
 
 /**
+ * Passthrough io-ts codec for CID.
+ */
+export const cid = new t.Type<CID, CID, unknown>(
+  'CID',
+  (input: unknown): input is CID => {
+    try {
+      return !!CID.asCID(input)
+    } catch (e) {
+      return false
+    }
+  },
+  (input: unknown, context: t.Context) => {
+    try {
+      const cid = CID.asCID(input)
+      if (!cid) return t.failure(input, context, `Value ${cid} can not be accepted as CID`)
+      return t.success(cid)
+    } catch {
+      return t.failure(input, context)
+    }
+  },
+  (cid) => cid
+)
+
+/**
  * io-ts codec for CID encoded as string.
  */
 export const cidAsString = new t.Type<CID, string, string>(

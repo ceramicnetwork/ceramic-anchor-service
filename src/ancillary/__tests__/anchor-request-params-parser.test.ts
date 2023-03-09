@@ -67,9 +67,7 @@ const CAR_FILE_FAKE_GENESIS_FIELDS: GenesisFields = {
 describe('AnchoRequestParamsParser', () => {
   const parser = new AnchorRequestParamsParser()
   test('parses legacy example 1 properly', () => {
-    const validation: t.Validation<RequestAnchorParams> = parser.parse(
-      LEGACY_REQUEST_EXAMPLE as ExpReq
-    )
+    const validation = parser.parse(LEGACY_REQUEST_EXAMPLE)
     expect(isRight(validation)).toEqual(true)
 
     const params: RequestAnchorParams = (validation as Right<RequestAnchorParams>).right

@@ -17,34 +17,18 @@ function stringify(v: any): string {
   return JSON.stringify(v)
 }
 
-function getContextPath(context: t.Context): string {
-  return context
-    .map((entry) => {
-      return `${entry.key}: ${entry.type.name}`
-    })
-    .join('/')
-}
-
-export function getMessage(e: t.ValidationError): string {
-  if (e.message) {
-    return e.message
-  } else {
-    return `Invalid value ${stringify(e.value)} supplied to ${getContextPath(e.context)}`
-  }
-}
-
 const ACTUAL_VALUE_LIMIT = 128
 
 /**
  * Prepare error messages. Truncate actual passed value by `ACTUAL_VALUE_LIMIT` characters.
  */
-function makeErrorMessage(errors: Array<t.ValidationError>): string {
+export function makeErrorMessage(errors: Array<t.ValidationError>): string {
   const messages = errors.reduce<Array<string>>((acc, error) => {
     const context = error.context
     const path = context.reduce<string[]>((acc, entry) => acc.concat(entry.key), []).join('/')
     const errorEntry = context[context.length - 1]!
     const typeExpected = errorEntry.type.name
-    let asString = JSON.stringify(errorEntry.actual)
+    let asString = stringify(errorEntry.actual)
     if (asString && asString.length > ACTUAL_VALUE_LIMIT)
       asString = `${asString.slice(0, ACTUAL_VALUE_LIMIT)}...`
     if (path) {

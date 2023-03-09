@@ -13,14 +13,12 @@ import type { IRequestPresentationService } from '../services/request-presentati
 import type { RequestRepository } from '../repositories/request-repository.js'
 import type { IMetadataService } from '../services/metadata-service.js'
 import {
-  RequestAnchorParams,
   AnchorRequestParamsParser,
   isRequestAnchorParamsV2,
 } from '../ancillary/anchor-request-params-parser.js'
 import bodyParser from 'body-parser'
-import * as t from 'io-ts'
-import * as f from 'fp-ts'
-import { getMessage } from '../ancillary/throw-decoder.js'
+import { isLeft } from 'fp-ts/lib/Either.js'
+import { makeErrorMessage } from '../ancillary/throw-decoder.js'
 
 /*
  * Get origin from a request from `did` header.
@@ -100,17 +98,11 @@ export class RequestController {
     try {
       logger.debug(`Create request ${JSON.stringify(req.body)}`)
 
-      let validation: t.Validation<RequestAnchorParams>
-      try {
-        validation = this.anchorRequestParamsParser.parse(req)
-      } catch (err: any) {
-        return this.getBadRequestResponse(req, res, err)
-      }
+      const validation = this.anchorRequestParamsParser.parse(req)
 
-      if (f.either.isLeft(validation)) {
-        const message = validation.left.map(getMessage)[0]
+      if (isLeft(validation)) {
         return res.status(StatusCodes.BAD_REQUEST).json({
-          error: message,
+          error: makeErrorMessage(validation.left),
         })
       }
 
