@@ -44,7 +44,7 @@ function buildBodyDigest(contentType: string | undefined, body: any): string | u
         carFactory.codecs.add(DAG_JOSE)
         console.log('Will build a car file from req.body', body)
         try {
-          console.log('Will build a car file from req.body (as utf8 string)', body.toString())
+          console.log('Will build a car file from req.body (as utf8 string)', u8a.toString(body, 'base64'))
         } catch(e) {
           console.log('Couldn\'t convert req.body to string: ', e)
         }
