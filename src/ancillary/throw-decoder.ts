@@ -62,7 +62,7 @@ export class ValidationError extends Error {}
  * If decoding fails, throw an error.
  */
 export const ThrowDecoder = {
-  decode<A, O, I>(type: t.Type<A, O, I>, input: I): A {
+  decode<A, I>(type: t.Decoder<I, A>, input: I): A {
     const validation = type.decode(input)
     if (isLeft(validation)) {
       throw new ValidationError(makeErrorMessage(validation.left))
