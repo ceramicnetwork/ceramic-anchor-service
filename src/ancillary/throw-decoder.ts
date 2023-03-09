@@ -20,7 +20,6 @@ function stringify(v: any): string {
 function getContextPath(context: t.Context): string {
   return context
     .map((entry) => {
-      console.log('entry.0', entry)
       return `${entry.key}: ${entry.type.name}`
     })
     .join('/')
@@ -46,7 +45,7 @@ function makeErrorMessage(errors: Array<t.ValidationError>): string {
     const errorEntry = context[context.length - 1]!
     const typeExpected = errorEntry.type.name
     let asString = JSON.stringify(errorEntry.actual)
-    if (asString.length > ACTUAL_VALUE_LIMIT)
+    if (asString && asString.length > ACTUAL_VALUE_LIMIT)
       asString = `${asString.slice(0, ACTUAL_VALUE_LIMIT)}...`
     if (path) {
       return acc.concat(`Invalid value at ${path}: expected ${typeExpected} got ${asString}`)

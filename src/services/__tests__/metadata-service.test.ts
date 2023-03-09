@@ -109,7 +109,7 @@ describe('retrieveFromGenesis', () => {
       delete header.controllers
       const streamId = await putGenesisHeader(header)
       await expect(metadataService.retrieveFromGenesis(streamId)).rejects.toThrow(
-        /Validation error:.*\/controllers/
+        /Invalid value.*\/controllers/
       )
     })
 
@@ -119,7 +119,7 @@ describe('retrieveFromGenesis', () => {
         controllers: [],
       })
       await expect(metadataService.retrieveFromGenesis(streamId)).rejects.toThrow(
-        /Validation error:.*\/controllers/
+        /Invalid value.*\/controllers/
       )
     })
 
@@ -129,7 +129,7 @@ describe('retrieveFromGenesis', () => {
         controllers: ['did:key:one', 'did:key:two'],
       })
       await expect(metadataService.retrieveFromGenesis(streamId)).rejects.toThrow(
-        /Validation error:.*\/controllers/
+        /Invalid value.*\/controllers/
       )
     })
 
@@ -140,7 +140,7 @@ describe('retrieveFromGenesis', () => {
         controllers: ['some-garbage'],
       })
       await expect(metadataService.retrieveFromGenesis(streamId)).rejects.toThrow(
-        /Validation error:.*\/controllers/
+        /Invalid value.*\/controllers/
       )
     })
 
@@ -150,7 +150,7 @@ describe('retrieveFromGenesis', () => {
         family: 33,
       })
       await expect(metadataService.retrieveFromGenesis(streamId)).rejects.toThrow(
-        /Validation error:.*\/family/
+        /Invalid value.*\/family/
       )
     })
 
@@ -160,7 +160,7 @@ describe('retrieveFromGenesis', () => {
         model: 'garbage',
       })
       await expect(metadataService.retrieveFromGenesis(streamId)).rejects.toThrow(
-        /Validation error:.*\/model/
+        /Invalid value.*\/model/
       )
     })
 
@@ -170,7 +170,7 @@ describe('retrieveFromGenesis', () => {
         schema: 'garbage',
       })
       await expect(metadataService.retrieveFromGenesis(streamId)).rejects.toThrow(
-        /Validation error:.*\/schema/
+        /Invalid value.*\/schema/
       )
     })
 
@@ -180,7 +180,7 @@ describe('retrieveFromGenesis', () => {
         tags: [33],
       })
       await expect(metadataService.retrieveFromGenesis(streamId)).rejects.toThrow(
-        /Validation error:.*\/tags/
+        /Invalid value.*\/tags/
       )
     })
   })
