@@ -1,7 +1,6 @@
 import type { StreamID } from '@ceramicnetwork/streamid'
 import type { IIpfsService, RetrieveRecordOptions } from './ipfs-service.type.js'
 import type { GenesisFields, StoredMetadata } from '../models/metadata.js'
-import type { GenesisCommit } from '@ceramicnetwork/common'
 import * as t from 'io-ts'
 import * as te from '../ancillary/io-ts-extra.js'
 import type { IMetadataRepository } from '../repositories/metadata-repository.js'
@@ -105,12 +104,9 @@ export class MetadataService implements IMetadataService {
     if (genesisCID.code === DAG_JOSE_CODEC) {
       retrieveRecordOptions.path = '/link'
     }
-    const genesisRecord = await this.ipfsService.retrieveRecord<GenesisCommit>(
-      genesisCID,
-      retrieveRecordOptions
-    )
-    const header = genesisRecord.header
-    return ThrowDecoder.decode(IpfsGenesisHeader, header)
+    const genesisRecord = await this.ipfsService.retrieveRecord(genesisCID, retrieveRecordOptions)
+    const genesis = ThrowDecoder.decode(IpfsGenesis, genesisRecord)
+    return genesis.header
   }
 
   async retrieve(streamId: StreamID): Promise<StoredMetadata | undefined> {

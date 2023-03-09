@@ -3,10 +3,10 @@ import type { CID } from 'multiformats/cid'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { GenesisFields } from '../models/metadata.js'
 import { ThrowDecoder } from './throw-decoder.js'
-import { IpfsGenesisHeader } from '../services/metadata-service.js'
+import { IpfsGenesis } from '../services/metadata-service.js'
 
-const DAG_JOSE_CODEC = 133
-const DAB_CBOR_CODEC = 113
+const DAG_JOSE_CODE = 133
+const DAG_CBOR_CODE = 113
 
 export class AnchorRequestCarFileReader {
   constructor(readonly carFile: CAR) {}
@@ -33,20 +33,21 @@ export class AnchorRequestCarFileReader {
 
   get genesisFields(): GenesisFields {
     const genesisCid = this.streamId.cid
+    const maybeGenesisRecord = this.retrieveGenesisRecord(genesisCid)
+    const genesisRecord = ThrowDecoder.decode(IpfsGenesis, maybeGenesisRecord)
+    return genesisRecord.header
+  }
 
-    if (genesisCid.code !== DAB_CBOR_CODEC && genesisCid.code !== DAG_JOSE_CODEC) {
-      throw Error(
-        "Passed a car file with invalid genesis cid - it's not eigher DAG_CBOR, nor DAG_JOSE"
-      )
+  retrieveGenesisRecord(genesisCid: CID): unknown {
+    switch (genesisCid.code) {
+      case DAG_CBOR_CODE:
+        return this.carFile.get(genesisCid)
+      case DAG_JOSE_CODE: {
+        const genesisJWS = this.carFile.get(genesisCid)
+        return this.carFile.get(genesisJWS.link)
+      }
+      default:
+        throw new Error(`Unsupported codec ${genesisCid.code} for genesis CID ${genesisCid}`)
     }
-
-    let genesisFieldsRecord = this.carFile.get(genesisCid)
-    if (genesisCid.code === DAG_JOSE_CODEC) {
-      const genesisBlock = this.carFile.get(genesisCid)
-      genesisFieldsRecord = this.carFile.get(genesisBlock.link)
-    }
-
-    const header = genesisFieldsRecord.header
-    return ThrowDecoder.decode(IpfsGenesisHeader, header)
   }
 }

@@ -11,7 +11,7 @@ import {
 import type { Knex } from 'knex'
 import { createDbConnection } from '../../db-connection.js'
 import { MockIpfsService } from '../../__tests__/test-utils.js'
-import { IpfsGenesisHeader, MetadataService } from '../metadata-service.js'
+import { IpfsGenesis, MetadataService } from '../metadata-service.js'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import { MetadataRepository } from '../../repositories/metadata-repository.js'
 import cloneDeep from 'lodash.clonedeep'
@@ -62,10 +62,11 @@ async function putGenesisHeader(payload: object): Promise<StreamID> {
 }
 
 test('strip extra fields when decoding IPFS record', () => {
-  const record = cloneDeep({ ...HEADER_RECORD, extra: 33 })
+  const record = cloneDeep({ header: { ...HEADER_RECORD, extra: 33 }, extra: 42 })
   expect(record.extra).toBeDefined() // Original record has `extra`
-  const decoded = ThrowDecoder.decode(IpfsGenesisHeader, record)
+  const decoded = ThrowDecoder.decode(IpfsGenesis, record)
   expect('extra' in decoded).toBeFalsy() // No `extra` after decoding
+  expect('extra' in decoded.header).toBeFalsy() // No `extra` after decoding
 })
 
 describe('retrieveFromGenesis', () => {
