@@ -1,4 +1,4 @@
-version: '3.4'
+version: '3.9'
 
 services:
   cas_api:
@@ -22,7 +22,7 @@ services:
       - ETH_WALLET_PK=0x16dd0990d19001c50eeea6d32e8fdeef40d3945962caf18c18c3930baa5a6ec9
       - ETH_CONTRACT_ADDRESS=0xD3f84Cf6Be3DD0EB16dC89c972f7a27B441A39f2
 
-      - IPFS_API_URL=http://ipfs:5011
+      - IPFS_API_URL=http://ipfs:5001
       - IPFS_API_TIMEOUT=10000
 
       - LOG_LEVEL=debug
@@ -69,7 +69,7 @@ services:
       - ETH_WALLET_PK=0x16dd0990d19001c50eeea6d32e8fdeef40d3945962caf18c18c3930baa5a6ec9
       - ETH_CONTRACT_ADDRESS=0xD3f84Cf6Be3DD0EB16dC89c972f7a27B441A39f2
 
-      - IPFS_API_URL=http://ipfs:5011
+      - IPFS_API_URL=http://ipfs:5001
       - IPFS_API_TIMEOUT=10000
 
       - LOG_LEVEL=debug
@@ -94,12 +94,15 @@ services:
       - internal
 
   ipfs:
-    image: ceramicnetwork/ipfs-daemon
+    image: ipfs/kubo
+    command:
+      - "daemon"
+      - "--enable-pubsub-experiment"
     volumes:
       - './export:/export'
       - './data/ipfs:/data/ipfs'
     ports:
-      - '5011:5011'
+      - '5001:5001'
       - '4001:4001'
       - '8080:8080'
     networks:
@@ -118,42 +121,14 @@ services:
     networks:
       - internal
 
-#  ganache:
-#    image: trufflesuite/ganache-cli:latest
-#    ports:
-#      - "8545:8545"
-#    volumes:
-#      - ./data/ganache:/ganache_data
-#    entrypoint:
-#      - node
-#      - /app/ganache-core.docker.cli.js
-#      - --deterministic
-#      - --db=/ganache_data
-#      - --mnemonic
-#      - 'move sense much taxi wave hurry recall stairs thank brother nut woman'
-#      - --networkId
-#      - '5777'
-#      - --hostname
-#      - '0.0.0.0'
-#      - -l
-#      - '80000000'
-#      - --quiet
-#    networks:
-#      - internal
-
-#  localstack:
-#    image: localstack/localstack:latest
-#    container_name: localstack_demo
-#    ports:
-#      - '4563-4584:4563-4584'
-#      - '8055:8080'
-#    environment:
-#      - SERVICES=s3,rds
-#      - DEBUG=1
-#      - DATA_DIR=/tmp/localstack/data
-#    volumes:
-#      - './.localstack:/tmp/localstack'
-#      - '/var/run/docker.sock:/var/run/docker.sock'
+  ganache:
+    image: trufflesuite/ganache
+    ports:
+      - '8545:8545'
+    command:
+      - "--mnemonic='move sense much taxi wave hurry recall stairs thank brother nut woman' --networkId=5777 --hostname=0.0.0.0 -l=80000000"
+    networks:
+      - internal
 
 networks:
   internal:
