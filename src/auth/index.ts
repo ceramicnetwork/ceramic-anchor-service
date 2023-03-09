@@ -43,6 +43,14 @@ function buildBodyDigest(contentType: string | undefined, body: any): string | u
         const carFactory = new CARFactory()
         carFactory.codecs.add(DAG_JOSE)
         console.log('Will build a car file from req.body', body)
+<<<<<<< Updated upstream
+=======
+        try {
+          console.log('Will build a car file from req.body (as utf8 string)', u8a.toString(body, 'base64'))
+        } catch(e) {
+          console.log('Couldn\'t convert req.body to string: ', e)
+        }
+>>>>>>> Stashed changes
         const car = carFactory.fromBytes(body)
         if (!car.roots[0]) throw Error('Missing CAR root')
         return car.roots[0].toString()
