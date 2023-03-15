@@ -98,7 +98,6 @@ export class RequestPresentationService {
       case RequestStatus.PROCESSING:
       case RequestStatus.FAILED:
       case RequestStatus.READY:
-        return this.notCompleted(request, status)
       case RequestStatus.REPLACED: {
         const asNotCompleted = this.notCompleted(request, status)
         return {
