@@ -44,7 +44,14 @@ Only major version 16 of Node.js is supported.
 
 Configuration file is located under `./config` directory.
 
-In order to build the application start the IPFS node locally and run the following commands:
+In order to run the application, you need to start the IPFS, Ganache, Postgres nodes locally.
+
+You could do that by running:
+```shell
+docker-compose up ipfs ganache database
+```
+
+Then run the following commands in a new terminal:
 
 ```sh
 npm run build

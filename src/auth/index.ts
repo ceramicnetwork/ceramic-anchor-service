@@ -2,6 +2,7 @@ import * as sha256 from '@stablelib/sha256'
 import { CARFactory } from 'cartonne'
 import { NextFunction, Request, Response } from 'express'
 import * as u8a from 'uint8arrays'
+import * as DAG_JOSE from 'dag-jose'
 
 export const auth = buildExpressMiddleware()
 function buildExpressMiddleware() {
@@ -40,6 +41,13 @@ function buildBodyDigest(contentType: string | undefined, body: any): string | u
     if (contentType) {
       if (contentType.includes('application/vnd.ipld.car')) {
         const carFactory = new CARFactory()
+        carFactory.codecs.add(DAG_JOSE)
+        console.log('Will build a car file from req.body', body)
+        try {
+          console.log('Will build a car file from req.body (as utf8 string)', u8a.toString(body, 'base64'))
+        } catch(e) {
+          console.log('Couldn\'t convert req.body to string: ', e)
+        }
         const car = carFactory.fromBytes(body)
         if (!car.roots[0]) throw Error('Missing CAR root')
         return car.roots[0].toString()
