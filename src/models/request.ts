@@ -17,7 +17,7 @@ export type IDBRequest = {
   streamId: string
   message: string
   pinned: boolean
-  timestamp: string
+  timestamp?: string
   createdAt?: string
   updatedAt?: string
   origin?: string
@@ -87,9 +87,9 @@ export class Request {
       streamId: this.streamId.toString(),
       message: this.message,
       pinned: this.pinned,
-      createdAt: this.createdAt?.toISOString(),
-      updatedAt: this.updatedAt?.toISOString(),
-      timestamp: this.timestamp?.toISOString(),
+      createdAt: this.createdAt ? te.date.encode(this.createdAt) : undefined,
+      updatedAt: this.updatedAt ? te.date.encode(this.updatedAt) : undefined,
+      timestamp: this.timestamp ? te.date.encode(this.timestamp) : undefined,
       origin: this.origin,
     }
   }
