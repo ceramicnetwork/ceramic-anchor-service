@@ -136,6 +136,21 @@ export class RequestRepository {
   }
 
   /**
+   *
+   * @param ids array request ids to retreive
+   * @returns A promise that resolves to the requests associated with the provided ids
+   */
+  async findByIds(ids: string[]): Promise<Request[]> {
+    const requests = await this.table.whereIn('id', ids)
+
+    if (requests.length !== ids.length) {
+      throw new Error(`Only found ${requests.length}/${ids.length} ids`)
+    }
+
+    return requests
+  }
+
+  /**
    * Create/updates client requests
    * @param fields - Fields to update
    * @param requests - Requests to update

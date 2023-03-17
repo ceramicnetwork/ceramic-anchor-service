@@ -47,6 +47,7 @@
     }
   },
   "dependencies": {
+    "@aws-sdk/client-sqs": "^3.289.0",
     "@ceramicnetwork/anchor-utils": "^1.6.0",
     "@ceramicnetwork/common": "^2.23.0",
     "@ceramicnetwork/core": "^2.29.0",

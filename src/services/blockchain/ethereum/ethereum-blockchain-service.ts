@@ -18,7 +18,7 @@ import { Utils } from '../../../utils.js'
 const BASE_CHAIN_ID = 'eip155'
 const TX_FAILURE = 0
 const TX_SUCCESS = 1
-const NUM_BLOCKS_TO_WAIT = 4
+const NUM_BLOCKS_TO_WAIT = 0
 export const MAX_RETRIES = 3
 
 const POLLING_INTERVAL = 15 * 1000 // every 15 seconds
