@@ -4,7 +4,7 @@ import { Request as ExpReq, Response as ExpRes } from 'express'
 import cors from 'cors'
 import { ClassMiddleware, Controller, Get, Middleware, Post } from '@overnightjs/core'
 
-import { NonEmptyArray, toCID } from '@ceramicnetwork/common'
+import { NonEmptyArray } from '@ceramicnetwork/common'
 import { Request, RequestStatus } from '../models/request.js'
 import { logger } from '../logger/index.js'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
@@ -19,6 +19,8 @@ import {
 import bodyParser from 'body-parser'
 import { isLeft } from 'fp-ts/lib/Either.js'
 import { makeErrorMessage } from '../ancillary/throw-decoder.js'
+import * as t from 'io-ts'
+import * as te from '../ancillary/io-ts-extra.js'
 
 /*
  * Get origin from a request from `did` header.
@@ -46,6 +48,12 @@ function parseOrigin(req: ExpReq): string {
   return addressesSplit[0].trim()
 }
 
+const GetStatusParams = t.exact(
+  t.type({
+    cid: t.string.pipe(te.cidAsString),
+  })
+)
+
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
 export class RequestController {
@@ -65,15 +73,16 @@ export class RequestController {
 
   @Get(':cid')
   async getStatusForCid(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
-    logger.debug(`Get info for ${req.params['cid']}`)
+    const paramsE = GetStatusParams.decode(req.params)
+    if (isLeft(paramsE)) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        error: 'CID is empty or malformed',
+      })
+    }
+    const cid = paramsE.right.cid
+    logger.debug(`Get info for ${cid}`)
 
     try {
-      const cid = toCID(req.params['cid'] as string)
-      if (!cid) {
-        return res.status(StatusCodes.BAD_REQUEST).json({
-          error: 'CID is empty',
-        })
-      }
       const request = await this.requestRepository.findByCid(cid)
       if (!request) {
         return res.status(StatusCodes.OK).json({
@@ -84,7 +93,7 @@ export class RequestController {
       const body = await this.requestPresentationService.body(request)
       return res.status(StatusCodes.OK).json(body)
     } catch (err: any) {
-      const errmsg = `Loading request status for CID ${req.params['cid']} failed: ${err.message}`
+      const errmsg = `Loading request status for CID ${cid} failed: ${err.message}`
       logger.err(errmsg)
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: errmsg,
