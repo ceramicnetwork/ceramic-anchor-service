@@ -21,6 +21,7 @@ import { isLeft } from 'fp-ts/lib/Either.js'
 import { makeErrorMessage } from '../ancillary/throw-decoder.js'
 import * as t from 'io-ts'
 import * as te from '../ancillary/io-ts-extra.js'
+import type { RequestService } from '../services/request-service.js'
 
 /*
  * Get origin from a request from `did` header.
@@ -62,13 +63,15 @@ export class RequestController {
     'requestPresentationService',
     'metadataService',
     'anchorRequestParamsParser',
+    'requestService',
   ] as const
 
   constructor(
     private readonly requestRepository: RequestRepository,
     private readonly requestPresentationService: RequestPresentationService,
     private readonly metadataService: IMetadataService,
-    private readonly anchorRequestParamsParser: AnchorRequestParamsParser
+    private readonly anchorRequestParamsParser: AnchorRequestParamsParser,
+    private readonly requestService: RequestService
   ) {}
 
   @Get(':cid')
@@ -83,15 +86,8 @@ export class RequestController {
     logger.debug(`Get info for ${cid}`)
 
     try {
-      const request = await this.requestRepository.findByCid(cid)
-      if (!request) {
-        return res.status(StatusCodes.OK).json({
-          error: "Request doesn't exist",
-        })
-      }
-
-      const body = await this.requestPresentationService.body(request)
-      return res.status(StatusCodes.OK).json(body)
+      const response = await this.requestService.getStatusForCid(cid)
+      return res.status(StatusCodes.OK).json(response)
     } catch (err: any) {
       const errmsg = `Loading request status for CID ${cid} failed: ${err.message}`
       logger.err(errmsg)

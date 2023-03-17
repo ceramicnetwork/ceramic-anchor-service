@@ -36,6 +36,7 @@ import { AppMode } from './app-mode.js'
 import { UnreachableCaseError } from '@ceramicnetwork/common'
 import { AnchorRequestParamsParser } from './ancillary/anchor-request-params-parser.js'
 import { HealthcheckService, IHealthcheckService } from './services/healthcheck-service.js'
+import { RequestService } from './services/request-service'
 
 type DependenciesContext = {
   config: Config
@@ -55,6 +56,7 @@ type ProvidedContext = {
   metadataService: IMetadataService
   healthcheckService: IHealthcheckService
   anchorRequestParamsParser: AnchorRequestParamsParser
+  requestService: RequestService
 } & DependenciesContext
 
 /**
@@ -94,6 +96,7 @@ export class CeramicAnchorApp {
       .provideClass('healthcheckService', HealthcheckService)
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
+      .provideClass('requestService', RequestService)
 
     try {
       Metrics.start(
