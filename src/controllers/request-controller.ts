@@ -9,9 +9,9 @@ import { Request, RequestStatus } from '../models/request.js'
 import { logger } from '../logger/index.js'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
-import type { IRequestPresentationService } from '../services/request-presentation-service.type.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
 import type { IMetadataService } from '../services/metadata-service.js'
+import type { RequestPresentationService } from '../services/request-presentation-service.js'
 import {
   AnchorRequestParamsParser,
   isRequestAnchorParamsV2,
@@ -66,7 +66,7 @@ export class RequestController {
 
   constructor(
     private readonly requestRepository: RequestRepository,
-    private readonly requestPresentationService: IRequestPresentationService,
+    private readonly requestPresentationService: RequestPresentationService,
     private readonly metadataService: IMetadataService,
     private readonly anchorRequestParamsParser: AnchorRequestParamsParser
   ) {}

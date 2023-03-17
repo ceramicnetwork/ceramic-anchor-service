@@ -1,7 +1,6 @@
 import type { Request } from '../models/request.js'
 import { InvalidRequestStatusError, RequestStatus } from '../models/request.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
-import type { IRequestPresentationService } from './request-presentation-service.type.js'
 
 export type CommitPresentation = {
   content: { path: string | undefined; prev: string; proof: string | undefined }
@@ -27,7 +26,7 @@ export type RequestPresentation = NotCompletedRequestPresentation | CompletedReq
 /**
  * Render anchoring Request as JSON for a client to consume.
  */
-export class RequestPresentationService implements IRequestPresentationService {
+export class RequestPresentationService {
   static inject = ['anchorRepository'] as const
 
   constructor(private readonly anchorRepository: IAnchorRepository) {}
