@@ -47,6 +47,4 @@ export class SqsQueueService<A, O, I> implements IQueueService<A> {
 
     return ThrowDecoder.decode(this.messageType, data)
   }
-
-  mark
 }
