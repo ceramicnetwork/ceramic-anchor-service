@@ -251,22 +251,32 @@ export class AnchorService {
     }
 
     logger.imp('Retrieving next job from queue')
-    const batch = await this.batchQueueService.retrieveNextMessage()
+    const batchMessage = await this.batchQueueService.retrieveNextMessage()
 
-    if (!batch) {
+    if (!batchMessage) {
       // TODO: Add metric here
       logger.imp('No batches available')
       return
     }
 
-    logger.imp('Anchoring requests from the batch')
-    const requests = await this.requestRepository.findByIds(batch.rids)
+    try {
+      logger.imp('Anchoring requests from the batch')
+      const requests = await this.requestRepository.findByIds(batchMessage.data.rids)
 
-    logger.imp('Anchoring requests')
-    await this._anchorRequests(requests)
+      logger.imp('Anchoring requests')
+      await this._anchorRequests(requests)
 
-    // Sleep 5 seconds before exiting the process to give time for the logs to flush.
-    await Utils.delay(5000)
+      // Sleep 5 seconds before exiting the process to give time for the logs to flush.
+      await Utils.delay(5000)
+
+      logger.imp('Acking the batch')
+      await batchMessage.ack()
+    } catch (err) {
+      logger.warn(`Anchoring of the batch failed. Nacking the batch`)
+      await batchMessage.nack()
+
+      throw err
+    }
   }
 
   /**

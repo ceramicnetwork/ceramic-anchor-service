@@ -1,3 +1,9 @@
 export interface IQueueService<T> {
-  retrieveNextMessage(): Promise<T | undefined>
+  retrieveNextMessage(): Promise<IQueueMessage<T> | undefined>
+}
+
+export interface IQueueMessage<T> {
+  readonly data: T
+  nack(): Promise<void>
+  ack(): Promise<void>
 }

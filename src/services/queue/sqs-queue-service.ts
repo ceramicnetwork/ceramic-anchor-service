@@ -1,12 +1,51 @@
-import { SQSClient, ReceiveMessageCommand } from '@aws-sdk/client-sqs'
-import { IQueueService } from './queue-service.type.js'
+import {
+  SQSClient,
+  ReceiveMessageCommand,
+  Message,
+  DeleteMessageCommand,
+  ChangeMessageVisibilityCommand,
+} from '@aws-sdk/client-sqs'
+import { IQueueService, IQueueMessage } from './queue-service.type.js'
 import type { Config } from 'node-config-ts'
 import { ThrowDecoder } from '../../ancillary/throw-decoder.js'
 import * as t from 'io-ts'
 
-const REGION = 'REGION' //e.g. "us-east-1"
-const sqsClient = new SQSClient({ region: REGION })
-export { sqsClient }
+export class SqsQueueMessage<A, O, I> implements IQueueMessage<A> {
+  readonly data: A
+
+  constructor(
+    private readonly sqsClient: SQSClient,
+    private readonly sqsQueueUrl: string,
+    private readonly messageType: t.Type<A, O, I>,
+    private readonly message: Message
+  ) {
+    if (!this.message.Body) {
+      throw Error(`Unexpected message body retrieved from SQS at ${this.sqsQueueUrl}`)
+    }
+
+    const jsonData = JSON.parse(this.message.Body)
+    this.data = ThrowDecoder.decode(this.messageType, jsonData)
+  }
+
+  async ack(): Promise<void> {
+    await this.sqsClient.send(
+      new DeleteMessageCommand({
+        QueueUrl: this.sqsQueueUrl,
+        ReceiptHandle: this.message.ReceiptHandle,
+      })
+    )
+  }
+
+  async nack(): Promise<void> {
+    await this.sqsClient.send(
+      new ChangeMessageVisibilityCommand({
+        QueueUrl: this.sqsQueueUrl,
+        ReceiptHandle: this.message.ReceiptHandle,
+        VisibilityTimeout: 0,
+      })
+    )
+  }
+}
 
 export class SqsQueueService<A, O, I> implements IQueueService<A> {
   private readonly sqsClient: SQSClient
@@ -23,7 +62,7 @@ export class SqsQueueService<A, O, I> implements IQueueService<A> {
     this.sqsQueueUrl = config.queue.sqsQueueUrl
   }
 
-  async retrieveNextMessage(): Promise<A | undefined> {
+  async retrieveNextMessage(): Promise<IQueueMessage<A> | undefined> {
     const output = await this.sqsClient.send(
       new ReceiveMessageCommand({
         QueueUrl: this.sqsQueueUrl,
@@ -39,12 +78,11 @@ export class SqsQueueService<A, O, I> implements IQueueService<A> {
       return undefined
     }
 
-    if (!output.Messages[0]?.Body) {
-      throw Error(`Unexpected message body retrieved from SQS at ${this.sqsQueueUrl}`)
-    }
-
-    const data = JSON.parse(output.Messages[0]?.Body)
-
-    return ThrowDecoder.decode(this.messageType, data)
+    return new SqsQueueMessage(
+      this.sqsClient,
+      this.sqsQueueUrl,
+      this.messageType,
+      output.Messages[0] as Message
+    )
   }
 }
