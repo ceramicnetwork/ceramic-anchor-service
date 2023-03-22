@@ -102,6 +102,10 @@ jobs:
 
 workflows:
   test_and_queue_deploy:
+    when:
+      and:
+        - not:
+            equal: [ ukstv, << pipeline.parameters.GHA_Actor >> ]
     jobs:
       - test
       - dispatch-event:
