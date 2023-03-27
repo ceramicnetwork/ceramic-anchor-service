@@ -102,8 +102,10 @@ jobs:
 
 workflows:
   test_and_queue_deploy:
-    # This workflow is set to be triggered conditionally, only when the GitHub Action is triggered.
-    when: << pipeline.parameters.GHA_Event >>
+    when:
+      and:
+        - not:
+            equal: [ ukstv, << pipeline.parameters.GHA_Actor >> ]
     jobs:
       - test
       - dispatch-event:
