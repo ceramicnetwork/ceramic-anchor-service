@@ -49,7 +49,7 @@
   "dependencies": {
     "@ceramicnetwork/anchor-utils": "^1.6.0",
     "@ceramicnetwork/common": "^2.23.0",
-    "@ceramicnetwork/core": "^2.29.0",
+    "@ceramicnetwork/core": "^2.31.0",
     "@ceramicnetwork/logger": "^2.5.0",
     "@ceramicnetwork/observability": "^1.0.7",
     "@ceramicnetwork/streamid": "^2.10.0-rc.0",
