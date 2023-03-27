@@ -57,7 +57,7 @@ export class SqsQueueService<A, O, I> implements IQueueService<A> {
     // Set the AWS Region.
     this.sqsClient = new SQSClient({
       region: config.queue.awsRegion,
-      endpoint: 'http://localhost:4566',
+      endpoint: config.queue.sqsQueueUrl,
     })
     this.sqsQueueUrl = config.queue.sqsQueueUrl
   }
