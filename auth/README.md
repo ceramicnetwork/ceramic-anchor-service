@@ -2,11 +2,12 @@
 
 > A Serverless application for DID based authentication over CAS
 
-## New deployment
+## Launch or update deployment
 
 1. Make sure you have valid AWS credentials.
-2. `pnpm install`
-3. `pnpm run deploy`
+2. Retrieve the appropriate `.env.[ENV]` [cas-auth file from passbolt](https://3boxlabs.1password.com/vaults/wyiefdof4l55jtoqkdwswbssiy/tags/goqi3h46x6gdwllwbs6wzitqjq/lid64nvqzggluglf6vbjbl76ze)
+3. `pnpm install`
+4. `pnpm run deploy:[ENV]`
 
 ## Offline
 
