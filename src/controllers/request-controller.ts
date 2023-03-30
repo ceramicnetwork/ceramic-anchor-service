@@ -5,16 +5,12 @@ import cors from 'cors'
 import { ClassMiddleware, Controller, Get, Middleware, Post } from '@overnightjs/core'
 
 import { NonEmptyArray } from '@ceramicnetwork/common'
-import { Request, RequestStatus } from '../models/request.js'
 import { logger } from '../logger/index.js'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
-import type { RequestRepository } from '../repositories/request-repository.js'
-import type { IMetadataService } from '../services/metadata-service.js'
-import type { RequestPresentationService } from '../services/request-presentation-service.js'
 import {
   AnchorRequestParamsParser,
-  isRequestAnchorParamsV2,
+  RequestAnchorParams,
 } from '../ancillary/anchor-request-params-parser.js'
 import bodyParser from 'body-parser'
 import { isLeft } from 'fp-ts/lib/Either.js'
@@ -58,18 +54,9 @@ const GetStatusParams = t.exact(
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
 export class RequestController {
-  static inject = [
-    'requestRepository',
-    'requestPresentationService',
-    'metadataService',
-    'anchorRequestParamsParser',
-    'requestService',
-  ] as const
+  static inject = ['anchorRequestParamsParser', 'requestService'] as const
 
   constructor(
-    private readonly requestRepository: RequestRepository,
-    private readonly requestPresentationService: RequestPresentationService,
-    private readonly metadataService: IMetadataService,
     private readonly anchorRequestParamsParser: AnchorRequestParamsParser,
     private readonly requestService: RequestService
   ) {}
@@ -78,6 +65,7 @@ export class RequestController {
   async getStatusForCid(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     const paramsE = GetStatusParams.decode(req.params)
     if (isLeft(paramsE)) {
+      logger.err(makeErrorMessage(paramsE.left))
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: 'CID is empty or malformed',
       })
@@ -101,65 +89,42 @@ export class RequestController {
   @Middleware([bodyParser.raw({ type: 'application/vnd.ipld.car' })])
   async createRequest(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     const origin = parseOrigin(req)
+
+    logger.debug(`Create request ${JSON.stringify(req.body)}`)
+
+    const validation = this.anchorRequestParamsParser.parse(req)
+
+    if (isLeft(validation)) {
+      logger.err(makeErrorMessage(validation.left))
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        error: makeErrorMessage(validation.left),
+      })
+    }
+    const requestParams = validation.right
+
     try {
-      logger.debug(`Create request ${JSON.stringify(req.body)}`)
-
-      const validation = this.anchorRequestParamsParser.parse(req)
-
-      if (isLeft(validation)) {
-        return res.status(StatusCodes.BAD_REQUEST).json({
-          error: makeErrorMessage(validation.left),
-        })
-      }
-
-      const requestParams = validation.right
-
-      const cid = requestParams.cid
-      const streamId = requestParams.streamId
-
-      const timestamp = requestParams.timestamp ?? new Date()
-
-      const found = await this.requestRepository.findByCid(cid)
+      const found = await this.requestService.findByCid(requestParams.cid)
       if (found) {
-        const body = await this.requestPresentationService.body(found)
-        return res.status(StatusCodes.ACCEPTED).json(body)
+        return res.status(StatusCodes.ACCEPTED).json(found)
       }
 
-      // Store metadata from genesis to the database
-      // TODO CDB-2151 This should be moved out of RequestController
-      if (isRequestAnchorParamsV2(requestParams)) {
-        await this.metadataService.fill(streamId, requestParams.genesisFields)
-      } else {
-        await this.metadataService.fillFromIpfs(streamId)
-      }
+      const body = await this.requestService.createOrUpdate(requestParams, origin)
 
-      // Intentionally don't await the pinStream promise, let it happen in the background.
       Metrics.count(METRIC_NAMES.ANCHOR_REQUESTED, 1, { source: parseOrigin(req) })
 
-      const request = new Request()
-      request.cid = cid.toString()
-      request.origin = origin
-      request.streamId = streamId.toString()
-      request.status = RequestStatus.PENDING
-      request.message = 'Request is pending.'
-      // We don't actually know with certainty that the stream is pinned, since the pinStream
-      // call above can fail and swallows errors, but marking it as pinned incorrectly is harmless,
-      // and this way we ensure the request is picked up by garbage collection.
-      request.pinned = true
-      request.timestamp = timestamp
-
-      const storedRequest = await this.requestRepository.createOrUpdate(request)
-      await this.requestRepository.markPreviousReplaced(storedRequest)
-
-      const body = await this.requestPresentationService.body(storedRequest)
       return res.status(StatusCodes.CREATED).json(body)
     } catch (err: any) {
-      return this.getBadRequestResponse(req, res, err, origin)
+      return this.getBadRequestResponse(res, err, requestParams, origin)
     }
   }
 
-  private getBadRequestResponse(req: ExpReq, res: ExpRes, err: Error, origin: string): ExpRes {
-    const errmsg = `Creating request with streamId ${req.body.streamId} and commit CID ${req.body.cid} from ${origin} failed: ${err.message}`
+  private getBadRequestResponse(
+    res: ExpRes,
+    err: Error,
+    requestParams: RequestAnchorParams,
+    origin: string
+  ): ExpRes {
+    const errmsg = `Creating request with streamId ${requestParams.streamId} and commit CID ${requestParams.cid} from ${origin} failed: ${err.message}`
     logger.err(errmsg)
     logger.err(err) // Log stack trace
     return res.status(StatusCodes.BAD_REQUEST).json({
