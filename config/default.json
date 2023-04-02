@@ -69,6 +69,7 @@
   "queue": {
     "type": "sqs",
     "awsRegion": "us-east-1",
-    "sqsQueueUrl": "http://localhost:4566/967314784947/batch"
+    "sqsQueueUrl": "http://localhost:4566/967314784947/batch",
+    "usePolling": false
   }
 }

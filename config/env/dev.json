@@ -65,6 +65,7 @@
   "queue": {
     "type": "sqs",
     "awsRegion": "@@AWS_REGION",
-    "sqsQueueUrl": "@@SQS_QUEUE_URL"
+    "sqsQueueUrl": "@@SQS_QUEUE_URL",
+    "usePolling": "@@SQS_QUEUE_USE_POLLING"
   }
 }

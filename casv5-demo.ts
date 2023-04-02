@@ -27,26 +27,31 @@ async function main() {
     toBlock: 10000,
   })
 
-  console.log('-----TRANSACTION LOG----')
-  console.log(logs[1], '\n\n')
+  for (let i = 1; i < logs.length; i = i + 1) {
+    console.log(`--------------------LOG ${i - 1}-------------------`)
+    const log = logs[i]
+    console.log('-----TRANSACTION LOG----')
+    console.log(log, '\n\n')
 
-  const event = contractInterface.parseLog(logs[1])
-  console.log('-----EVENT----')
-  console.log(event, '\n\n')
+    const event = contractInterface.parseLog(log)
+    console.log('-----EVENT----')
+    console.log(event, '\n\n')
 
-  const hexRoot = event.args[1]
-  const multihash = createMultihash(0x12, fromString(hexRoot.slice(2), 'base16'))
-  const cidRoot = CID.create(1, 0x71, multihash)
-  console.log('-----ROOT----')
-  console.log(cidRoot, '\n\n')
+    const hexRoot = event.args[1]
+    const multihash = createMultihash(0x12, fromString(hexRoot.slice(2), 'base16'))
+    const cidRoot = CID.create(1, 0x71, multihash)
+    console.log('-----ROOT----')
+    console.log(cidRoot, '\n\n')
 
-  const rootData = await ipfsClient.dag.get(cidRoot)
-  console.log('-----STORED ROOT DATA----')
-  console.log(rootData, '\n\n')
+    const rootData = await ipfsClient.dag.get(cidRoot)
+    console.log('-----STORED ROOT DATA----')
+    console.log(rootData, '\n\n')
 
-  const rootMetadata = await ipfsClient.dag.get(cidRoot, { path: '2' })
-  console.log('-----MERKLE TREE METADATA----')
-  console.log(rootMetadata, '\n\n')
+    const rootMetadata = await ipfsClient.dag.get(cidRoot, { path: '2' })
+    console.log('-----MERKLE TREE METADATA----')
+    console.log(rootMetadata, '\n\n')
+    console.log(`\n\n\n\n\n`)
+  }
 }
 
 main()

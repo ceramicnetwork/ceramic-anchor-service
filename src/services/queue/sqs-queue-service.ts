@@ -9,6 +9,7 @@ import { IQueueService, IQueueMessage } from './queue-service.type.js'
 import type { Config } from 'node-config-ts'
 import { ThrowDecoder } from '../../ancillary/throw-decoder.js'
 import * as t from 'io-ts'
+import { defer, retry, first, repeat, firstValueFrom } from 'rxjs'
 
 export class SqsQueueMessage<A, O, I> implements IQueueMessage<A> {
   readonly data: A
@@ -50,6 +51,7 @@ export class SqsQueueMessage<A, O, I> implements IQueueMessage<A> {
 export class SqsQueueService<A, O, I> implements IQueueService<A> {
   private readonly sqsClient: SQSClient
   private readonly sqsQueueUrl: string
+  private readonly usePolling: boolean
 
   static inject = ['config'] as const
 
@@ -60,19 +62,33 @@ export class SqsQueueService<A, O, I> implements IQueueService<A> {
       endpoint: config.queue.sqsQueueUrl,
     })
     this.sqsQueueUrl = config.queue.sqsQueueUrl
+    this.usePolling = config.queue.usePolling
   }
 
   async retrieveNextMessage(): Promise<IQueueMessage<A> | undefined> {
-    const output = await this.sqsClient.send(
-      new ReceiveMessageCommand({
-        QueueUrl: this.sqsQueueUrl,
-        AttributeNames: ['All'],
-        MessageAttributeNames: ['All'],
-        MaxNumberOfMessages: 1,
-        VisibilityTimeout: 10800, // 3h
-        WaitTimeSeconds: 0,
-      })
-    )
+    const receiveMessageCommandInput = {
+      QueueUrl: this.sqsQueueUrl,
+      AttributeNames: ['All'],
+      MessageAttributeNames: ['All'],
+      MaxNumberOfMessages: 1,
+      VisibilityTimeout: 10800, // 3h
+      WaitTimeSeconds: 20,
+    }
+
+    let output
+    if (this.usePolling) {
+      output = await firstValueFrom(
+        defer(() =>
+          this.sqsClient.send(new ReceiveMessageCommand(receiveMessageCommandInput))
+        ).pipe(
+          repeat({ delay: 1000 }),
+          retry({ delay: 1000 }),
+          first((result) => Boolean(result.Messages))
+        )
+      )
+    } else {
+      output = await this.sqsClient.send(new ReceiveMessageCommand(receiveMessageCommandInput))
+    }
 
     if (!output.Messages || output.Messages.length !== 1) {
       return undefined
