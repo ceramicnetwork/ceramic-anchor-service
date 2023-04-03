@@ -1,5 +1,4 @@
 export enum METRIC_NAMES {
-
   // *******************************************************************//
   // Anchor Service (counts)
 
@@ -39,7 +38,7 @@ export enum METRIC_NAMES {
   // Anchor Service (histograms)
 
   // request that moves from ready -> processing
-  READY_PROCESSING_MS = "ready_processing_ms",
+  READY_PROCESSING_MS = 'ready_processing_ms',
 
   // request that moves from created -> success
   CREATED_SUCCESS_MS = 'created_success_ms',
@@ -58,5 +57,5 @@ export enum METRIC_NAMES {
   PIN_FAILED = 'pin_failed',
 
   // Request Controller
-  ANCHOR_REQUESTED = 'anchor_requested'
+  ANCHOR_REQUESTED = 'anchor_requested',
 }

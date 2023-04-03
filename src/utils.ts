@@ -41,4 +41,29 @@ export class Utils {
     const cidVersion = 1
     return CID.create(cidVersion, ETH_TX_CODE, multihash)
   }
+
+  /**
+   * Check if a function returns value that is not null. If not null, return the value, otherwise throw an error
+   * @param func
+   * @param error
+   */
+  static checkNotNull<T>(func: () => T | null | undefined, error: string): T {
+    const value = func()
+    if (!value) throw new Error(error)
+    return value
+  }
+
+  /**
+   * Check if a async function returns value that is not null. If not null, return the value, otherwise throw an error
+   * @param func
+   * @param error
+   */
+  static async checkNotNullAsync<T>(
+    func: () => Promise<T | null | undefined>,
+    error: string
+  ): Promise<T> {
+    const value = await func()
+    if (!value) throw new Error(error)
+    return value
+  }
 }

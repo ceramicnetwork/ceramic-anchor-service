@@ -16,50 +16,53 @@ function buildExpressMiddleware() {
    * Notice that the absense of a did header or body bypasses any checks below
    * this app will still work if the logice above is not in place.
    */
-    return function(req: Request, _res: Response, next: NextFunction) {
-        if (req.headers) {
-            if (req.headers['did'] && req.body) {
-                if (Object.keys(req.body).length > 0) {
-                    const digest = buildBodyDigest(req.headers['content-type'], req.body)
-                    if (req.headers['digest'] == digest) {
-                      return next()
-                    } else {
-                      throw Error('Body digest verification failed')
-                    }
-                }
-            }
+  return function (req: Request, _res: Response, next: NextFunction) {
+    if (req.headers) {
+      if (req.headers['did'] && req.body) {
+        if (Object.keys(req.body).length > 0) {
+          const digest = buildBodyDigest(req.headers['content-type'], req.body)
+          if (req.headers['digest'] == digest) {
+            return next()
+          } else {
+            throw Error('Body digest verification failed')
+          }
         }
-        return next()
+      }
     }
+    return next()
+  }
 }
 
 function buildBodyDigest(contentType: string | undefined, body: any): string | undefined {
-    if (!body) return
+  if (!body) return
 
-    let hash: Uint8Array | undefined
+  let hash: Uint8Array | undefined
 
-    if (contentType) {
-      if (contentType.includes('application/vnd.ipld.car')) {
-        const carFactory = new CARFactory()
-        carFactory.codecs.add(DAG_JOSE)
-        console.log('Will build a car file from req.body', body)
-        try {
-          console.log('Will build a car file from req.body (as utf8 string)', u8a.toString(body, 'base64'))
-        } catch(e) {
-          console.log('Couldn\'t convert req.body to string: ', e)
-        }
-        const car = carFactory.fromBytes(body)
-        if (!car.roots[0]) throw Error('Missing CAR root')
-        return car.roots[0].toString()
-      } else if (contentType.includes('application/json')) {
-        hash = sha256.hash(u8a.fromString(JSON.stringify(body)))
+  if (contentType) {
+    if (contentType.includes('application/vnd.ipld.car')) {
+      const carFactory = new CARFactory()
+      carFactory.codecs.add(DAG_JOSE)
+      console.log('Will build a car file from req.body', body)
+      try {
+        console.log(
+          'Will build a car file from req.body (as utf8 string)',
+          u8a.toString(body, 'base64')
+        )
+      } catch (e) {
+        console.log("Couldn't convert req.body to string: ", e)
       }
-    }
-
-    if (!hash) {
-      // Default to hashing stringified body
+      const car = carFactory.fromBytes(body)
+      if (!car.roots[0]) throw Error('Missing CAR root')
+      return car.roots[0].toString()
+    } else if (contentType.includes('application/json')) {
       hash = sha256.hash(u8a.fromString(JSON.stringify(body)))
     }
-
-    return `0x${u8a.toString(hash, 'base16')}`
   }
+
+  if (!hash) {
+    // Default to hashing stringified body
+    hash = sha256.hash(u8a.fromString(JSON.stringify(body)))
+  }
+
+  return `0x${u8a.toString(hash, 'base16')}`
+}

@@ -49,6 +49,10 @@ process.env.NODE_ENV = 'test'
 const randomNumber = Math.floor(Math.random() * 10000)
 const TOPIC = `/ceramic/local/${randomNumber}`
 
+// Workaround from https://stackoverflow.com/a/72416352/599991
+import dns from 'node:dns'
+dns.setDefaultResultOrder('ipv4first')
+
 /**
  * Create an IPFS instance
  */
@@ -90,7 +94,7 @@ async function makeCeramicCore(
     anchorServiceUrl,
     // TODO CDB-2317 Remove `indexing` config when Ceramic Core allows that
     indexing: {
-      db: "TODO",
+      db: 'TODO',
       allowQueriesBeforeHistoricalSync: false,
       disableComposedb: true,
       enableHistoricalSync: false,
