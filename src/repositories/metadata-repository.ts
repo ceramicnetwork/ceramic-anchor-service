@@ -1,8 +1,8 @@
 import type { Knex } from 'knex'
 import { MetadataInput, StoredMetadata } from '../models/metadata.js'
-import { ThrowDecoder } from '../ancillary/throw-decoder.js'
 import type { StreamID } from '@ceramicnetwork/streamid'
-import * as te from '../ancillary/io-ts-extra.js'
+import * as t from 'codeco'
+import * as te from '../ancillary/codecs.js'
 import { parseCountResult } from './parse-count-result.util.js'
 
 /**
@@ -47,6 +47,7 @@ export class MetadataRepository implements IMetadataRepository {
    * Store metadata entry to the database.
    */
   async save(entry: MetadataInput): Promise<void> {
+    console.log('save', entry, MetadataInput.encode(entry))
     await this.table.insert(MetadataInput.encode(entry)).onConflict().ignore()
   }
 
@@ -65,9 +66,9 @@ export class MetadataRepository implements IMetadataRepository {
    * Try to find an entry for `streamId`. Return `undefined` if not found.
    */
   async retrieve(streamId: StreamID): Promise<StoredMetadata | undefined> {
-    const rows = await this.table.where({ streamId: te.streamIdAsString.encode(streamId) }).limit(1)
+    const rows = await this.table.where({ streamId: streamId.toString() }).limit(1)
     if (rows[0]) {
-      return ThrowDecoder.decode(StoredMetadata, rows[0])
+      return t.decode(StoredMetadata, rows[0])
     } else {
       return undefined
     }

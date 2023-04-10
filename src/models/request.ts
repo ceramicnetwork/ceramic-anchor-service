@@ -1,5 +1,5 @@
-import * as t from 'io-ts'
-import * as te from '../ancillary/io-ts-extra.js'
+import * as t from 'codeco'
+import * as te from '../ancillary/codecs.js'
 
 export enum RequestStatus {
   PENDING = 0,
@@ -23,26 +23,20 @@ export type IDBRequest = {
   origin?: string
 }
 
-export const RequestCodec = t.intersection([
-  t.type({
-    id: t.number,
-    status: te.enum('RequestStatus', RequestStatus),
-    cid: t.string,
-    streamId: t.string,
-    message: t.string,
-    pinned: t.boolean,
-    timestamp: te.date,
-  }),
-  t.partial({
-    createdAt: te.date,
-    updatedAt: te.date,
-    origin: t.string,
-  }),
-])
-export const DATABASE_FIELDS: Array<string> = RequestCodec.types.reduce((fields: string[], t) => {
-  const keys = Object.keys(t.props)
-  return fields.concat(keys)
-}, [])
+export const RequestCodec = t.sparse({
+  id: t.number,
+  status: te.enum('RequestStatus', RequestStatus),
+  cid: t.string,
+  streamId: t.string,
+  message: t.string,
+  pinned: t.boolean,
+  timestamp: te.date,
+  // optional
+  createdAt: t.optional(te.date),
+  updatedAt: t.optional(te.date),
+  origin: t.optional(t.string),
+})
+export const DATABASE_FIELDS: Array<string> = Object.keys(RequestCodec.props)
 
 export class Request {
   id: string

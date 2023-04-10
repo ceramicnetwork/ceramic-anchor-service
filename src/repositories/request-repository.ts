@@ -10,7 +10,7 @@ import {
   TimeableMetric,
 } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
-import * as te from '../ancillary/io-ts-extra.js'
+import * as te from '../ancillary/codecs.js'
 import { parseCountResult } from './parse-count-result.util.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { IMetadataRepository } from './metadata-repository.js'

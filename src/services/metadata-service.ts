@@ -1,10 +1,9 @@
 import type { StreamID } from '@ceramicnetwork/streamid'
 import type { IIpfsService, RetrieveRecordOptions } from './ipfs-service.type.js'
 import type { GenesisFields, StoredMetadata } from '../models/metadata.js'
-import * as t from 'io-ts'
-import * as te from '../ancillary/io-ts-extra.js'
+import * as t from 'codeco'
+import * as te from '../ancillary/codecs.js'
 import type { IMetadataRepository } from '../repositories/metadata-repository.js'
-import { ThrowDecoder } from '../ancillary/throw-decoder.js'
 import type { AbortOptions } from './abort-options.type.js'
 import { IsExact, assert } from 'conditional-type-checks'
 import { logger } from '../logger/index.js'
@@ -23,24 +22,16 @@ export interface IMetadataService {
  * Codec for genesis header retrieved from IPFS.
  */
 export const IpfsGenesisHeader = t.exact(
-  t.intersection([
-    t.type(
-      {
-        controllers: te.controllers,
-      },
-      'mandatory'
-    ),
-    t.partial(
-      {
-        schema: t.string.pipe(te.commitIdAsString),
-        family: t.string,
-        tags: t.array(t.string),
-        model: te.uint8array.pipe(te.streamIdAsBytes),
-      },
-      'optional'
-    ),
-  ]),
-  'IpfsGenesisHeader'
+  t.sparse(
+    {
+      controllers: te.controllers,
+      schema: t.optional(t.string.pipe(te.commitIdAsString)),
+      family: t.optional(t.string),
+      tags: t.optional(t.array(t.string)),
+      model: t.optional(te.uint8array.pipe(te.streamIdAsBytes)),
+    },
+    'IpfsGenesisHeader'
+  )
 )
 
 /**
@@ -105,7 +96,7 @@ export class MetadataService implements IMetadataService {
       retrieveRecordOptions.path = '/link'
     }
     const genesisRecord = await this.ipfsService.retrieveRecord(genesisCID, retrieveRecordOptions)
-    const genesis = ThrowDecoder.decode(IpfsGenesis, genesisRecord)
+    const genesis = t.decode(IpfsGenesis, genesisRecord)
     return genesis.header
   }
 

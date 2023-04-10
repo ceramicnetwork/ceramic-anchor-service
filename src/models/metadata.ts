@@ -1,21 +1,17 @@
-import * as t from 'io-ts'
-import * as te from '../ancillary/io-ts-extra.js'
+import * as t from 'codeco'
+import * as te from '../ancillary/codecs.js'
 
 /**
  * Metadata fields gathered from genesis commit.
  */
-export const GenesisFields = t.intersection(
-  [
-    t.type({
-      controllers: te.controllers,
-    }),
-    t.partial({
-      schema: t.string.pipe(te.commitIdAsString),
-      family: t.string,
-      tags: t.array(t.string),
-      model: t.string.pipe(te.uint8ArrayAsBase64).pipe(te.streamIdAsBytes),
-    }),
-  ],
+export const GenesisFields = t.sparse(
+  {
+    controllers: te.controllers,
+    schema: t.optional(t.string.pipe(te.commitIdAsString)),
+    family: t.optional(t.string),
+    tags: t.optional(t.array(t.string)),
+    model: t.optional(t.string.pipe(te.uint8ArrayAsBase64).pipe(te.streamIdAsBytes)),
+  },
   'GenesisFields'
 )
 export type GenesisFields = t.TypeOf<typeof GenesisFields>
@@ -48,7 +44,7 @@ export const StoredMetadataFields = t.type(
  * Full metadata entry if retrieved from a database.
  */
 export const StoredMetadata = t.intersection(
-  [FreshMetadata, StoredMetadataFields],
+  [FreshMetadata, StoredMetadataFields] as const,
   'StoredMetadata'
 )
 export type StoredMetadata = t.TypeOf<typeof StoredMetadata>

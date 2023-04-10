@@ -1,6 +1,6 @@
 import { describe, test, expect } from '@jest/globals'
-import * as te from '../io-ts-extra.js'
-import { isRight, Right } from 'fp-ts/lib/Either.js'
+import * as te from '../codecs.js'
+import * as t from 'codeco'
 import { randomCID, randomStreamID } from '../../__tests__/test-utils.js'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import { CID } from 'multiformats/cid'
@@ -8,13 +8,13 @@ import { CID } from 'multiformats/cid'
 describe('cidAsString', () => {
   const cid = randomCID()
   test('decode: ok', () => {
-    const result = te.cidAsString.decode(cid.toString())
-    expect(isRight(result)).toEqual(true)
-    expect((result as Right<CID>).right).toEqual(cid)
+    const result = t.validate(te.cidAsString, cid.toString())
+    expect(t.isRight(result)).toEqual(true)
+    expect((result as t.Right<CID>).right).toEqual(cid)
   })
   test('decode: not ok', () => {
-    const result = te.cidAsString.decode('garbage')
-    expect(isRight(result)).toEqual(false)
+    const result = t.validate(te.cidAsString, 'garbage')
+    expect(t.isRight(result)).toEqual(false)
   })
   test('encode', () => {
     const result = te.cidAsString.encode(cid)
@@ -25,13 +25,13 @@ describe('cidAsString', () => {
 describe('streamIdAsString', () => {
   const streamId = randomStreamID()
   test('decode: ok', () => {
-    const result = te.streamIdAsString.decode(streamId.toString())
-    expect(isRight(result)).toEqual(true)
-    expect((result as Right<StreamID>).right).toEqual(streamId)
+    const result = t.validate(te.streamIdAsString, streamId.toString())
+    expect(t.isRight(result)).toEqual(true)
+    expect((result as t.Right<StreamID>).right).toEqual(streamId)
   })
   test('decode: not ok', () => {
-    const result = te.streamIdAsString.decode('garbage')
-    expect(isRight(result)).toEqual(false)
+    const result = t.validate(te.streamIdAsString, 'garbage')
+    expect(t.isRight(result)).toEqual(false)
   })
   test('encode', () => {
     const result = te.streamIdAsString.encode(streamId)
@@ -41,15 +41,15 @@ describe('streamIdAsString', () => {
 
 describe('didString', () => {
   test('ok', () => {
-    expect(isRight(te.didString.decode('did:method:foo'))).toBeTruthy()
+    expect(t.isRight(t.validate(te.didString, 'did:method:foo'))).toBeTruthy()
   })
   test('fail', () => {
-    expect(isRight(te.didString.decode(null))).toBeFalsy()
-    expect(isRight(te.didString.decode(undefined))).toBeFalsy()
-    expect(isRight(te.didString.decode(''))).toBeFalsy()
-    expect(isRight(te.didString.decode('did:method'))).toBeFalsy()
-    expect(isRight(te.didString.decode('did:method:id#fragment'))).toBeFalsy()
-    expect(isRight(te.didString.decode('garbage'))).toBeFalsy()
+    expect(t.isRight(t.validate(te.didString, null))).toBeFalsy()
+    expect(t.isRight(t.validate(te.didString, undefined))).toBeFalsy()
+    expect(t.isRight(t.validate(te.didString, ''))).toBeFalsy()
+    expect(t.isRight(t.validate(te.didString, 'did:method'))).toBeFalsy()
+    expect(t.isRight(t.validate(te.didString, 'did:method:id#fragment'))).toBeFalsy()
+    expect(t.isRight(t.validate(te.didString, 'garbage'))).toBeFalsy()
   })
 })
 
@@ -60,21 +60,21 @@ describe('commitId', () => {
 
   test('decode: ok', () => {
     const commitId = CommitID.fromString(COMMIT_ID_STRING)
-    const result = te.commitIdAsString.decode(commitId.toString())
-    expect(isRight(result)).toBeTruthy()
-    const decoded = (result as Right<CommitID>).right
+    const result = t.validate(te.commitIdAsString, commitId.toString())
+    expect(t.isRight(result)).toBeTruthy()
+    const decoded = (result as t.Right<CommitID>).right
     expect(decoded).toBeInstanceOf(CommitID)
     expect(commitId.equals(decoded)).toBeTruthy()
   })
   test('decode: fail', () => {
     // @ts-ignore TS does not expect `null` as a parameter
-    expect(isRight(te.commitIdAsString.decode(null))).toBeFalsy()
+    expect(t.isRight(t.validate(te.commitIdAsString, null))).toBeFalsy()
     // @ts-ignore TS does not expect `undefined` as a parameter
-    expect(isRight(te.commitIdAsString.decode(undefined))).toBeFalsy()
-    expect(isRight(te.commitIdAsString.decode(''))).toBeFalsy()
-    expect(isRight(te.commitIdAsString.decode('garbage'))).toBeFalsy()
+    expect(t.isRight(t.validate(te.commitIdAsString, undefined))).toBeFalsy()
+    expect(t.isRight(t.validate(te.commitIdAsString, ''))).toBeFalsy()
+    expect(t.isRight(t.validate(te.commitIdAsString, 'garbage'))).toBeFalsy()
     // StreamID
-    expect(isRight(te.commitIdAsString.decode(STREAM_ID_STRING))).toBeFalsy()
+    expect(t.isRight(t.validate(te.commitIdAsString, STREAM_ID_STRING))).toBeFalsy()
   })
   test('encode', () => {
     const commitId = CommitID.fromString(COMMIT_ID_STRING)
@@ -88,14 +88,14 @@ describe('date', () => {
 
   describe('decode', () => {
     test('from ISO string', () => {
-      const decoded = te.date.decode(isoString)
-      expect(isRight(decoded)).toBeTruthy()
-      expect((decoded as Right<Date>).right).toEqual(now)
+      const decoded = t.validate(te.date, isoString)
+      expect(t.isRight(decoded)).toBeTruthy()
+      expect((decoded as t.Right<Date>).right).toEqual(now)
     })
     test('from JS Date', () => {
-      const decoded = te.date.decode(now)
-      expect(isRight(decoded)).toBeTruthy()
-      expect((decoded as Right<Date>).right).toEqual(now)
+      const decoded = t.validate(te.date, now)
+      expect(t.isRight(decoded)).toBeTruthy()
+      expect((decoded as t.Right<Date>).right).toEqual(now)
     })
   })
   test('encode', () => {

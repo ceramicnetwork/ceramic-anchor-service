@@ -13,9 +13,7 @@ import {
   RequestAnchorParams,
 } from '../ancillary/anchor-request-params-parser.js'
 import bodyParser from 'body-parser'
-import { isLeft } from 'fp-ts/lib/Either.js'
-import { makeErrorMessage } from '../ancillary/throw-decoder.js'
-import * as t from 'io-ts'
+import * as t from 'codeco'
 import * as te from '../ancillary/io-ts-extra.js'
 import type { RequestService } from '../services/request-service.js'
 
@@ -94,10 +92,10 @@ export class RequestController {
 
     const validation = this.anchorRequestParamsParser.parse(req)
 
-    if (isLeft(validation)) {
+    if (t.isLeft(validation)) {
       logger.err(makeErrorMessage(validation.left))
       return res.status(StatusCodes.BAD_REQUEST).json({
-        error: makeErrorMessage(validation.left),
+        error: t.report(validation).join(';'),
       })
     }
     const requestParams = validation.right
