@@ -149,7 +149,7 @@ export class RequestRepository {
         message: fields.message,
         status: fields.status,
         pinned: fields.pinned,
-        updatedAt: updatedAt.toISOString(),
+        updatedAt: te.date.encode(updatedAt),
       })
       .whereIn('id', ids)
 
