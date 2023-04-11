@@ -36,7 +36,7 @@ import { AppMode } from './app-mode.js'
 import { UnreachableCaseError } from '@ceramicnetwork/common'
 import { AnchorRequestParamsParser } from './ancillary/anchor-request-params-parser.js'
 import { HealthcheckService, IHealthcheckService } from './services/healthcheck-service.js'
-import { RequestService } from './services/request-service'
+import { RequestService } from './services/request-service.js'
 
 type DependenciesContext = {
   config: Config

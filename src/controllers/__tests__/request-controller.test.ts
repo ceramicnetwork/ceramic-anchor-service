@@ -28,7 +28,7 @@ import { MetadataRepository } from '../../repositories/metadata-repository.js'
 import { StoredMetadata } from '../../models/metadata.js'
 import { AnchorRequestParamsParser } from '../../ancillary/anchor-request-params-parser.js'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
-import { RequestService } from '../../services/request-service'
+import { RequestService } from '../../services/request-service.js'
 
 type Tokens = {
   requestController: RequestController
