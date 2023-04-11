@@ -95,12 +95,6 @@ export class AnchorRequestCarFileDecoder implements t.Decoder<Uint8Array, Reques
   }
 }
 
-export function isRequestAnchorParamsV2(
-  input: RequestAnchorParams
-): input is RequestAnchorParamsV2 {
-  return input && (input as RequestAnchorParamsV2).genesisFields != undefined
-}
-
 export class AnchorRequestParamsParser {
   readonly v2decoder = new AnchorRequestCarFileDecoder()
 

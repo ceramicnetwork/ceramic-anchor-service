@@ -29,7 +29,6 @@ import { cleanupConfigForLogging, normalizeConfig } from './normalize-config.uti
 import type { Injector } from 'typed-inject'
 import type { EventProducerService } from './services/event-producer/event-producer-service.js'
 import { RequestPresentationService } from './services/request-presentation-service.js'
-import type { IRequestPresentationService } from './services/request-presentation-service.type.js'
 import type { IMetadataService } from './services/metadata-service.js'
 import { MetadataService } from './services/metadata-service.js'
 import { MetadataRepository } from './repositories/metadata-repository.js'
@@ -37,6 +36,7 @@ import { AppMode } from './app-mode.js'
 import { UnreachableCaseError } from '@ceramicnetwork/common'
 import { AnchorRequestParamsParser } from './ancillary/anchor-request-params-parser.js'
 import { HealthcheckService, IHealthcheckService } from './services/healthcheck-service.js'
+import { RequestService } from './services/request-service.js'
 
 type DependenciesContext = {
   config: Config
@@ -52,10 +52,11 @@ type ProvidedContext = {
   eventProducerService: EventProducerService
   ipfsService: IIpfsService
   schedulerService: SchedulerService
-  requestPresentationService: IRequestPresentationService
+  requestPresentationService: RequestPresentationService
   metadataService: IMetadataService
   healthcheckService: IHealthcheckService
   anchorRequestParamsParser: AnchorRequestParamsParser
+  requestService: RequestService
 } & DependenciesContext
 
 /**
@@ -95,6 +96,7 @@ export class CeramicAnchorApp {
       .provideClass('healthcheckService', HealthcheckService)
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
+      .provideClass('requestService', RequestService)
 
     try {
       Metrics.start(

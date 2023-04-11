@@ -10,17 +10,8 @@ exports[`present by RequestStatus COMPLETED 1`] = `
       "proof": "anchor-proof-cid",
     },
   },
-  "anchorRecord": {
-    "cid": "anchor-cid",
-    "content": {
-      "path": "/some/path",
-      "prev": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
-      "proof": "anchor-proof-cid",
-    },
-  },
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
   "createdAt": 1577934240000,
-  "docId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
   "id": "889483296",
   "message": "Fresh request",
   "status": "COMPLETED",
@@ -39,17 +30,8 @@ exports[`present by RequestStatus COMPLETED but no associated anchor 1`] = `
       "proof": undefined,
     },
   },
-  "anchorRecord": {
-    "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
-    "content": {
-      "path": undefined,
-      "prev": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
-      "proof": undefined,
-    },
-  },
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
   "createdAt": 1577934240000,
-  "docId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
   "id": "889483296",
   "message": "Fresh request",
   "status": "COMPLETED",
@@ -62,7 +44,6 @@ exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY 1`] = `
 {
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
   "createdAt": 1577934240000,
-  "docId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
   "id": "889483296",
   "message": "Fresh request",
   "status": "PENDING",
@@ -75,7 +56,6 @@ exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY 2`] = `
 {
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
   "createdAt": 1577934240000,
-  "docId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
   "id": "889483296",
   "message": "Fresh request",
   "status": "PROCESSING",
@@ -88,7 +68,6 @@ exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY 3`] = `
 {
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
   "createdAt": 1577934240000,
-  "docId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
   "id": "889483296",
   "message": "Fresh request",
   "status": "FAILED",
@@ -101,7 +80,6 @@ exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY 4`] = `
 {
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
   "createdAt": 1577934240000,
-  "docId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
   "id": "889483296",
   "message": "Fresh request",
   "status": "READY",
@@ -114,7 +92,6 @@ exports[`present by RequestStatus REPLACED 1`] = `
 {
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
   "createdAt": 1577934240000,
-  "docId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
   "id": "889483296",
   "message": "Fresh request",
   "status": "FAILED",
