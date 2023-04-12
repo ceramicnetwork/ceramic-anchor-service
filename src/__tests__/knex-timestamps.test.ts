@@ -2,7 +2,7 @@ import { test, expect, beforeAll, afterAll } from '@jest/globals'
 import type { Knex } from 'knex'
 import { createDbConnection } from '../db-connection.js'
 import { isClose, randomStreamID, seconds } from './test-utils.js'
-import * as te from '../ancillary/io-ts-extra.js'
+import * as te from '../ancillary/codecs.js'
 
 let dbConnection: Knex
 
