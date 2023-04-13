@@ -31,7 +31,6 @@ export const RequestCodec = sparse({
   message: string,
   pinned: boolean,
   timestamp: date,
-  // optional
   createdAt: optional(date),
   updatedAt: optional(date),
   origin: optional(string),
