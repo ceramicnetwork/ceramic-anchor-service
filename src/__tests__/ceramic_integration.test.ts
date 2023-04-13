@@ -33,7 +33,7 @@ import { filter } from 'rxjs/operators'
 import { firstValueFrom, timeout, throwError } from 'rxjs'
 import { DID } from 'dids'
 import { Ed25519Provider } from 'key-did-provider-ed25519'
-import * as random from '@stablelib/random'
+import { randomBytes } from '@stablelib/random'
 import * as KeyDidResolver from 'key-did-resolver'
 import { Utils } from '../utils.js'
 import { RequestStatus } from '../models/request.js'
@@ -90,7 +90,7 @@ async function makeCeramicCore(
     anchorServiceUrl,
     // TODO CDB-2317 Remove `indexing` config when Ceramic Core allows that
     indexing: {
-      db: "TODO",
+      db: 'TODO',
       allowQueriesBeforeHistoricalSync: false,
       disableComposedb: true,
       enableHistoricalSync: false,
@@ -103,7 +103,7 @@ async function makeCeramicCore(
 }
 
 function makeDID(): DID {
-  const seed = random.randomBytes(32)
+  const seed = randomBytes(32)
   const provider = new Ed25519Provider(seed)
   const resolver = KeyDidResolver.getResolver()
   return new DID({ provider, resolver })

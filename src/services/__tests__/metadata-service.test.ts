@@ -15,7 +15,7 @@ import { IpfsGenesis, MetadataService } from '../metadata-service.js'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import { MetadataRepository } from '../../repositories/metadata-repository.js'
 import cloneDeep from 'lodash.clonedeep'
-import * as t from 'codeco'
+import { decode } from 'codeco'
 
 const SCHEMA_COMMIT_ID = CommitID.fromString(
   'k1dpgaqe3i64kjqcp801r3sn7ysi5i0k7nxvs7j351s7kewfzr3l7mdxnj7szwo4kr9mn2qki5nnj0cv836ythy1t1gya9s25cn1nexst3jxi5o3h6qprfyju'
@@ -64,7 +64,7 @@ async function putGenesisHeader(payload: object): Promise<StreamID> {
 test('strip extra fields when decoding IPFS record', () => {
   const record = cloneDeep({ header: { ...HEADER_RECORD, extra: 33 }, extra: 42 })
   expect(record.extra).toBeDefined() // Original record has `extra`
-  const decoded = t.decode(IpfsGenesis, record)
+  const decoded = decode(IpfsGenesis, record)
   expect('extra' in decoded).toBeFalsy() // No `extra` after decoding
   expect('extra' in decoded.header).toBeFalsy() // No `extra` after decoding
 })

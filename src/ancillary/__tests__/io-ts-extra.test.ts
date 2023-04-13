@@ -1,23 +1,23 @@
 import { describe, test, expect } from '@jest/globals'
-import * as te from '../codecs.js'
-import * as t from 'codeco'
 import { randomCID, randomStreamID } from '../../__tests__/test-utils.js'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
-import { CID } from 'multiformats/cid'
+import type { CID } from 'multiformats/cid'
+import { validate, isRight, type Right } from 'codeco'
+import { cidAsString, commitIdAsString, date, didString, streamIdAsString } from '../codecs.js'
 
 describe('cidAsString', () => {
   const cid = randomCID()
   test('decode: ok', () => {
-    const result = t.validate(te.cidAsString, cid.toString())
-    expect(t.isRight(result)).toEqual(true)
-    expect((result as t.Right<CID>).right).toEqual(cid)
+    const result = validate(cidAsString, cid.toString())
+    expect(isRight(result)).toEqual(true)
+    expect((result as Right<CID>).right).toEqual(cid)
   })
   test('decode: not ok', () => {
-    const result = t.validate(te.cidAsString, 'garbage')
-    expect(t.isRight(result)).toEqual(false)
+    const result = validate(cidAsString, 'garbage')
+    expect(isRight(result)).toEqual(false)
   })
   test('encode', () => {
-    const result = te.cidAsString.encode(cid)
+    const result = cidAsString.encode(cid)
     expect(result).toEqual(cid.toString())
   })
 })
@@ -25,31 +25,31 @@ describe('cidAsString', () => {
 describe('streamIdAsString', () => {
   const streamId = randomStreamID()
   test('decode: ok', () => {
-    const result = t.validate(te.streamIdAsString, streamId.toString())
-    expect(t.isRight(result)).toEqual(true)
-    expect((result as t.Right<StreamID>).right).toEqual(streamId)
+    const result = validate(streamIdAsString, streamId.toString())
+    expect(isRight(result)).toEqual(true)
+    expect((result as Right<StreamID>).right).toEqual(streamId)
   })
   test('decode: not ok', () => {
-    const result = t.validate(te.streamIdAsString, 'garbage')
-    expect(t.isRight(result)).toEqual(false)
+    const result = validate(streamIdAsString, 'garbage')
+    expect(isRight(result)).toEqual(false)
   })
   test('encode', () => {
-    const result = te.streamIdAsString.encode(streamId)
+    const result = streamIdAsString.encode(streamId)
     expect(result).toEqual(streamId.toString())
   })
 })
 
 describe('didString', () => {
   test('ok', () => {
-    expect(t.isRight(t.validate(te.didString, 'did:method:foo'))).toBeTruthy()
+    expect(isRight(validate(didString, 'did:method:foo'))).toBeTruthy()
   })
   test('fail', () => {
-    expect(t.isRight(t.validate(te.didString, null))).toBeFalsy()
-    expect(t.isRight(t.validate(te.didString, undefined))).toBeFalsy()
-    expect(t.isRight(t.validate(te.didString, ''))).toBeFalsy()
-    expect(t.isRight(t.validate(te.didString, 'did:method'))).toBeFalsy()
-    expect(t.isRight(t.validate(te.didString, 'did:method:id#fragment'))).toBeFalsy()
-    expect(t.isRight(t.validate(te.didString, 'garbage'))).toBeFalsy()
+    expect(isRight(validate(didString, null))).toBeFalsy()
+    expect(isRight(validate(didString, undefined))).toBeFalsy()
+    expect(isRight(validate(didString, ''))).toBeFalsy()
+    expect(isRight(validate(didString, 'did:method'))).toBeFalsy()
+    expect(isRight(validate(didString, 'did:method:id#fragment'))).toBeFalsy()
+    expect(isRight(validate(didString, 'garbage'))).toBeFalsy()
   })
 })
 
@@ -60,25 +60,25 @@ describe('commitId', () => {
 
   test('decode: ok', () => {
     const commitId = CommitID.fromString(COMMIT_ID_STRING)
-    const result = t.validate(te.commitIdAsString, commitId.toString())
-    expect(t.isRight(result)).toBeTruthy()
-    const decoded = (result as t.Right<CommitID>).right
+    const result = validate(commitIdAsString, commitId.toString())
+    expect(isRight(result)).toBeTruthy()
+    const decoded = (result as Right<CommitID>).right
     expect(decoded).toBeInstanceOf(CommitID)
     expect(commitId.equals(decoded)).toBeTruthy()
   })
   test('decode: fail', () => {
     // @ts-ignore TS does not expect `null` as a parameter
-    expect(t.isRight(t.validate(te.commitIdAsString, null))).toBeFalsy()
+    expect(isRight(validate(commitIdAsString, null))).toBeFalsy()
     // @ts-ignore TS does not expect `undefined` as a parameter
-    expect(t.isRight(t.validate(te.commitIdAsString, undefined))).toBeFalsy()
-    expect(t.isRight(t.validate(te.commitIdAsString, ''))).toBeFalsy()
-    expect(t.isRight(t.validate(te.commitIdAsString, 'garbage'))).toBeFalsy()
+    expect(isRight(validate(commitIdAsString, undefined))).toBeFalsy()
+    expect(isRight(validate(commitIdAsString, ''))).toBeFalsy()
+    expect(isRight(validate(commitIdAsString, 'garbage'))).toBeFalsy()
     // StreamID
-    expect(t.isRight(t.validate(te.commitIdAsString, STREAM_ID_STRING))).toBeFalsy()
+    expect(isRight(validate(commitIdAsString, STREAM_ID_STRING))).toBeFalsy()
   })
   test('encode', () => {
     const commitId = CommitID.fromString(COMMIT_ID_STRING)
-    expect(te.commitIdAsString.encode(commitId)).toEqual(COMMIT_ID_STRING)
+    expect(commitIdAsString.encode(commitId)).toEqual(COMMIT_ID_STRING)
   })
 })
 
@@ -88,17 +88,17 @@ describe('date', () => {
 
   describe('decode', () => {
     test('from ISO string', () => {
-      const decoded = t.validate(te.date, isoString)
-      expect(t.isRight(decoded)).toBeTruthy()
-      expect((decoded as t.Right<Date>).right).toEqual(now)
+      const decoded = validate(date, isoString)
+      expect(isRight(decoded)).toBeTruthy()
+      expect((decoded as Right<Date>).right).toEqual(now)
     })
     test('from JS Date', () => {
-      const decoded = t.validate(te.date, now)
-      expect(t.isRight(decoded)).toBeTruthy()
-      expect((decoded as t.Right<Date>).right).toEqual(now)
+      const decoded = validate(date, now)
+      expect(isRight(decoded)).toBeTruthy()
+      expect((decoded as Right<Date>).right).toEqual(now)
     })
   })
   test('encode', () => {
-    expect(te.date.encode(now)).toEqual(isoString)
+    expect(date.encode(now)).toEqual(isoString)
   })
 })

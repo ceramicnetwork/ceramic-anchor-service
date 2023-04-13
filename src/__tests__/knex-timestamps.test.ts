@@ -2,7 +2,7 @@ import { test, expect, beforeAll, afterAll } from '@jest/globals'
 import type { Knex } from 'knex'
 import { createDbConnection } from '../db-connection.js'
 import { isClose, randomStreamID, seconds } from './test-utils.js'
-import * as te from '../ancillary/codecs.js'
+import { date } from '../ancillary/codecs.js'
 
 let dbConnection: Knex
 
@@ -42,9 +42,9 @@ test('JS-to-PG conversion ignores timezone', async () => {
     .insert({
       streamId: randomStreamID().toString(),
       metadata: {},
-      usedAt: te.date.encode(withTimezone),
+      usedAt: date.encode(withTimezone),
     })
     .returning('usedAt')
     .then((rows) => rows[0].usedAt as Date)
-  expect(te.date.encode(pgTimestamp1)).toEqual('2023-01-01T19:04:05.678Z')
+  expect(date.encode(pgTimestamp1)).toEqual('2023-01-01T19:04:05.678Z')
 })

@@ -1,9 +1,9 @@
 import type { Knex } from 'knex'
 import { MetadataInput, StoredMetadata } from '../models/metadata.js'
 import type { StreamID } from '@ceramicnetwork/streamid'
-import * as t from 'codeco'
-import * as te from '../ancillary/codecs.js'
 import { parseCountResult } from './parse-count-result.util.js'
+import { decode } from 'codeco'
+import { date, streamIdAsString } from '../ancillary/codecs.js'
 
 /**
  * Public interface for MetadataRepository.
@@ -57,7 +57,7 @@ export class MetadataRepository implements IMetadataRepository {
   async isPresent(streamId: StreamID): Promise<boolean> {
     const result = await this.table
       .select<{ count: number | string }>(this.connection.raw(`COUNT(*)`))
-      .where({ streamId: te.streamIdAsString.encode(streamId) })
+      .where({ streamId: streamIdAsString.encode(streamId) })
       .first()
     return parseCountResult(result?.count) > 0
   }
@@ -68,7 +68,7 @@ export class MetadataRepository implements IMetadataRepository {
   async retrieve(streamId: StreamID): Promise<StoredMetadata | undefined> {
     const rows = await this.table.where({ streamId: streamId.toString() }).limit(1)
     if (rows[0]) {
-      return t.decode(StoredMetadata, rows[0])
+      return decode(StoredMetadata, rows[0])
     } else {
       return undefined
     }
@@ -87,8 +87,8 @@ export class MetadataRepository implements IMetadataRepository {
    */
   async touch(streamId: StreamID, now: Date = new Date()): Promise<boolean> {
     const rowsTouched = await this.table
-      .where({ streamId: te.streamIdAsString.encode(streamId) })
-      .update({ usedAt: te.date.encode(now) })
+      .where({ streamId: streamIdAsString.encode(streamId) })
+      .update({ usedAt: date.encode(now) })
     return rowsTouched > 0
   }
 }

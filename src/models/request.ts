@@ -1,5 +1,5 @@
-import * as t from 'codeco'
-import * as te from '../ancillary/codecs.js'
+import { boolean, number, optional, sparse, string } from 'codeco'
+import { date, enumCodec } from '../ancillary/codecs.js'
 
 export enum RequestStatus {
   PENDING = 0,
@@ -23,18 +23,18 @@ export type IDBRequest = {
   origin?: string
 }
 
-export const RequestCodec = t.sparse({
-  id: t.number,
-  status: te.enum('RequestStatus', RequestStatus),
-  cid: t.string,
-  streamId: t.string,
-  message: t.string,
-  pinned: t.boolean,
-  timestamp: te.date,
+export const RequestCodec = sparse({
+  id: number,
+  status: enumCodec('RequestStatus', RequestStatus),
+  cid: string,
+  streamId: string,
+  message: string,
+  pinned: boolean,
+  timestamp: date,
   // optional
-  createdAt: t.optional(te.date),
-  updatedAt: t.optional(te.date),
-  origin: t.optional(t.string),
+  createdAt: optional(date),
+  updatedAt: optional(date),
+  origin: optional(string),
 })
 export const DATABASE_FIELDS: Array<string> = Object.keys(RequestCodec.props)
 
@@ -81,9 +81,9 @@ export class Request {
       streamId: this.streamId.toString(),
       message: this.message,
       pinned: this.pinned,
-      createdAt: this.createdAt ? te.date.encode(this.createdAt) : undefined,
-      updatedAt: this.updatedAt ? te.date.encode(this.updatedAt) : undefined,
-      timestamp: this.timestamp ? te.date.encode(this.timestamp) : undefined,
+      createdAt: this.createdAt ? date.encode(this.createdAt) : undefined,
+      updatedAt: this.updatedAt ? date.encode(this.updatedAt) : undefined,
+      timestamp: this.timestamp ? date.encode(this.timestamp) : undefined,
       origin: this.origin,
     }
   }

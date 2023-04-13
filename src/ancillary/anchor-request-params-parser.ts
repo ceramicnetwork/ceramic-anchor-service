@@ -4,28 +4,40 @@ import type { StreamID } from '@ceramicnetwork/streamid'
 import { CARFactory, type CAR } from 'cartonne'
 import * as DAG_JOSE from 'dag-jose'
 import { GenesisFields } from '../models/metadata.js'
-import * as t from 'codeco'
-import * as te from './codecs.js'
 import { IpfsGenesis } from '../services/metadata-service.js'
+import { cid, cidAsString, date, streamIdAsBytes, streamIdAsString, uint8array } from './codecs.js'
+import {
+  optional,
+  sparse,
+  string,
+  strict,
+  isLeft,
+  decode,
+  validate,
+  type TypeOf,
+  type Decoder,
+  type Validation,
+  type IContext,
+} from 'codeco'
 
 const carFactory = new CARFactory()
 carFactory.codecs.add(DAG_JOSE)
 
-export const RequestAnchorParamsV1 = t.sparse(
+export const RequestAnchorParamsV1 = sparse(
   {
-    streamId: t.string.pipe(te.streamIdAsString),
-    cid: t.string.pipe(te.cidAsString),
-    timestamp: t.optional(te.date),
+    streamId: string.pipe(streamIdAsString),
+    cid: string.pipe(cidAsString),
+    timestamp: optional(date),
   },
   'RequestAnchorParamsV1'
 )
 
-type RequestAnchorParamsV1 = t.TypeOf<typeof RequestAnchorParamsV1>
+type RequestAnchorParamsV1 = TypeOf<typeof RequestAnchorParamsV1>
 
-const RequestAnchorParamsV2Root = t.type({
-  streamId: te.uint8array.pipe(te.streamIdAsBytes),
-  timestamp: te.date,
-  tip: te.cid,
+const RequestAnchorParamsV2Root = strict({
+  streamId: uint8array.pipe(streamIdAsBytes),
+  timestamp: date,
+  tip: cid,
 })
 
 export type RequestAnchorParamsV2 = {
@@ -40,10 +52,10 @@ export type RequestAnchorParams = RequestAnchorParamsV1 | RequestAnchorParamsV2
 const DAG_JOSE_CODE = 133
 const DAG_CBOR_CODE = 113
 
-export class AnchorRequestCarFileDecoder implements t.Decoder<Uint8Array, RequestAnchorParamsV2> {
+export class AnchorRequestCarFileDecoder implements Decoder<Uint8Array, RequestAnchorParamsV2> {
   readonly name = 'RequestAnchorParamsV2'
 
-  decode(bytes: Uint8Array, context: t.IContext): t.Validation<RequestAnchorParamsV2> {
+  decode(bytes: Uint8Array, context: IContext): Validation<RequestAnchorParamsV2> {
     try {
       const carFile = carFactory.fromBytes(bytes)
       const rootCid = carFile.roots[0]
@@ -51,11 +63,11 @@ export class AnchorRequestCarFileDecoder implements t.Decoder<Uint8Array, Reques
       const rootRecord = carFile.get(rootCid)
       if (!rootRecord) return context.failure(`Can not get root record by cid ${rootCid}`)
       const rootE = RequestAnchorParamsV2Root.decode(rootRecord, context)
-      if (t.isLeft(rootE)) return context.failures(rootE.left)
+      if (isLeft(rootE)) return context.failures(rootE.left)
       const root = rootE.right
       const genesisCid = root.streamId.cid
       const maybeGenesisRecord = this.retrieveGenesisRecord(genesisCid, carFile)
-      const genesisRecord = t.decode(IpfsGenesis, maybeGenesisRecord)
+      const genesisRecord = decode(IpfsGenesis, maybeGenesisRecord)
       const genesisFields = genesisRecord.header
 
       return context.success({
@@ -87,15 +99,15 @@ export class AnchorRequestCarFileDecoder implements t.Decoder<Uint8Array, Reques
 export class AnchorRequestParamsParser {
   readonly v2decoder = new AnchorRequestCarFileDecoder()
 
-  parse(req: ExpReq): t.Validation<RequestAnchorParams> {
+  parse(req: ExpReq): Validation<RequestAnchorParams> {
     if (req.get('Content-Type') !== 'application/vnd.ipld.car') {
       // Legacy requests
-      return t.validate(RequestAnchorParamsV1, req.body)
+      return validate(RequestAnchorParamsV1, req.body)
     } else {
       // Next version of anchor requests, using the CAR file format
       // TODO: CDB-2212 Store the car file somewhere for future reference/validation of signatures
       // (as it also includes the tip commit and optionally CACAO for the tip commit)
-      return t.validate(this.v2decoder, req.body)
+      return validate(this.v2decoder, req.body)
     }
   }
 }

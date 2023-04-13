@@ -13,9 +13,9 @@ import {
   RequestAnchorParams,
 } from '../ancillary/anchor-request-params-parser.js'
 import bodyParser from 'body-parser'
-import * as t from 'codeco'
-import * as te from '../ancillary/codecs.js'
 import type { RequestService } from '../services/request-service.js'
+import { cidAsString } from '../ancillary/codecs.js'
+import { isLeft, report, string, strict, validate } from 'codeco'
 
 /*
  * Get origin from a request from `did` header.
@@ -43,11 +43,9 @@ function parseOrigin(req: ExpReq): string {
   return addressesSplit[0].trim()
 }
 
-const GetStatusParams = t.exact(
-  t.type({
-    cid: t.string.pipe(te.cidAsString),
-  })
-)
+const GetStatusParams = strict({
+  cid: string.pipe(cidAsString),
+})
 
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
@@ -61,9 +59,9 @@ export class RequestController {
 
   @Get(':cid')
   async getStatusForCid(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
-    const paramsE = t.validate(GetStatusParams, req.params)
-    if (t.isLeft(paramsE)) {
-      logger.err(t.report(paramsE).join(';'))
+    const paramsE = validate(GetStatusParams, req.params)
+    if (isLeft(paramsE)) {
+      logger.err(report(paramsE).join(';'))
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: 'CID is empty or malformed',
       })
@@ -92,8 +90,8 @@ export class RequestController {
 
     const validation = this.anchorRequestParamsParser.parse(req)
 
-    if (t.isLeft(validation)) {
-      const errorMessage = t.report(validation).join(';')
+    if (isLeft(validation)) {
+      const errorMessage = report(validation).join(';')
       logger.err(errorMessage)
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: errorMessage,
