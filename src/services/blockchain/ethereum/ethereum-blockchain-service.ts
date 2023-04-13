@@ -154,7 +154,7 @@ function make(config: Config): EthereumBlockchainService {
       provider = new ethers.JsonRpcProvider(hostPort)
     }
   } else if (network) {
-    logger.imp(`Connecting ethereum to default provider for network ${ethereum.network}`)
+    logger.imp(`Connecting ethereum to etherscan provider for network ${ethereum.network}`)
     const opts = {
       alchemy: "-",
       ankr: "-",
