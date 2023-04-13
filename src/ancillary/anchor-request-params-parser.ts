@@ -17,7 +17,7 @@ import {
   type TypeOf,
   type Decoder,
   type Validation,
-  type IContext,
+  type Context,
 } from 'codeco'
 
 const carFactory = new CARFactory()
@@ -55,7 +55,7 @@ const DAG_CBOR_CODE = 113
 export class AnchorRequestCarFileDecoder implements Decoder<Uint8Array, RequestAnchorParamsV2> {
   readonly name = 'RequestAnchorParamsV2'
 
-  decode(bytes: Uint8Array, context: IContext): Validation<RequestAnchorParamsV2> {
+  decode(bytes: Uint8Array, context: Context): Validation<RequestAnchorParamsV2> {
     try {
       const carFile = carFactory.fromBytes(bytes)
       const rootCid = carFile.roots[0]

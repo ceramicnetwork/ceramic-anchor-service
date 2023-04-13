@@ -2,7 +2,7 @@ import { CID } from 'multiformats/cid'
 import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import * as uint8arrays from 'uint8arrays'
 import { isDIDString } from './did-string.js'
-import { array, IContext, identity, refinement, string, TrivialCodec, Type } from 'codeco'
+import { array, Context, identity, refinement, string, TrivialCodec, Type } from 'codeco'
 
 /**
  * codeco codec for JS `Uint8Array`.
@@ -18,7 +18,7 @@ export const uint8array = new TrivialCodec(
 export const uint8ArrayAsBase64 = new Type<Uint8Array, string, string>(
   'Uint8Array-as-base64',
   (input: unknown): input is Uint8Array => input instanceof Uint8Array,
-  (input: string, context: IContext) => {
+  (input: string, context: Context) => {
     try {
       return context.success(uint8arrays.fromString(input, 'base64'))
     } catch {
@@ -40,7 +40,7 @@ export const cid = new Type<CID, CID, unknown>(
       return false
     }
   },
-  (input: unknown, context: IContext) => {
+  (input: unknown, context: Context) => {
     try {
       const cid = CID.asCID(input)
       if (!cid) return context.failure(`Value ${cid} can not be accepted as CID`)
@@ -64,7 +64,7 @@ export const cidAsString = new Type<CID, string, string>(
       return false
     }
   },
-  (input: string, context: IContext) => {
+  (input: string, context: Context) => {
     try {
       const cid = CID.parse(input)
       return context.success(cid)
@@ -81,7 +81,7 @@ export const cidAsString = new Type<CID, string, string>(
 export const streamIdAsString = new Type<StreamID, string, string>(
   'StreamID-as-string',
   (input: unknown): input is StreamID => StreamID.isInstance(input),
-  (input: string, context: IContext) => {
+  (input: string, context: Context) => {
     try {
       return context.success(StreamID.fromString(input))
     } catch {
@@ -99,7 +99,7 @@ export const streamIdAsString = new Type<StreamID, string, string>(
 export const streamIdAsBytes = new Type<StreamID, Uint8Array, Uint8Array>(
   'StreamID-as-bytes',
   (input: unknown): input is StreamID => StreamID.isInstance(input),
-  (input: Uint8Array, context: IContext) => {
+  (input: Uint8Array, context: Context) => {
     try {
       return context.success(StreamID.fromBytes(input))
     } catch {
@@ -115,7 +115,7 @@ export const streamIdAsBytes = new Type<StreamID, Uint8Array, Uint8Array>(
 export const commitIdAsString = new Type<CommitID, string, string>(
   'CommitID-as-string',
   (input: unknown): input is CommitID => CommitID.isInstance(input),
-  (input: string, context: IContext) => {
+  (input: string, context: Context) => {
     try {
       return context.success(CommitID.fromString(input))
     } catch {
@@ -131,7 +131,7 @@ export const commitIdAsString = new Type<CommitID, string, string>(
 export const date = new Type<Date, string, unknown>(
   'Date-as-ISOString',
   (input: unknown): input is Date => input instanceof Date,
-  function (this: Type<Date>, input: unknown, context: IContext) {
+  function (this: Type<Date>, input: unknown, context: Context) {
     if (this.is(input)) return context.success(input)
     if (typeof input === 'string') {
       const parsed = new Date(input)
