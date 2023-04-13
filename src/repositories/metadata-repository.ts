@@ -47,7 +47,6 @@ export class MetadataRepository implements IMetadataRepository {
    * Store metadata entry to the database.
    */
   async save(entry: MetadataInput): Promise<void> {
-    console.log('save', entry, MetadataInput.encode(entry))
     await this.table.insert(MetadataInput.encode(entry)).onConflict().ignore()
   }
 
