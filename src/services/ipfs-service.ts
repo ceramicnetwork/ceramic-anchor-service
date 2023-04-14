@@ -1,5 +1,5 @@
 import type { CID } from 'multiformats/cid'
-import LRUCache from 'lru-cache'
+import { LRUCache } from 'lru-cache'
 import { create as createIpfsClient } from 'ipfs-http-client'
 import type { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
@@ -84,16 +84,14 @@ export class IpfsService implements IIpfsService {
     while (retryTimes > 0) {
       try {
         const found = this.cache.get(cacheKey)
-        if (found) {
-          return found
-        }
-        const record = await this.semaphore.use(async () => {
-          return this.ipfs.dag.get(toCID(cid), {
+        if (found) return found
+        const record = await this.semaphore.use(() =>
+          this.ipfs.dag.get(toCID(cid), {
             path: options.path,
             timeout: IPFS_GET_TIMEOUT,
             signal: options.signal,
           })
-        })
+        )
         const value = record.value
         logger.debug(`Successfully retrieved ${cacheKey}`)
         this.cache.set(cacheKey, value)

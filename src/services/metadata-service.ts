@@ -3,7 +3,7 @@ import type { IIpfsService, RetrieveRecordOptions } from './ipfs-service.type.js
 import type { GenesisFields, StoredMetadata } from '../models/metadata.js'
 import type { IMetadataRepository } from '../repositories/metadata-repository.js'
 import type { AbortOptions } from './abort-options.type.js'
-import { IsExact, assert } from 'conditional-type-checks'
+import { assert, type IsExact } from 'conditional-type-checks'
 import { logger } from '../logger/index.js'
 import { strict, array, exact, optional, sparse, string, decode, type TypeOf } from 'codeco'
 import { commitIdAsString, controllers, streamIdAsBytes, uint8array } from '../ancillary/codecs.js'
