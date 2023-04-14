@@ -7,8 +7,8 @@ import type { IPFS } from 'ipfs-core-types'
 import { AnchorCommit, toCID } from '@ceramicnetwork/common'
 import type { StreamID } from '@ceramicnetwork/streamid'
 import { Utils } from '../utils.js'
-import * as http from 'http'
-import * as https from 'https'
+import { Agent as HttpAgent } from 'http'
+import { Agent as HttpsAgent } from 'https'
 import { PubsubMessage } from '@ceramicnetwork/core'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
@@ -25,15 +25,15 @@ export const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
 const PUBSUB_DELAY = 100
 const DEFAULT_CONCURRENT_GET_LIMIT = 100
 
-function buildHttpAgent(endpoint: string | undefined): http.Agent {
+function buildHttpAgent(endpoint: string | undefined): HttpAgent {
   const agentOptions = {
     keepAlive: false,
     maxSockets: Infinity,
   }
   if (endpoint?.startsWith('https')) {
-    return new https.Agent(agentOptions)
+    return new HttpsAgent(agentOptions)
   } else {
-    return new http.Agent(agentOptions)
+    return new HttpAgent(agentOptions)
   }
 }
 
