@@ -13,11 +13,9 @@ import {
   RequestAnchorParams,
 } from '../ancillary/anchor-request-params-parser.js'
 import bodyParser from 'body-parser'
-import { isLeft } from 'fp-ts/lib/Either.js'
-import { makeErrorMessage } from '../ancillary/throw-decoder.js'
-import * as t from 'io-ts'
-import * as te from '../ancillary/io-ts-extra.js'
 import type { RequestService } from '../services/request-service.js'
+import { cidAsString } from '../ancillary/codecs.js'
+import { isLeft, report, string, strict, validate } from 'codeco'
 
 /*
  * Get origin from a request from `did` header.
@@ -45,11 +43,9 @@ function parseOrigin(req: ExpReq): string {
   return addressesSplit[0].trim()
 }
 
-const GetStatusParams = t.exact(
-  t.type({
-    cid: t.string.pipe(te.cidAsString),
-  })
-)
+const GetStatusParams = strict({
+  cid: string.pipe(cidAsString),
+})
 
 @Controller('api/v0/requests')
 @ClassMiddleware([cors()])
@@ -63,9 +59,9 @@ export class RequestController {
 
   @Get(':cid')
   async getStatusForCid(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
-    const paramsE = GetStatusParams.decode(req.params)
+    const paramsE = validate(GetStatusParams, req.params)
     if (isLeft(paramsE)) {
-      logger.err(makeErrorMessage(paramsE.left))
+      logger.err(report(paramsE).join(';'))
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: 'CID is empty or malformed',
       })
@@ -95,9 +91,10 @@ export class RequestController {
     const validation = this.anchorRequestParamsParser.parse(req)
 
     if (isLeft(validation)) {
-      logger.err(makeErrorMessage(validation.left))
+      const errorMessage = report(validation).join(';')
+      logger.err(errorMessage)
       return res.status(StatusCodes.BAD_REQUEST).json({
-        error: makeErrorMessage(validation.left),
+        error: errorMessage,
       })
     }
     const requestParams = validation.right
