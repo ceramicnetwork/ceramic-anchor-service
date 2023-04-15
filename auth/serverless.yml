@@ -72,6 +72,8 @@ functions:
       DB_CONFIG_TABLE_NAME: ${construct:configDb.tableName}
       DB_DID_TABLE_NAME: ${construct:didDb.tableName}
       DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
+      METRIC_BASE_NAME: ${env:CAS_AUTH_METRIC_BASE_NAME}
+      METRIC_NAMESPACE: ${env:CAS_AUTH_METRIC_NAMESPACE}
       TESTING: ${env:TESTING}
   authorizer:
     handler: src/authorizers/default.handler
@@ -83,6 +85,8 @@ functions:
       DB_CONFIG_TABLE_NAME: ${construct:configDb.tableName}
       DB_DID_TABLE_NAME: ${construct:didDb.tableName}
       DB_OTP_TABLE_NAME: ${construct:otpDb.tableName}
+      METRIC_BASE_NAME: ${env:CAS_AUTH_METRIC_BASE_NAME}
+      METRIC_NAMESPACE: ${env:CAS_AUTH_METRIC_NAMESPACE}
       TESTING: ${env:TESTING}
 resources:
   Resources:
