@@ -23,6 +23,7 @@ export class CeramicAnchorServer extends Server {
       this.app.use(auth)
     }
     this.addControllers(controllers)
+    // add error handling middleware here
   }
 
   /**
