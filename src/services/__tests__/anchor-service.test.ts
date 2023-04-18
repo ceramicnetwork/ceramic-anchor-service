@@ -806,7 +806,7 @@ const FAKE_TRANSACTION = new Transaction(
   CHAIN_ID,
   'impossible',
   1,
-  new Date(2000, 1, 1, 1, 1, 1, 0)
+  new Date(Date.UTC(2000, 1, 1, 1, 1, 1, 0))
 )
 
 class FakeTransactionEthereumBlockchainService implements BlockchainService {
@@ -900,7 +900,7 @@ describe('anchor service with fake transaction', () => {
       expect.objectContaining({
         chainId: FAKE_TRANSACTION.chain,
         blockNumber: FAKE_TRANSACTION.blockNumber,
-        blockTimestamp: 949392061000,
+        blockTimestamp: 949366861000,
       })
     )
 
