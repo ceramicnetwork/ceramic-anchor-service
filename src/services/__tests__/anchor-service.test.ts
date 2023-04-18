@@ -25,7 +25,7 @@ import { Utils } from '../../utils.js'
 import { validate as validateUUID } from 'uuid'
 import { TransactionRepository } from '../../repositories/transaction-repository.js'
 import type { BlockchainService } from '../blockchain/blockchain-service'
-import type { Transaction } from '../../models/transaction.js'
+import { Transaction } from '../../models/transaction.js'
 import { createInjector, Injector } from 'typed-inject'
 import { MetadataRepository } from '../../repositories/metadata-repository.js'
 import { randomString } from '@stablelib/random'
@@ -43,8 +43,10 @@ export class MockEventProducerService implements EventProducerService {
   }
 }
 
+const CHAIN_ID = 'impossible'
+
 class FakeEthereumBlockchainService implements BlockchainService {
-  chainId = 'impossible'
+  chainId = CHAIN_ID
 
   connect(): Promise<void> {
     throw new Error(`Failed to connect`)
@@ -797,5 +799,150 @@ describe('anchor service', () => {
       expect(updatedRequestsCount).toEqual(0)
       expect(emitSpy).not.toBeCalled()
     })
+  })
+})
+
+const FAKE_TRANSACTION = new Transaction(
+  CHAIN_ID,
+  'impossible',
+  1,
+  new Date(2000, 1, 1, 1, 1, 1, 0)
+)
+
+class FakeTransactionEthereumBlockchainService implements BlockchainService {
+  chainId = CHAIN_ID
+
+  connect(): Promise<void> {
+    return Promise.resolve()
+  }
+
+  sendTransaction(): Promise<Transaction> {
+    return Promise.resolve(FAKE_TRANSACTION)
+  }
+}
+
+describe('anchor service with fake transaction', () => {
+  jest.setTimeout(10000)
+  let ipfsService: IIpfsService
+  let metadataService: IMetadataService
+  let connection: Knex
+  let injector: Injector<Context>
+  let requestRepository: RequestRepository
+  let anchorService: AnchorService
+
+  beforeAll(async () => {
+    connection = await createDbConnection()
+    injector = createInjector()
+      .provideValue('dbConnection', connection)
+      .provideValue(
+        'config',
+        Object.assign({}, config, {
+          merkleDepthLimit: MERKLE_DEPTH_LIMIT,
+          minStreamCount: MIN_STREAM_COUNT,
+          readyRetryIntervalMS: READY_RETRY_INTERVAL_MS,
+        })
+      )
+      .provideClass('anchorRepository', AnchorRepository)
+      .provideClass('metadataRepository', MetadataRepository)
+      .provideFactory('requestRepository', RequestRepository.make)
+      .provideClass('transactionRepository', TransactionRepository)
+      .provideClass('blockchainService', FakeTransactionEthereumBlockchainService)
+      .provideClass('ipfsService', MockIpfsService)
+      .provideClass('eventProducerService', MockEventProducerService)
+      .provideClass('metadataService', MetadataService)
+      .provideClass('anchorService', AnchorService)
+
+    ipfsService = injector.resolve('ipfsService')
+    await ipfsService.init()
+    requestRepository = injector.resolve('requestRepository')
+    anchorService = injector.resolve('anchorService')
+    metadataService = injector.resolve('metadataService')
+  })
+
+  beforeEach(async () => {
+    await clearTables(connection)
+    jest.restoreAllMocks()
+    await requestRepository.table.delete()
+  })
+
+  afterAll(async () => {
+    await connection.destroy()
+  })
+
+  test('create anchor records', async () => {
+    // Create pending requests
+    const requests: Request[] = []
+    const numRequests = 4
+    for (let i = 0; i < numRequests; i++) {
+      const genesisCID = await ipfsService.storeRecord({
+        header: {
+          controllers: [`did:method:${randomString(32)}`],
+        },
+      })
+      const streamId = new StreamID(1, genesisCID)
+      await metadataService.fillFromIpfs(streamId)
+      const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
+      requests.push(request)
+    }
+    requests.sort(function (a, b) {
+      return a.streamId.localeCompare(b.streamId)
+    })
+
+    await requestRepository.findAndMarkReady(0)
+
+    const storeSpy = jest.spyOn(ipfsService, 'storeRecord')
+
+    await anchorService.anchorRequests()
+
+    expect(storeSpy).toBeCalledTimes(9)
+    expect(storeSpy).nthCalledWith(
+      5,
+      expect.objectContaining({
+        chainId: FAKE_TRANSACTION.chain,
+        blockNumber: FAKE_TRANSACTION.blockNumber,
+        blockTimestamp: 949392061000,
+      })
+    )
+
+    const publishSpy = jest.spyOn(ipfsService, 'publishAnchorCommit')
+    const [candidates] = await anchorService._findCandidates(requests, 0)
+    const merkleTree = await anchorService._buildMerkleTree(candidates)
+    const ipfsProofCid = await ipfsService.storeRecord({})
+
+    const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree)
+
+    expect(candidates.length).toEqual(requests.length)
+    expect(anchors.length).toEqual(candidates.length)
+
+    expect(publishSpy).toBeCalledTimes(anchors.length)
+
+    // All requests are anchored, in a different order because of IpfsLeafCompare
+    expect(anchors.map((a) => a.requestId).sort()).toEqual(requests.map((r) => r.id).sort())
+    for (const i in anchors) {
+      const anchor = anchors[i]
+      expectPresent(anchor)
+      expect(anchor.proofCid).toEqual(ipfsProofCid.toString())
+      const request = requests.find((r) => r.id === anchor.requestId)
+      expectPresent(request)
+      expect(anchor.requestId).toEqual(request.id)
+
+      const anchorRecord = await ipfsService.retrieveRecord(anchor.cid)
+      expect(anchorRecord.prev.toString()).toEqual(request.cid)
+      expect(anchorRecord.proof).toEqual(ipfsProofCid)
+      expect(anchorRecord.path).toEqual(anchor.path)
+      expect(publishSpy.mock.calls[i]).toEqual([
+        anchorRecord,
+        StreamID.fromString(request.streamId),
+      ])
+    }
+
+    expectPresent(anchors[0])
+    expect(anchors[0].path).toEqual('0/0')
+    expectPresent(anchors[1])
+    expect(anchors[1].path).toEqual('0/1')
+    expectPresent(anchors[2])
+    expect(anchors[2].path).toEqual('1/0')
+    expectPresent(anchors[3])
+    expect(anchors[3].path).toEqual('1/1')
   })
 })

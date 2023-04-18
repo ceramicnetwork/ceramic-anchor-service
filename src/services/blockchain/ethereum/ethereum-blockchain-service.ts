@@ -126,9 +126,13 @@ function handleTimeoutError(transactionTimeoutSecs: number): void {
 function make(config: Config): EthereumBlockchainService {
   const ethereum = config.blockchain.connectors.ethereum
   const { host, port, url } = ethereum.rpc
+  let options
   let network
   try {
     network = Network.from(ethereum.network)
+    options = {
+      staticNetwork: network,
+    }
   } catch (e) {
     logger.warn(`Network ${ethereum.network} is unknown, cannot use static network`)
   }
@@ -136,32 +140,20 @@ function make(config: Config): EthereumBlockchainService {
   let provider
   if (url) {
     logger.imp(`Connecting ethereum provider to url: ${url}`)
-    if (network) {
-      provider = new ethers.JsonRpcProvider(url, network, {
-        staticNetwork: network,
-      })
-    } else {
-      provider = new ethers.JsonRpcProvider(url)
-    }
+    provider = new ethers.JsonRpcProvider(url, network, options)
   } else if (host && port) {
     logger.imp(`Connecting ethereum provider to host: ${host} and port ${port}`)
     const hostPort = `${host}:${port}`
-    if (network) {
-      provider = new ethers.JsonRpcProvider(hostPort, network, {
-        staticNetwork: network,
-      })
-    } else {
-      provider = new ethers.JsonRpcProvider(hostPort)
-    }
+    provider = new ethers.JsonRpcProvider(hostPort, network, options)
   } else if (network) {
     logger.imp(`Connecting ethereum to etherscan provider for network ${ethereum.network}`)
     const opts = {
-      alchemy: "-",
-      ankr: "-",
-      cloudflare: "-",
+      alchemy: '-',
+      ankr: '-',
+      cloudflare: '-',
       etherscan: ethereum.account.privateKey,
-      infura: "-",
-      quicknode: "-"
+      infura: '-',
+      quicknode: '-',
     }
     provider = ethers.getDefaultProvider(network, opts)
   } else {

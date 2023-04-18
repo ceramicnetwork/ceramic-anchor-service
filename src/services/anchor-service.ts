@@ -404,7 +404,7 @@ export class AnchorService {
     if (this.includeBlockInfoInAnchorProof) {
       ipfsAnchorProof = {
         blockNumber: tx.blockNumber,
-        blockTimestamp: tx.blockTimestamp.getUTCDate(),
+        blockTimestamp: tx.blockTimestamp.getTime(),
         ...ipfsAnchorProof,
       }
     }
