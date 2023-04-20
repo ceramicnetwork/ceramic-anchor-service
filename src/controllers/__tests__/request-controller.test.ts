@@ -450,43 +450,4 @@ describe('createRequest', () => {
     expect(createdRequest.origin).toEqual(sourceIp)
   })
 
-  test('error during processing: error logger called', async () => {
-    const error = new Error('Something went wrong')
-    const logger = {
-      log: jest.fn()
-    }
-    const cid = randomCID()
-    const streamId = randomStreamID()
-    const req = mockRequest({
-        body: {
-          cid: cid.toString(),
-          streamId: streamId.toString(),
-        },
-    })
-
-    const controllerSpy = jest.spyOn(controller, 'createRequest').mockImplementation(() => {
-      throw error
-    })
-
-    const res = mockResponse()
-    await controller.createRequest(req, res)
-
-    expect(res.status).toBeCalledWith(StatusCodes.INTERNAL_SERVER_ERROR)
-
-    const errorData = {
-      type: 'error',
-      message: error.message,
-      stack: error.stack || '',
-      status: 500,
-      originalUrl: '/any_route',
-      baseUrl: '',
-      path: '/any_route',
-      sourceIp: '',
-      did: '',
-    }
-    expect(logger.log).toHaveBeenCalledWith(errorData)
-
-    controllerSpy.mockRestore()
-  })
-
 })

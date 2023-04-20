@@ -90,7 +90,7 @@ interface ErrorData extends ServiceLog {
   did: string;
 }
 
-export function errorLogger(err: Error, req: ExpReq, res: ExpRes, next: ExpNext): void {
+export function expressErrorLogger(err: Error, req: ExpReq, res: ExpRes, next: ExpNext): void {
   const logger = loggerProvider.makeServiceLogger('http-error');
   const errorData: ErrorData = {
     type: 'error',
