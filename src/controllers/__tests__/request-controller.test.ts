@@ -455,13 +455,23 @@ describe('createRequest', () => {
     const logger = {
       log: jest.fn()
     }
+    const cid = randomCID()
+    const streamId = randomStreamID()
+    const req = mockRequest({
+        body: {
+          cid: cid.toString(),
+          streamId: streamId.toString(),
+        },
+    })
+
     const controllerSpy = jest.spyOn(controller, 'createRequest').mockImplementation(() => {
       throw error
     })
 
-    const response = await request(app).get('/any_route')
+    const res = mockResponse()
+    await controller.createRequest(req, res)
 
-    expect(response.status).toBe(500)
+    expect(res.status).toBeCalledWith(StatusCodes.INTERNAL_SERVER_ERROR)
 
     const errorData = {
       type: 'error',
