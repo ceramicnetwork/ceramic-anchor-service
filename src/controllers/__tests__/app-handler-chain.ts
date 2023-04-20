@@ -1,6 +1,6 @@
 import { describe, expect, jest, test } from '@jest/globals'
-import { CeramicAnchorServer } from '../../server'
-import { logger } from '../../logger/index'
+import { CeramicAnchorServer } from '../../server.js'
+import { logger } from '../../logger/index.js'
 import request from 'supertest'
 import { Config } from 'node-config-ts';
 
