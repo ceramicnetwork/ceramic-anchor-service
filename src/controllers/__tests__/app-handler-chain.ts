@@ -1,10 +1,15 @@
 import { describe, expect, jest, test } from '@jest/globals'
 import { CeramicAnchorServer } from '../../server'
 import { logger } from '../../logger/index'
-import request from 'request'
+import request from 'supertest'
+import { Config } from 'node-config-ts';
+
+const FAUX_CONFIG = {
+} as Config
 
 describe('CeramicAnchorServer', () => {
   describe('error handling middleware', () => {
+
     test('should log errors with the express error logger when a controller throws an error', async () => {
       // Define a mock controller with a GET route that throws an error
       const error = new Error('Test error message')
@@ -15,10 +20,10 @@ describe('CeramicAnchorServer', () => {
             throw error
           })
         }
-      };
+      }
 
       // Create a new instance of CeramicAnchorServer with the mock controller and an empty config object
-      const server = new CeramicAnchorServer([mockController], {});
+      const server = new CeramicAnchorServer([mockController], FAUX_CONFIG);
 
       // spy on logger
       const loggerSpy = jest.spyOn(logger, 'log');
