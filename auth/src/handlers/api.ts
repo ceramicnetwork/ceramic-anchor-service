@@ -9,6 +9,7 @@ import { DynamoDB } from '../services/aws/dynamodb.js'
 import { SESService } from '../services/aws/ses.js'
 import { ClientFacingError } from '../utils/errorHandling.js'
 import { CustomContext, httpMethods } from '../utils/reqres.js'
+import { CloudMetrics } from '../utils/metrics.js'
 
 export const API_ENDPOINT = '/api/v0/auth'
 
@@ -17,6 +18,7 @@ const createTableIfNotExists = true
 const db = new DynamoDB(createTableIfNotExists)
 const email = new SESService()
 const gateway = new ApiGateway()
+const metrics = new CloudMetrics()
 
 app.use(bodyParser.json())
 app.use(parseAsJson)
@@ -39,7 +41,8 @@ function customContext(req, res, next) {
   const context: CustomContext = {
     db,
     email,
-    gateway
+    gateway,
+    metrics
   }
   req.customContext = context
   next()

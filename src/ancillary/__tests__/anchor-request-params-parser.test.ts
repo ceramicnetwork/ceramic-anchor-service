@@ -11,8 +11,7 @@ import { bases } from 'multiformats/basics'
 import { GenesisFields } from '../../models/metadata.js'
 import { asDIDString } from '../did-string.js'
 import { mockRequest } from '../../controllers/__tests__/mock-request.util.js'
-import * as t from 'io-ts'
-import { isRight, Right } from 'fp-ts/lib/Either.js'
+import { isRight, type Right } from 'codeco'
 
 const FAKE_SIGNED_STREAM_ID = StreamID.fromString(
   'k2t6wzhkhabz5h9xxyrc6qoh1mcj6b0ul90xxkoin4t5bns89e3vh0gyyy1exj'
@@ -78,9 +77,7 @@ describe('AnchoRequestParamsParser', () => {
   })
 
   test('parses CAR with signed genesis properly', () => {
-    const validation: t.Validation<RequestAnchorParams> = parser.parse(
-      CAR_FILE_REQUEST_EXAMPLE_SIGNED_GENESIS as ExpReq
-    )
+    const validation = parser.parse(CAR_FILE_REQUEST_EXAMPLE_SIGNED_GENESIS as ExpReq)
     expect(isRight(validation)).toEqual(true)
 
     const params: RequestAnchorParams = (validation as Right<RequestAnchorParams>).right
@@ -91,9 +88,7 @@ describe('AnchoRequestParamsParser', () => {
   })
 
   test('parses CAR with unsigned genesis properly', () => {
-    const validation: t.Validation<RequestAnchorParams> = parser.parse(
-      CAR_FILE_REQUEST_EXAMPLE_UNSIGNED_GENESIS as ExpReq
-    )
+    const validation = parser.parse(CAR_FILE_REQUEST_EXAMPLE_UNSIGNED_GENESIS as ExpReq)
     expect(isRight(validation)).toEqual(true)
 
     const params: RequestAnchorParams = (validation as Right<RequestAnchorParams>).right

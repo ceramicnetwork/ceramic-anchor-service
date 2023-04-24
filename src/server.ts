@@ -1,7 +1,8 @@
 import bodyParser from 'body-parser'
 import { Server } from '@overnightjs/core'
 import { auth } from './auth/index.js'
-import { expressLoggers, logger } from './logger/index.js'
+import { expressLoggers, logger, expressErrorLogger } from './logger/index.js'
+
 
 import * as http from 'http'
 import { Config } from 'node-config-ts'
@@ -23,6 +24,9 @@ export class CeramicAnchorServer extends Server {
       this.app.use(auth)
     }
     this.addControllers(controllers)
+
+    // add error handling middleware here
+    this.app.use(expressErrorLogger)
   }
 
   /**

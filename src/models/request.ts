@@ -1,5 +1,5 @@
-import * as t from 'io-ts'
-import * as te from '../ancillary/io-ts-extra.js'
+import { boolean, number, optional, sparse, string } from 'codeco'
+import { date, enumCodec } from '../ancillary/codecs.js'
 
 export enum RequestStatus {
   PENDING = 0,
@@ -17,32 +17,25 @@ export type IDBRequest = {
   streamId: string
   message: string
   pinned: boolean
-  timestamp: string
+  timestamp?: string
   createdAt?: string
   updatedAt?: string
   origin?: string
 }
 
-export const RequestCodec = t.intersection([
-  t.type({
-    id: t.number,
-    status: te.enum('RequestStatus', RequestStatus),
-    cid: t.string,
-    streamId: t.string,
-    message: t.string,
-    pinned: t.boolean,
-    timestamp: te.date,
-  }),
-  t.partial({
-    createdAt: te.date,
-    updatedAt: te.date,
-    origin: t.string,
-  }),
-])
-export const DATABASE_FIELDS: Array<string> = RequestCodec.types.reduce((fields: string[], t) => {
-  const keys = Object.keys(t.props)
-  return fields.concat(keys)
-}, [])
+export const RequestCodec = sparse({
+  id: number,
+  status: enumCodec('RequestStatus', RequestStatus),
+  cid: string,
+  streamId: string,
+  message: string,
+  pinned: boolean,
+  timestamp: date,
+  createdAt: optional(date),
+  updatedAt: optional(date),
+  origin: optional(string),
+})
+export const DATABASE_FIELDS: Array<string> = Object.keys(RequestCodec.props)
 
 export class Request {
   id: string
@@ -87,9 +80,9 @@ export class Request {
       streamId: this.streamId.toString(),
       message: this.message,
       pinned: this.pinned,
-      createdAt: this.createdAt?.toISOString(),
-      updatedAt: this.updatedAt?.toISOString(),
-      timestamp: this.timestamp?.toISOString(),
+      createdAt: this.createdAt ? date.encode(this.createdAt) : undefined,
+      updatedAt: this.updatedAt ? date.encode(this.updatedAt) : undefined,
+      timestamp: this.timestamp ? date.encode(this.timestamp) : undefined,
       origin: this.origin,
     }
   }

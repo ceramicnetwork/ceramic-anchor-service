@@ -10,10 +10,10 @@ import {
   TimeableMetric,
 } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
-import * as te from '../ancillary/io-ts-extra.js'
 import { parseCountResult } from './parse-count-result.util.js'
 import { StreamID } from '@ceramicnetwork/streamid'
-import { IMetadataRepository } from './metadata-repository.js'
+import type { IMetadataRepository } from './metadata-repository.js'
+import { date } from '../ancillary/codecs.js'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
 // AnchorCommit available to the network.
@@ -149,7 +149,7 @@ export class RequestRepository {
         message: fields.message,
         status: fields.status,
         pinned: fields.pinned,
-        updatedAt: updatedAt.toISOString(),
+        updatedAt: date.encode(updatedAt),
       })
       .whereIn('id', ids)
 
@@ -441,7 +441,7 @@ export class RequestRepository {
     return this.table
       .where({ origin: request.origin, streamId: request.streamId })
       .andWhere({ status: RequestStatus.PENDING })
-      .andWhere('timestamp', '<', te.date.encode(request.timestamp))
+      .andWhere('timestamp', '<', date.encode(request.timestamp))
       .update({ status: RequestStatus.REPLACED })
   }
 
@@ -464,7 +464,7 @@ export class RequestRepository {
         .orWhere((subBuilder) =>
           subBuilder
             .where({ status: RequestStatus.PROCESSING })
-            .andWhere('updatedAt', '<', te.date.encode(processingDeadline))
+            .andWhere('updatedAt', '<', date.encode(processingDeadline))
         )
       // TODO: https://linear.app/3boxlabs/issue/CDB-2221/turn-cas-failure-retry-back-on
       // .orWhere((subBuilder) =>

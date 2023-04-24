@@ -1,12 +1,32 @@
 import type { Request } from '../models/request.js'
 import { InvalidRequestStatusError, RequestStatus } from '../models/request.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
-import type { IRequestPresentationService } from './request-presentation-service.type.js'
+
+export type CommitPresentation = {
+  content: { path: string | undefined; prev: string; proof: string | undefined }
+  cid: string
+}
+
+export type NotCompletedRequestPresentation = {
+  createdAt: number
+  streamId: string
+  id: string
+  message: string
+  status: string
+  cid: string
+  updatedAt: number
+}
+
+export type CompletedRequestPresentation = NotCompletedRequestPresentation & {
+  anchorCommit: CommitPresentation
+}
+
+export type RequestPresentation = NotCompletedRequestPresentation | CompletedRequestPresentation
 
 /**
  * Render anchoring Request as JSON for a client to consume.
  */
-export class RequestPresentationService implements IRequestPresentationService {
+export class RequestPresentationService {
   static inject = ['anchorRepository'] as const
 
   constructor(private readonly anchorRepository: IAnchorRepository) {}
@@ -16,7 +36,7 @@ export class RequestPresentationService implements IRequestPresentationService {
    *
    * @param request - Request to be rendered as JSON.
    */
-  async body(request: Request): Promise<any> {
+  async body(request: Request): Promise<RequestPresentation> {
     const status = request.status as RequestStatus
     switch (status) {
       case RequestStatus.COMPLETED: {
@@ -37,13 +57,10 @@ export class RequestPresentationService implements IRequestPresentationService {
           id: request.id,
           status: RequestStatus[status],
           cid: request.cid,
-          docId: request.streamId, // todo remove
           streamId: request.streamId,
           message: request.message,
           createdAt: request.createdAt?.getTime(),
           updatedAt: request.updatedAt?.getTime(),
-          // TODO: Remove this backwards compatibility field
-          anchorRecord: anchorCommit,
           anchorCommit,
         }
       }
@@ -68,12 +85,11 @@ export class RequestPresentationService implements IRequestPresentationService {
    * Vanilla presentation of a non-complete request.
    * Display status as is.
    */
-  private notCompleted(request: Request) {
+  private notCompleted(request: Request): NotCompletedRequestPresentation {
     return {
       id: request.id,
       status: RequestStatus[request.status!],
       cid: request.cid,
-      docId: request.streamId, // TODO remove
       streamId: request.streamId,
       message: request.message,
       createdAt: request.createdAt?.getTime(),
