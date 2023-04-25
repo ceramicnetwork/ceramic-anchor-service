@@ -27,7 +27,7 @@ jobs:
         name: Setup pnpm
         run: |
           npm install -g pnpm
-          pnpm install --no-frozen-lockfile
+          pnpm install
         working-directory: ./auth
       -
         name: Run unit tests
