@@ -58,11 +58,11 @@ export enum METRIC_NAMES {
   PIN_FAILED = 'pin_failed',
 
   // IPFS service
-  IPFS_GET_SUCCEEDED = 'ipfs_get_succeeded'
-  IPFS_GET_FAILED = 'ipfs_get_failed'
+  IPFS_GET_SUCCEEDED = 'ipfs_get_succeeded',
+  IPFS_GET_FAILED = 'ipfs_get_failed',
 
   // Request Controller
-  ANCHOR_REQUESTED = 'anchor_requested'
+  ANCHOR_REQUESTED = 'anchor_requested',
   REQUEST_INVALID = 'request_invalid',
   REQUEST_NOT_CREATED = 'request_not_created'
 }
