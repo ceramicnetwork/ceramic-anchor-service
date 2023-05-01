@@ -10,6 +10,8 @@ import { Utils } from '../utils.js'
 import * as http from 'http'
 import * as https from 'https'
 import { PubsubMessage } from '@ceramicnetwork/core'
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
+import { METRIC_NAMES } from '../settings.js'
 import type { IIpfsService, RetrieveRecordOptions } from './ipfs-service.type.js'
 import type { AbortOptions } from './abort-options.type.js'
 import { Semaphore } from 'await-semaphore'
@@ -95,6 +97,7 @@ export class IpfsService implements IIpfsService {
           })
         })
         const value = record.value
+        Metrics.count(METRIC_NAMES.IPFS_GET_SUCCEEDED, 1)
         logger.debug(`Successfully retrieved ${cacheKey}`)
         this.cache.set(cacheKey, value)
         return value as T
@@ -104,6 +107,7 @@ export class IpfsService implements IIpfsService {
         retryTimes--
       }
     }
+    Metrics.count(METRIC_NAMES.IPFS_GET_FAILED, 1)
     throw new Error(`Failed to retrieve IPFS record for CID ${cacheKey}`)
   }
 
