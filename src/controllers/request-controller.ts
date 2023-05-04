@@ -93,6 +93,7 @@ export class RequestController {
     if (isLeft(validation)) {
       const errorMessage = report(validation).join(';')
       logger.err(errorMessage)
+      Metrics.count(METRIC_NAMES.REQUEST_INVALID, 1, { source: parseOrigin(req) })
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: errorMessage,
       })
@@ -111,6 +112,7 @@ export class RequestController {
 
       return res.status(StatusCodes.CREATED).json(body)
     } catch (err: any) {
+      Metrics.count(METRIC_NAMES.REQUEST_NOT_CREATED, 1, { source: parseOrigin(req) })
       return this.getBadRequestResponse(res, err, requestParams, origin)
     }
   }
