@@ -3,19 +3,17 @@ import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@
 import { CID } from 'multiformats/cid'
 import { config, Config } from 'node-config-ts'
 import { logger } from '../../../logger/index.js'
-import { BigNumber, ethers } from 'ethers'
+import { ethers } from 'ethers'
 import { BlockchainService } from '../blockchain-service.js'
 import { EthereumBlockchainService, MAX_RETRIES } from '../ethereum/ethereum-blockchain-service.js'
-import { ErrorCode } from '@ethersproject/logger'
 import { readFile } from 'node:fs/promises'
 import cloneDeep from 'lodash.clonedeep'
 import { createInjector } from 'typed-inject'
 import type { GanacheServer } from '../../../__tests__/make-ganache.util.js'
 import { makeGanache } from '../../../__tests__/make-ganache.util.js'
+import { expectPresent } from '../../../__tests__/expect-present.util.js'
 
-const deployContract = async (
-  provider: ethers.providers.JsonRpcProvider
-): Promise<ethers.Contract> => {
+const deployContract = async (provider: ethers.JsonRpcProvider): Promise<ethers.BaseContract> => {
   const wallet = new ethers.Wallet(
     config.blockchain.connectors.ethereum.account.privateKey,
     provider
@@ -29,9 +27,9 @@ const deployContract = async (
 
   const factory = new ethers.ContractFactory(contractData.abi, contractData.bytecode.object, wallet)
   const contract = await factory.deploy()
-  await contract.deployed()
+  const deployedContract = contract.waitForDeployment()
 
-  return contract
+  return deployedContract
 }
 
 describe('ETH service connected to ganache', () => {
@@ -39,17 +37,17 @@ describe('ETH service connected to ganache', () => {
   let ganacheServer: GanacheServer
   let ethBc: BlockchainService
   let testConfig: Config
-  let providerForGanache: ethers.providers.JsonRpcProvider
-  let contract: ethers.Contract
+  let providerForGanache: ethers.JsonRpcProvider
+  let contract: ethers.BaseContract
 
   beforeAll(async () => {
     ganacheServer = await makeGanache()
-    providerForGanache = new ethers.providers.JsonRpcProvider(ganacheServer.url.href)
+    providerForGanache = new ethers.JsonRpcProvider(ganacheServer.url.href)
     contract = await deployContract(providerForGanache)
 
     testConfig = cloneDeep(config)
     testConfig.blockchain.connectors.ethereum.rpc.port = ganacheServer.port.toString()
-    testConfig.blockchain.connectors.ethereum.contractAddress = contract.address
+    testConfig.blockchain.connectors.ethereum.contractAddress = await contract.getAddress()
     testConfig.useSmartContractAnchors = false
 
     const injector = createInjector()
@@ -66,8 +64,11 @@ describe('ETH service connected to ganache', () => {
 
   describe('v0', () => {
     test('should send CID to local ganache server', async () => {
-      const block = await providerForGanache.getBlock(await providerForGanache.getBlockNumber())
-      const startTimestamp = block.timestamp
+      const ganacheBlockNumber = await providerForGanache.getBlockNumber()
+      const block = await providerForGanache.getBlock(ganacheBlockNumber)
+      expectPresent(block)
+      expectPresent(block.date)
+      const startBlockDate = block.date
       const startBlockNumber = block.number
 
       const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
@@ -76,12 +77,8 @@ describe('ETH service connected to ganache', () => {
 
       // checking the timestamp + block number against the snapshot is too brittle since if the test runs slowly it
       // can be off slightly.  So we test it manually here instead.
-      const blockTimestamp = tx.blockTimestamp
-      delete tx.blockTimestamp
-      const blockNumber = tx.blockNumber
-      delete tx.blockNumber
-      expect(blockTimestamp).toBeGreaterThan(startTimestamp)
-      expect(blockNumber).toBeGreaterThan(startBlockNumber)
+      expect(tx.blockNumber).toBeGreaterThan(startBlockNumber)
+      expect(tx.blockTimestamp > startBlockDate)
 
       expect(tx).toMatchSnapshot()
     })
@@ -93,35 +90,27 @@ describe('ETH service connected to ganache', () => {
 
     test('gas price increase math', () => {
       const gasEstimate = {
-        maxFeePerGas: BigNumber.from(2000),
-        maxPriorityFeePerGas: BigNumber.from(1000),
-        gasPrice: BigNumber.from(0),
+        maxFeePerGas: BigInt(2000),
+        maxPriorityFeePerGas: BigInt(1000),
+        gasPrice: BigInt(0),
       }
-      const firstRetry = BigNumber.from(1100)
-      // Note that this is not 1200. It needs to be 10% over the previous attempt's gas,
-      // not 20% over the gas estimate
-      const secondRetry = BigNumber.from(1210)
+      // on the first attempt, we add padding since `maxFeePerGas = maxPriorityFeePerGas + baseFee + δ`
+      const firstAttempt = EthereumBlockchainService.increaseGasPricePerAttempt(
+        gasEstimate.maxPriorityFeePerGas,
+        undefined
+      )
+      expect(firstAttempt).toEqual(BigInt(1100n))
+      const secondAttempt = EthereumBlockchainService.increaseGasPricePerAttempt(
+        gasEstimate.maxPriorityFeePerGas,
+        firstAttempt
+      )
+      expect(secondAttempt).toEqual(1210n)
       expect(
         EthereumBlockchainService.increaseGasPricePerAttempt(
           gasEstimate.maxPriorityFeePerGas,
-          0,
-          undefined
-        ).toNumber()
-      ).toEqual(gasEstimate.maxPriorityFeePerGas.toNumber())
-      expect(
-        EthereumBlockchainService.increaseGasPricePerAttempt(
-          gasEstimate.maxPriorityFeePerGas,
-          1,
-          gasEstimate.maxPriorityFeePerGas
-        ).toNumber()
-      ).toEqual(firstRetry.toNumber())
-      expect(
-        EthereumBlockchainService.increaseGasPricePerAttempt(
-          gasEstimate.maxPriorityFeePerGas,
-          2,
-          firstRetry
-        ).toNumber()
-      ).toEqual(secondRetry.toNumber())
+          secondAttempt
+        )
+      ).toEqual(1331n)
     })
   })
 
@@ -136,8 +125,10 @@ describe('ETH service connected to ganache', () => {
 
     test('should anchor to contract', async () => {
       const block = await providerForGanache.getBlock('latest')
-      const startTimestamp = block.timestamp
+      expectPresent(block)
       const startBlockNumber = block.number
+      expectPresent(block.date)
+      const startBlockDate = block.date
 
       const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
       const ethBc = EthereumBlockchainService.make(testConfig)
@@ -145,9 +136,11 @@ describe('ETH service connected to ganache', () => {
       const tx = await ethBc.sendTransaction(cid)
       expect(tx).toBeDefined()
       const txReceipt = await providerForGanache.getTransactionReceipt(tx.txHash)
+      expectPresent(txReceipt)
       const contractEvents = txReceipt.logs.map((log) => contract.interface.parseLog(log))
 
       expect(contractEvents.length).toEqual(1)
+      expectPresent(contractEvents[0])
       const didAnchorEvent = contractEvents[0]
       expect(didAnchorEvent.name).toEqual('DidAnchor')
       expect(didAnchorEvent.args['_root']).toEqual(
@@ -155,8 +148,8 @@ describe('ETH service connected to ganache', () => {
       )
 
       // checking the values against the snapshot is too brittle since ganache is time based so we test manually
-      expect(tx.blockTimestamp).toBeGreaterThan(startTimestamp)
       expect(tx.blockNumber).toBeGreaterThan(startBlockNumber)
+      expect(tx.blockTimestamp > startBlockDate)
     })
   })
 })
@@ -164,11 +157,11 @@ describe('ETH service connected to ganache', () => {
 describe('setGasPrice', () => {
   const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
   const feeData = {
-    maxFeePerGas: BigNumber.from(2000),
-    maxPriorityFeePerGas: BigNumber.from(1000),
-    gasPrice: BigNumber.from(1000),
+    maxFeePerGas: BigInt(2000),
+    maxPriorityFeePerGas: BigInt(1000),
+    gasPrice: BigInt(1000),
   }
-  const gasLimit = BigNumber.from(10)
+  const gasLimit = BigInt(10)
   const provider = {
     estimateGas: jest.fn(() => gasLimit),
     getNetwork: jest.fn(() => ({ chainId: '1337' })),
@@ -193,8 +186,8 @@ describe('setGasPrice', () => {
     })
     const ethBc = await buildBlockchainService(legacyProvider)
     const txData = await ethBc._buildTransactionRequest(cid)
-    for (const attempt of [0, 1, 2]) {
-      await ethBc.setGasPrice(txData, attempt)
+    for (const idx of [0, 1, 2]) {
+      await ethBc.setGasPrice(txData)
       expect(txData).toMatchSnapshot()
     }
   })
@@ -202,8 +195,8 @@ describe('setGasPrice', () => {
   test('EIP1559 transaction', async () => {
     const ethBc = await buildBlockchainService(provider)
     const txData = await ethBc._buildTransactionRequest(cid)
-    for (const attempt of [0, 1, 2]) {
-      await ethBc.setGasPrice(txData, attempt)
+    for (const idx of [0, 1, 2]) {
+      await ethBc.setGasPrice(txData)
       expect(txData).toMatchSnapshot()
     }
   })
@@ -245,8 +238,8 @@ describe('ETH service with mock wallet', () => {
 
   test('single transaction attempt', async () => {
     const nonce = 5
-    const gasPrice = BigNumber.from(1000)
-    const gasEstimate = BigNumber.from(10 * 1000)
+    const gasPrice = BigInt(1000)
+    const gasEstimate = BigInt(10 * 1000)
     const txnResponse = {
       hash: '0x12345abcde',
       confirmations: 3,
@@ -254,16 +247,14 @@ describe('ETH service with mock wallet', () => {
       chainId: '1337',
     }
     const txReceipt = {
-      byzantium: true,
       status: 1,
       blockHash: '0x54321',
       blockNumber: 54321,
-      transactionHash: txnResponse.hash,
+      hash: txnResponse.hash,
     }
     const block = {
-      timestamp: 54321000,
+      date: new Date(Date.UTC(2000, 1)),
     }
-
     provider.getGasPrice.mockReturnValue(gasPrice)
     provider.estimateGas.mockReturnValue(gasEstimate)
     wallet.sendTransaction.mockReturnValue(txnResponse)
@@ -282,19 +273,22 @@ describe('ETH service with mock wallet', () => {
     const tx = await ethBc._confirmTransactionSuccess(txResponse)
     expect(tx).toMatchSnapshot()
 
-    const txData = wallet.sendTransaction.mock.calls[0][0]
+    expectPresent(wallet.sendTransaction.mock.calls[0])
+    const callData = wallet.sendTransaction.mock.calls[0]
+    expectPresent(callData[0])
+    const txData = callData[0]
     expect(txData).toMatchSnapshot()
   })
 
   test('successful mocked transaction', async () => {
-    const balance = BigNumber.from(10 * 1000 * 1000)
+    const balance = 10n * 1000n * 1000n
     const nonce = 5
     const feeData = {
-      maxFeePerGas: BigNumber.from(2000),
-      maxPriorityFeePerGas: BigNumber.from(1000),
-      gasPrice: BigNumber.from(1000),
+      maxFeePerGas: 2000n,
+      maxPriorityFeePerGas: 1000n,
+      gasPrice: 1000n,
     }
-    const gasEstimate = BigNumber.from(10 * 1000)
+    const gasEstimate = 10n * 1000n
     const txResponse = { foo: 'bar' }
     const finalTransactionResult = { txHash: '0x12345' }
 
@@ -327,14 +321,14 @@ describe('ETH service with mock wallet', () => {
   })
 
   test('insufficient funds error', async () => {
-    const balance = BigNumber.from(10 * 1000 * 1000)
+    const balance = 10n * 1000n * 1000n
     const nonce = 5
-    const gasPrice = BigNumber.from(1000)
-    const gasEstimate = BigNumber.from(10 * 1000)
+    const gasPrice = 1000n
+    const gasEstimate = 10n * 1000n
     const feeData = {
-      maxFeePerGas: BigNumber.from(2000),
-      maxPriorityFeePerGas: BigNumber.from(1000),
-      gasPrice: BigNumber.from(1000),
+      maxFeePerGas: 2000n,
+      maxPriorityFeePerGas: 1000n,
+      gasPrice: 1000n,
     }
 
     provider.getBalance.mockReturnValue(balance)
@@ -348,8 +342,8 @@ describe('ETH service with mock wallet', () => {
       typeof ethBc._trySendTransaction
     >
     mockTrySendTransaction
-      .mockRejectedValueOnce({ code: ErrorCode.TIMEOUT })
-      .mockRejectedValueOnce({ code: ErrorCode.INSUFFICIENT_FUNDS })
+      .mockRejectedValueOnce({ code: 'TIMEOUT' })
+      .mockRejectedValue({ code: 'INSUFFICIENT_FUNDS' })
 
     const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
     await expect(ethBc.sendTransaction(cid)).rejects.toThrow(
@@ -369,15 +363,15 @@ describe('ETH service with mock wallet', () => {
   })
 
   test('timeout error', async () => {
-    const balance = BigNumber.from(10 * 1000 * 1000)
+    const balance = 10n * 1000n * 1000n
     const nonce = 5
-    const gasPrice = BigNumber.from(1000)
-    const gasEstimate = BigNumber.from(10 * 1000)
+    const gasPrice = 1000n
+    const gasEstimate = 10n * 1000n
     const txResponse = { foo: 'bar' }
     const feeData = {
-      maxFeePerGas: BigNumber.from(2000),
-      maxPriorityFeePerGas: BigNumber.from(1000),
-      gasPrice: BigNumber.from(1000),
+      maxFeePerGas: 2000n,
+      maxPriorityFeePerGas: 1000n,
+      gasPrice: 1000n,
     }
 
     provider.getBalance.mockReturnValue(balance)
@@ -395,7 +389,7 @@ describe('ETH service with mock wallet', () => {
       typeof ethBc._confirmTransactionSuccess
     >
     mockTrySendTransaction.mockReturnValue(txResponse)
-    mockConfirmTransactionSuccess.mockRejectedValue({ code: ErrorCode.TIMEOUT })
+    mockConfirmTransactionSuccess.mockRejectedValue({ code: 'TIMEOUT' })
 
     const cid = CID.parse('bafyreic5p7grucmzx363ayxgoywb6d4qf5zjxgbqjixpkokbf5jtmdj5ni')
     await expect(ethBc.sendTransaction(cid)).rejects.toThrow('Failed to send transaction')
@@ -407,16 +401,16 @@ describe('ETH service with mock wallet', () => {
   test('nonce expired error', async () => {
     // test what happens if a transaction is submitted, waiting for it to be mined times out, but
     // then before the retry the original txn gets mined, causing a NONCE_EXPIRED error on the retry
-    const balance = BigNumber.from(10 * 1000 * 1000)
+    const balance = 10n * 1000n * 1000n
     const nonce = 5
-    const gasPrice = BigNumber.from(1000)
-    const gasEstimate = BigNumber.from(10 * 1000)
+    const gasPrice = 1000n
+    const gasEstimate = 10n * 1000n
     const txResponses = [{ attempt: 1 }, { attempt: 2 }]
     const finalTransactionResult = { txHash: '0x12345' }
     const feeData = {
-      maxFeePerGas: BigNumber.from(2000),
-      maxPriorityFeePerGas: BigNumber.from(1000),
-      gasPrice: BigNumber.from(1000),
+      maxFeePerGas: 2000n,
+      maxPriorityFeePerGas: 1000n,
+      gasPrice: 1000n,
     }
 
     provider.getBalance.mockReturnValue(balance)
@@ -436,16 +430,16 @@ describe('ETH service with mock wallet', () => {
     // Successfully submit transaction
     mockTrySendTransaction.mockReturnValueOnce(txResponses[0])
     // Get timeout waiting for it to be mined
-    mockConfirmTransactionSuccess.mockRejectedValueOnce({ code: ErrorCode.TIMEOUT })
+    mockConfirmTransactionSuccess.mockRejectedValueOnce({ code: 'TIMEOUT' })
     // Retry the transaction, submit it successfully
     mockTrySendTransaction.mockReturnValueOnce(txResponses[1])
     // Get timeout waiting for the second attempt as well
-    mockConfirmTransactionSuccess.mockRejectedValueOnce({ code: ErrorCode.TIMEOUT })
+    mockConfirmTransactionSuccess.mockRejectedValueOnce({ code: 'TIMEOUT' })
     // On third attempt we get a NONCE_EXPIRED error because the first attempt was actually mined correctly
-    mockTrySendTransaction.mockRejectedValueOnce({ code: ErrorCode.NONCE_EXPIRED })
+    mockTrySendTransaction.mockRejectedValueOnce({ code: 'NONCE_EXPIRED' })
     // Try to confirm the second attempt, get NONCE_EXPIRED because it was the first attempt that
     // was mined
-    mockConfirmTransactionSuccess.mockRejectedValueOnce({ code: ErrorCode.NONCE_EXPIRED })
+    mockConfirmTransactionSuccess.mockRejectedValueOnce({ code: 'NONCE_EXPIRED' })
     // Try to confirm the original attempt, succeed
     mockConfirmTransactionSuccess.mockReturnValueOnce(finalTransactionResult)
 

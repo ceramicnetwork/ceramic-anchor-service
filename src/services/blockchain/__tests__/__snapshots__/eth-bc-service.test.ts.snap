@@ -2,8 +2,10 @@
 
 exports[`ETH service connected to ganache v0 should send CID to local ganache server 1`] = `
 Transaction {
+  "blockNumber": 3,
+  "blockTimestamp": 2020-04-13T13:20:08.000Z,
   "chain": "eip155:1337",
-  "txHash": "0xf7f830ef89d55af5900d48db106d5bcfbc045aec70b29cde019d2cd1e58a7827",
+  "txHash": "0xd6e8a8fab6097270c8a52a85db47ef8c2ba1b9b60db76435f5d8a8a3a1d598be",
 }
 `;
 
@@ -20,18 +22,9 @@ exports[`ETH service with mock wallet insufficient funds error 1`] = `
 {
   "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
   "from": "abcd1234",
-  "gasLimit": {
-    "hex": "0x2710",
-    "type": "BigNumber",
-  },
-  "maxFeePerGas": {
-    "hex": "0x0834",
-    "type": "BigNumber",
-  },
-  "maxPriorityFeePerGas": {
-    "hex": "0x044c",
-    "type": "BigNumber",
-  },
+  "gasLimit": 10000n,
+  "maxFeePerGas": 2431n,
+  "maxPriorityFeePerGas": 1210n,
   "nonce": 5,
   "to": "abcd1234",
 }
@@ -41,18 +34,9 @@ exports[`ETH service with mock wallet insufficient funds error 2`] = `
 {
   "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
   "from": "abcd1234",
-  "gasLimit": {
-    "hex": "0x2710",
-    "type": "BigNumber",
-  },
-  "maxFeePerGas": {
-    "hex": "0x0834",
-    "type": "BigNumber",
-  },
-  "maxPriorityFeePerGas": {
-    "hex": "0x044c",
-    "type": "BigNumber",
-  },
+  "gasLimit": 10000n,
+  "maxFeePerGas": 2431n,
+  "maxPriorityFeePerGas": 1210n,
   "nonce": 5,
   "to": "abcd1234",
 }
@@ -70,7 +54,7 @@ exports[`ETH service with mock wallet single transaction attempt 1`] = `
 exports[`ETH service with mock wallet single transaction attempt 2`] = `
 Transaction {
   "blockNumber": 54321,
-  "blockTimestamp": 54321000,
+  "blockTimestamp": 2000-02-01T00:00:00.000Z,
   "chain": "eip155:1337",
   "txHash": "0x12345abcde",
 }
@@ -79,14 +63,8 @@ Transaction {
 exports[`ETH service with mock wallet single transaction attempt 3`] = `
 {
   "data": "0x987654321",
-  "gasLimit": {
-    "hex": "0x2710",
-    "type": "BigNumber",
-  },
-  "gasPrice": {
-    "hex": "0x03e8",
-    "type": "BigNumber",
-  },
+  "gasLimit": 10000n,
+  "gasPrice": 1000n,
   "nonce": 5,
   "to": "abcd1234",
 }
@@ -96,18 +74,9 @@ exports[`ETH service with mock wallet successful mocked transaction 1`] = `
 {
   "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
   "from": "abcd1234",
-  "gasLimit": {
-    "hex": "0x2710",
-    "type": "BigNumber",
-  },
-  "maxFeePerGas": {
-    "hex": "0x07d0",
-    "type": "BigNumber",
-  },
-  "maxPriorityFeePerGas": {
-    "hex": "0x03e8",
-    "type": "BigNumber",
-  },
+  "gasLimit": 10000n,
+  "maxFeePerGas": 2310n,
+  "maxPriorityFeePerGas": 1100n,
   "nonce": 5,
   "to": "abcd1234",
 }
@@ -117,18 +86,9 @@ exports[`setGasPrice EIP1559 transaction 1`] = `
 {
   "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
   "from": "abcd1234",
-  "gasLimit": {
-    "hex": "0x0a",
-    "type": "BigNumber",
-  },
-  "maxFeePerGas": {
-    "hex": "0x07d0",
-    "type": "BigNumber",
-  },
-  "maxPriorityFeePerGas": {
-    "hex": "0x03e8",
-    "type": "BigNumber",
-  },
+  "gasLimit": 10n,
+  "maxFeePerGas": 2310n,
+  "maxPriorityFeePerGas": 1100n,
   "nonce": undefined,
   "to": "abcd1234",
 }
@@ -138,18 +98,9 @@ exports[`setGasPrice EIP1559 transaction 2`] = `
 {
   "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
   "from": "abcd1234",
-  "gasLimit": {
-    "hex": "0x0a",
-    "type": "BigNumber",
-  },
-  "maxFeePerGas": {
-    "hex": "0x0834",
-    "type": "BigNumber",
-  },
-  "maxPriorityFeePerGas": {
-    "hex": "0x044c",
-    "type": "BigNumber",
-  },
+  "gasLimit": 10n,
+  "maxFeePerGas": 2431n,
+  "maxPriorityFeePerGas": 1210n,
   "nonce": undefined,
   "to": "abcd1234",
 }
@@ -159,18 +110,9 @@ exports[`setGasPrice EIP1559 transaction 3`] = `
 {
   "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
   "from": "abcd1234",
-  "gasLimit": {
-    "hex": "0x0a",
-    "type": "BigNumber",
-  },
-  "maxFeePerGas": {
-    "hex": "0x08a2",
-    "type": "BigNumber",
-  },
-  "maxPriorityFeePerGas": {
-    "hex": "0x04ba",
-    "type": "BigNumber",
-  },
+  "gasLimit": 10n,
+  "maxFeePerGas": 2564n,
+  "maxPriorityFeePerGas": 1331n,
   "nonce": undefined,
   "to": "abcd1234",
 }
@@ -180,14 +122,8 @@ exports[`setGasPrice legacy transaction 1`] = `
 {
   "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
   "from": "abcd1234",
-  "gasLimit": {
-    "hex": "0x0a",
-    "type": "BigNumber",
-  },
-  "gasPrice": {
-    "hex": "0x03e8",
-    "type": "BigNumber",
-  },
+  "gasLimit": 10n,
+  "gasPrice": 1100n,
   "nonce": undefined,
   "to": "abcd1234",
 }
@@ -197,14 +133,8 @@ exports[`setGasPrice legacy transaction 2`] = `
 {
   "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
   "from": "abcd1234",
-  "gasLimit": {
-    "hex": "0x0a",
-    "type": "BigNumber",
-  },
-  "gasPrice": {
-    "hex": "0x044c",
-    "type": "BigNumber",
-  },
+  "gasLimit": 10n,
+  "gasPrice": 1210n,
   "nonce": undefined,
   "to": "abcd1234",
 }
@@ -214,14 +144,8 @@ exports[`setGasPrice legacy transaction 3`] = `
 {
   "data": "0x0f017112205d7fcd1a0999befdb062e6762c1f0f902f729b98304a2ef539412f53360d3d6a",
   "from": "abcd1234",
-  "gasLimit": {
-    "hex": "0x0a",
-    "type": "BigNumber",
-  },
-  "gasPrice": {
-    "hex": "0x04ba",
-    "type": "BigNumber",
-  },
+  "gasLimit": 10n,
+  "gasPrice": 1331n,
   "nonce": undefined,
   "to": "abcd1234",
 }
