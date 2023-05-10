@@ -53,16 +53,4 @@ test('createEmailVerification', async () => {
     await db.createEmailVerificationCode(email)
     expect(db._expireOTP).toHaveBeenCalledTimes(1)
     expect(db._addOTP).toHaveBeenCalledTimes(2)
-    // 3
-//    await expect(db.createEmailVerificationCode(email)).rejects.toThrow('Must wait until existing codes expire')
-//    expect(db._expireOTP).toHaveBeenCalledTimes(0)
-//    expect(db._addOTP).toHaveBeenCalledTimes(2)
-    // 4
-//    await expect(db.createEmailVerificationCode(email)).rejects.toThrow('Must wait until existing codes expire')
-//    expect(db._expireOTP).toHaveBeenCalledTimes(1)
-//    expect(db._addOTP).toHaveBeenCalledTimes(2)
-    // 5
-//    await db.createEmailVerificationCode(email)
-//    expect(db._revokeOTP).toHaveBeenCalledTimes(2)
-//    expect(db._addOTP).toHaveBeenCalledTimes(3)
 })
