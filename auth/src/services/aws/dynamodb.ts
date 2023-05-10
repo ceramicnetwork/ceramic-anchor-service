@@ -349,17 +349,39 @@ export class DynamoDB implements Database {
         }
     }
 
+    /**
+     * Check the OTP and DID formats.  If all are valid, register the DIDs
+     * Returns the data for each did newly registered
+     * @param email 
+     * @param otp
+     * @param dids array of DID as string
+     * @param status skipOTP boolean
+     * @returns array of DID registration data for successfully registered DIDs
+     * @throws error on invalid OTP or invalid DIDs
+     */
     async registerDIDs(email: string, otp: string, dids: Array<string>, skipOTP?: boolean): Promise<Array<DIDResult> | undefined> {
         if (!skipOTP) {
-            if (!await this._checkCorrectOTP(email, otp)) return
+            if (!await this._checkCorrectOTP(email, otp)) {
+               throw new Error('invalid OTP')
+            }
         }
         const shouldCheckOTPAgain = false
 
         const results: any[] = []
+
+        // first check if any are invalid
         for (const did of dids) {
-            if (didRegex.test(did)) {
-                let result = await this.registerDID(email, otp, did, shouldCheckOTPAgain)
-                results.push(result)
+            if (! didRegex.test(did)) {
+                throw new Error(`invalid DID: ${did}`)
+            }
+        }
+
+        // all dids are valid, register and return the results
+        for (const did of dids) {
+            let result = await this.registerDID(email, otp, did, shouldCheckOTPAgain)
+            // only successful registrations return a result
+            if (result) {
+              results.push(result)
             }
         }
         return results

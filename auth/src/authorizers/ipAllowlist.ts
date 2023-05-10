@@ -1,4 +1,5 @@
 export const ALLOWED_IP_ADDRESSES: Record<string, string> = {
+    "136.56.26.176": "Mohsin-temp",
     "40.86.207.149": "Catalyst",
     "18.167.27.19": "Ownership Labs/Dataverse",
     "44.196.239.180": "Fungyproof",
