@@ -63,7 +63,7 @@ function errorHandler (err, req, res, next) {
   if (res.headersSent) {
     return next(err)
   }
-  let error = 'Error'
+  let error = 'Internal Error'
   if (err instanceof ValidationError) {
     console.error(err.details)
     error = err.message

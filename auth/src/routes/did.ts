@@ -29,19 +29,30 @@ router.post('/', validate(registerValidation), async (req: Req, res: Res) => {
   }
 
   const skipOTP = userIsAdmin
-  const data = await req.customContext.db.registerDIDs(req.body.email, req.body.otp, req.body.dids, skipOTP)
-  if (data) {
-    const keyData = data.map((didResult) => ({ user: didResult.email, apiKey: didResult.did }))
-    try {
-      await req.customContext.gateway.createApiKeys(keyData)
-      await req.customContext.metrics.count(METRIC_NAMES.register, 1, {'result': 'success'})
-    } catch (err) {
-      console.error(err)
-    }
-    return res.send(data)
+  let data
+  try {
+    data = await req.customContext.db.registerDIDs(req.body.email, req.body.otp, req.body.dids, skipOTP)
+  } catch (err) {
+    console.error(err)
+    await req.customContext.metrics.count(METRIC_NAMES.register, 1, {'result': 'register_error'})
+    throw new ClientFacingError(`Could not register DIDs: ${err.message}`)
   }
-  await req.customContext.metrics.count(METRIC_NAMES.register, 1, {'result': 'error'})
-  throw new ClientFacingError('Could not register DIDs')
+
+  if (! data || data.length == 0) {
+    await req.customContext.metrics.count(METRIC_NAMES.register, 1, {'result': 'no_data'})
+    throw new ClientFacingError('No new DIDs registered')
+  }
+
+  const keyData = data.map((didResult) => ({ user: didResult.email, apiKey: didResult.did }))
+  try {
+    await req.customContext.gateway.createApiKeys(keyData)
+    await req.customContext.metrics.count(METRIC_NAMES.register, 1, {'result': 'success'})
+  } catch (err) {
+    console.error(err)
+    await req.customContext.metrics.count(METRIC_NAMES.register, 1, {'result': 'gateway_error'})
+    throw new ClientFacingError(`Could not register DIDs: ${err.message}`)
+  }
+  return res.send(data)
 })
 
 /**

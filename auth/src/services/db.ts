@@ -58,19 +58,10 @@ export interface DatabaseEmailVerification {
  * @returns Code to send to the provided email address
  */
 export async function createEmailVerificationCode(email: string, db: DatabaseEmailVerification): Promise<string> {
-    const revokedOTPs = await db._getRevokedOTPs(email)
-    if (revokedOTPs.length > 0) {
-        for (let result of revokedOTPs) {
-            if (db._checkOTPExpired(result)) {
-                await db._expireOTP(result)
-            }
-        }
-        throw new VerificationUnavailableError('Must wait until existing codes expire')
-    }
     const activeOTPs = await db._getActiveOTPs(email)
     if (activeOTPs.length > 0) {
         for (let activeOTP of activeOTPs) {
-            await db._revokeOTP(activeOTP)
+            await db._expireOTP(activeOTP)
         }
     }
     const otp = generateOTP()

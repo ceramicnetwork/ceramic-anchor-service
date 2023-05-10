@@ -33,6 +33,7 @@ export class ApiGateway implements KeyService {
     }
 
     async createApiKey(name: string, apiKey?: string): Promise<UsagePlanKey> {
+        if (process.env.TESTING == 'true') return
         return await this._registerAPIKey(name, apiKey)
     }
 
