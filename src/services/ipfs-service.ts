@@ -1,5 +1,5 @@
 import type { CID } from 'multiformats/cid'
-import LRUCache from 'lru-cache'
+import { LRUCache } from 'lru-cache'
 import { create as createIpfsClient } from 'ipfs-http-client'
 import type { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
