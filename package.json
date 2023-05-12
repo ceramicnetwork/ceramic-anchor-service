@@ -117,7 +117,7 @@
     "eslint-import-resolver-typescript": "^3.5.3",
     "eslint-plugin-import": "^2.27.5",
     "eslint-plugin-jest": "^27.2.1",
-    "ganache": "^7.7.5",
+    "ganache": "^7.8.0",
     "genversion": "^3.1.1",
     "get-port": "^6.0.0",
     "husky": "^8.0.2",
