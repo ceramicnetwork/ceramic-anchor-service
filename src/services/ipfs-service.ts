@@ -1,5 +1,5 @@
 import type { CID } from 'multiformats/cid'
-import LRUCache from 'lru-cache'
+import { LRUCache } from 'lru-cache'
 import { create as createIpfsClient } from 'ipfs-http-client'
 import type { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
@@ -7,8 +7,8 @@ import type { IPFS } from 'ipfs-core-types'
 import { AnchorCommit, toCID } from '@ceramicnetwork/common'
 import type { StreamID } from '@ceramicnetwork/streamid'
 import { Utils } from '../utils.js'
-import * as http from 'http'
-import * as https from 'https'
+import { Agent as HttpAgent } from 'node:http'
+import { Agent as HttpsAgent } from 'node:https'
 import { PubsubMessage } from '@ceramicnetwork/core'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
@@ -25,15 +25,15 @@ export const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
 const PUBSUB_DELAY = 100
 const DEFAULT_CONCURRENT_GET_LIMIT = 100
 
-function buildHttpAgent(endpoint: string | undefined): http.Agent {
+function buildHttpAgent(endpoint: string | undefined): HttpAgent {
   const agentOptions = {
     keepAlive: false,
     maxSockets: Infinity,
   }
   if (endpoint?.startsWith('https')) {
-    return new https.Agent(agentOptions)
+    return new HttpsAgent(agentOptions)
   } else {
-    return new http.Agent(agentOptions)
+    return new HttpAgent(agentOptions)
   }
 }
 
@@ -86,16 +86,14 @@ export class IpfsService implements IIpfsService {
     while (retryTimes > 0) {
       try {
         const found = this.cache.get(cacheKey)
-        if (found) {
-          return found
-        }
-        const record = await this.semaphore.use(async () => {
-          return this.ipfs.dag.get(toCID(cid), {
+        if (found) return found
+        const record = await this.semaphore.use(() =>
+          this.ipfs.dag.get(toCID(cid), {
             path: options.path,
             timeout: IPFS_GET_TIMEOUT,
             signal: options.signal,
           })
-        })
+        )
         const value = record.value
         Metrics.count(METRIC_NAMES.IPFS_GET_SUCCEEDED, 1)
         logger.debug(`Successfully retrieved ${cacheKey}`)

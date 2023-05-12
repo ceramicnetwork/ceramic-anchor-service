@@ -52,7 +52,7 @@
     "@ceramicnetwork/core": "^2.29.0",
     "@ceramicnetwork/logger": "^2.5.0",
     "@ceramicnetwork/observability": "^1.2.0",
-    "@ceramicnetwork/streamid": "^2.10.0-rc.0",
+    "@ceramicnetwork/streamid": "^2.14.0",
     "@ceramicnetwork/wasm-bloom-filter": "^0.1.0",
     "@overnightjs/core": "^1.7.6",
     "@stablelib/sha256": "^1.0.1",
@@ -73,7 +73,7 @@
     "lodash.camelcase": "^4.3.0",
     "lodash.clonedeep": "^4.5.0",
     "lodash.snakecase": "^4.1.1",
-    "lru-cache": "^7.17.0",
+    "lru-cache": "^9.0.2",
     "morgan": "^1.10.0",
     "multiformats": "^11.0.1",
     "os-utils": "^0.0.14",
@@ -81,7 +81,7 @@
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.5.2",
     "tsm": "^2.2.2",
-    "typed-inject": "^3.0.1",
+    "typed-inject": "^4.0.0",
     "uint8arrays": "^4.0.3",
     "uuid": "^9.0.0"
   },
@@ -135,7 +135,7 @@
     "release-it": "^15.5.0",
     "supertest": "^6.3.3",
     "tmp-promise": "^3.0.3",
-    "typescript": "^4.6.3"
+    "typescript": "^5.0.4"
   },
   "release-it": {
     "git": {
