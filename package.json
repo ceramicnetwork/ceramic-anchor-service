@@ -81,7 +81,7 @@
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
     "tsm": "^2.2.2",
-    "typed-inject": "^3.0.1",
+    "typed-inject": "^4.0.0",
     "uint8arrays": "^4.0.3",
     "uuid": "^9.0.0"
   },
@@ -135,7 +135,7 @@
     "release-it": "^15.10.3",
     "supertest": "^6.3.3",
     "tmp-promise": "^3.0.3",
-    "typescript": "^4.6.3"
+    "typescript": "^5.0.4"
   },
   "release-it": {
     "git": {
