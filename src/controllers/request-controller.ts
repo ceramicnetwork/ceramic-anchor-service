@@ -26,8 +26,12 @@ import { isLeft, report, string, strict, validate } from 'codeco'
  * If no header found, use IP address of the requester.
  */
 function parseOrigin(req: ExpReq): string {
-  const didHeader = req.get('did')
+  const didHeader = parseOriginDID(req)
   if (didHeader) return didHeader
+  return parseOriginIP(req)
+}
+
+function parseOriginIP(req: ExpReq): string {
   const sourceIp = req.get('sourceIp')
   if (sourceIp) return sourceIp
   let addresses = req.ip
@@ -41,6 +45,10 @@ function parseOrigin(req: ExpReq): string {
   }
   const addressesSplit = addresses.split(',') as NonEmptyArray<string>
   return addressesSplit[0].trim()
+}
+
+function parseOriginDID(req: ExpReq): string | undefined {
+  return req.get('did')
 }
 
 const GetStatusParams = strict({
@@ -113,7 +121,7 @@ export class RequestController {
       return res.status(StatusCodes.CREATED).json(body)
     } catch (err: any) {
       Metrics.count(METRIC_NAMES.REQUEST_NOT_CREATED, 1, { source: parseOrigin(req) })
-      return this.getBadRequestResponse(res, err, requestParams, origin)
+      return this.getBadRequestResponse(res, err, requestParams, parseOriginDID(req) || 'none', parseOriginIP(req))
     }
   }
 
@@ -121,9 +129,10 @@ export class RequestController {
     res: ExpRes,
     err: Error,
     requestParams: RequestAnchorParams,
-    origin: string
+    originDID: string, 
+    originIP: string
   ): ExpRes {
-    const errmsg = `Creating request with streamId ${requestParams.streamId} and commit CID ${requestParams.cid} from ${origin} failed: ${err.message}`
+    const errmsg = `Creating request with streamId ${requestParams.streamId} and commit CID ${requestParams.cid} from IP: ${originIP} and DID: ${originDID}  failed: ${err.message}`
     logger.err(errmsg)
     logger.err(err) // Log stack trace
     return res.status(StatusCodes.BAD_REQUEST).json({
