@@ -1,0 +1,46 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`TransactionStateMachine with mocks get block fails due to timeout 1`] = `
+Transaction {
+  "blockNumber": 1n,
+  "blockTimestamp": 0n,
+  "chain": "test",
+  "txHash": "0xdeadbeef",
+}
+`;
+
+exports[`TransactionStateMachine with mocks no errors encountered 1`] = `
+Transaction {
+  "blockNumber": 1n,
+  "blockTimestamp": 0n,
+  "chain": "test",
+  "txHash": "0xdeadbeef",
+}
+`;
+
+exports[`TransactionStateMachine with mocks simulate fails due to timeout 1`] = `
+Transaction {
+  "blockNumber": 1n,
+  "blockTimestamp": 0n,
+  "chain": "test",
+  "txHash": "0xdeadbeef",
+}
+`;
+
+exports[`TransactionStateMachine with mocks transaction receipt fails due to timeout 1`] = `
+Transaction {
+  "blockNumber": 1n,
+  "blockTimestamp": 0n,
+  "chain": "test",
+  "txHash": "0xdeadbeef",
+}
+`;
+
+exports[`TransactionStateMachine with mocks write fails due to timeout 1`] = `
+Transaction {
+  "blockNumber": 1n,
+  "blockTimestamp": 0n,
+  "chain": "test",
+  "txHash": "0xdeadbeef",
+}
+`;
