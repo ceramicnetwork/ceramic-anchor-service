@@ -20,6 +20,8 @@ const email = new SESService()
 const gateway = new ApiGateway()
 const metrics = new CloudMetrics()
 
+// limit increased from 100kb to accommodate CAR file payloads
+app.use(bodyParser.json({limit: '1mb'}))
 app.use(bodyParser.json())
 app.use(parseAsJson)
 function parseAsJson(req, res, next) {
@@ -74,7 +76,7 @@ function errorHandler (err, req, res, next) {
   }
   res.status(400).send({ error })
 }
- 
+
 export const handler = async (event, context) => {
   await db.init()
   await email.init()
