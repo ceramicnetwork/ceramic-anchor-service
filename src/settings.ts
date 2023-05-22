@@ -36,7 +36,7 @@ export enum METRIC_NAMES {
   RETRY_FAILED = 'retry_failed',
 
   // *******************************************************************//
-  // Anchor Service (histograms)
+  // Anchor Service (several of these are histograms)
 
   // request that moves from ready -> processing
   READY_PROCESSING_MS = "ready_processing_ms",
@@ -47,6 +47,13 @@ export enum METRIC_NAMES {
   // Anchor Controller
   ANCHOR_REQUESTS_BATCH_TIME = 'anchor_requests_batch_time',
   ANCHOR_REQUESTS_BATCH_FAILURE_TIME = 'anchor_requests_batch_failure_time',
+
+
+  // *******************************************************************//
+  // Ethereum Blockchain Service
+
+  ETH_REQUEST_TOTAL = 'eth_request_total',
+  ETH_REQUEST_ERROR_TOTAL = 'eth_request_error_total',
 
   // *******************************************************************//
   // Scheduler Service
