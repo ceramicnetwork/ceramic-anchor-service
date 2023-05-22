@@ -412,7 +412,7 @@ export class EthereumBlockchainService implements BlockchainService {
     const txData = await this._buildTransactionRequest(rootCid)
     const txResponses: Array<TransactionResponse> = []
 
-    metrics.count(METRIC_NAMES.ETH_REQUEST_TOTAL, 1)
+    Metrics.count(METRIC_NAMES.ETH_REQUEST_TOTAL, 1)
     return this.withWalletBalance((walletBalance) => {
       return attempt(MAX_RETRIES, async (attemptNum) => {
         try {
@@ -423,7 +423,7 @@ export class EthereumBlockchainService implements BlockchainService {
         } catch (err: any) {
           logger.err(err)
           const { code } = err
-          metrics.count(METRIC_NAMES.ETH_REQUEST_ERROR_TOTAL, 1, {'error_code', code})
+          Metrics.count(METRIC_NAMES.ETH_REQUEST_ERROR_TOTAL, 1, {'error_code': code})
           switch (code) {
             case ErrorCode.INSUFFICIENT_FUNDS:
               return handleInsufficientFundsError(txData, walletBalance)
