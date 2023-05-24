@@ -22,7 +22,6 @@ const metrics = new CloudMetrics()
 
 // limit increased from 100kb to accommodate CAR file payloads
 app.use(bodyParser.json({limit: '1mb'}))
-app.use(bodyParser.json())
 app.use(parseAsJson)
 function parseAsJson(req, res, next) {
   switch (req.method) {
