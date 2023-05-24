@@ -16,7 +16,7 @@ export class CeramicAnchorServer extends Server {
     super(true)
 
     this.app.set('trust proxy', true)
-    this.app.use(bodyParser.raw({inflate: true, type: 'application/vnd.ipld.car'}))
+    this.app.use(bodyParser.raw({inflate: true, type: 'application/vnd.ipld.car', limit: '1mb'}))
     this.app.use(bodyParser.json({ type: 'application/json' }))
     this.app.use(bodyParser.urlencoded({ extended: true, type: 'application/x-www-form-urlencoded' }))
     this.app.use(expressLoggers)
