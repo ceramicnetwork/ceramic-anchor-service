@@ -34,7 +34,16 @@ export type MerkleCarFactoryResult = {
   car: CAR
 }
 
-export class MerkleCAR {
+export interface IMerkleTree<TData, TLeaf extends TData, TMetadata> {
+  readonly root: Node<TData>
+  readonly leafNodes: Array<Node<TLeaf>>
+  readonly metadata: TMetadata | null
+  getProof(elemIndex: number): Array<Node<TData>>
+  getDirectPathFromRoot(elemIndex: number): PathDirection[]
+  verifyProof(proof: Node<TData>[], element: TData): Promise<boolean>
+}
+
+export class MerkleCAR implements IMerkleTree<CIDHolder, Candidate, TreeMetadata> {
   readonly root: Node<CIDHolder>
   readonly leafNodes: Array<Node<Candidate>>
   readonly metadata: TreeMetadata | null
