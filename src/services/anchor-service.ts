@@ -301,11 +301,7 @@ export class AnchorService {
     logger.debug('Creating anchor commits')
     const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
 
-    // FIXME Import
-    for (const block of merkleTree.car.blocks) {
-      const payload = merkleTree.car.get(block.cid)
-      await this.ipfsService.storeRecord(payload)
-    }
+    await this.ipfsService.importCAR(merkleTree.car)
 
     // Update the database to record the successful anchors
     logger.debug('Persisting results to local database')
