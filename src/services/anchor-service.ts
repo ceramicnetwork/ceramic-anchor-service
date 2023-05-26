@@ -33,7 +33,6 @@ import {
   type MerkleTree,
   type CIDHolder,
   type TreeMetadata,
-  type Node,
 } from '@ceramicnetwork/anchor-utils'
 import { Candidate } from './candidate.js'
 
@@ -167,11 +166,6 @@ export class AnchorService {
    */
   // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
   async anchorRequests(): Promise<void> {
-    // TODO FIXME Remove after backfill
-    // const withoutMetadata = await this.requestRepository.allWithoutMetadata(
-    //   this.minStreamLimit || this.maxStreamLimit || 100
-    // )
-    // await this.metadataService.fillAll(withoutMetadata)
     const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
 
     if (readyRequestsCount === 0) {
@@ -187,8 +181,6 @@ export class AnchorService {
    */
   async anchorReadyRequests(): Promise<void> {
     logger.imp('Anchoring ready requests...')
-    // FIXME PREV
-    // const requests: Request[] = await this.requestRepository.findAndMarkAsProcessing()
     const requests = await this.requestRepository.batchProcessing(this.maxStreamLimit)
     await this._anchorRequests(requests)
 
@@ -389,15 +381,14 @@ export class AnchorService {
     const leafNodes = merkleTree.leafNodes
     const anchors = []
 
-    for (let i = 0; i < leafNodes.length; i++) {
-      const leafNode = leafNodes[i] as Node<Candidate>
+    for (const [index, leafNode] of leafNodes.entries()) {
       const candidate = leafNode.data
       logger.debug(
-        `Creating anchor commit #${i + 1} of ${
+        `Creating anchor commit #${index + 1} of ${
           leafNodes.length
         }: stream id ${candidate.streamId.toString()} at commit CID ${candidate.cid}`
       )
-      const anchor = await this._createAnchorCommit(candidate, i, ipfsProofCid, merkleTree)
+      const anchor = await this._createAnchorCommit(candidate, index, ipfsProofCid, merkleTree)
       if (anchor) {
         anchors.push(anchor)
       }
