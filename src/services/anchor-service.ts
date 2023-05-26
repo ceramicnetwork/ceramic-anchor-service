@@ -32,10 +32,8 @@ import {
   type MerkleTree,
   type CIDHolder,
   type TreeMetadata,
-  type Node,
 } from '@ceramicnetwork/anchor-utils'
 import { Candidate } from './candidate.js'
-import { IQueueService } from './queue/queue-service.type.js'
 import { MerkleCarFactory, type IMerkleTree, type MerkleCAR } from '../merkle/merkle-car-factory.js'
 import { IQueueConsumerService } from './queue/queue-service.type.js'
 import { AnchorBatch } from '../models/queue-message.js'
