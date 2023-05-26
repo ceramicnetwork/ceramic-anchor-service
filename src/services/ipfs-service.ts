@@ -15,6 +15,7 @@ import { METRIC_NAMES } from '../settings.js'
 import type { IIpfsService, RetrieveRecordOptions } from './ipfs-service.type.js'
 import type { AbortOptions } from './abort-options.type.js'
 import { Semaphore } from 'await-semaphore'
+import type { CAR } from 'cartonne'
 
 const { serialize, MsgType } = PubsubMessage
 
@@ -154,5 +155,12 @@ export class IpfsService implements IIpfsService {
     await Utils.delay(PUBSUB_DELAY)
 
     return anchorCid
+  }
+
+  async importCAR(car: CAR, options?: AbortOptions): Promise<void> {
+    for (const block of car.blocks) {
+      const payload = car.get(block.cid)
+      await this.storeRecord(payload, options)
+    }
   }
 }

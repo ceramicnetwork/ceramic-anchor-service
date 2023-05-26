@@ -10,6 +10,7 @@ import { randomBytes, randomString } from '@stablelib/random'
 import { Request, RequestStatus } from '../models/request.js'
 import type { AbortOptions } from '../services/abort-options.type.js'
 import { Utils } from '../utils.js'
+import { CAR } from 'cartonne'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -116,6 +117,10 @@ export class MockIpfsService implements IIpfsService {
 
   reset() {
     this._streams = {}
+  }
+
+  importCAR(car: CAR, options?: AbortOptions): Promise<void> {
+    throw new Error(`Not implemented: MockIpfsService.importCAR`)
   }
 }
 
