@@ -123,7 +123,6 @@ function convertEthHashToCid(hash: string): CID {
  */
 export class AnchorService {
   private readonly merkleDepthLimit: number
-  private readonly includeBlockInfoInAnchorProof: boolean
   private readonly useSmartContractAnchors: boolean
   private readonly useQueueBatches: boolean
   private readonly maxStreamLimit: number
@@ -156,7 +155,6 @@ export class AnchorService {
     private readonly anchorBatchQueueService: IQueueService<AnchorBatch>
   ) {
     this.merkleDepthLimit = config.merkleDepthLimit
-    this.includeBlockInfoInAnchorProof = config.includeBlockInfoInAnchorProof
     this.useSmartContractAnchors = config.useSmartContractAnchors
     this.useQueueBatches = config.useQueueBatches
 
@@ -392,19 +390,11 @@ export class AnchorService {
    */
   _createIPFSProof(car: CAR, tx: Transaction, merkleRootCid: CID): CID {
     const txHashCid = convertEthHashToCid(tx.txHash.slice(2))
-    let ipfsAnchorProof = {
+    const ipfsAnchorProof = {
       root: merkleRootCid,
       chainId: tx.chain,
       txHash: txHashCid,
     } as any
-
-    if (this.includeBlockInfoInAnchorProof) {
-      ipfsAnchorProof = {
-        blockNumber: tx.blockNumber,
-        blockTimestamp: tx.blockTimestamp,
-        ...ipfsAnchorProof,
-      }
-    }
 
     if (this.useSmartContractAnchors) ipfsAnchorProof.txType = CONTRACT_TX_TYPE
 
