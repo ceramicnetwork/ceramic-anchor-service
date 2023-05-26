@@ -520,21 +520,12 @@ export class AnchorService {
     logger.debug(`Loading candidate streams`)
     // FIXME PREV
     const groupedRequests = await this._loadCandidateStreams(candidates, candidateLimit)
-    // await this._updateNonSelectedRequests(groupedRequests)
 
-    // FIXME PREV
-    // const candidatesToAnchor = candidates.filter((candidate) => {
-    //   return candidate.shouldAnchor()
-    // })
-    const candidatesToAnchor = candidates
-
-    if (candidatesToAnchor.length > 0) {
-      for (const candidate of candidates) {
-        groupedRequests.acceptedRequests.push(candidate.request)
-      }
+    for (const candidate of candidates) {
+      groupedRequests.acceptedRequests.push(candidate.request)
     }
 
-    return [candidatesToAnchor, groupedRequests]
+    return [candidates, groupedRequests]
   }
 
   /**
