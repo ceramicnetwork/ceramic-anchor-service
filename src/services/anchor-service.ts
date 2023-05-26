@@ -28,6 +28,7 @@ import { pathString, type CIDHolder, type TreeMetadata } from '@ceramicnetwork/a
 import { Candidate } from './candidate.js'
 import { MerkleCarFactory, type IMerkleTree, type MerkleCAR } from '../merkle/merkle-car-factory.js'
 import { create as createMultihash } from 'multiformats/hashes/digest'
+import { CAR } from 'cartonne'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
@@ -232,12 +233,6 @@ export class AnchorService {
     const span = Metrics.startSpan('anchor_candidates')
     const merkleTree = await this._buildMerkleTree(candidates)
 
-    // FIXME Import
-    for (const block of merkleTree.car.blocks) {
-      const payload = merkleTree.car.get(block.cid)
-      await this.ipfsService.storeRecord(payload)
-    }
-
     // create and send ETH transaction
     const tx: Transaction = await this.transactionRepository.withTransactionMutex(() => {
       logger.debug('Preparing to send transaction to put merkle root on blockchain')
@@ -246,20 +241,21 @@ export class AnchorService {
 
     // create proof on IPFS
     logger.debug('Creating IPFS anchor proof')
-    const ipfsProofCid = await this._createIPFSProof(tx, merkleTree.root.data.cid)
+    const ipfsProofCid = this._createIPFSProof(merkleTree.car, tx, merkleTree.root.data.cid)
 
     // create anchor records on IPFS
     logger.debug('Creating anchor commits')
     const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
 
+    // FIXME Import
+    for (const block of merkleTree.car.blocks) {
+      const payload = merkleTree.car.get(block.cid)
+      await this.ipfsService.storeRecord(payload)
+    }
+
     // Update the database to record the successful anchors
     logger.debug('Persisting results to local database')
     const persistedAnchorsCount = await this._persistAnchorResult(anchors, candidates)
-
-    const anchoredRequests = []
-    for (const candidate of candidates) {
-      anchoredRequests.push(candidate.request)
-    }
 
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
     Metrics.count(METRIC_NAMES.ANCHOR_SUCCESS, anchors.length)
@@ -273,7 +269,7 @@ export class AnchorService {
     span.end()
 
     return {
-      anchoredRequestsCount: anchoredRequests.length,
+      anchoredRequestsCount: candidates.length,
       failedToPublishAnchorCommitCount: merkleTree.leafNodes.length - anchors.length,
       anchorCount: anchors.length,
       reanchoredCount: reAnchoredCount,
@@ -344,7 +340,7 @@ export class AnchorService {
    * @param tx - ETH transaction
    * @param merkleRootCid - CID of the root of the merkle tree that was anchored in 'tx'
    */
-  async _createIPFSProof(tx: Transaction, merkleRootCid: CID): Promise<CID> {
+  _createIPFSProof(car: CAR, tx: Transaction, merkleRootCid: CID): CID {
     const txHashCid = convertEthHashToCid(tx.txHash.slice(2))
     let ipfsAnchorProof = {
       root: merkleRootCid,
@@ -363,7 +359,7 @@ export class AnchorService {
     if (this.useSmartContractAnchors) ipfsAnchorProof.txType = CONTRACT_TX_TYPE
 
     logger.debug('Anchor proof: ' + JSON.stringify(ipfsAnchorProof))
-    const ipfsProofCid = await this.ipfsService.storeRecord(ipfsAnchorProof)
+    const ipfsProofCid = car.put(ipfsAnchorProof)
     logger.debug('Anchor proof cid: ' + ipfsProofCid.toString())
     return ipfsProofCid
   }
@@ -376,10 +372,7 @@ export class AnchorService {
    * of each anchor request.
    * @private
    */
-  async _createAnchorCommits(
-    ipfsProofCid: CID,
-    merkleTree: IMerkleTree<CIDHolder, Candidate, TreeMetadata>
-  ): Promise<Anchor[]> {
+  async _createAnchorCommits(ipfsProofCid: CID, merkleTree: MerkleCAR): Promise<Anchor[]> {
     const leafNodes = merkleTree.leafNodes
     const anchors = []
 
@@ -390,7 +383,13 @@ export class AnchorService {
           leafNodes.length
         }: stream id ${candidate.streamId.toString()} at commit CID ${candidate.cid}`
       )
-      const anchor = await this._createAnchorCommit(candidate, index, ipfsProofCid, merkleTree)
+      const anchor = await this._createAnchorCommit(
+        merkleTree.car,
+        candidate,
+        index,
+        ipfsProofCid,
+        merkleTree
+      )
       if (anchor) {
         anchors.push(anchor)
       }
@@ -407,6 +406,7 @@ export class AnchorService {
    * @param merkleTree
    */
   async _createAnchorCommit(
+    car: CAR,
     candidate: Candidate,
     candidateIndex: number,
     ipfsProofCid: CID,
@@ -416,14 +416,14 @@ export class AnchorService {
     anchor.requestId = candidate.request.id
     anchor.proofCid = ipfsProofCid.toString()
 
-    const path = merkleTree.getDirectPathFromRoot(candidateIndex)
-    anchor.path = pathString(path)
+    const path = pathString(merkleTree.getDirectPathFromRoot(candidateIndex))
+    anchor.path = path
 
     const ipfsAnchorCommit = {
       id: candidate.streamId.cid,
       prev: candidate.cid,
       proof: ipfsProofCid,
-      path: anchor.path,
+      path: path,
     }
 
     try {
@@ -431,6 +431,7 @@ export class AnchorService {
         ipfsAnchorCommit,
         candidate.streamId
       )
+      car.put(ipfsAnchorCommit)
       anchor.cid = anchorCid.toString()
 
       logger.debug(
@@ -562,9 +563,7 @@ export class AnchorService {
       candidateLimit = candidates.length
     }
 
-    for (let i = 0; i < candidates.length; i++) {
-      const candidate = candidates[i] as Candidate
-
+    for (const candidate of candidates) {
       if (numSelectedCandidates >= candidateLimit) {
         // No need to process this candidate, we've already filled our anchor batch
         unprocessedRequests.push(candidate.request)
