@@ -280,12 +280,6 @@ export class AnchorService {
     const span = Metrics.startSpan('anchor_candidates')
     const merkleTree = await this._buildMerkleTree(candidates)
 
-    // FIXME Import
-    for (const block of merkleTree.car.blocks) {
-      const payload = merkleTree.car.get(block.cid)
-      await this.ipfsService.storeRecord(payload)
-    }
-
     // create and send ETH transaction
     const tx: Transaction = await this.transactionRepository.withTransactionMutex(() => {
       logger.debug('Preparing to send transaction to put merkle root on blockchain')
@@ -414,10 +408,7 @@ export class AnchorService {
    * of each anchor request.
    * @private
    */
-  async _createAnchorCommits(
-    ipfsProofCid: CID,
-    merkleTree: MerkleCAR
-  ): Promise<FreshAnchor[]> {
+  async _createAnchorCommits(ipfsProofCid: CID, merkleTree: MerkleCAR): Promise<FreshAnchor[]> {
     const leafNodes = merkleTree.leafNodes
     const anchors = []
 
