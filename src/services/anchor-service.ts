@@ -24,11 +24,7 @@ import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import type { IMetadataService } from './metadata-service.js'
-import {
-  pathString,
-  type CIDHolder,
-  type TreeMetadata,
-} from '@ceramicnetwork/anchor-utils'
+import { pathString, type CIDHolder, type TreeMetadata } from '@ceramicnetwork/anchor-utils'
 import { Candidate } from './candidate.js'
 import { MerkleCarFactory, type IMerkleTree, type MerkleCAR } from '../merkle/merkle-car-factory.js'
 import { IQueueService } from './queue/queue-service.type.js'
@@ -283,6 +279,12 @@ export class AnchorService {
     logger.imp(`Creating Merkle tree from ${candidates.length} selected streams`)
     const span = Metrics.startSpan('anchor_candidates')
     const merkleTree = await this._buildMerkleTree(candidates)
+
+    // FIXME Import
+    for (const block of merkleTree.car.blocks) {
+      const payload = merkleTree.car.get(block.cid)
+      await this.ipfsService.storeRecord(payload)
+    }
 
     // create and send ETH transaction
     const tx: Transaction = await this.transactionRepository.withTransactionMutex(() => {
