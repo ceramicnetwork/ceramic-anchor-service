@@ -51,6 +51,8 @@ export class IpfsService implements IIpfsService {
   private readonly pubsubTopic: string
   private readonly ipfs: IPFS
   private readonly semaphore: Semaphore
+  private readonly hasherNames: Map<number, string>
+  private readonly codecNames: Map<number, string>
 
   static inject = ['config'] as const
 
@@ -60,12 +62,20 @@ export class IpfsService implements IIpfsService {
     this.pubsubTopic = config.ipfsConfig.pubsubTopic
     const concurrentGetLimit = config.ipfsConfig.concurrentGetLimit || DEFAULT_CONCURRENT_GET_LIMIT
     this.semaphore = new Semaphore(concurrentGetLimit)
+    this.hasherNames = new Map()
+    this.codecNames = new Map()
   }
 
   /**
    * Initialize the service
    */
   async init(): Promise<void> {
+    for (const codec of this.ipfs.codecs.listCodecs()) {
+      this.codecNames.set(codec.code, codec.name)
+    }
+    for (const hasher of this.ipfs.hashers.listHashers()) {
+      this.hasherNames.set(hasher.code, hasher.name)
+    }
     // We have to subscribe to pubsub to keep ipfs connections alive.
     // TODO Remove this when the underlying ipfs issue is fixed
     await this.ipfs.pubsub.subscribe(this.pubsubTopic, () => {
@@ -157,10 +167,38 @@ export class IpfsService implements IIpfsService {
     return anchorCid
   }
 
-  async importCAR(car: CAR, options?: AbortOptions): Promise<void> {
+  async importCAR(car: CAR, options: AbortOptions = {}): Promise<void> {
+    const blocks = []
     for (const block of car.blocks) {
-      const payload = car.get(block.cid)
-      await this.storeRecord(payload, options)
+      blocks.push(block)
     }
+    await Promise.all(blocks.map(async block => {
+      const cid = block.cid
+      const format = this.codecNames.get(cid.code)
+      const mhtype = this.hasherNames.get(block.cid.multihash.code)
+      await this.ipfs.block.put(block.payload, {
+        format: format,
+        mhtype: mhtype,
+      })
+      await this.ipfs.pin.add(block.cid, {
+        signal: options.signal,
+        timeout: IPFS_PUT_TIMEOUT,
+        recursive: false,
+      })
+    }))
+    // for (const block of car.blocks) {
+    //   const cid = block.cid
+    //   const format = this.codecNames.get(cid.code)
+    //   const mhtype = this.hasherNames.get(block.cid.multihash.code)
+    //   await this.ipfs.block.put(block.payload, {
+    //     format: format,
+    //     mhtype: mhtype,
+    //   })
+    //   await this.ipfs.pin.add(block.cid, {
+    //     signal: options.signal,
+    //     timeout: IPFS_PUT_TIMEOUT,
+    //     recursive: false,
+    //   })
+    // }
   }
 }
