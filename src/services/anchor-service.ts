@@ -288,12 +288,6 @@ export class AnchorService {
     const span = Metrics.startSpan('anchor_candidates')
     const merkleTree = await this._buildMerkleTree(candidates)
 
-    // FIXME Import
-    for (const block of merkleTree.car.blocks) {
-      const payload = merkleTree.car.get(block.cid)
-      await this.ipfsService.storeRecord(payload)
-    }
-
     // create and send ETH transaction
     const tx: Transaction = await this.transactionRepository.withTransactionMutex(() => {
       logger.debug('Preparing to send transaction to put merkle root on blockchain')
