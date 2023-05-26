@@ -173,11 +173,6 @@ export class AnchorService {
    */
   // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
   async anchorRequests(): Promise<void> {
-    // TODO FIXME Remove after backfill
-    // const withoutMetadata = await this.requestRepository.allWithoutMetadata(
-    //   this.minStreamLimit || this.maxStreamLimit || 100
-    // )
-    // await this.metadataService.fillAll(withoutMetadata)
     if (this.useQueueBatches) {
       return this.anchorNextQueuedBatch()
     } else {
