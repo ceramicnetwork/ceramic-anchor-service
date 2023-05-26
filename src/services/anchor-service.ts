@@ -239,11 +239,11 @@ export class AnchorService {
       return this.blockchainService.sendTransaction(merkleTree.root.data.cid)
     })
 
-    // create proof on IPFS
+    // Create proof
     logger.debug('Creating IPFS anchor proof')
     const ipfsProofCid = this._createIPFSProof(merkleTree.car, tx, merkleTree.root.data.cid)
 
-    // create anchor records on IPFS
+    // Create anchor records on IPFS
     logger.debug('Creating anchor commits')
     const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
 
@@ -360,7 +360,7 @@ export class AnchorService {
 
     logger.debug('Anchor proof: ' + JSON.stringify(ipfsAnchorProof))
     const ipfsProofCid = car.put(ipfsAnchorProof)
-    logger.debug('Anchor proof cid: ' + ipfsProofCid.toString())
+    logger.debug(`Anchor proof cid: ${ipfsProofCid}`)
     return ipfsProofCid
   }
 
