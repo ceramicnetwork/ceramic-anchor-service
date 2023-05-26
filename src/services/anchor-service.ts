@@ -585,7 +585,7 @@ export class AnchorService {
     const candidates = []
     for (const request of requests) {
       const streamId = StreamID.fromString(request.streamId)
-      const metadata = await this.metadataService.retrieve(streamId) // TODO Move to service, make it throw when not found
+      const metadata = await this.metadataService.retrieve(streamId)
       if (metadata) {
         const candidate = new Candidate(streamId, request, metadata.metadata)
         candidates.push(candidate)
