@@ -24,7 +24,11 @@ import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import type { IMetadataService } from './metadata-service.js'
-import { pathString, type CIDHolder, type TreeMetadata } from '@ceramicnetwork/anchor-utils'
+import {
+  pathString,
+  type CIDHolder,
+  type TreeMetadata,
+} from '@ceramicnetwork/anchor-utils'
 import { Candidate } from './candidate.js'
 import { MerkleCarFactory, type IMerkleTree, type MerkleCAR } from '../merkle/merkle-car-factory.js'
 import { IQueueService } from './queue/queue-service.type.js'
