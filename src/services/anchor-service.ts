@@ -19,23 +19,15 @@ import { METRIC_NAMES } from '../settings.js'
 import type { BlockchainService } from './blockchain/blockchain-service.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 
-import { BloomMetadata } from '../merkle/bloom-metadata.js'
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import type { IMetadataService } from './metadata-service.js'
-import {
-  pathString,
-  MerkleTreeFactory,
-  IpfsLeafCompare,
-  IpfsMerge,
-  type MerkleTree,
-  type CIDHolder,
-  type TreeMetadata,
-} from '@ceramicnetwork/anchor-utils'
+import { pathString, type CIDHolder, type TreeMetadata } from '@ceramicnetwork/anchor-utils'
 import { IQueueConsumerService } from './queue/queue-service.type.js'
 import { Candidate } from './candidate.js'
+import { MerkleCarFactory, type IMerkleTree, type MerkleCAR } from '../merkle/merkle-car-factory.js'
 import { AnchorBatch } from '../models/queue-message.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
@@ -120,7 +112,7 @@ export class AnchorService {
   private readonly useQueueBatches: boolean
   private readonly maxStreamLimit: number
   private readonly minStreamLimit: number
-  private readonly merkleTreeFactory: MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>
+  private readonly merkleCarFactory: MerkleCarFactory
 
   static inject = [
     'blockchainService',
@@ -155,16 +147,7 @@ export class AnchorService {
     const minStreamCount = Number(config.minStreamCount)
     this.maxStreamLimit = this.merkleDepthLimit > 0 ? Math.pow(2, this.merkleDepthLimit) : 0
     this.minStreamLimit = minStreamCount || Math.floor(this.maxStreamLimit / 2)
-
-    const ipfsMerge = new IpfsMerge(this.ipfsService, logger)
-    const ipfsCompare = new IpfsLeafCompare(logger)
-    const bloomMetadata = new BloomMetadata()
-    this.merkleTreeFactory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
-      ipfsMerge,
-      ipfsCompare,
-      bloomMetadata,
-      this.merkleDepthLimit
-    )
+    this.merkleCarFactory = new MerkleCarFactory(logger, this.merkleDepthLimit)
   }
 
   /**
@@ -288,6 +271,12 @@ export class AnchorService {
     const span = Metrics.startSpan('anchor_candidates')
     const merkleTree = await this._buildMerkleTree(candidates)
 
+    // FIXME Import
+    for (const block of merkleTree.car.blocks) {
+      const payload = merkleTree.car.get(block.cid)
+      await this.ipfsService.storeRecord(payload)
+    }
+
     // create and send ETH transaction
     const tx: Transaction = await this.transactionRepository.withTransactionMutex(() => {
       logger.debug('Preparing to send transaction to put merkle root on blockchain')
@@ -380,11 +369,9 @@ export class AnchorService {
    * @param candidates
    * @private
    */
-  async _buildMerkleTree(
-    candidates: Candidate[]
-  ): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
+  async _buildMerkleTree(candidates: Candidate[]): Promise<MerkleCAR> {
     try {
-      return await this.merkleTreeFactory.build(candidates)
+      return await this.merkleCarFactory.build(candidates)
     } catch (e: any) {
       throw new Error('Merkle tree cannot be created: ' + e.toString())
     }
@@ -430,7 +417,7 @@ export class AnchorService {
    */
   async _createAnchorCommits(
     ipfsProofCid: CID,
-    merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
+    merkleTree: IMerkleTree<CIDHolder, Candidate, TreeMetadata>
   ): Promise<Anchor[]> {
     const leafNodes = merkleTree.leafNodes
     const anchors = []
@@ -462,7 +449,7 @@ export class AnchorService {
     candidate: Candidate,
     candidateIndex: number,
     ipfsProofCid: CID,
-    merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
+    merkleTree: IMerkleTree<CIDHolder, Candidate, TreeMetadata>
   ): Promise<Anchor | null> {
     const anchor: Anchor = new Anchor()
     anchor.requestId = candidate.request.id
