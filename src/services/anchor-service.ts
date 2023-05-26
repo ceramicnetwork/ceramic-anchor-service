@@ -27,6 +27,7 @@ import type { IMetadataService } from './metadata-service.js'
 import { pathString, type CIDHolder, type TreeMetadata } from '@ceramicnetwork/anchor-utils'
 import { Candidate } from './candidate.js'
 import { MerkleCarFactory, type IMerkleTree, type MerkleCAR } from '../merkle/merkle-car-factory.js'
+import { create as createMultihash } from 'multiformats/hashes/digest'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
@@ -100,6 +101,20 @@ const logAnchorSummary = async (
     ...anchorSummary,
   })
 }
+
+/**
+ * Converts ETH address to CID
+ * @param hash - ETH hash
+ */
+function convertEthHashToCid(hash: string): CID {
+  const KECCAK_256_CODE = 0x1b
+  const ETH_TX_CODE = 0x93
+  const CID_VERSION = 1
+  const bytes = Buffer.from(hash, 'hex')
+  const multihash = createMultihash(KECCAK_256_CODE, bytes)
+  return CID.create(CID_VERSION, ETH_TX_CODE, multihash)
+}
+
 /**
  * Anchors CIDs to blockchain
  */
@@ -330,7 +345,7 @@ export class AnchorService {
    * @param merkleRootCid - CID of the root of the merkle tree that was anchored in 'tx'
    */
   async _createIPFSProof(tx: Transaction, merkleRootCid: CID): Promise<CID> {
-    const txHashCid = Utils.convertEthHashToCid(tx.txHash.slice(2))
+    const txHashCid = convertEthHashToCid(tx.txHash.slice(2))
     let ipfsAnchorProof = {
       root: merkleRootCid,
       chainId: tx.chain,
