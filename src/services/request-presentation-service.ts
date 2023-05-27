@@ -43,13 +43,13 @@ export class RequestPresentationService {
         const anchor = await this.anchorRepository.findByRequest(request)
         // TODO: This is a workaround, fix in CDB-2192
         const anchorCommit = {
-          cid: anchor ? anchor.cid : request.cid,
+          cid: anchor ? anchor.cid.toString() : request.cid,
           content: {
             // okay to be undefined because it is not used by ceramic node
             path: anchor?.path,
             prev: request.cid,
             // okay to be undefined because it is not used by ceramic node
-            proof: anchor?.proofCid,
+            proof: anchor?.proofCid.toString(),
           },
         }
 
