@@ -1,8 +1,9 @@
-import type { Anchor } from '../models/anchor.js'
+import { DatabaseAnchor, FreshDatabaseAnchor } from '../models/anchor.js'
 import type { Request } from '../models/request.js'
 import type { Knex } from 'knex'
 import type { AnchorWithRequest, IAnchorRepository } from './anchor-repository.type.js'
 import { parseCountResult } from './parse-count-result.util.js'
+import { decode } from 'codeco'
 
 const TABLE_NAME = 'anchor'
 
@@ -30,8 +31,11 @@ export class AnchorRepository implements IAnchorRepository {
    * @param anchors - Anchors
    * @returns A promise that resolve to the number of anchors created
    */
-  async createAnchors(anchors: Array<Anchor>): Promise<number> {
-    const result: any = await this.table.insert(anchors).onConflict('requestId').ignore()
+  async createAnchors(anchors: Array<FreshDatabaseAnchor>): Promise<number> {
+    const result: any = await this.table
+      .insert(anchors.map((anchor) => FreshDatabaseAnchor.encode(anchor)))
+      .onConflict('requestId')
+      .ignore()
     return parseCountResult(result.rowCount)
   }
 
@@ -42,11 +46,12 @@ export class AnchorRepository implements IAnchorRepository {
    * @returns A promise that resolve to the anchor associated to the request
    */
   async findByRequest(request: Request): Promise<AnchorWithRequest | null> {
-    const anchor = await this.table.where({ requestId: request.id }).first()
+    const row = await this.table.where({ requestId: request.id }).first()
 
-    if (!anchor) {
-      return anchor
+    if (!row) {
+      return null
     }
+    const anchor = decode(DatabaseAnchor, row)
 
     return { ...anchor, request }
   }

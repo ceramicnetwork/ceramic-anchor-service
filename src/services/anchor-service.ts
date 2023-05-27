@@ -4,7 +4,7 @@ import type { Config } from 'node-config-ts'
 
 import { logEvent, logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
-import { Anchor } from '../models/anchor.js'
+import { FreshDatabaseAnchor } from '../models/anchor.js'
 import { Request, RequestStatus, RequestStatus as RS } from '../models/request.js'
 import type { Transaction } from '../models/transaction.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
@@ -411,7 +411,10 @@ export class AnchorService {
    * of each anchor request.
    * @private
    */
-  async _createAnchorCommits(ipfsProofCid: CID, merkleTree: MerkleCAR): Promise<Anchor[]> {
+  async _createAnchorCommits(
+    ipfsProofCid: CID,
+    merkleTree: MerkleCAR
+  ): Promise<FreshDatabaseAnchor[]> {
     const leafNodes = merkleTree.leafNodes
     const anchors = []
 
@@ -450,14 +453,8 @@ export class AnchorService {
     candidateIndex: number,
     ipfsProofCid: CID,
     merkleTree: IMerkleTree<CIDHolder, Candidate, TreeMetadata>
-  ): Promise<Anchor | null> {
-    const anchor: Anchor = new Anchor()
-    anchor.requestId = candidate.request.id
-    anchor.proofCid = ipfsProofCid.toString()
-
+  ): Promise<FreshDatabaseAnchor | null> {
     const path = pathString(merkleTree.getDirectPathFromRoot(candidateIndex))
-    anchor.path = path
-
     const ipfsAnchorCommit = {
       id: candidate.streamId.cid,
       prev: candidate.cid,
@@ -471,11 +468,16 @@ export class AnchorService {
         candidate.streamId
       )
       car.put(ipfsAnchorCommit)
-      anchor.cid = anchorCid.toString()
-
+      const anchor: FreshDatabaseAnchor = {
+        requestId: candidate.request.id,
+        proofCid: ipfsProofCid,
+        path: path,
+        cid: anchorCid,
+      }
       logger.debug(
         `Created anchor commit with CID ${anchorCid.toString()} for stream ${candidate.streamId.toString()}`
       )
+      return anchor
     } catch (err) {
       const msg = `Error publishing anchor commit of commit ${
         candidate.cid
@@ -487,7 +489,6 @@ export class AnchorService {
       ])
       return null
     }
-    return anchor
   }
 
   /**
@@ -499,7 +500,10 @@ export class AnchorService {
    * @returns The number of anchors persisted
    * @private
    */
-  async _persistAnchorResult(anchors: Anchor[], candidates: Candidate[]): Promise<number> {
+  async _persistAnchorResult(
+    anchors: FreshDatabaseAnchor[],
+    candidates: Candidate[]
+  ): Promise<number> {
     // filter to requests for streams that were actually anchored successfully
     const acceptedRequests = []
     for (const candidate of candidates) {
