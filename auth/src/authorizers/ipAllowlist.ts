@@ -40,6 +40,7 @@ export const ALLOWED_IP_ADDRESSES: Record<string, string> = {
     "162.55.216.67": "Wetez",
     "34.236.75.99": "Gitcoin",
     "35.170.181.124": "Gitcoin",
+    "144.202.24.120": "Gitcoin via Hirenode",
     "64.225.91.133": "Disco.xyz",
     "143.198.245.21": "Disco.xyz",
     "137.184.244.223": "Disco.xyz",

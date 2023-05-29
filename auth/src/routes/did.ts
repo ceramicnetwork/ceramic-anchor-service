@@ -6,6 +6,7 @@ import { ClientFacingError } from '../utils/errorHandling.js'
 import { Req, Res } from '../utils/reqres.js'
 import { ConfigKey } from '../services/db.js'
 import { checkUserIsAdmin } from '../utils/auth.js'
+import { METRIC_NAMES } from '../utils/metrics.js'
 
 const router = asyncify(express.Router())
 
@@ -22,22 +23,36 @@ router.post('/', validate(registerValidation), async (req: Req, res: Res) => {
     const valueOnly = true
     const registrationEnabled = await req.customContext.db.getConfig(ConfigKey.RegistrationEnabled, valueOnly)
     if (registrationEnabled == false) {
+      await req.customContext.metrics.count(METRIC_NAMES.register, 1, {'result': 'refused'})
       return res.send({ message: 'We have reached capacity! We are not accepting new registrations at this time. Please try again later.'})
     }
   }
 
   const skipOTP = userIsAdmin
-  const data = await req.customContext.db.registerDIDs(req.body.email, req.body.otp, req.body.dids, skipOTP)
-  if (data) {
-    const keyData = data.map((didResult) => ({ user: didResult.email, apiKey: didResult.did }))
-    try {
-      await req.customContext.gateway.createApiKeys(keyData)
-    } catch (err) {
-      console.error(err)
-    }
-    return res.send(data)
+  let data
+  try {
+    data = await req.customContext.db.registerDIDs(req.body.email, req.body.otp, req.body.dids, skipOTP)
+  } catch (err) {
+    console.error(err)
+    await req.customContext.metrics.count(METRIC_NAMES.register, 1, {'result': 'register_error'})
+    throw new ClientFacingError(`Could not register DIDs: ${err.message}`)
   }
-  throw new ClientFacingError('Could not register DIDs')
+
+  if (! data || data.length == 0) {
+    await req.customContext.metrics.count(METRIC_NAMES.register, 1, {'result': 'no_data'})
+    throw new ClientFacingError('No new DIDs registered')
+  }
+
+  const keyData = data.map((didResult) => ({ user: didResult.email, apiKey: didResult.did }))
+  try {
+    await req.customContext.gateway.createApiKeys(keyData)
+    await req.customContext.metrics.count(METRIC_NAMES.register, 1, {'result': 'success'})
+  } catch (err) {
+    console.error(err)
+    await req.customContext.metrics.count(METRIC_NAMES.register, 1, {'result': 'gateway_error'})
+    throw new ClientFacingError(`Could not register DIDs: ${err.message}`)
+  }
+  return res.send(data)
 })
 
 /**
@@ -51,8 +66,10 @@ router.patch('/:did', validate(revokeValidation), async (req: Req, res: Res) => 
     } catch (err) {
       console.error(err)
     }
+    await req.customContext.metrics.count(METRIC_NAMES.revoke, 1, {'result': 'success'})
     return res.send(data)
   }
+  await req.customContext.metrics.count(METRIC_NAMES.revoke, 1, {'result': 'error'})
   throw new ClientFacingError('Could not revoke DID')
 })
 

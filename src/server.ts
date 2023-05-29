@@ -1,7 +1,8 @@
 import bodyParser from 'body-parser'
 import { Server } from '@overnightjs/core'
 import { auth } from './auth/index.js'
-import { expressLoggers, logger } from './logger/index.js'
+import { expressLoggers, logger, expressErrorLogger } from './logger/index.js'
+
 
 import * as http from 'http'
 import { Config } from 'node-config-ts'
@@ -15,7 +16,7 @@ export class CeramicAnchorServer extends Server {
     super(true)
 
     this.app.set('trust proxy', true)
-    this.app.use(bodyParser.raw({inflate: true, type: 'application/vnd.ipld.car'}))
+    this.app.use(bodyParser.raw({inflate: true, type: 'application/vnd.ipld.car', limit: '1mb'}))
     this.app.use(bodyParser.json({ type: 'application/json' }))
     this.app.use(bodyParser.urlencoded({ extended: true, type: 'application/x-www-form-urlencoded' }))
     this.app.use(expressLoggers)
@@ -23,6 +24,9 @@ export class CeramicAnchorServer extends Server {
       this.app.use(auth)
     }
     this.addControllers(controllers)
+
+    // add error handling middleware here
+    this.app.use(expressErrorLogger)
   }
 
   /**

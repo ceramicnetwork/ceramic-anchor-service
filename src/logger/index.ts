@@ -1,4 +1,4 @@
-import { Request as ExpReq, Response as ExpRes } from 'express'
+import { Request as ExpReq, Response as ExpRes, NextFunction as ExpNext } from 'express'
 import morgan from 'morgan'
 import { config } from 'node-config-ts'
 import path from 'path'
@@ -77,3 +77,38 @@ export const logMetric = {
   anchor: (log: ServiceLog): void => anchorMetricsLogger.log(log),
   ethereum: (log: ServiceLog): void => ethereumMetricsLogger.log(log),
 }
+
+interface ErrorData extends ServiceLog {
+  type: string;
+  message: string;
+  stack: string;
+  status: number;
+  originalUrl: string;
+  baseUrl: string;
+  path: string;
+  sourceIp: string;
+  did: string;
+}
+
+export function expressErrorLogger(err: Error, req: ExpReq, res: ExpRes, next: ExpNext): void {
+  const logger = loggerProvider.makeServiceLogger('http-error');
+  const errorData: ErrorData = {
+    type: 'error',
+    message: err.message,
+    stack: err.stack || '',
+    status: (err as any).status || 500,
+    originalUrl: req.originalUrl,
+    baseUrl: req.baseUrl,
+    path: req.path,
+    sourceIp: req.get('sourceIp') || '',
+    did: req.get('did') || '',
+  };
+
+  logger.log(errorData);
+  next(err); 
+}
+
+
+
+
+

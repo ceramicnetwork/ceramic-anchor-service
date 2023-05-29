@@ -9,6 +9,7 @@ import { DynamoDB } from '../services/aws/dynamodb.js'
 import { SESService } from '../services/aws/ses.js'
 import { ClientFacingError } from '../utils/errorHandling.js'
 import { CustomContext, httpMethods } from '../utils/reqres.js'
+import { CloudMetrics } from '../utils/metrics.js'
 
 export const API_ENDPOINT = '/api/v0/auth'
 
@@ -17,6 +18,7 @@ const createTableIfNotExists = true
 const db = new DynamoDB(createTableIfNotExists)
 const email = new SESService()
 const gateway = new ApiGateway()
+const metrics = new CloudMetrics()
 
 app.use(bodyParser.json())
 app.use(parseAsJson)
@@ -39,7 +41,8 @@ function customContext(req, res, next) {
   const context: CustomContext = {
     db,
     email,
-    gateway
+    gateway,
+    metrics
   }
   req.customContext = context
   next()
@@ -60,7 +63,7 @@ function errorHandler (err, req, res, next) {
   if (res.headersSent) {
     return next(err)
   }
-  let error = 'Error'
+  let error = 'Internal Error'
   if (err instanceof ValidationError) {
     console.error(err.details)
     error = err.message
@@ -71,7 +74,7 @@ function errorHandler (err, req, res, next) {
   }
   res.status(400).send({ error })
 }
- 
+
 export const handler = async (event, context) => {
   await db.init()
   await email.init()

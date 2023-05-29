@@ -1,13 +1,12 @@
 import type { StreamID } from '@ceramicnetwork/streamid'
 import type { IIpfsService, RetrieveRecordOptions } from './ipfs-service.type.js'
 import type { GenesisFields, StoredMetadata } from '../models/metadata.js'
-import * as t from 'io-ts'
-import * as te from '../ancillary/io-ts-extra.js'
 import type { IMetadataRepository } from '../repositories/metadata-repository.js'
-import { ThrowDecoder } from '../ancillary/throw-decoder.js'
 import type { AbortOptions } from './abort-options.type.js'
-import { IsExact, assert } from 'conditional-type-checks'
+import { assert, type IsExact } from 'conditional-type-checks'
 import { logger } from '../logger/index.js'
+import { strict, array, exact, optional, sparse, string, decode, type TypeOf } from 'codeco'
+import { commitIdAsString, controllers, streamIdAsBytes, uint8array } from '../ancillary/codecs.js'
 
 /**
  * Public interface for MetadataService.
@@ -22,44 +21,29 @@ export interface IMetadataService {
 /**
  * Codec for genesis header retrieved from IPFS.
  */
-export const IpfsGenesisHeader = t.exact(
-  t.intersection([
-    t.type(
-      {
-        controllers: te.controllers,
-      },
-      'mandatory'
-    ),
-    t.partial(
-      {
-        schema: t.string.pipe(te.commitIdAsString),
-        family: t.string,
-        tags: t.array(t.string),
-        model: te.uint8array.pipe(te.streamIdAsBytes),
-      },
-      'optional'
-    ),
-  ]),
-  'IpfsGenesisHeader'
+export const IpfsGenesisHeader = exact(
+  sparse(
+    {
+      controllers: controllers,
+      schema: optional(string.pipe(commitIdAsString)),
+      family: optional(string),
+      tags: optional(array(string)),
+      model: optional(uint8array.pipe(streamIdAsBytes)),
+    },
+    'IpfsGenesisHeader'
+  )
 )
 
 /**
  * Codec for genesis content retrieved from IPFS. Only `header` field is extracted here.
  */
-export const IpfsGenesis = t.exact(
-  t.type(
-    {
-      header: IpfsGenesisHeader,
-    },
-    'IpfsGenesis'
-  )
-)
+export const IpfsGenesis = strict({ header: IpfsGenesisHeader }, 'IpfsGenesis')
 
 /**
  * Fails on compile time if there is any divergence between `GenesisFields` and `IpfsGenesisHeader` shapes.
  * The function is a no-op.
  */
-assert<IsExact<GenesisFields, t.TypeOf<typeof IpfsGenesisHeader>>>(true)
+assert<IsExact<GenesisFields, TypeOf<typeof IpfsGenesisHeader>>>(true)
 
 /**
  * Identifier of DAG-JOSE codec.
@@ -105,7 +89,7 @@ export class MetadataService implements IMetadataService {
       retrieveRecordOptions.path = '/link'
     }
     const genesisRecord = await this.ipfsService.retrieveRecord(genesisCID, retrieveRecordOptions)
-    const genesis = ThrowDecoder.decode(IpfsGenesis, genesisRecord)
+    const genesis = decode(IpfsGenesis, genesisRecord)
     return genesis.header
   }
 

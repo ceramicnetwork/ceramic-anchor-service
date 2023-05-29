@@ -6,6 +6,7 @@ on:
     paths-ignore:
       - '.github/**'
       - 'auth/**'
+  workflow_dispatch: # manually triggered
 
 env:
   FOUNDRY_PROFILE: ci

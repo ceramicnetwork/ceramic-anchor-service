@@ -27,7 +27,7 @@ jobs:
         name: Setup pnpm
         run: |
           npm install -g pnpm
-          pnpm install
+          pnpm install --no-frozen-lockfile
         working-directory: ./auth
       -
         name: Run unit tests
@@ -40,6 +40,8 @@ jobs:
           export TESTING=true
           export REST_API_ID=
           export REST_API_ROOT_RESOURCE_ID=
+          export METRIC_BASE_NAME=
+          export METRIC_NAMESPACE=
           sleep 5
 
           # Start Serverless Offline

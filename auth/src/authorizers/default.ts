@@ -63,8 +63,12 @@ function allowAll(event: APIGatewayRequestAuthorizerEvent, callback: any): any {
 async function allowPermissionedIPAddress(event: APIGatewayRequestAuthorizerEvent, callback: any): Promise<[boolean, any]> {
     const ip = event.requestContext.identity.sourceIp
     console.log('ip', ip)
+    
+    const context = {
+      "sourceIp": ip
+    }
     if (ALLOWED_IP_ADDRESSES[ip]) {
-      return [true, callback(null, generatePolicy(ip, {effect: 'Allow', resource: event.methodArn}, ip))]
+      return [true, callback(null, generatePolicy(ip, {effect: 'Allow', resource: event.methodArn}, ip, context))]
     } else {
       // Not an error, log and fall through.
       console.log('Not in allowed IP address list')

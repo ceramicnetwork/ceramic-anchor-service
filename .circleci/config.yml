@@ -103,9 +103,10 @@ jobs:
 workflows:
   test_and_queue_deploy:
     when:
-      and:
+      or:
+        - equal: [ "bypass", << pipeline.parameters.GHA_Meta >> ]
         - not:
-            equal: [ ukstv, << pipeline.parameters.GHA_Actor >> ]
+            equal: [ "ukstv", << pipeline.parameters.GHA_Actor >> ]
     jobs:
       - test
       - dispatch-event:
