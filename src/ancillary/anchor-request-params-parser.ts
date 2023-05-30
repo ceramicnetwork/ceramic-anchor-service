@@ -2,6 +2,8 @@ import type { Request as ExpReq } from 'express'
 import type { CID } from 'multiformats/cid'
 import type { StreamID } from '@ceramicnetwork/streamid'
 import { CARFactory, type CAR } from 'cartonne'
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
+import { METRIC_NAMES } from '../settings.js'
 import * as DAG_JOSE from 'dag-jose'
 import { GenesisFields } from '../models/metadata.js'
 import { IpfsGenesis } from '../services/metadata-service.js'
@@ -102,11 +104,13 @@ export class AnchorRequestParamsParser {
   parse(req: ExpReq): Validation<RequestAnchorParams> {
     if (req.get('Content-Type') !== 'application/vnd.ipld.car') {
       // Legacy requests
+      Metrics.count(METRIC_NAMES.LEGACY_REQUESTED, 1)
       return validate(RequestAnchorParamsV1, req.body)
     } else {
       // Next version of anchor requests, using the CAR file format
       // TODO: CDB-2212 Store the car file somewhere for future reference/validation of signatures
       // (as it also includes the tip commit and optionally CACAO for the tip commit)
+      Metrics.count(METRIC_NAMES.CAR_REQUESTED, 1)
       return validate(this.v2decoder, req.body)
     }
   }

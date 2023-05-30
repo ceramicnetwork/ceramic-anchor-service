@@ -63,6 +63,8 @@ export enum METRIC_NAMES {
 
   // Request Controller
   ANCHOR_REQUESTED = 'anchor_requested',
+  CAR_REQUESTED = 'car_requested',
+  LEGACY_REQUESTED = 'legacy_requested',
   REQUEST_INVALID = 'request_invalid',
   REQUEST_NOT_CREATED = 'request_not_created'
 }
