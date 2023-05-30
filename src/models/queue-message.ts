@@ -1,8 +1,8 @@
-import * as t from 'io-ts'
+import { array, string, type, type TypeOf } from 'codeco'
 
-export const AnchorBatch = t.type({
-  bid: t.string,
-  rids: t.array(t.string),
+export const AnchorBatch = type({
+  bid: string,
+  rids: array(string),
 })
 
-export type AnchorBatch = t.TypeOf<typeof AnchorBatch>
+export type AnchorBatch = TypeOf<typeof AnchorBatch>

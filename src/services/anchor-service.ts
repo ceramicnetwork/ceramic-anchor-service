@@ -166,7 +166,6 @@ export class AnchorService {
   private readonly maxStreamLimit: number
   private readonly minStreamLimit: number
   private readonly merkleTreeFactory: MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>
-  private readonly batchQueueService: IQueueService<AnchorBatch> | undefined
 
   static inject = [
     'blockchainService',
@@ -178,6 +177,7 @@ export class AnchorService {
     'dbConnection',
     'eventProducerService',
     'metadataService',
+    'anchorBatchQueueService',
   ] as const
 
   constructor(
@@ -189,16 +189,13 @@ export class AnchorService {
     private readonly anchorRepository: IAnchorRepository,
     private readonly connection: Knex,
     private readonly eventProducerService: EventProducerService,
-    private readonly metadataService: IMetadataService
+    private readonly metadataService: IMetadataService,
+    private readonly anchorBatchQueueService: IQueueService<AnchorBatch>
   ) {
     this.merkleDepthLimit = config.merkleDepthLimit
     this.includeBlockInfoInAnchorProof = config.includeBlockInfoInAnchorProof
     this.useSmartContractAnchors = config.useSmartContractAnchors
     this.useQueueBatches = config.useQueueBatches
-
-    if (this.useQueueBatches) {
-      this.batchQueueService = new SqsQueueService(config, AnchorBatch)
-    }
 
     const minStreamCount = Number(config.minStreamCount)
     this.maxStreamLimit = this.merkleDepthLimit > 0 ? Math.pow(2, this.merkleDepthLimit) : 0
@@ -225,7 +222,6 @@ export class AnchorService {
     //   this.minStreamLimit || this.maxStreamLimit || 100
     // )
     // await this.metadataService.fillAll(withoutMetadata)
-
     if (this.useQueueBatches) {
       return this.anchorNextQueuedBatch()
     } else {
@@ -244,14 +240,14 @@ export class AnchorService {
    * Creates anchors for client requests that have been marked as READY
    */
   async anchorNextQueuedBatch(): Promise<void> {
-    if (!this.useQueueBatches || !this.batchQueueService) {
+    if (!this.useQueueBatches) {
       throw new Error(
         'Cannot anchor next queued batch as the worker is not configured to do so. Please set `useQueueBatches` in the config if this is desired.'
       )
     }
 
     logger.imp('Retrieving next job from queue')
-    const batchMessage = await this.batchQueueService.retrieveNextMessage()
+    const batchMessage = await this.anchorBatchQueueService.retrieveNextMessage()
 
     if (!batchMessage) {
       // TODO: Add metric here

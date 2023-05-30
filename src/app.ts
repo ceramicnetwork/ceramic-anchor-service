@@ -37,6 +37,7 @@ import { UnreachableCaseError } from '@ceramicnetwork/common'
 import { AnchorRequestParamsParser } from './ancillary/anchor-request-params-parser.js'
 import { HealthcheckService, IHealthcheckService } from './services/healthcheck-service.js'
 import { RequestService } from './services/request-service.js'
+import { AnchorBatchSqsQueueService } from './services/queue/sqs-queue-service.js'
 
 type DependenciesContext = {
   config: Config
@@ -91,6 +92,7 @@ export class CeramicAnchorApp {
       .provideClass('eventProducerService', HTTPEventProducerService)
       .provideClass('ipfsService', IpfsService)
       .provideClass('metadataService', MetadataService)
+      .provideClass('anchorBatchQueueService', AnchorBatchSqsQueueService)
       .provideClass('anchorService', AnchorService)
       .provideClass('schedulerService', SchedulerService)
       .provideClass('healthcheckService', HealthcheckService)

@@ -141,7 +141,7 @@ export class RequestRepository {
    * @returns A promise that resolves to the requests associated with the provided ids
    */
   async findByIds(ids: string[]): Promise<Request[]> {
-    const requests = await this.table.whereIn('id', ids)
+    const requests = await this.table.whereIn('id', ids).orderBy('createdAt', 'asc')
 
     if (requests.length !== ids.length) {
       throw new Error(`Only found ${requests.length}/${ids.length} ids`)

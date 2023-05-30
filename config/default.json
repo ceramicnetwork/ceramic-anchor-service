@@ -69,7 +69,9 @@
   "queue": {
     "type": "sqs",
     "awsRegion": "us-east-1",
-    "sqsQueueUrl": "http://localhost:4566/967314784947/batch",
-    "usePolling": false
+    "sqsQueueUrl": "",
+    "usePolling": false,
+    "maxTimeToHoldMessageSec": 10800,
+    "waitTimeForMessageSec": 30
   }
 }

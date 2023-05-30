@@ -7,17 +7,17 @@ import {
 } from '@aws-sdk/client-sqs'
 import { IQueueService, IQueueMessage } from './queue-service.type.js'
 import type { Config } from 'node-config-ts'
-import { ThrowDecoder } from '../../ancillary/throw-decoder.js'
-import * as t from 'io-ts'
+import { decode, Decoder } from 'codeco'
 import { defer, retry, first, repeat, firstValueFrom } from 'rxjs'
+import { AnchorBatch } from '../../models/queue-message.js'
 
-export class SqsQueueMessage<A, O, I> implements IQueueMessage<A> {
-  readonly data: A
+export class SqsQueueMessage<TInput, TValue> implements IQueueMessage<TValue> {
+  readonly data: TValue
 
   constructor(
     private readonly sqsClient: SQSClient,
     private readonly sqsQueueUrl: string,
-    private readonly messageType: t.Type<A, O, I>,
+    private readonly messageType: Decoder<TInput, TValue>,
     private readonly message: Message
   ) {
     if (!this.message.Body) {
@@ -25,7 +25,7 @@ export class SqsQueueMessage<A, O, I> implements IQueueMessage<A> {
     }
 
     const jsonData = JSON.parse(this.message.Body)
-    this.data = ThrowDecoder.decode(this.messageType, jsonData)
+    this.data = decode(this.messageType, jsonData)
   }
 
   async ack(): Promise<void> {
@@ -48,14 +48,16 @@ export class SqsQueueMessage<A, O, I> implements IQueueMessage<A> {
   }
 }
 
-export class SqsQueueService<A, O, I> implements IQueueService<A> {
+export class SqsQueueService<TInput, TValue> implements IQueueService<TValue> {
   private readonly sqsClient: SQSClient
   private readonly sqsQueueUrl: string
   private readonly usePolling: boolean
+  private readonly maxTimeToHoldMessageSec: number
+  private readonly waitTimeForMessageSec: number
 
   static inject = ['config'] as const
 
-  constructor(config: Config, private readonly messageType: t.Type<A, O, I>) {
+  constructor(config: Config, private readonly messageType: Decoder<TInput, TValue>) {
     // Set the AWS Region.
     this.sqsClient = new SQSClient({
       region: config.queue.awsRegion,
@@ -63,16 +65,18 @@ export class SqsQueueService<A, O, I> implements IQueueService<A> {
     })
     this.sqsQueueUrl = config.queue.sqsQueueUrl
     this.usePolling = config.queue.usePolling
+    this.maxTimeToHoldMessageSec = config.queue.maxTimeToHoldMessageSec
+    this.waitTimeForMessageSec = config.queue.waitTimeForMessageSec
   }
 
-  async retrieveNextMessage(): Promise<IQueueMessage<A> | undefined> {
+  async retrieveNextMessage(): Promise<IQueueMessage<TValue> | undefined> {
     const receiveMessageCommandInput = {
       QueueUrl: this.sqsQueueUrl,
       AttributeNames: ['All'],
       MessageAttributeNames: ['All'],
       MaxNumberOfMessages: 1,
-      VisibilityTimeout: 10800, // 3h
-      WaitTimeSeconds: 20,
+      VisibilityTimeout: this.maxTimeToHoldMessageSec,
+      WaitTimeSeconds: this.waitTimeForMessageSec,
     }
 
     let output
@@ -100,5 +104,11 @@ export class SqsQueueService<A, O, I> implements IQueueService<A> {
       this.messageType,
       output.Messages[0] as Message
     )
+  }
+}
+
+export class AnchorBatchSqsQueueService<TInput> extends SqsQueueService<TInput, AnchorBatch> {
+  constructor(config: Config) {
+    super(config, AnchorBatch)
   }
 }

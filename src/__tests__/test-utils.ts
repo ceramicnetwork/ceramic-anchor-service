@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals'
 
 import { CID } from 'multiformats/cid'
+import { v4 as uuidv4 } from 'uuid'
 
 import { create } from 'multiformats/hashes/digest'
 import type { IIpfsService, RetrieveRecordOptions } from '../services/ipfs-service.type.js'
@@ -134,6 +135,7 @@ export function generateRequest(override: Partial<Request>): Request {
   request.updatedAt = new Date(request.createdAt.getTime())
   request.timestamp = new Date(request.createdAt.getTime())
   request.origin = `origin:random:${randomString(8)}`
+  request.id = uuidv4()
 
   Object.assign(request, override)
 
