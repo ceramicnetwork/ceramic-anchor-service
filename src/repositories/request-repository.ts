@@ -137,7 +137,7 @@ export class RequestRepository {
 
   /**
    *
-   * @param ids array request ids to retreive
+   * @param ids array of request ids to retreive
    * @returns A promise that resolves to the requests associated with the provided ids
    */
   async findByIds(ids: string[]): Promise<Request[]> {

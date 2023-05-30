@@ -38,7 +38,6 @@ import {
   ICandidateMetadata,
 } from '@ceramicnetwork/anchor-utils'
 import { IQueueService } from './queue/queue-service.type.js'
-import { SqsQueueService } from './queue/sqs-queue-service.js'
 import { AnchorBatch } from '../models/queue-message.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
