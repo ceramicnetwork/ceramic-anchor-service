@@ -384,9 +384,10 @@ export class AnchorService {
 
   /**
    * Creates a proof record for the entire merkle tree that was anchored in the given
-   * ethereum transaction, publishes that record to IPFS, and returns the CID.
-   * @param tx - ETH transaction
-   * @param merkleRootCid - CID of the root of the merkle tree that was anchored in 'tx'
+   * ethereum transaction, adds the record to `car` file, and returns the CID.
+   * @param car - CAR file to store the record to.
+   * @param tx - ETH transaction.
+   * @param merkleRootCid - CID of the root of the merkle tree that was anchored in 'tx'.
    */
   _createIPFSProof(car: CAR, tx: Transaction, merkleRootCid: CID): CID {
     const txHashCid = convertEthHashToCid(tx.txHash.slice(2))
