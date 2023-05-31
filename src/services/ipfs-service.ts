@@ -172,7 +172,7 @@ export class IpfsService implements IIpfsService {
     for (const block of car.blocks) {
       blocks.push(block)
     }
-    await Promise.all(blocks.map(async block => {
+    for (const block of blocks) {
       const cid = block.cid
       const format = this.codecNames.get(cid.code)
       const mhtype = this.hasherNames.get(block.cid.multihash.code)
@@ -185,20 +185,6 @@ export class IpfsService implements IIpfsService {
         timeout: IPFS_PUT_TIMEOUT,
         recursive: false,
       })
-    }))
-    // for (const block of car.blocks) {
-    //   const cid = block.cid
-    //   const format = this.codecNames.get(cid.code)
-    //   const mhtype = this.hasherNames.get(block.cid.multihash.code)
-    //   await this.ipfs.block.put(block.payload, {
-    //     format: format,
-    //     mhtype: mhtype,
-    //   })
-    //   await this.ipfs.pin.add(block.cid, {
-    //     signal: options.signal,
-    //     timeout: IPFS_PUT_TIMEOUT,
-    //     recursive: false,
-    //   })
-    // }
+    }
   }
 }
