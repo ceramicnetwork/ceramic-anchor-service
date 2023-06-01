@@ -144,7 +144,7 @@ export class RequestRepository {
     const requests = await this.table.whereIn('id', ids).orderBy('createdAt', 'asc')
 
     if (requests.length !== ids.length) {
-      throw new Error(`Only found ${requests.length}/${ids.length} ids`)
+      throw new Error(`Only found ${requests.length}/${ids.length} ids. Ids: ${ids}`)
     }
 
     return requests

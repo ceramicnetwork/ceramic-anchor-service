@@ -66,7 +66,7 @@
     "type": "sqs",
     "awsRegion": "@@AWS_REGION",
     "sqsQueueUrl": "@@SQS_URL",
-    "usePolling": false,
+    "usePolling": "@@SQS_QUEUE_USE_POLLING",
     "maxTimeToHoldMessageSec": "@@MAX_TIME_TO_HOLD_MESSAGE_SEC",
     "waitTimeForMessageSec": "@@WAIT_TIME_FOR_MESSAGE_SEC"
   }
