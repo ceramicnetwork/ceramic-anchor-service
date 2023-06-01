@@ -140,11 +140,12 @@ export class RequestRepository {
    * @param ids array of request ids to retreive
    * @returns A promise that resolves to the requests associated with the provided ids
    */
-  async findByIds(ids: string[]): Promise<Request[]> {
-    const requests = await this.table.whereIn('id', ids).orderBy('createdAt', 'asc')
+  async findByIds(givenIds: string[]): Promise<Request[]> {
+    const uniqueIds = Array.from(new Set(givenIds))
+    const requests = await this.table.whereIn('id', uniqueIds).orderBy('createdAt', 'asc')
 
-    if (requests.length !== ids.length) {
-      throw new Error(`Only found ${requests.length}/${ids.length} ids. Ids: ${ids}`)
+    if (requests.length !== uniqueIds.length) {
+      throw new Error(`Only found ${requests.length}/${uniqueIds.length} ids. Ids: ${uniqueIds}`)
     }
 
     return requests
