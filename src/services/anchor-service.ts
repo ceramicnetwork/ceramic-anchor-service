@@ -37,6 +37,8 @@ import {
   ICandidate,
   ICandidateMetadata,
 } from '@ceramicnetwork/anchor-utils'
+import { IQueueService } from './queue/queue-service.type.js'
+import { AnchorBatch } from '../models/queue-message.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
@@ -159,6 +161,7 @@ export class AnchorService {
   private readonly merkleDepthLimit: number
   private readonly includeBlockInfoInAnchorProof: boolean
   private readonly useSmartContractAnchors: boolean
+  private readonly useQueueBatches: boolean
   private readonly maxStreamLimit: number
   private readonly minStreamLimit: number
   private readonly merkleTreeFactory: MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>
@@ -173,6 +176,7 @@ export class AnchorService {
     'dbConnection',
     'eventProducerService',
     'metadataService',
+    'anchorBatchQueueService',
   ] as const
 
   constructor(
@@ -184,11 +188,13 @@ export class AnchorService {
     private readonly anchorRepository: IAnchorRepository,
     private readonly connection: Knex,
     private readonly eventProducerService: EventProducerService,
-    private readonly metadataService: IMetadataService
+    private readonly metadataService: IMetadataService,
+    private readonly anchorBatchQueueService: IQueueService<AnchorBatch>
   ) {
     this.merkleDepthLimit = config.merkleDepthLimit
     this.includeBlockInfoInAnchorProof = config.includeBlockInfoInAnchorProof
     this.useSmartContractAnchors = config.useSmartContractAnchors
+    this.useQueueBatches = config.useQueueBatches
 
     const minStreamCount = Number(config.minStreamCount)
     this.maxStreamLimit = this.merkleDepthLimit > 0 ? Math.pow(2, this.merkleDepthLimit) : 0
@@ -215,14 +221,57 @@ export class AnchorService {
     //   this.minStreamLimit || this.maxStreamLimit || 100
     // )
     // await this.metadataService.fillAll(withoutMetadata)
-    const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
+    if (this.useQueueBatches) {
+      return this.anchorNextQueuedBatch()
+    } else {
+      const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
 
-    if (readyRequestsCount === 0) {
-      // Pull in twice as many streams as we want to anchor, since some of those streams may fail to load.
-      await this.requestRepository.findAndMarkReady(this.maxStreamLimit * 2, this.minStreamLimit)
+      if (readyRequestsCount === 0) {
+        // Pull in twice as many streams as we want to anchor, since some of those streams may fail to load.
+        await this.requestRepository.findAndMarkReady(this.maxStreamLimit * 2, this.minStreamLimit)
+      }
+
+      return this.anchorReadyRequests()
+    }
+  }
+
+  /**
+   * Creates anchors for client requests that have been marked as READY
+   */
+  async anchorNextQueuedBatch(): Promise<void> {
+    if (!this.useQueueBatches) {
+      throw new Error(
+        'Cannot anchor next queued batch as the worker is not configured to do so. Please set `useQueueBatches` in the config if this is desired.'
+      )
     }
 
-    return this.anchorReadyRequests()
+    logger.imp('Retrieving next job from queue')
+    const batchMessage = await this.anchorBatchQueueService.retrieveNextMessage()
+
+    if (!batchMessage) {
+      // TODO: Add metric here
+      logger.imp('No batches available')
+      return
+    }
+
+    try {
+      logger.imp('Anchoring requests from the batch')
+      const requests = await this.requestRepository.findByIds(batchMessage.data.rids)
+
+      logger.imp('Anchoring requests')
+      await this._anchorRequests(requests)
+
+      // Sleep 5 seconds before exiting the process to give time for the logs to flush.
+      await Utils.delay(5000)
+
+      logger.imp('Acking the batch')
+      await batchMessage.ack()
+    } catch (err) {
+      logger.warn(`Anchoring of the batch failed. Nacking the batch`)
+      await batchMessage.nack()
+
+      throw err
+    }
   }
 
   /**

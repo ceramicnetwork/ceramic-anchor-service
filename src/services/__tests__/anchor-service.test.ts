@@ -22,10 +22,10 @@ import { CID } from 'multiformats/cid'
 import { Anchor } from '../../models/anchor.js'
 import { toCID } from '@ceramicnetwork/common'
 import { Utils } from '../../utils.js'
-import { validate as validateUUID } from 'uuid'
+import { validate as validateUUID, v4 as uuidv4 } from 'uuid'
 import { TransactionRepository } from '../../repositories/transaction-repository.js'
 import type { BlockchainService } from '../blockchain/blockchain-service'
-import type { Transaction } from '../../models/transaction.js'
+import { Transaction } from '../../models/transaction.js'
 import { createInjector, Injector } from 'typed-inject'
 import { MetadataRepository } from '../../repositories/metadata-repository.js'
 import { randomString } from '@stablelib/random'
@@ -34,10 +34,11 @@ import { asDIDString } from '../../ancillary/did-string.js'
 import type { EventProducerService } from '../event-producer/event-producer-service.js'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 import type { AbortOptions } from '../abort-options.type.js'
+import { IQueueService, IQueueMessage } from '../queue/queue-service.type.js'
+import { AnchorBatch } from '../../models/queue-message.js'
 
 process.env['NODE_ENV'] = 'test'
-
-export class MockEventProducerService implements EventProducerService {
+class MockEventProducerService implements EventProducerService {
   emitAnchorEvent(): Promise<void> {
     return Promise.resolve(undefined)
   }
@@ -52,6 +53,30 @@ class FakeEthereumBlockchainService implements BlockchainService {
 
   sendTransaction(): Promise<Transaction> {
     throw new Error('Failed to send transaction!')
+  }
+}
+
+class MockQueueMessage<T> implements IQueueMessage<T> {
+  readonly data: T
+  nack = jest.fn(() => Promise.resolve())
+  ack = jest.fn(() => Promise.resolve())
+
+  constructor(data: T) {
+    this.data = data
+  }
+}
+
+class MockQueueService<T> implements IQueueService<T> {
+  retrieveNextMessage
+
+  constructor() {
+    this.reset()
+  }
+
+  reset() {
+    this.retrieveNextMessage = jest.fn((): Promise<IQueueMessage<T> | undefined> => {
+      return Promise.resolve(undefined)
+    })
   }
 }
 
@@ -124,6 +149,14 @@ describe('anchor service', () => {
           merkleDepthLimit: MERKLE_DEPTH_LIMIT,
           minStreamCount: MIN_STREAM_COUNT,
           readyRetryIntervalMS: READY_RETRY_INTERVAL_MS,
+          queue: {
+            type: 'sqs',
+            awsRegion: 'test',
+            sqsQueueUrl: 'test',
+            usePolling: false,
+            maxTimeToHoldMessageSec: 10,
+            waitTimeForMessageSec: 5,
+          },
         })
       )
       .provideClass('anchorRepository', AnchorRepository)
@@ -134,6 +167,7 @@ describe('anchor service', () => {
       .provideClass('ipfsService', MockIpfsService)
       .provideClass('eventProducerService', MockEventProducerService)
       .provideClass('metadataService', MetadataService)
+      .provideClass('anchorBatchQueueService', MockQueueService<AnchorBatch>)
       .provideClass('anchorService', AnchorService)
 
     ipfsService = injector.resolve('ipfsService')
@@ -796,6 +830,136 @@ describe('anchor service', () => {
       const updatedRequestsCount = await requestRepository.countByStatus(RequestStatus.READY)
       expect(updatedRequestsCount).toEqual(0)
       expect(emitSpy).not.toBeCalled()
+    })
+  })
+
+  describe('Anchoring Queued Batches', () => {
+    let anchorBatchQueueService: MockQueueService<AnchorBatch>
+    let blockchainService: FakeEthereumBlockchainService
+    const fakeTransaction = new Transaction('test', 'hash', 1, 1)
+
+    beforeAll(() => {
+      anchorService.useQueueBatches = true
+
+      anchorBatchQueueService = injector.resolve('anchorBatchQueueService')
+      blockchainService = injector.resolve('blockchainService')
+    })
+
+    afterAll(() => {
+      anchorService.useQueueBatches = false
+      anchorBatchQueueService.reset()
+    })
+
+    test('No batch', async () => {
+      const requests: Request[] = []
+      const numRequests = 4
+      for (let i = 0; i < numRequests; i++) {
+        const genesisCID = await ipfsService.storeRecord({
+          header: {
+            controllers: [`did:method:${randomString(32)}`],
+          },
+        })
+        const streamId = new StreamID(1, genesisCID)
+        await metadataService.fillFromIpfs(streamId)
+        const request = await createRequest(
+          streamId.toString(),
+          ipfsService,
+          requestRepository,
+          RequestStatus.PENDING
+        )
+        requests.push(request)
+      }
+
+      await anchorService.anchorRequests()
+
+      const remainingRequests = await requestRepository.findByStatus(RequestStatus.PENDING)
+      expect(remainingRequests.length).toEqual(numRequests)
+
+      expect(anchorBatchQueueService.retrieveNextMessage).toHaveReturnedWith(undefined)
+    })
+
+    test('batch and successfully anchored', async () => {
+      const requests: Request[] = []
+      const numRequests = 4
+      for (let i = 0; i < numRequests; i++) {
+        const genesisCID = await ipfsService.storeRecord({
+          header: {
+            controllers: [`did:method:${randomString(32)}`],
+          },
+        })
+        const streamId = new StreamID(1, genesisCID)
+        await metadataService.fillFromIpfs(streamId)
+        const request = await createRequest(
+          streamId.toString(),
+          ipfsService,
+          requestRepository,
+          RequestStatus.PENDING
+        )
+        requests.push(request)
+      }
+
+      const batch = new MockQueueMessage({
+        bid: uuidv4(),
+        rids: requests.map(({ id }) => id),
+      })
+      anchorBatchQueueService.retrieveNextMessage.mockReturnValue(Promise.resolve(batch))
+
+      const original = blockchainService.sendTransaction
+      blockchainService.sendTransaction = () => {
+        return Promise.resolve(fakeTransaction)
+      }
+
+      try {
+        await anchorService.anchorRequests()
+
+        const remainingRequests = await requestRepository.findByStatus(RequestStatus.PENDING)
+        expect(remainingRequests.length).toEqual(0)
+
+        const completedRequests = await requestRepository.findByStatus(RequestStatus.COMPLETED)
+        expect(completedRequests.length).toEqual(numRequests)
+
+        expect(batch.ack).toHaveBeenCalledTimes(1)
+      } finally {
+        blockchainService.sendTransaction = original
+      }
+    })
+
+    test('batch and failed anchor', async () => {
+      const requests: Request[] = []
+      const numRequests = 4
+      for (let i = 0; i < numRequests; i++) {
+        const genesisCID = await ipfsService.storeRecord({
+          header: {
+            controllers: [`did:method:${randomString(32)}`],
+          },
+        })
+        const streamId = new StreamID(1, genesisCID)
+        await metadataService.fillFromIpfs(streamId)
+        const request = await createRequest(
+          streamId.toString(),
+          ipfsService,
+          requestRepository,
+          RequestStatus.PENDING
+        )
+        requests.push(request)
+      }
+
+      const batch = new MockQueueMessage({
+        bid: uuidv4(),
+        rids: requests.map(({ id }) => id),
+      })
+      anchorBatchQueueService.retrieveNextMessage.mockReturnValue(Promise.resolve(batch))
+
+      await expect(anchorService.anchorRequests()).rejects.toEqual(
+        new Error('Failed to send transaction!')
+      )
+
+      const remainingRequests = await requestRepository.findByStatus(RequestStatus.PENDING)
+      expect(remainingRequests.length).toEqual(numRequests)
+      const completedRequests = await requestRepository.findByStatus(RequestStatus.COMPLETED)
+      expect(completedRequests.length).toEqual(0)
+
+      expect(batch.nack).toHaveBeenCalledTimes(1)
     })
   })
 })

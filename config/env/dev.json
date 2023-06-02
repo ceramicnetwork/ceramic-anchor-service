@@ -2,6 +2,7 @@
   "mode": "@@APP_MODE",
   "port": "@@APP_PORT",
   "useSmartContractAnchors": "@@USE_SMART_CONTRACT_ANCHORS",
+  "useQueueBatches": "@@USE_QUEUE_BATCHES",
   "anchorControllerEnabled": "@@ANCHOR_CONTROLLER_ENABLED",
   "anchorLauncherUrl": "@@ANCHOR_LAUNCHER_URL",
   "expirationPeriod": "@@ANCHOR_EXPIRATION_PERIOD",
@@ -60,5 +61,13 @@
       "password": "@@DB_PASSWORD",
       "port": "@@DB_PORT"
     }
+  },
+  "queue": {
+    "type": "sqs",
+    "awsRegion": "@@AWS_REGION",
+    "sqsQueueUrl": "@@SQS_URL",
+    "usePolling": "@@SQS_QUEUE_USE_POLLING",
+    "maxTimeToHoldMessageSec": "@@MAX_TIME_TO_HOLD_MESSAGE_SEC",
+    "waitTimeForMessageSec": "@@WAIT_TIME_FOR_MESSAGE_SEC"
   }
 }

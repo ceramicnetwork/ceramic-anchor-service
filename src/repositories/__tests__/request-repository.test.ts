@@ -905,4 +905,50 @@ describe('request repository test', () => {
     // FIXME
     test.todo('respect request age')
   })
+
+  describe('findByIds', () => {
+    test('Retrieve all requests with given ids ', async () => {
+      const requests = [
+        generateRequests(
+          {
+            status: RequestStatus.READY,
+          },
+          2
+        ),
+        generateRequests(
+          {
+            status: RequestStatus.PENDING,
+          },
+          2
+        ),
+        generateRequests(
+          {
+            status: RequestStatus.PROCESSING,
+          },
+          2
+        ),
+        generateRequests(
+          {
+            status: RequestStatus.COMPLETED,
+          },
+          2
+        ),
+        generateRequests(
+          {
+            status: RequestStatus.FAILED,
+          },
+          2
+        ),
+      ].flat()
+
+      await requestRepository.createRequests(requests)
+
+      const createdRequests = await requestRepository.allRequests()
+      expect(requests.length).toEqual(createdRequests.length)
+
+      const received = await requestRepository.findByIds(requests.map(({ id }) => id))
+
+      expect(received).toEqual(createdRequests)
+    })
+  })
 })

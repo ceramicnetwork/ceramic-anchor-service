@@ -47,5 +47,13 @@
     "migrations": {
       "tableName": "knex_migrations"
     }
+  },
+  "queue": {
+    "type": "sqs",
+    "awsRegion": "us-east-1",
+    "sqsQueueUrl": "sqsQueueUrl",
+    "usePolling": false,
+    "maxTimeToHoldMessageSec": 10800,
+    "waitTimeForMessageSec": 30
   }
 }
