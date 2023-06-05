@@ -120,8 +120,8 @@ export class MockIpfsService implements IIpfsService {
     this._streams = {}
   }
 
-  importCAR(car: CAR, options?: AbortOptions): Promise<void> {
-    throw new Error(`Not implemented: MockIpfsService.importCAR`)
+  async importCAR(car: CAR, options?: AbortOptions): Promise<void> {
+    // Do nothing
   }
 }
 
