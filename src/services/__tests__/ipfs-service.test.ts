@@ -7,7 +7,7 @@ import {
   IpfsService,
 } from '../ipfs-service.js'
 import { MockIpfsClient, times } from '../../__tests__/test-utils.js'
-import type { IPFS } from 'ipfs-core-types'
+import type { IpfsApi } from '@ceramicnetwork/common'
 import type { AbortOptions } from '../abort-options.type.js'
 import type { CID } from 'multiformats/cid'
 import { DelayAbortedError, Utils } from '../../utils.js'
@@ -26,7 +26,7 @@ let service: IpfsService
 
 beforeEach(() => {
   mockIpfsClient = new MockIpfsClient()
-  service = new IpfsService(FAUX_CONFIG, mockIpfsClient as unknown as IPFS)
+  service = new IpfsService(FAUX_CONFIG, mockIpfsClient as unknown as IpfsApi)
 })
 
 afterEach(() => {

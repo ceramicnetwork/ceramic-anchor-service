@@ -123,7 +123,6 @@
     "get-port": "^6.0.0",
     "husky": "^8.0.2",
     "ipfs-core": "^0.18.0",
-    "ipfs-core-types": "^0.14.0",
     "ipfs-http-server": "^0.15.0",
     "jest": "^29.4.3",
     "key-did-provider-ed25519": "^3.0.0",
