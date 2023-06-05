@@ -13,6 +13,9 @@ export const FreshDatabaseAnchor = type({
 
 export type FreshDatabaseAnchor = TypeOf<typeof FreshDatabaseAnchor>
 
+/**
+* Representation of an Anchor record within the database
+*/
 export const DatabaseAnchor = type({
   ...FreshDatabaseAnchor.props,
   id: string,
