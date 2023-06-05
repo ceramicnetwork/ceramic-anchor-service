@@ -3,8 +3,7 @@ import { LRUCache } from 'lru-cache'
 import { create as createIpfsClient } from 'ipfs-http-client'
 import type { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
-import type { IPFS } from 'ipfs-core-types'
-import { AnchorCommit, toCID } from '@ceramicnetwork/common'
+import { AnchorCommit, toCID, IpfsApi } from '@ceramicnetwork/common'
 import type { StreamID } from '@ceramicnetwork/streamid'
 import { Utils } from '../utils.js'
 import { Agent as HttpAgent } from 'node:http'
@@ -38,7 +37,7 @@ function buildHttpAgent(endpoint: string | undefined): HttpAgent {
   }
 }
 
-function buildIpfsClient(config: Config): IPFS {
+function buildIpfsClient(config: Config): IpfsApi {
   return createIpfsClient({
     url: config.ipfsConfig.url,
     timeout: config.ipfsConfig.timeout,
@@ -49,14 +48,14 @@ function buildIpfsClient(config: Config): IPFS {
 export class IpfsService implements IIpfsService {
   private readonly cache: LRUCache<string, any>
   private readonly pubsubTopic: string
-  private readonly ipfs: IPFS
+  private readonly ipfs: IpfsApi
   private readonly semaphore: Semaphore
   private readonly hasherNames: Map<number, string>
   private readonly codecNames: Map<number, string>
 
   static inject = ['config'] as const
 
-  constructor(config: Config, ipfs: IPFS = buildIpfsClient(config)) {
+  constructor(config: Config, ipfs: IpfsApi = buildIpfsClient(config)) {
     this.cache = new LRUCache<string, any>({ max: MAX_CACHE_ENTRIES })
     this.ipfs = ipfs
     this.pubsubTopic = config.ipfsConfig.pubsubTopic
