@@ -19,7 +19,7 @@ import {
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { CID } from 'multiformats/cid'
-import type { FreshDatabaseAnchor } from '../../models/anchor.js'
+import type { FreshAnchor } from '../../models/anchor.js'
 import { toCID } from '@ceramicnetwork/common'
 import { Utils } from '../../utils.js'
 import { validate as validateUUID, v4 as uuidv4 } from 'uuid'
@@ -104,7 +104,7 @@ async function anchorCandidates(
   candidates: Candidate[],
   anchorService: AnchorService,
   ipfsService: IIpfsService
-): Promise<FreshDatabaseAnchor[]> {
+): Promise<FreshAnchor[]> {
   const merkleTree = await anchorService._buildMerkleTree(candidates)
   const ipfsProofCid = await ipfsService.storeRecord({})
 
