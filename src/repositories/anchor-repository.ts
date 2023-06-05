@@ -1,4 +1,4 @@
-import { DatabaseAnchor, FreshDatabaseAnchor } from '../models/anchor.js'
+import { StoredAnchor, FreshAnchor } from '../models/anchor.js'
 import type { Request } from '../models/request.js'
 import type { Knex } from 'knex'
 import type { AnchorWithRequest, IAnchorRepository } from './anchor-repository.type.js'
@@ -31,9 +31,9 @@ export class AnchorRepository implements IAnchorRepository {
    * @param anchors - Anchors
    * @returns A promise that resolve to the number of anchors created
    */
-  async createAnchors(anchors: Array<FreshDatabaseAnchor>): Promise<number> {
+  async createAnchors(anchors: Array<FreshAnchor>): Promise<number> {
     const result: any = await this.table
-      .insert(anchors.map((anchor) => FreshDatabaseAnchor.encode(anchor)))
+      .insert(anchors.map((anchor) => FreshAnchor.encode(anchor)))
       .onConflict('requestId')
       .ignore()
     return parseCountResult(result.rowCount)
@@ -51,7 +51,7 @@ export class AnchorRepository implements IAnchorRepository {
     if (!row) {
       return null
     }
-    const anchor = decode(DatabaseAnchor, row)
+    const anchor = decode(StoredAnchor, row)
 
     return { ...anchor, request }
   }

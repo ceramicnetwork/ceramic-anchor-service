@@ -4,7 +4,7 @@ import type { Config } from 'node-config-ts'
 
 import { logEvent, logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
-import { FreshDatabaseAnchor } from '../models/anchor.js'
+import { FreshAnchor } from '../models/anchor.js'
 import { Request, RequestStatus, RequestStatus as RS } from '../models/request.js'
 import type { Transaction } from '../models/transaction.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
@@ -411,7 +411,7 @@ export class AnchorService {
   async _createAnchorCommits(
     ipfsProofCid: CID,
     merkleTree: MerkleCAR
-  ): Promise<FreshDatabaseAnchor[]> {
+  ): Promise<FreshAnchor[]> {
     const leafNodes = merkleTree.leafNodes
     const anchors = []
 
@@ -450,7 +450,7 @@ export class AnchorService {
     candidateIndex: number,
     ipfsProofCid: CID,
     merkleTree: IMerkleTree<CIDHolder, Candidate, TreeMetadata>
-  ): Promise<FreshDatabaseAnchor | null> {
+  ): Promise<FreshAnchor | null> {
     const path = pathString(merkleTree.getDirectPathFromRoot(candidateIndex))
     const ipfsAnchorCommit = {
       id: candidate.streamId.cid,
@@ -465,7 +465,7 @@ export class AnchorService {
         candidate.streamId
       )
       car.put(ipfsAnchorCommit)
-      const anchor: FreshDatabaseAnchor = {
+      const anchor: FreshAnchor = {
         requestId: candidate.request.id,
         proofCid: ipfsProofCid,
         path: path,
@@ -498,7 +498,7 @@ export class AnchorService {
    * @private
    */
   async _persistAnchorResult(
-    anchors: FreshDatabaseAnchor[],
+    anchors: FreshAnchor[],
     candidates: Candidate[]
   ): Promise<number> {
     // filter to requests for streams that were actually anchored successfully
