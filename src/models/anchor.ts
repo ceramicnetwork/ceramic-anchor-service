@@ -2,8 +2,8 @@ import { type, string, TypeOf } from 'codeco'
 import { cidAsString, date } from '../ancillary/codecs.js'
 
 /**
-* Representation of an Anchor record before it has been persisted to the database.
-**/
+ * Representation of an Anchor record before it has been persisted to the database.
+ **/
 export const FreshAnchor = type({
   requestId: string,
   proofCid: cidAsString,
