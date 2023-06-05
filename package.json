@@ -98,6 +98,7 @@
     "@databases/pg-test": "^3.1.2",
     "@stablelib/random": "^1.0.1",
     "@types/cors": "^2.8.12",
+    "@types/express": "^4.17.13",
     "@types/lodash.camelcase": "^4.3.7",
     "@types/lodash.clonedeep": "^4.5.6",
     "@types/lodash.snakecase": "^4.1.7",
