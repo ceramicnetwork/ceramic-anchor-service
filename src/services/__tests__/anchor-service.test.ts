@@ -34,8 +34,8 @@ import { asDIDString } from '../../ancillary/did-string.js'
 import type { EventProducerService } from '../event-producer/event-producer-service.js'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 import type { AbortOptions } from '../abort-options.type.js'
-import { IQueueService, IQueueMessage } from '../queue/queue-service.type.js'
-import { AnchorBatch } from '../../models/queue-message.js'
+import { IQueueConsumerService, IQueueMessage } from '../queue/queue-service.type.js'
+import { AnchorBatch, QueueMessageData } from '../../models/queue-message.js'
 
 process.env['NODE_ENV'] = 'test'
 class MockEventProducerService implements EventProducerService {
@@ -56,7 +56,7 @@ class FakeEthereumBlockchainService implements BlockchainService {
   }
 }
 
-class MockQueueMessage<T> implements IQueueMessage<T> {
+class MockQueueMessage<T extends QueueMessageData> implements IQueueMessage<T> {
   readonly data: T
   nack = jest.fn(() => Promise.resolve())
   ack = jest.fn(() => Promise.resolve())
@@ -66,15 +66,15 @@ class MockQueueMessage<T> implements IQueueMessage<T> {
   }
 }
 
-class MockQueueService<T> implements IQueueService<T> {
-  retrieveNextMessage
+class MockQueueService<T extends QueueMessageData> implements IQueueConsumerService<T> {
+  receiveMessage
 
   constructor() {
     this.reset()
   }
 
   reset() {
-    this.retrieveNextMessage = jest.fn((): Promise<IQueueMessage<T> | undefined> => {
+    this.receiveMessage = jest.fn((): Promise<IQueueMessage<T> | undefined> => {
       return Promise.resolve(undefined)
     })
   }
@@ -152,7 +152,7 @@ describe('anchor service', () => {
           queue: {
             type: 'sqs',
             awsRegion: 'test',
-            sqsQueueUrl: 'test',
+            sqsBatchQueueUrl: 'test',
             usePolling: false,
             maxTimeToHoldMessageSec: 10,
             waitTimeForMessageSec: 5,
@@ -839,6 +839,7 @@ describe('anchor service', () => {
     const fakeTransaction = new Transaction('test', 'hash', 1, 1)
 
     beforeAll(() => {
+      //@ts-ignore
       anchorService.useQueueBatches = true
 
       anchorBatchQueueService = injector.resolve('anchorBatchQueueService')
@@ -846,6 +847,7 @@ describe('anchor service', () => {
     })
 
     afterAll(() => {
+      //@ts-ignore
       anchorService.useQueueBatches = false
       anchorBatchQueueService.reset()
     })
@@ -875,7 +877,7 @@ describe('anchor service', () => {
       const remainingRequests = await requestRepository.findByStatus(RequestStatus.PENDING)
       expect(remainingRequests.length).toEqual(numRequests)
 
-      expect(anchorBatchQueueService.retrieveNextMessage).toHaveReturnedWith(undefined)
+      expect(anchorBatchQueueService.receiveMessage).toHaveReturnedWith(undefined)
     })
 
     test('batch and successfully anchored', async () => {
@@ -902,7 +904,7 @@ describe('anchor service', () => {
         bid: uuidv4(),
         rids: requests.map(({ id }) => id),
       })
-      anchorBatchQueueService.retrieveNextMessage.mockReturnValue(Promise.resolve(batch))
+      anchorBatchQueueService.receiveMessage.mockReturnValue(Promise.resolve(batch))
 
       const original = blockchainService.sendTransaction
       blockchainService.sendTransaction = () => {
@@ -948,7 +950,7 @@ describe('anchor service', () => {
         bid: uuidv4(),
         rids: requests.map(({ id }) => id),
       })
-      anchorBatchQueueService.retrieveNextMessage.mockReturnValue(Promise.resolve(batch))
+      anchorBatchQueueService.receiveMessage.mockReturnValue(Promise.resolve(batch))
 
       await expect(anchorService.anchorRequests()).rejects.toEqual(
         new Error('Failed to send transaction!')

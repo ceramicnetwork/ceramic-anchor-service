@@ -4,20 +4,30 @@ import {
   Message,
   DeleteMessageCommand,
   ChangeMessageVisibilityCommand,
+  SendMessageCommand,
 } from '@aws-sdk/client-sqs'
-import { IQueueService, IQueueMessage } from './queue-service.type.js'
+import { QueueMessageData } from '../../models/queue-message.js'
+import {
+  IQueueConsumerService,
+  IQueueProducerService,
+  IQueueMessage,
+} from './queue-service.type.js'
 import type { Config } from 'node-config-ts'
-import { decode, Decoder } from 'codeco'
 import { defer, retry, first, repeat, firstValueFrom } from 'rxjs'
 import { AnchorBatch } from '../../models/queue-message.js'
+import { Codec, decode } from 'codeco'
 
-export class SqsQueueMessage<TInput, TValue> implements IQueueMessage<TValue> {
+/**
+ * Sqs Queue Message received by consumers.
+ * Once the message is done processing you can either "ack" the message (remove the message from the queue) or "nack" the message (put the message back on the queue)
+ */
+export class SqsQueueMessage<TValue extends QueueMessageData> implements IQueueMessage<TValue> {
   readonly data: TValue
 
   constructor(
     private readonly sqsClient: SQSClient,
     private readonly sqsQueueUrl: string,
-    private readonly messageType: Decoder<TInput, TValue>,
+    private readonly messageType: Codec<TValue, TValue>,
     private readonly message: Message
   ) {
     if (!this.message.Body) {
@@ -48,28 +58,39 @@ export class SqsQueueMessage<TInput, TValue> implements IQueueMessage<TValue> {
   }
 }
 
-export class SqsQueueService<TInput, TValue> implements IQueueService<TValue> {
+/**
+ * Consumer and Producer for Sqs Queues
+ */
+export class SqsQueueService<TValue extends QueueMessageData>
+  implements IQueueConsumerService<TValue>, IQueueProducerService<TValue>
+{
   private readonly sqsClient: SQSClient
-  private readonly sqsQueueUrl: string
   private readonly usePolling: boolean
   private readonly maxTimeToHoldMessageSec: number
   private readonly waitTimeForMessageSec: number
 
   static inject = ['config'] as const
 
-  constructor(config: Config, private readonly messageType: Decoder<TInput, TValue>) {
+  constructor(
+    config: Config,
+    private readonly sqsQueueUrl: string,
+    private readonly messageType: Codec<TValue, TValue>
+  ) {
     // Set the AWS Region.
     this.sqsClient = new SQSClient({
       region: config.queue.awsRegion,
-      endpoint: config.queue.sqsQueueUrl,
+      endpoint: this.sqsQueueUrl,
     })
-    this.sqsQueueUrl = config.queue.sqsQueueUrl
     this.usePolling = config.queue.usePolling
     this.maxTimeToHoldMessageSec = config.queue.maxTimeToHoldMessageSec
     this.waitTimeForMessageSec = config.queue.waitTimeForMessageSec
   }
 
-  async retrieveNextMessage(): Promise<IQueueMessage<TValue> | undefined> {
+  /**
+   * Consumes the next message off the queue
+   * @returns One Sqs Queue Message
+   */
+  async receiveMessage(): Promise<IQueueMessage<TValue> | undefined> {
     const receiveMessageCommandInput = {
       QueueUrl: this.sqsQueueUrl,
       AttributeNames: ['All'],
@@ -105,10 +126,37 @@ export class SqsQueueService<TInput, TValue> implements IQueueService<TValue> {
       output.Messages[0] as Message
     )
   }
+
+  /**
+   * Publishes a message to a sqs queue
+   * @param data the data you want to publish
+   */
+  async sendMessage(data: TValue): Promise<void> {
+    const sendMessageCommandInput = {
+      QueueUrl: this.sqsQueueUrl,
+      MessageBody: JSON.stringify(this.messageType.encode(data)),
+    }
+
+    await this.sqsClient.send(new SendMessageCommand(sendMessageCommandInput))
+  }
 }
 
-export class AnchorBatchSqsQueueService<TInput> extends SqsQueueService<TInput, AnchorBatch> {
+/**
+ * AnchorBatchSqsQueueService is used to consume and publish anchor batch messages. These batches are anchored by anchor workers
+ */
+export class AnchorBatchSqsQueueService extends SqsQueueService<AnchorBatch> {
   constructor(config: Config) {
-    super(config, AnchorBatch)
+    super(config, config.queue.sqsBatchQueueUrl, AnchorBatch)
+  }
+}
+
+/**
+ * FailureSqsQueueService is used to consume and publish any failures that could happen during anchoring by the anchor workers.
+ * ex. A batch was partially completed so we can publish the partially complete batch to the failure queue.
+ * The failure queue can then handle it accordingly (such as putting the failed requests into a new batch) and provide alerts.
+ */
+export class FailureSqsQueueService extends SqsQueueService<QueueMessageData> {
+  constructor(config: Config) {
+    super(config, config.queue.sqsFailureQueueUrl, QueueMessageData)
   }
 }
