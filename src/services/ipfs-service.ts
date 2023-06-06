@@ -15,6 +15,7 @@ import type { IIpfsService, RetrieveRecordOptions } from './ipfs-service.type.js
 import type { AbortOptions } from './abort-options.type.js'
 import { Semaphore } from 'await-semaphore'
 import type { CAR } from 'cartonne'
+import all from 'it-all'
 
 const { serialize, MsgType } = PubsubMessage
 
@@ -167,19 +168,9 @@ export class IpfsService implements IIpfsService {
   }
 
   async importCAR(car: CAR, options: AbortOptions = {}): Promise<void> {
-    const blocks = []
-    for (const block of car.blocks) {
-      blocks.push(block)
-    }
-    for (const block of blocks) {
-      const cid = block.cid
-      const format = this.codecNames.get(cid.code)
-      const mhtype = this.hasherNames.get(block.cid.multihash.code)
-      await this.ipfs.block.put(block.payload, {
-        format: format,
-        mhtype: mhtype,
-      })
-      await this.ipfs.pin.add(block.cid, {
+    await all(this.ipfs.dag.import(car, { pinRoots: false }))
+    for (const cid of car.blocks.cids()) {
+      await this.ipfs.pin.add(cid, {
         signal: options.signal,
         timeout: IPFS_PUT_TIMEOUT,
         recursive: false,
