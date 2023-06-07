@@ -33,7 +33,7 @@ export class AnchorRepository implements IAnchorRepository {
    */
   async createAnchors(anchors: Array<FreshAnchor>): Promise<number> {
     const result: any = await this.table
-      .insert(anchors.map((anchor) => FreshAnchor.encode(anchor))) // FIXME map(FreshAnchor.encode)
+      .insert(anchors.map((anchor) => FreshAnchor.encode(anchor)))
       .onConflict('requestId')
       .ignore()
     return parseCountResult(result.rowCount)
