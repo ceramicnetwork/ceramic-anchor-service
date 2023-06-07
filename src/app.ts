@@ -38,7 +38,7 @@ import { AnchorRequestParamsParser } from './ancillary/anchor-request-params-par
 import { HealthcheckService, IHealthcheckService } from './services/healthcheck-service.js'
 import { RequestService } from './services/request-service.js'
 import { AnchorBatchSqsQueueService } from './services/queue/sqs-queue-service.js'
-import { S3MerkleCarService } from './services/merkle-car-service'
+import { S3MerkleCarService } from './services/merkle-car-service.js'
 
 type DependenciesContext = {
   config: Config
