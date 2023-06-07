@@ -100,14 +100,7 @@ export class CeramicAnchorApp {
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
       .provideClass('requestService', RequestService)
-
-    if (this.config.carStorage.mode === 's3') {
-      this.container.provideClass('merkleCarService', S3MerkleCarService)
-    } else if (this.config.carStorage.mode === 'inmemory') {
-      this.container.provideClass('merkleCarService', InMemoryMerkleCarService)
-    } else {
-      throw new Error(`Unrecognized carStorage mode: ${this.config.carStorage.mode}`)
-    }
+      .provideClass('merkleCarService', S3MerkleCarService)
 
     try {
       Metrics.start(
