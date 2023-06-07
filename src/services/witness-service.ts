@@ -35,30 +35,46 @@ export class InvalidWitnessCARError extends Error {
   }
 }
 
+export function* witnessCIDs(witnessCAR: CAR): Generator<CID> {
+  const anchorCommitCID = witnessCAR.roots[0]
+  if (!anchorCommitCID)
+    throw new InvalidWitnessCARError(`No root found: expected anchor commit CID`)
+  yield anchorCommitCID
+  const anchorCommit = witnessCAR.get(anchorCommitCID) as AnchorCommit
+  if (!anchorCommit) throw new InvalidWitnessCARError(`No anchor commit found`)
+  const proof = witnessCAR.get(anchorCommit.proof)
+  if (!proof) throw new InvalidWitnessCARError(`No proof found`)
+  yield anchorCommit.proof
+  const root = witnessCAR.get(proof.root)
+  if (!root) throw new InvalidWitnessCARError(`No Merkle root found`)
+  yield proof.root
+  const path = decode(pathLine, anchorCommit.path)
+
+  let currentRecord = root
+  let currentCID = root[0]
+  for (const p of path) {
+    if (!currentRecord) throw new InvalidWitnessCARError(`Missing witness node`)
+    currentCID = currentRecord[p]
+    if (!currentCID) throw new InvalidWitnessCARError(`Missing witness node`)
+    yield currentCID
+    currentRecord = witnessCAR.get(currentCID)
+  }
+}
+
 /**
  * Extract Anchor Commit and verify if its Merkle path goes from Merkle root to the `.prev` commit.
  *
  * @param witnessCAR - CAR file containing Merkle witness i.e. Anchor Commit, proof, Merkle root, and all the intermediary nodes.
  */
 export function verifyWitnessCAR(witnessCAR: CAR): CID {
-  const anchorCommitCID = witnessCAR.roots[0]
-  if (!anchorCommitCID)
-    throw new InvalidWitnessCARError(`No root found: expected anchor commit CID`)
-  const anchorCommit = witnessCAR.get(anchorCommitCID) as AnchorCommit
-  if (!anchorCommitCID) throw new InvalidWitnessCARError(`No anchor commit found`)
-  const proof = witnessCAR.get(anchorCommit.proof)
-  if (!proof) throw new InvalidWitnessCARError(`No proof found`)
-  const root = witnessCAR.get(proof.root)
-  if (!root) throw new InvalidWitnessCARError(`No Merkle root found`)
-  const path = decode(pathLine, anchorCommit.path)
-
-  let currentRecord = root
-  let currentCID = root[0]
-  for (const p of path) {
-    currentCID = currentRecord[p]
-    currentRecord = witnessCAR.get(currentCID)
+  const cidsInvolved = witnessCIDs(witnessCAR)
+  const anchorCommitCID = cidsInvolved.next().value
+  let witnessLink = anchorCommitCID
+  for (const cid of cidsInvolved) {
+    witnessLink = cid
   }
-  if (!currentCID.equals(anchorCommit.prev)) {
+  const anchorCommit = witnessCAR.get(anchorCommitCID)
+  if (!witnessLink.equals(anchorCommit.prev)) {
     throw new InvalidWitnessCARError(`Invalid Merkle witness`)
   }
   return anchorCommitCID

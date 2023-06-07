@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, test } from '@jest/globals'
 import { RequestStatus } from '../../models/request.js'
 import { Transaction } from '../../models/transaction.js'
-import { verifyWitnessCAR, WitnessService } from '../witness-service.js'
+import { verifyWitnessCAR, witnessCIDs, WitnessService } from '../witness-service.js'
 import { FakeFactory } from './fake-factory.util.js'
 import { RequestRepository } from '../../repositories/request-repository.js'
 import { AnchorService } from '../anchor-service.js'
@@ -19,11 +19,15 @@ import { FakeEthereumBlockchainService } from './fake-ethereum-blockchain-servic
 import { MockEventProducerService } from './mock-event-producer-service.util.js'
 import { Request } from '../../models/request.js'
 import { AnchorBatchSqsQueueService } from '../queue/sqs-queue-service.js'
+import { CAR, CARFactory } from 'cartonne'
+import all from 'it-all'
 
 const MERKLE_DEPTH_LIMIT = 3
 const READY_RETRY_INTERVAL_MS = 1000
 const STREAM_LIMIT = Math.pow(2, MERKLE_DEPTH_LIMIT)
 const MIN_STREAM_COUNT = Math.floor(STREAM_LIMIT / 2)
+const witnessService = new WitnessService()
+const carFactory = new CARFactory()
 
 type Context = {
   anchorRepository: AnchorRepository
@@ -72,31 +76,54 @@ beforeAll(async () => {
   fake = new FakeFactory(ipfsService, metadataService, requestRepository)
 })
 
+async function createAnchors(requests: Array<Request>) {
+  await requestRepository.findAndMarkReady(0)
+  const [candidates] = await anchorService._findCandidates(requests, 0)
+  const merkleTree = await anchorService._buildMerkleTree(candidates)
+  const tx = new Transaction(
+    'eip155:1',
+    '0xc53b27bee6639dc498b88ce513d32df5f2f0bb7dd60aa15671f80cf341767ba3',
+    3,
+    3
+  )
+  const ipfsProofCid = await anchorService._createIPFSProof(
+    merkleTree.car,
+    tx,
+    merkleTree.root.data.cid
+  )
+  const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree)
+  await anchorService._persistAnchorResult(anchors, candidates)
+  return { anchors, merkleTree }
+}
+
 describe('create witness CAR', () => {
-  async function createAnchors(requests: Array<Request>) {
-    await requestRepository.findAndMarkReady(0)
-    const [candidates] = await anchorService._findCandidates(requests, 0)
-    const merkleTree = await anchorService._buildMerkleTree(candidates)
-    const tx = new Transaction(
-      'eip155:1',
-      '0xc53b27bee6639dc498b88ce513d32df5f2f0bb7dd60aa15671f80cf341767ba3',
-      3,
-      3
-    )
-    const ipfsProofCid = await anchorService._createIPFSProof(
-      merkleTree.car,
-      tx,
-      merkleTree.root.data.cid
-    )
-    const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree)
-    await anchorService._persistAnchorResult(anchors, candidates)
-    return { anchors, merkleTree }
-  }
   test('multiple anchors', async () => {
     const requests = await fake.multipleRequests(4, RequestStatus.PENDING)
     const { anchors, merkleTree } = await createAnchors(requests)
 
-    const witnessService = new WitnessService()
+    for (const freshAnchor of anchors) {
+      const anchor = await anchorRepository.findByRequestId(freshAnchor.requestId)
+      const witnessCAR = witnessService.buildWitnessCAR(anchor.cid, merkleTree.car)
+      // CIDs that are part of witness
+      const cidsInvolved = await all(witnessCIDs(witnessCAR)).then((cids) =>
+        // `.slice` to remove the last element: a link to a `anchorCommit.prev`, which the CAR file does not have
+        cids.map(String).slice(0, -1).sort()
+      )
+      // CIDs of CAR file blocks
+      const cidsContained = await all(witnessCAR.blocks.cids()).then((cids) =>
+        cids.map(String).sort()
+      )
+      // Should be the same
+      expect(cidsContained).toEqual(cidsInvolved)
+      const anchorCommitCID = verifyWitnessCAR(witnessCAR)
+      expect(anchorCommitCID).toBeTruthy()
+      expect(anchorCommitCID.equals(anchor.cid)).toBeTruthy()
+    }
+  })
+
+  test('single anchor', async () => {
+    const request = await fake.request()
+    const { anchors, merkleTree } = await createAnchors([request])
     for (const freshAnchor of anchors) {
       const anchor = await anchorRepository.findByRequestId(freshAnchor.requestId)
       const witnessCAR = witnessService.buildWitnessCAR(anchor.cid, merkleTree.car)
@@ -105,17 +132,88 @@ describe('create witness CAR', () => {
       expect(anchorCommitCID.equals(anchor.cid)).toBeTruthy()
     }
   })
+})
 
-  test('single anchor', async () => {
-    const request: Request = await fake.request(RequestStatus.PENDING)
+describe('verify witness', () => {
+  test('no CAR roots', async () => {
+    const request = await fake.request()
     const { anchors, merkleTree } = await createAnchors([request])
-    const witnessService = new WitnessService()
-    for (const freshAnchor of anchors) {
-      const anchor = await anchorRepository.findByRequestId(freshAnchor.requestId)
-      const witnessCAR = witnessService.buildWitnessCAR(anchor.cid, merkleTree.car)
-      const anchorCommitCID = verifyWitnessCAR(witnessCAR)
-      expect(anchorCommitCID).toBeTruthy()
-      expect(anchorCommitCID.equals(anchor.cid)).toBeTruthy()
+    const anchor = await anchorRepository.findByRequestId(anchors[0].requestId)
+    const witnessCAR = witnessService.buildWitnessCAR(anchor.cid, merkleTree.car)
+    const invalidCAR = new CAR(
+      witnessCAR.version,
+      [],
+      witnessCAR.blocks,
+      witnessCAR.codecs,
+      witnessCAR.hashers
+    )
+    expect(() => verifyWitnessCAR(invalidCAR)).toThrow(/No root found/)
+  })
+  test('no anchor commit', async () => {
+    const request = await fake.request()
+    const { anchors, merkleTree } = await createAnchors([request])
+    const anchor = await anchorRepository.findByRequestId(anchors[0].requestId)
+    const witnessCAR = witnessService.buildWitnessCAR(anchor.cid, merkleTree.car)
+    const invalidCAR = carFactory.build()
+    const anchorCommitCID = witnessCAR.roots[0]
+    for (const block of Array.from(witnessCAR.blocks)) {
+      if (!block.cid.equals(anchorCommitCID)) {
+        invalidCAR.blocks.put(block)
+      }
     }
+    witnessCAR.roots.forEach((root) => invalidCAR.roots.push(root))
+    expect(() => verifyWitnessCAR(invalidCAR)).toThrow(/No anchor commit found/)
+  })
+  test('no proof', async () => {
+    const request = await fake.request()
+    const { anchors, merkleTree } = await createAnchors([request])
+    const anchor = await anchorRepository.findByRequestId(anchors[0].requestId)
+    const witnessCAR = witnessService.buildWitnessCAR(anchor.cid, merkleTree.car)
+    const invalidCAR = carFactory.build()
+    const anchorCommitCID = witnessCAR.roots[0]
+    const proofCID = witnessCAR.get(anchorCommitCID).proof
+    for (const block of Array.from(witnessCAR.blocks)) {
+      if (!block.cid.equals(proofCID)) {
+        invalidCAR.blocks.put(block)
+      }
+    }
+    witnessCAR.roots.forEach((root) => invalidCAR.roots.push(root))
+    expect(() => verifyWitnessCAR(invalidCAR)).toThrow(/No proof found/)
+  })
+  test('no Merkle root', async () => {
+    const request = await fake.request()
+    const { anchors, merkleTree } = await createAnchors([request])
+    const anchor = await anchorRepository.findByRequestId(anchors[0].requestId)
+    const witnessCAR = witnessService.buildWitnessCAR(anchor.cid, merkleTree.car)
+    const invalidCAR = carFactory.build()
+    const anchorCommitCID = witnessCAR.roots[0]
+    const proofCID = witnessCAR.get(anchorCommitCID).proof
+    const merkleRootCID = witnessCAR.get(proofCID).root
+    for (const block of Array.from(witnessCAR.blocks)) {
+      if (!block.cid.equals(merkleRootCID)) {
+        invalidCAR.blocks.put(block)
+      }
+    }
+    witnessCAR.roots.forEach((root) => invalidCAR.roots.push(root))
+    expect(() => verifyWitnessCAR(invalidCAR)).toThrow(/No Merkle root found/)
+  })
+  test('missing witness node', async () => {
+    const requests = await fake.multipleRequests(4)
+    const { anchors, merkleTree } = await createAnchors(requests)
+    const anchor = await anchorRepository.findByRequestId(anchors[0].requestId)
+    const witnessCAR = witnessService.buildWitnessCAR(anchor.cid, merkleTree.car)
+    const invalidCAR = carFactory.build()
+    const anchorCommitCID = witnessCAR.roots[0]
+    const proofCID = witnessCAR.get(anchorCommitCID).proof
+    const merkleRootCID = witnessCAR.get(proofCID).root
+    console.log('root', witnessCAR.get(merkleRootCID))
+    const left = witnessCAR.get(merkleRootCID)[0]
+    for (const block of Array.from(witnessCAR.blocks)) {
+      if (!block.cid.equals(left)) {
+        invalidCAR.blocks.put(block)
+      }
+    }
+    witnessCAR.roots.forEach((root) => invalidCAR.roots.push(root))
+    expect(() => verifyWitnessCAR(invalidCAR)).toThrow(/Missing witness node/)
   })
 })
