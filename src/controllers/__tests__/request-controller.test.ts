@@ -22,7 +22,7 @@ import { mockRequest, mockResponse } from './mock-request.util.js'
 import { GenesisFields } from '../../models/metadata.js'
 import { bases } from 'multiformats/basics'
 import { toCID } from '@ceramicnetwork/common'
-import { asDIDString } from '../../ancillary/did-string.js'
+import { asDIDString } from '@ceramicnetwork/codecs'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { MetadataRepository } from '../../repositories/metadata-repository.js'
 import { StoredMetadata } from '../../models/metadata.js'
@@ -449,5 +449,4 @@ describe('createRequest', () => {
     expectPresent(createdRequest)
     expect(createdRequest.origin).toEqual(sourceIp)
   })
-
 })

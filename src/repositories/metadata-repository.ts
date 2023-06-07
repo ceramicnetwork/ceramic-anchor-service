@@ -3,7 +3,7 @@ import { MetadataInput, StoredMetadata } from '../models/metadata.js'
 import type { StreamID } from '@ceramicnetwork/streamid'
 import { parseCountResult } from './parse-count-result.util.js'
 import { decode } from 'codeco'
-import { date, streamIdAsString } from '../ancillary/codecs.js'
+import { date, streamIdAsString } from '@ceramicnetwork/codecs'
 
 /**
  * Public interface for MetadataRepository.

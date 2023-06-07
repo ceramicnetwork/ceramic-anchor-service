@@ -9,7 +9,7 @@ import { StreamID } from '@ceramicnetwork/streamid'
 import { toCID } from '@ceramicnetwork/common'
 import { bases } from 'multiformats/basics'
 import { GenesisFields } from '../../models/metadata.js'
-import { asDIDString } from '../did-string.js'
+import { asDIDString } from '@ceramicnetwork/codecs'
 import { mockRequest } from '../../controllers/__tests__/mock-request.util.js'
 import { isRight, type Right } from 'codeco'
 

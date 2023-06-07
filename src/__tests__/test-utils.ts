@@ -11,7 +11,7 @@ import { randomBytes, randomString } from '@stablelib/random'
 import { Request, RequestStatus } from '../models/request.js'
 import type { AbortOptions } from '../services/abort-options.type.js'
 import { Utils } from '../utils.js'
-import { CAR } from 'cartonne'
+import { CARFactory, type CAR } from 'cartonne'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -89,17 +89,14 @@ export class MockIpfsClient {
 }
 
 export class MockIpfsService implements IIpfsService {
-  private _streams: Record<string, any> = {}
+  private car: CAR = new CARFactory().build()
 
   async init(): Promise<void> {
     // Do Nothing
   }
 
-  async retrieveRecord<T = any>(
-    cid: CID | string,
-    options: RetrieveRecordOptions = {}
-  ): Promise<T> {
-    const found = this._streams[cid.toString()]
+  async retrieveRecord<T = unknown>(cid: CID, options: RetrieveRecordOptions = {}): Promise<T> {
+    const found = this.car.get(cid)
     if (found) return found
     // Wait for 30s to imitate IPFS timeout that happens when IPFS can not retrieve a record
     await Utils.delay(30000, options.signal)
@@ -107,9 +104,7 @@ export class MockIpfsService implements IIpfsService {
   }
 
   async storeRecord(record: Record<string, unknown>): Promise<CID> {
-    const cid = randomCID()
-    this._streams[cid.toString()] = record
-    return cid
+    return this.car.put(record)
   }
 
   async publishAnchorCommit(anchorCommit: AnchorCommit): Promise<CID> {
@@ -117,7 +112,7 @@ export class MockIpfsService implements IIpfsService {
   }
 
   reset() {
-    this._streams = {}
+    this.car = new CARFactory().build()
   }
 
   async importCAR(car: CAR, options?: AbortOptions): Promise<void> {

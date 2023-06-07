@@ -17,7 +17,7 @@ import { createInjector } from 'typed-inject'
 import { DateTime } from 'luxon'
 import { MetadataRepository } from '../metadata-repository.js'
 import { StreamID } from '@ceramicnetwork/streamid'
-import { asDIDString } from '../../ancillary/did-string.js'
+import { asDIDString } from '@ceramicnetwork/codecs'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 
 const MS_IN_MINUTE = 1000 * 60

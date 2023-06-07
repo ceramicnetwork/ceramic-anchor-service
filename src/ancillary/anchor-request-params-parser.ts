@@ -7,7 +7,14 @@ import { METRIC_NAMES } from '../settings.js'
 import * as DAG_JOSE from 'dag-jose'
 import { GenesisFields } from '../models/metadata.js'
 import { IpfsGenesis } from '../services/metadata-service.js'
-import { cid, cidAsString, date, streamIdAsBytes, streamIdAsString, uint8array } from './codecs.js'
+import {
+  uint8array,
+  cid,
+  cidAsString,
+  date,
+  streamIdAsString,
+  streamIdAsBytes,
+} from '@ceramicnetwork/codecs'
 import {
   optional,
   sparse,

@@ -549,7 +549,6 @@ export class AnchorService {
     const candidates = await this._buildCandidates(requests)
 
     logger.debug(`Loading candidate streams`)
-    // FIXME PREV
     const groupedRequests = await this._loadCandidateStreams(candidates, candidateLimit)
 
     for (const candidate of candidates) {
