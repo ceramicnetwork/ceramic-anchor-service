@@ -38,6 +38,7 @@ import { AnchorRequestParamsParser } from './ancillary/anchor-request-params-par
 import { HealthcheckService, IHealthcheckService } from './services/healthcheck-service.js'
 import { RequestService } from './services/request-service.js'
 import { AnchorBatchSqsQueueService } from './services/queue/sqs-queue-service.js'
+import { S3MerkleCarService } from './services/merkle-car-service'
 
 type DependenciesContext = {
   config: Config
@@ -99,6 +100,7 @@ export class CeramicAnchorApp {
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
       .provideClass('requestService', RequestService)
+      .provideClass('merkleCarService', S3MerkleCarService)
 
     try {
       Metrics.start(
