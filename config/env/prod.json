@@ -64,7 +64,8 @@
   "queue": {
     "type": "sqs",
     "awsRegion": "@@AWS_REGION",
-    "sqsQueueUrl": "@@SQS_URL",
+    "sqsBatchQueueUrl": "@@SQS_BATCH_QUEUE_URL",
+    "sqsFailureQueueUrl": "@@SQS_FAILURE_QUEUE_URL",
     "usePolling": false,
     "maxTimeToHoldMessageSec": "@@MAX_TIME_TO_HOLD_MESSAGE_SEC",
     "waitTimeForMessageSec": "@@WAIT_TIME_FOR_MESSAGE_SEC"

@@ -37,7 +37,7 @@ import {
   ICandidate,
   ICandidateMetadata,
 } from '@ceramicnetwork/anchor-utils'
-import { IQueueService } from './queue/queue-service.type.js'
+import { IQueueConsumerService } from './queue/queue-service.type.js'
 import { AnchorBatch } from '../models/queue-message.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
@@ -189,7 +189,7 @@ export class AnchorService {
     private readonly connection: Knex,
     private readonly eventProducerService: EventProducerService,
     private readonly metadataService: IMetadataService,
-    private readonly anchorBatchQueueService: IQueueService<AnchorBatch>
+    private readonly anchorBatchQueueService: IQueueConsumerService<AnchorBatch>
   ) {
     this.merkleDepthLimit = config.merkleDepthLimit
     this.includeBlockInfoInAnchorProof = config.includeBlockInfoInAnchorProof
@@ -246,7 +246,7 @@ export class AnchorService {
     }
 
     logger.imp('Retrieving next job from queue')
-    const batchMessage = await this.anchorBatchQueueService.retrieveNextMessage()
+    const batchMessage = await this.anchorBatchQueueService.receiveMessage()
 
     if (!batchMessage) {
       // TODO: Add metric here
