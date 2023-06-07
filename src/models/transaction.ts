@@ -1,10 +1,10 @@
 export class Transaction {
   chain: string
   txHash: string
-  blockNumber: number
-  blockTimestamp: number
+  blockNumber: bigint
+  blockTimestamp: bigint
 
-  constructor(chain: string, txHash: string, blockNumber: number, blockTimestamp: number) {
+  constructor(chain: string, txHash: string, blockNumber: bigint, blockTimestamp: bigint) {
     this.chain = chain
     this.txHash = txHash
     this.blockNumber = blockNumber
