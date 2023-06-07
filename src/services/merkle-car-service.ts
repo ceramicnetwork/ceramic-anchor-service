@@ -4,7 +4,7 @@ import AWSSDK from 'aws-sdk'
 import LevelUp from 'levelup'
 import S3LevelDOWN from 's3leveldown'
 import * as DAG_JOSE from 'dag-jose'
-import { logger } from '../logger'
+import { logger } from '../logger/index.js'
 
 /**
  * A service for storing and retrieving the CAR file containing the entire anchor merkle tree,
