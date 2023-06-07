@@ -4,7 +4,7 @@ import { createDbConnection } from '../../db-connection.js'
 import { MetadataRepository } from '../metadata-repository.js'
 import type { FreshMetadata } from '../../models/metadata.js'
 import { isClose, randomStreamID } from '../../__tests__/test-utils.js'
-import { asDIDString } from '../../ancillary/did-string.js'
+import { asDIDString } from '@ceramicnetwork/codecs'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 
 let dbConnection: Knex

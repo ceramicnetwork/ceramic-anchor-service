@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { jest, describe, beforeAll, beforeEach, test, expect, afterAll } from '@jest/globals'
+import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals'
 
 import { Request, RequestStatus } from '../../models/request.js'
 import { AnchorService } from '../anchor-service.js'
@@ -30,32 +30,18 @@ import { createInjector, Injector } from 'typed-inject'
 import { MetadataRepository } from '../../repositories/metadata-repository.js'
 import { randomString } from '@stablelib/random'
 import { IMetadataService, MetadataService } from '../metadata-service.js'
-import { asDIDString } from '../../ancillary/did-string.js'
+import { asDIDString } from '@ceramicnetwork/codecs'
 import type { EventProducerService } from '../event-producer/event-producer-service.js'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 import type { AbortOptions } from '../abort-options.type.js'
 import { IQueueService, IQueueMessage } from '../queue/queue-service.type.js'
 import { AnchorBatch } from '../../models/queue-message.js'
 import { Candidate } from '../candidate.js'
+import { FakeFactory } from './fake-factory.util.js'
+import { FakeEthereumBlockchainService } from './fake-ethereum-blockchain-service.util.js'
+import { MockEventProducerService } from './mock-event-producer-service.util.js'
 
 process.env['NODE_ENV'] = 'test'
-class MockEventProducerService implements EventProducerService {
-  emitAnchorEvent(): Promise<void> {
-    return Promise.resolve(undefined)
-  }
-}
-
-class FakeEthereumBlockchainService implements BlockchainService {
-  chainId = 'impossible'
-
-  connect(): Promise<void> {
-    throw new Error(`Failed to connect`)
-  }
-
-  sendTransaction(): Promise<Transaction> {
-    throw new Error('Failed to send transaction!')
-  }
-}
 
 class MockQueueMessage<T> implements IQueueMessage<T> {
   readonly data: T
@@ -127,6 +113,7 @@ type Context = {
   anchorService: AnchorService
   metadataService: IMetadataService
   metadataRepository: MetadataRepository
+  anchorRepository: AnchorRepository
 }
 
 describe('anchor service', () => {
@@ -136,9 +123,11 @@ describe('anchor service', () => {
   let connection: Knex
   let injector: Injector<Context>
   let requestRepository: RequestRepository
+  let anchorRepository: AnchorRepository
   let anchorService: AnchorService
   let eventProducerService: MockEventProducerService
   let metadataRepository: MetadataRepository
+  let fake: FakeFactory
 
   beforeAll(async () => {
     connection = await createDbConnection()
@@ -178,6 +167,8 @@ describe('anchor service', () => {
     eventProducerService = injector.resolve('eventProducerService')
     metadataService = injector.resolve('metadataService')
     metadataRepository = injector.resolve('metadataRepository')
+    anchorRepository = injector.resolve('anchorRepository')
+    fake = new FakeFactory(ipfsService, metadataService, requestRepository)
   })
 
   beforeEach(async () => {
@@ -191,27 +182,7 @@ describe('anchor service', () => {
   })
 
   test('check state on tx fail', async () => {
-    const requests: Request[] = []
-    for (let i = 0; i < MIN_STREAM_COUNT; i++) {
-      const genesisCID = await ipfsService.storeRecord({
-        header: {
-          controllers: [`did:method:${randomString(32)}`],
-        },
-      })
-      const streamId = new StreamID(1, genesisCID)
-      await metadataService.fillFromIpfs(streamId)
-      const cid = await ipfsService.storeRecord({})
-
-      const request = new Request()
-      request.cid = cid.toString()
-      request.streamId = streamId.toString()
-      request.status = RequestStatus.READY
-      request.message = 'Request is pending.'
-
-      requests.push(request)
-    }
-
-    await requestRepository.createRequests(requests)
+    const requests = await fake.multipleRequests(MIN_STREAM_COUNT, RequestStatus.READY)
 
     await expect(anchorService.anchorRequests()).rejects.toEqual(
       new Error('Failed to send transaction!')
@@ -226,10 +197,7 @@ describe('anchor service', () => {
   test('Too few anchor requests', async () => {
     const numRequests = MIN_STREAM_COUNT - 1
     // Create pending requests
-    for (let i = 0; i < numRequests; i++) {
-      const streamId = await randomStreamID()
-      await createRequest(streamId.toString(), ipfsService, requestRepository)
-    }
+    await fake.multipleRequests(numRequests)
 
     const beforePending = await requestRepository.countByStatus(RequestStatus.PENDING)
     expect(beforePending).toEqual(numRequests)
@@ -241,23 +209,7 @@ describe('anchor service', () => {
   })
 
   test('create anchor records', async () => {
-    // Create pending requests
-    const requests: Request[] = []
-    const numRequests = 4
-    for (let i = 0; i < numRequests; i++) {
-      const genesisCID = await ipfsService.storeRecord({
-        header: {
-          controllers: [`did:method:${randomString(32)}`],
-        },
-      })
-      const streamId = new StreamID(1, genesisCID)
-      await metadataService.fillFromIpfs(streamId)
-      const request = await createRequest(streamId.toString(), ipfsService, requestRepository)
-      requests.push(request)
-    }
-    requests.sort(function (a, b) {
-      return a.streamId.localeCompare(b.streamId)
-    })
+    const requests = await fake.multipleRequests(4, RequestStatus.PENDING)
 
     await requestRepository.findAndMarkReady(0)
 
@@ -275,8 +227,7 @@ describe('anchor service', () => {
 
     // All requests are anchored, in a different order because of IpfsLeafCompare
     expect(anchors.map((a) => a.requestId).sort()).toEqual(requests.map((r) => r.id).sort())
-    for (const i in anchors) {
-      const anchor = anchors[i]
+    for (const [index, anchor] of anchors.entries()) {
       expectPresent(anchor)
       expect(anchor.proofCid.toString()).toEqual(ipfsProofCid.toString())
       const request = requests.find((r) => r.id === anchor.requestId)
@@ -287,7 +238,7 @@ describe('anchor service', () => {
       expect(anchorRecord.prev.toString()).toEqual(request.cid)
       expect(anchorRecord.proof).toEqual(ipfsProofCid)
       expect(anchorRecord.path).toEqual(anchor.path)
-      expect(publishSpy.mock.calls[i]).toEqual([
+      expect(publishSpy.mock.calls[index]).toEqual([
         anchorRecord,
         StreamID.fromString(request.streamId),
       ])
@@ -308,17 +259,7 @@ describe('anchor service', () => {
     const numRequests = anchorLimit * 2 // twice as many requests as can fit
 
     // Create pending requests
-    for (let i = 0; i < numRequests; i++) {
-      const genesisCID = await ipfsService.storeRecord({
-        header: {
-          controllers: [`did:method:${randomString(32)}`],
-        },
-      })
-      const streamId = new StreamID(1, genesisCID)
-      await metadataService.fillFromIpfs(streamId)
-
-      await createRequest(streamId.toString(), ipfsService, requestRepository)
-    }
+    await fake.multipleRequests(numRequests)
 
     await requestRepository.findAndMarkReady(0)
 
@@ -359,21 +300,8 @@ describe('anchor service', () => {
     const numFailed = Math.floor(anchorLimit / 2)
     let failedIndex = numFailed
     for (let i = 0; i < numStreams; i++) {
-      const genesisCID = await ipfsService.storeRecord({
-        header: {
-          controllers: [`did:method:${randomString(32)}`],
-        },
-      })
-      const streamId = new StreamID(1, genesisCID)
-      await metadataService.fillFromIpfs(streamId)
-
       const status = failedIndex > 0 ? RequestStatus.FAILED : RequestStatus.PENDING
-      const request = await createRequest(
-        streamId.toString(),
-        ipfsService,
-        requestRepository,
-        status
-      )
+      const request = await fake.request(status)
       failedIndex -= 1
       requests.push(request)
 
@@ -386,14 +314,9 @@ describe('anchor service', () => {
     for (let i = numStreams - 1; i >= 0; i--) {
       const prevRequest = requests[i]
       expectPresent(prevRequest)
-      const streamId = prevRequest.streamId
+      const streamId = StreamID.fromString(prevRequest.streamId)
 
-      const request = await createRequest(
-        streamId.toString(),
-        ipfsService,
-        requestRepository,
-        RequestStatus.PENDING
-      )
+      const request = await fake.request(RequestStatus.PENDING, streamId)
       requests.push(request)
 
       // Make sure each stream gets a unique 'createdAt' Date
@@ -416,11 +339,11 @@ describe('anchor service', () => {
     const remainingRequests = await requestRepository.findByStatus(RequestStatus.READY)
     const storedRequests = await requestRepository.allRequests()
 
-    // Make sure, that `requests` and `storedRequests` contain _same_ Requests at different stages of their lifecycle.
+    // Make sure that `requests` and `storedRequests` contain _same_ Requests at different stages of their lifecycle.
     // `requests` contain "vanilla" just created entries. `storedRequests` contains entries after a round of anchoring,
     // and few of them are marked as REPLACED, to imitate how CAS requests are created.
 
-    // Make sure these are same records in the same order
+    // Make sure these are the same records in the same order
     expect(requests.map((r) => r.id)).toEqual(storedRequests.map((r) => r.id))
 
     // `requests`: FAILED, FAILED, PENDING, PENDING,..., PENDING
@@ -454,16 +377,7 @@ describe('anchor service', () => {
     const numRequests = 5
 
     // Create pending requests
-    for (let i = 0; i < numRequests; i++) {
-      const genesisCID = await ipfsService.storeRecord({
-        header: {
-          controllers: [`did:method:${randomString(32)}`],
-        },
-      })
-      const streamId = new StreamID(1, genesisCID)
-      await metadataService.fillFromIpfs(streamId)
-      await createRequest(streamId.toString(), ipfsService, requestRepository)
-    }
+    await fake.multipleRequests(numRequests)
 
     await requestRepository.findAndMarkReady(anchorLimit)
 
@@ -481,16 +395,7 @@ describe('anchor service', () => {
   test('filters anchors that fail to publish AnchorCommit', async () => {
     // Create pending requests
     const numRequests = 4
-    for (let i = 0; i < numRequests; i++) {
-      const genesisCID = await ipfsService.storeRecord({
-        header: {
-          controllers: [`did:method:${randomString(32)}`],
-        },
-      })
-      const streamId = new StreamID(1, genesisCID)
-      await metadataService.fillFromIpfs(streamId)
-      await createRequest(streamId.toString(), ipfsService, requestRepository)
-    }
+    await fake.multipleRequests(numRequests)
 
     await requestRepository.findAndMarkReady(numRequests)
     const requests = await requestRepository.findByStatus(RequestStatus.READY)
@@ -542,16 +447,7 @@ describe('anchor service', () => {
     const numRequests = 2
 
     // Create pending requests
-    for (let i = 0; i < numRequests; i++) {
-      const genesisCID = await ipfsService.storeRecord({
-        header: {
-          controllers: [`did:method:${randomString(32)}`],
-        },
-      })
-      const streamId = new StreamID(1, genesisCID)
-      await metadataService.fillFromIpfs(streamId)
-      await createRequest(streamId.toString(), ipfsService, requestRepository)
-    }
+    await fake.multipleRequests(numRequests)
 
     await requestRepository.findAndMarkReady(anchorLimit)
 
@@ -579,16 +475,7 @@ describe('anchor service', () => {
     const numRequests = 5
 
     // Create pending requests
-    for (let i = 0; i < numRequests; i++) {
-      const genesisCID = await ipfsService.storeRecord({
-        header: {
-          controllers: [`did:method:${randomString(32)}`],
-        },
-      })
-      const streamId = new StreamID(1, genesisCID)
-      await metadataService.fillFromIpfs(streamId)
-      await createRequest(streamId.toString(), ipfsService, requestRepository)
-    }
+    await fake.multipleRequests(numRequests, RequestStatus.PENDING)
 
     await requestRepository.findAndMarkReady(anchorLimit)
 
@@ -604,7 +491,7 @@ describe('anchor service', () => {
     let anchors = await requestRepository.table
     expect(anchors.length).toEqual(numRequests)
 
-    // reanchor the same candidates
+    // re-anchor the same candidates
     await anchorCandidates(candidates, anchorService, ipfsService)
 
     // no new anchor should have been created
@@ -615,24 +502,7 @@ describe('anchor service', () => {
   describe('Request pinning', () => {
     async function anchorRequests(numRequests: number): Promise<Request[]> {
       // Create Requests
-      const streamIds = []
-      for (let i = 0; i < numRequests; i++) {
-        const genesisCID = await ipfsService.storeRecord({
-          header: {
-            controllers: [`did:method:${randomString(32)}`],
-          },
-        })
-        const streamId = new StreamID(1, genesisCID)
-        await metadataService.fillFromIpfs(streamId)
-        streamIds.push(streamId)
-      }
-      // const streamIds = Array.from({ length: numRequests }).map(() => randomStreamID())
-      const requests = await Promise.all(
-        streamIds.map((streamId) =>
-          createRequest(streamId.toString(), ipfsService, requestRepository)
-        )
-      )
-
+      const requests = await fake.multipleRequests(numRequests)
       const [candidates] = await anchorService._findCandidates(requests, 0)
       await anchorCandidates(candidates, anchorService, ipfsService)
       expect(candidates.length).toEqual(numRequests)
@@ -725,7 +595,7 @@ describe('anchor service', () => {
     })
 
     test('does not emit if no requests were updated to ready', async () => {
-      // not enough request generated
+      // not enough requests generated
       const originalRequests = generateRequests(
         {
           status: RequestStatus.PENDING,
@@ -852,24 +722,8 @@ describe('anchor service', () => {
     })
 
     test('No batch', async () => {
-      const requests: Request[] = []
       const numRequests = 4
-      for (let i = 0; i < numRequests; i++) {
-        const genesisCID = await ipfsService.storeRecord({
-          header: {
-            controllers: [`did:method:${randomString(32)}`],
-          },
-        })
-        const streamId = new StreamID(1, genesisCID)
-        await metadataService.fillFromIpfs(streamId)
-        const request = await createRequest(
-          streamId.toString(),
-          ipfsService,
-          requestRepository,
-          RequestStatus.PENDING
-        )
-        requests.push(request)
-      }
+      const requests = await fake.multipleRequests(numRequests)
 
       await anchorService.anchorRequests()
 
@@ -880,24 +734,8 @@ describe('anchor service', () => {
     })
 
     test('batch and successfully anchored', async () => {
-      const requests: Request[] = []
       const numRequests = 4
-      for (let i = 0; i < numRequests; i++) {
-        const genesisCID = await ipfsService.storeRecord({
-          header: {
-            controllers: [`did:method:${randomString(32)}`],
-          },
-        })
-        const streamId = new StreamID(1, genesisCID)
-        await metadataService.fillFromIpfs(streamId)
-        const request = await createRequest(
-          streamId.toString(),
-          ipfsService,
-          requestRepository,
-          RequestStatus.PENDING
-        )
-        requests.push(request)
-      }
+      const requests = await fake.multipleRequests(numRequests)
 
       const batch = new MockQueueMessage({
         bid: uuidv4(),
@@ -926,24 +764,8 @@ describe('anchor service', () => {
     })
 
     test('batch and failed anchor', async () => {
-      const requests: Request[] = []
       const numRequests = 4
-      for (let i = 0; i < numRequests; i++) {
-        const genesisCID = await ipfsService.storeRecord({
-          header: {
-            controllers: [`did:method:${randomString(32)}`],
-          },
-        })
-        const streamId = new StreamID(1, genesisCID)
-        await metadataService.fillFromIpfs(streamId)
-        const request = await createRequest(
-          streamId.toString(),
-          ipfsService,
-          requestRepository,
-          RequestStatus.PENDING
-        )
-        requests.push(request)
-      }
+      const requests = await fake.multipleRequests(numRequests)
 
       const batch = new MockQueueMessage({
         bid: uuidv4(),
