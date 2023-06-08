@@ -38,7 +38,7 @@ import { AnchorRequestParamsParser } from './ancillary/anchor-request-params-par
 import { HealthcheckService, IHealthcheckService } from './services/healthcheck-service.js'
 import { RequestService } from './services/request-service.js'
 import { AnchorBatchSqsQueueService } from './services/queue/sqs-queue-service.js'
-import { S3MerkleCarService } from './services/merkle-car-service.js'
+import { InMemoryMerkleCarService, S3MerkleCarService } from './services/merkle-car-service.js'
 
 type DependenciesContext = {
   config: Config
@@ -100,7 +100,14 @@ export class CeramicAnchorApp {
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
       .provideClass('requestService', RequestService)
-      .provideClass('merkleCarService', S3MerkleCarService)
+
+    if (this.config.carStorage.mode === 's3') {
+      this.container.provideClass('merkleCarService', S3MerkleCarService)
+    } else if (this.config.carStorage.mode === 'inmemory') {
+      this.container.provideClass('merkleCarService', InMemoryMerkleCarService)
+    } else {
+      throw new Error(`Unrecognized carStorage mode: ${this.config.carStorage.mode}`)
+    }
 
     try {
       Metrics.start(

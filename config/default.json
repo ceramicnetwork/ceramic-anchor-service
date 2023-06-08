@@ -14,6 +14,10 @@
   "readyRetryIntervalMS": 300000,
   "requireAuth": false,
   "schedulerIntervalMS": 300000,
+  "carStorage": {
+    "mode": "inmemory",
+    "s3BucketName": "myS3Bucket"
+  },
   "ipfsConfig": {
     "url": "http://localhost:5001",
     "pubsubTopic": "/ceramic/testnet-clay",
