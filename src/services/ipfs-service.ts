@@ -3,8 +3,7 @@ import { LRUCache } from 'lru-cache'
 import { create as createIpfsClient } from 'ipfs-http-client'
 import type { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
-import type { IPFS } from 'ipfs-core-types'
-import { AnchorCommit, toCID } from '@ceramicnetwork/common'
+import { AnchorCommit, toCID, IpfsApi } from '@ceramicnetwork/common'
 import type { StreamID } from '@ceramicnetwork/streamid'
 import { Utils } from '../utils.js'
 import { Agent as HttpAgent } from 'node:http'
@@ -15,6 +14,8 @@ import { METRIC_NAMES } from '../settings.js'
 import type { IIpfsService, RetrieveRecordOptions } from './ipfs-service.type.js'
 import type { AbortOptions } from './abort-options.type.js'
 import { Semaphore } from 'await-semaphore'
+import type { CAR } from 'cartonne'
+import all from 'it-all'
 
 const { serialize, MsgType } = PubsubMessage
 
@@ -37,7 +38,7 @@ function buildHttpAgent(endpoint: string | undefined): HttpAgent {
   }
 }
 
-function buildIpfsClient(config: Config): IPFS {
+function buildIpfsClient(config: Config): IpfsApi {
   return createIpfsClient({
     url: config.ipfsConfig.url,
     timeout: config.ipfsConfig.timeout,
@@ -48,23 +49,33 @@ function buildIpfsClient(config: Config): IPFS {
 export class IpfsService implements IIpfsService {
   private readonly cache: LRUCache<string, any>
   private readonly pubsubTopic: string
-  private readonly ipfs: IPFS
+  private readonly ipfs: IpfsApi
   private readonly semaphore: Semaphore
+  private readonly hasherNames: Map<number, string>
+  private readonly codecNames: Map<number, string>
 
   static inject = ['config'] as const
 
-  constructor(config: Config, ipfs: IPFS = buildIpfsClient(config)) {
+  constructor(config: Config, ipfs: IpfsApi = buildIpfsClient(config)) {
     this.cache = new LRUCache<string, any>({ max: MAX_CACHE_ENTRIES })
     this.ipfs = ipfs
     this.pubsubTopic = config.ipfsConfig.pubsubTopic
     const concurrentGetLimit = config.ipfsConfig.concurrentGetLimit || DEFAULT_CONCURRENT_GET_LIMIT
     this.semaphore = new Semaphore(concurrentGetLimit)
+    this.hasherNames = new Map()
+    this.codecNames = new Map()
   }
 
   /**
    * Initialize the service
    */
   async init(): Promise<void> {
+    for (const codec of this.ipfs.codecs.listCodecs()) {
+      this.codecNames.set(codec.code, codec.name)
+    }
+    for (const hasher of this.ipfs.hashers.listHashers()) {
+      this.hasherNames.set(hasher.code, hasher.name)
+    }
     // We have to subscribe to pubsub to keep ipfs connections alive.
     // TODO Remove this when the underlying ipfs issue is fixed
     await this.ipfs.pubsub.subscribe(this.pubsubTopic, () => {
@@ -154,5 +165,16 @@ export class IpfsService implements IIpfsService {
     await Utils.delay(PUBSUB_DELAY)
 
     return anchorCid
+  }
+
+  async importCAR(car: CAR, options: AbortOptions = {}): Promise<void> {
+    await all(this.ipfs.dag.import(car, { pinRoots: false }))
+    for (const cid of car.blocks.cids()) {
+      await this.ipfs.pin.add(cid, {
+        signal: options.signal,
+        timeout: IPFS_PUT_TIMEOUT,
+        recursive: false,
+      })
+    }
   }
 }
