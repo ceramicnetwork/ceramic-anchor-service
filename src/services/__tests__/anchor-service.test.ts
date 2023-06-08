@@ -11,12 +11,7 @@ import type { IIpfsService } from '../ipfs-service.type.js'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { config, Config } from 'node-config-ts'
 import { StreamID } from '@ceramicnetwork/streamid'
-import {
-  generateRequests,
-  MockIpfsService,
-  randomStreamID,
-  repeat,
-} from '../../__tests__/test-utils.js'
+import { generateRequests, MockIpfsService, repeat } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { CID } from 'multiformats/cid'
 import type { FreshAnchor } from '../../models/anchor.js'
@@ -24,14 +19,11 @@ import { toCID } from '@ceramicnetwork/common'
 import { Utils } from '../../utils.js'
 import { validate as validateUUID, v4 as uuidv4 } from 'uuid'
 import { TransactionRepository } from '../../repositories/transaction-repository.js'
-import type { BlockchainService } from '../blockchain/blockchain-service'
 import { Transaction } from '../../models/transaction.js'
 import { createInjector, Injector } from 'typed-inject'
 import { MetadataRepository } from '../../repositories/metadata-repository.js'
-import { randomString } from '@stablelib/random'
 import { IMetadataService, MetadataService } from '../metadata-service.js'
 import { asDIDString } from '@ceramicnetwork/codecs'
-import type { EventProducerService } from '../event-producer/event-producer-service.js'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 import type { AbortOptions } from '../abort-options.type.js'
 import { IQueueConsumerService, IQueueMessage } from '../queue/queue-service.type.js'
@@ -67,25 +59,6 @@ class MockQueueService<T extends QueueMessageData> implements IQueueConsumerServ
   }
 }
 
-async function createRequest(
-  streamId: string,
-  ipfsService: IIpfsService,
-  requestRepository: RequestRepository,
-  status: RequestStatus = RequestStatus.PENDING
-): Promise<Request> {
-  const cid = await ipfsService.storeRecord({})
-  const request = new Request()
-  request.cid = cid.toString()
-  request.streamId = streamId
-  request.status = status
-  request.message = 'Request is pending.'
-  request.pinned = true
-
-  const stored = await requestRepository.createOrUpdate(request)
-  await requestRepository.markPreviousReplaced(stored)
-  return stored
-}
-
 async function anchorCandidates(
   candidates: Candidate[],
   anchorService: AnchorService,
@@ -113,7 +86,6 @@ type Context = {
   anchorService: AnchorService
   metadataService: IMetadataService
   metadataRepository: MetadataRepository
-  anchorRepository: AnchorRepository
 }
 
 describe('anchor service', () => {
@@ -123,7 +95,6 @@ describe('anchor service', () => {
   let connection: Knex
   let injector: Injector<Context>
   let requestRepository: RequestRepository
-  let anchorRepository: AnchorRepository
   let anchorService: AnchorService
   let eventProducerService: MockEventProducerService
   let metadataRepository: MetadataRepository
@@ -167,7 +138,6 @@ describe('anchor service', () => {
     eventProducerService = injector.resolve('eventProducerService')
     metadataService = injector.resolve('metadataService')
     metadataRepository = injector.resolve('metadataRepository')
-    anchorRepository = injector.resolve('anchorRepository')
     fake = new FakeFactory(ipfsService, metadataService, requestRepository)
   })
 
@@ -725,7 +695,7 @@ describe('anchor service', () => {
 
     test('No batch', async () => {
       const numRequests = 4
-      const requests = await fake.multipleRequests(numRequests)
+      await fake.multipleRequests(numRequests)
 
       await anchorService.anchorRequests()
 
