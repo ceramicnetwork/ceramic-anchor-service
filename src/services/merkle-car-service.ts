@@ -28,7 +28,7 @@ export class InMemoryMerkleCarService {
   }
 }
 
-const S3_STORE_SUFFIX = '/ceramic/cas/anchor/merkle-car/'
+const S3_STORE_SUFFIX = '/cas/anchor/merkle-car/'
 const carFactory = new CARFactory()
 carFactory.codecs.add(DAG_JOSE)
 
