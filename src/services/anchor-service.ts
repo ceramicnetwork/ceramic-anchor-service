@@ -4,7 +4,7 @@ import type { Config } from 'node-config-ts'
 
 import { logEvent, logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
-import { Anchor } from '../models/anchor.js'
+import { FreshAnchor } from '../models/anchor.js'
 import { Request, RequestStatus, RequestStatus as RS } from '../models/request.js'
 import type { Transaction } from '../models/transaction.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
@@ -25,9 +25,9 @@ import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import type { IMetadataService } from './metadata-service.js'
 import { pathString, type CIDHolder, type TreeMetadata } from '@ceramicnetwork/anchor-utils'
-import { IQueueConsumerService } from './queue/queue-service.type.js'
 import { Candidate } from './candidate.js'
 import { MerkleCarFactory, type IMerkleTree, type MerkleCAR } from '../merkle/merkle-car-factory.js'
+import { IQueueConsumerService } from './queue/queue-service.type.js'
 import { AnchorBatch } from '../models/queue-message.js'
 import { create as createMultihash } from 'multiformats/hashes/digest'
 import { CAR } from 'cartonne'
@@ -169,11 +169,6 @@ export class AnchorService {
    */
   // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
   async anchorRequests(): Promise<void> {
-    // TODO FIXME Remove after backfill
-    // const withoutMetadata = await this.requestRepository.allWithoutMetadata(
-    //   this.minStreamLimit || this.maxStreamLimit || 100
-    // )
-    // await this.metadataService.fillAll(withoutMetadata)
     if (this.useQueueBatches) {
       return this.anchorNextQueuedBatch()
     } else {
@@ -413,7 +408,10 @@ export class AnchorService {
    * of each anchor request.
    * @private
    */
-  async _createAnchorCommits(ipfsProofCid: CID, merkleTree: MerkleCAR): Promise<Anchor[]> {
+  async _createAnchorCommits(
+    ipfsProofCid: CID,
+    merkleTree: MerkleCAR
+  ): Promise<FreshAnchor[]> {
     const leafNodes = merkleTree.leafNodes
     const anchors = []
 
@@ -452,14 +450,8 @@ export class AnchorService {
     candidateIndex: number,
     ipfsProofCid: CID,
     merkleTree: IMerkleTree<CIDHolder, Candidate, TreeMetadata>
-  ): Promise<Anchor | null> {
-    const anchor: Anchor = new Anchor()
-    anchor.requestId = candidate.request.id
-    anchor.proofCid = ipfsProofCid.toString()
-
+  ): Promise<FreshAnchor | null> {
     const path = pathString(merkleTree.getDirectPathFromRoot(candidateIndex))
-    anchor.path = path
-
     const ipfsAnchorCommit = {
       id: candidate.streamId.cid,
       prev: candidate.cid,
@@ -473,11 +465,16 @@ export class AnchorService {
         candidate.streamId
       )
       car.put(ipfsAnchorCommit)
-      anchor.cid = anchorCid.toString()
-
+      const anchor: FreshAnchor = {
+        requestId: candidate.request.id,
+        proofCid: ipfsProofCid,
+        path: path,
+        cid: anchorCid,
+      }
       logger.debug(
         `Created anchor commit with CID ${anchorCid.toString()} for stream ${candidate.streamId.toString()}`
       )
+      return anchor
     } catch (err) {
       const msg = `Error publishing anchor commit of commit ${
         candidate.cid
@@ -489,7 +486,6 @@ export class AnchorService {
       ])
       return null
     }
-    return anchor
   }
 
   /**
@@ -501,7 +497,10 @@ export class AnchorService {
    * @returns The number of anchors persisted
    * @private
    */
-  async _persistAnchorResult(anchors: Anchor[], candidates: Candidate[]): Promise<number> {
+  async _persistAnchorResult(
+    anchors: FreshAnchor[],
+    candidates: Candidate[]
+  ): Promise<number> {
     // filter to requests for streams that were actually anchored successfully
     const acceptedRequests = []
     for (const candidate of candidates) {
