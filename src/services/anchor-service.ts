@@ -4,7 +4,7 @@ import type { Config } from 'node-config-ts'
 
 import { logEvent, logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
-import { Anchor } from '../models/anchor.js'
+import { FreshAnchor } from '../models/anchor.js'
 import { Request, RequestStatus, RequestStatus as RS } from '../models/request.js'
 import type { Transaction } from '../models/transaction.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
@@ -19,26 +19,18 @@ import { METRIC_NAMES } from '../settings.js'
 import type { BlockchainService } from './blockchain/blockchain-service.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 
-import { BloomMetadata } from '../merkle/bloom-metadata.js'
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import type { IMetadataService } from './metadata-service.js'
-import {
-  pathString,
-  MerkleTreeFactory,
-  IpfsLeafCompare,
-  IpfsMerge,
-  type MerkleTree,
-  type CIDHolder,
-  type TreeMetadata,
-  type Node,
-  ICandidate,
-  ICandidateMetadata,
-} from '@ceramicnetwork/anchor-utils'
+import { pathString, type CIDHolder, type TreeMetadata } from '@ceramicnetwork/anchor-utils'
+import { Candidate } from './candidate.js'
+import { MerkleCarFactory, type IMerkleTree, type MerkleCAR } from '../merkle/merkle-car-factory.js'
 import { IQueueConsumerService } from './queue/queue-service.type.js'
 import { AnchorBatch } from '../models/queue-message.js'
+import { create as createMultihash } from 'multiformats/hashes/digest'
+import { CAR } from 'cartonne'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
@@ -72,48 +64,6 @@ type AnchorSummary = {
   reanchoredCount: number
   // requests that can be retried in a later batch
   canRetryCount: number
-}
-
-/**
- * Contains all the information about a single stream being anchored. Note that multiple Requests
- * can correspond to the same Stream (if, for example, multiple back-to-back updates are done to the
- * same Stream within an anchor period), so Candidate serves to group all related Requests and keep
- * track of which CID should actually be anchored for this stream.
- */
-export class Candidate implements ICandidate {
-  readonly cid: CID
-  readonly model: StreamID | undefined
-
-  private _alreadyAnchored = false
-
-  constructor(
-    readonly streamId: StreamID,
-    readonly request: Request,
-    readonly metadata: ICandidateMetadata
-  ) {
-    this.request = request
-    if (!request.cid) throw new Error(`No CID present for request`)
-    this.cid = CID.parse(request.cid)
-    this.metadata = metadata
-    this.model = this.metadata.model
-  }
-
-  /**
-   * Returns true if this Stream was already anchored at the time that it was loaded during the
-   * anchoring process (most likely by another anchoring service after the creation of the original
-   * Request(s)).
-   */
-  get alreadyAnchored(): boolean {
-    return this._alreadyAnchored
-  }
-
-  shouldAnchor(): boolean {
-    return !this._alreadyAnchored
-  }
-
-  markAsAnchored(): void {
-    this._alreadyAnchored = true
-  }
 }
 
 const logAnchorSummary = async (
@@ -154,17 +104,30 @@ const logAnchorSummary = async (
     ...anchorSummary,
   })
 }
+
+/**
+ * Converts ETH address to CID
+ * @param hash - ETH hash
+ */
+function convertEthHashToCid(hash: string): CID {
+  const KECCAK_256_CODE = 0x1b
+  const ETH_TX_CODE = 0x93
+  const CID_VERSION = 1
+  const bytes = Buffer.from(hash, 'hex')
+  const multihash = createMultihash(KECCAK_256_CODE, bytes)
+  return CID.create(CID_VERSION, ETH_TX_CODE, multihash)
+}
+
 /**
  * Anchors CIDs to blockchain
  */
 export class AnchorService {
   private readonly merkleDepthLimit: number
-  private readonly includeBlockInfoInAnchorProof: boolean
   private readonly useSmartContractAnchors: boolean
   private readonly useQueueBatches: boolean
   private readonly maxStreamLimit: number
   private readonly minStreamLimit: number
-  private readonly merkleTreeFactory: MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>
+  private readonly merkleCarFactory: MerkleCarFactory
 
   static inject = [
     'blockchainService',
@@ -192,23 +155,13 @@ export class AnchorService {
     private readonly anchorBatchQueueService: IQueueConsumerService<AnchorBatch>
   ) {
     this.merkleDepthLimit = config.merkleDepthLimit
-    this.includeBlockInfoInAnchorProof = config.includeBlockInfoInAnchorProof
     this.useSmartContractAnchors = config.useSmartContractAnchors
     this.useQueueBatches = config.useQueueBatches
 
     const minStreamCount = Number(config.minStreamCount)
     this.maxStreamLimit = this.merkleDepthLimit > 0 ? Math.pow(2, this.merkleDepthLimit) : 0
     this.minStreamLimit = minStreamCount || Math.floor(this.maxStreamLimit / 2)
-
-    const ipfsMerge = new IpfsMerge(this.ipfsService, logger)
-    const ipfsCompare = new IpfsLeafCompare(logger)
-    const bloomMetadata = new BloomMetadata()
-    this.merkleTreeFactory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
-      ipfsMerge,
-      ipfsCompare,
-      bloomMetadata,
-      this.merkleDepthLimit
-    )
+    this.merkleCarFactory = new MerkleCarFactory(logger, this.merkleDepthLimit)
   }
 
   /**
@@ -216,11 +169,6 @@ export class AnchorService {
    */
   // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
   async anchorRequests(): Promise<void> {
-    // TODO FIXME Remove after backfill
-    // const withoutMetadata = await this.requestRepository.allWithoutMetadata(
-    //   this.minStreamLimit || this.maxStreamLimit || 100
-    // )
-    // await this.metadataService.fillAll(withoutMetadata)
     if (this.useQueueBatches) {
       return this.anchorNextQueuedBatch()
     } else {
@@ -279,8 +227,6 @@ export class AnchorService {
    */
   async anchorReadyRequests(): Promise<void> {
     logger.imp('Anchoring ready requests...')
-    // FIXME PREV
-    // const requests: Request[] = await this.requestRepository.findAndMarkAsProcessing()
     const requests = await this.requestRepository.batchProcessing(this.maxStreamLimit)
     await this._anchorRequests(requests)
 
@@ -340,22 +286,19 @@ export class AnchorService {
       return this.blockchainService.sendTransaction(merkleTree.root.data.cid)
     })
 
-    // create proof on IPFS
+    // Create proof
     logger.debug('Creating IPFS anchor proof')
-    const ipfsProofCid = await this._createIPFSProof(tx, merkleTree.root.data.cid)
+    const ipfsProofCid = this._createIPFSProof(merkleTree.car, tx, merkleTree.root.data.cid)
 
-    // create anchor records on IPFS
+    // Create anchor records on IPFS
     logger.debug('Creating anchor commits')
     const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
+
+    await this.ipfsService.importCAR(merkleTree.car)
 
     // Update the database to record the successful anchors
     logger.debug('Persisting results to local database')
     const persistedAnchorsCount = await this._persistAnchorResult(anchors, candidates)
-
-    const anchoredRequests = []
-    for (const candidate of candidates) {
-      anchoredRequests.push(candidate.request)
-    }
 
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
     Metrics.count(METRIC_NAMES.ANCHOR_SUCCESS, anchors.length)
@@ -369,7 +312,7 @@ export class AnchorService {
     span.end()
 
     return {
-      anchoredRequestsCount: anchoredRequests.length,
+      anchoredRequestsCount: candidates.length,
       failedToPublishAnchorCommitCount: merkleTree.leafNodes.length - anchors.length,
       anchorCount: anchors.length,
       reanchoredCount: reAnchoredCount,
@@ -426,11 +369,9 @@ export class AnchorService {
    * @param candidates
    * @private
    */
-  async _buildMerkleTree(
-    candidates: Candidate[]
-  ): Promise<MerkleTree<CIDHolder, Candidate, TreeMetadata>> {
+  async _buildMerkleTree(candidates: Candidate[]): Promise<MerkleCAR> {
     try {
-      return await this.merkleTreeFactory.build(candidates)
+      return await this.merkleCarFactory.build(candidates)
     } catch (e: any) {
       throw new Error('Merkle tree cannot be created: ' + e.toString())
     }
@@ -438,31 +379,24 @@ export class AnchorService {
 
   /**
    * Creates a proof record for the entire merkle tree that was anchored in the given
-   * ethereum transaction, publishes that record to IPFS, and returns the CID.
-   * @param tx - ETH transaction
-   * @param merkleRootCid - CID of the root of the merkle tree that was anchored in 'tx'
+   * ethereum transaction, adds the record to `car` file, and returns the CID.
+   * @param car - CAR file to store the record to.
+   * @param tx - ETH transaction.
+   * @param merkleRootCid - CID of the root of the merkle tree that was anchored in 'tx'.
    */
-  async _createIPFSProof(tx: Transaction, merkleRootCid: CID): Promise<CID> {
-    const txHashCid = Utils.convertEthHashToCid(tx.txHash.slice(2))
-    let ipfsAnchorProof = {
+  _createIPFSProof(car: CAR, tx: Transaction, merkleRootCid: CID): CID {
+    const txHashCid = convertEthHashToCid(tx.txHash.slice(2))
+    const ipfsAnchorProof = {
       root: merkleRootCid,
       chainId: tx.chain,
       txHash: txHashCid,
     } as any
 
-    if (this.includeBlockInfoInAnchorProof) {
-      ipfsAnchorProof = {
-        blockNumber: tx.blockNumber,
-        blockTimestamp: tx.blockTimestamp,
-        ...ipfsAnchorProof,
-      }
-    }
-
     if (this.useSmartContractAnchors) ipfsAnchorProof.txType = CONTRACT_TX_TYPE
 
     logger.debug('Anchor proof: ' + JSON.stringify(ipfsAnchorProof))
-    const ipfsProofCid = await this.ipfsService.storeRecord(ipfsAnchorProof)
-    logger.debug('Anchor proof cid: ' + ipfsProofCid.toString())
+    const ipfsProofCid = car.put(ipfsAnchorProof)
+    logger.debug(`Anchor proof cid: ${ipfsProofCid}`)
     return ipfsProofCid
   }
 
@@ -476,20 +410,25 @@ export class AnchorService {
    */
   async _createAnchorCommits(
     ipfsProofCid: CID,
-    merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
-  ): Promise<Anchor[]> {
+    merkleTree: MerkleCAR
+  ): Promise<FreshAnchor[]> {
     const leafNodes = merkleTree.leafNodes
     const anchors = []
 
-    for (let i = 0; i < leafNodes.length; i++) {
-      const leafNode = leafNodes[i] as Node<Candidate>
+    for (const [index, leafNode] of leafNodes.entries()) {
       const candidate = leafNode.data
       logger.debug(
-        `Creating anchor commit #${i + 1} of ${
+        `Creating anchor commit #${index + 1} of ${
           leafNodes.length
         }: stream id ${candidate.streamId.toString()} at commit CID ${candidate.cid}`
       )
-      const anchor = await this._createAnchorCommit(candidate, i, ipfsProofCid, merkleTree)
+      const anchor = await this._createAnchorCommit(
+        merkleTree.car,
+        candidate,
+        index,
+        ipfsProofCid,
+        merkleTree
+      )
       if (anchor) {
         anchors.push(anchor)
       }
@@ -506,23 +445,18 @@ export class AnchorService {
    * @param merkleTree
    */
   async _createAnchorCommit(
+    car: CAR,
     candidate: Candidate,
     candidateIndex: number,
     ipfsProofCid: CID,
-    merkleTree: MerkleTree<CIDHolder, Candidate, TreeMetadata>
-  ): Promise<Anchor | null> {
-    const anchor: Anchor = new Anchor()
-    anchor.requestId = candidate.request.id
-    anchor.proofCid = ipfsProofCid.toString()
-
-    const path = merkleTree.getDirectPathFromRoot(candidateIndex)
-    anchor.path = pathString(path)
-
+    merkleTree: IMerkleTree<CIDHolder, Candidate, TreeMetadata>
+  ): Promise<FreshAnchor | null> {
+    const path = pathString(merkleTree.getDirectPathFromRoot(candidateIndex))
     const ipfsAnchorCommit = {
       id: candidate.streamId.cid,
       prev: candidate.cid,
       proof: ipfsProofCid,
-      path: anchor.path,
+      path: path,
     }
 
     try {
@@ -530,11 +464,17 @@ export class AnchorService {
         ipfsAnchorCommit,
         candidate.streamId
       )
-      anchor.cid = anchorCid.toString()
-
+      car.put(ipfsAnchorCommit)
+      const anchor: FreshAnchor = {
+        requestId: candidate.request.id,
+        proofCid: ipfsProofCid,
+        path: path,
+        cid: anchorCid,
+      }
       logger.debug(
         `Created anchor commit with CID ${anchorCid.toString()} for stream ${candidate.streamId.toString()}`
       )
+      return anchor
     } catch (err) {
       const msg = `Error publishing anchor commit of commit ${
         candidate.cid
@@ -546,7 +486,6 @@ export class AnchorService {
       ])
       return null
     }
-    return anchor
   }
 
   /**
@@ -558,7 +497,10 @@ export class AnchorService {
    * @returns The number of anchors persisted
    * @private
    */
-  async _persistAnchorResult(anchors: Anchor[], candidates: Candidate[]): Promise<number> {
+  async _persistAnchorResult(
+    anchors: FreshAnchor[],
+    candidates: Candidate[]
+  ): Promise<number> {
     // filter to requests for streams that were actually anchored successfully
     const acceptedRequests = []
     for (const candidate of candidates) {
@@ -612,21 +554,12 @@ export class AnchorService {
     logger.debug(`Loading candidate streams`)
     // FIXME PREV
     const groupedRequests = await this._loadCandidateStreams(candidates, candidateLimit)
-    // await this._updateNonSelectedRequests(groupedRequests)
 
-    // FIXME PREV
-    // const candidatesToAnchor = candidates.filter((candidate) => {
-    //   return candidate.shouldAnchor()
-    // })
-    const candidatesToAnchor = candidates
-
-    if (candidatesToAnchor.length > 0) {
-      for (const candidate of candidates) {
-        groupedRequests.acceptedRequests.push(candidate.request)
-      }
+    for (const candidate of candidates) {
+      groupedRequests.acceptedRequests.push(candidate.request)
     }
 
-    return [candidatesToAnchor, groupedRequests]
+    return [candidates, groupedRequests]
   }
 
   /**
@@ -637,18 +570,14 @@ export class AnchorService {
     const candidates = []
     for (const request of requests) {
       const streamId = StreamID.fromString(request.streamId)
-      const metadata = await this.metadataService.retrieve(streamId) // TODO Move to service, make it throw when not found
+      const metadata = await this.metadataService.retrieve(streamId)
       if (metadata) {
         const candidate = new Candidate(streamId, request, metadata.metadata)
         candidates.push(candidate)
       }
     }
     // Make sure we process candidate streams in order of their earliest request.
-    candidates.sort((candidate0, candidate1) => {
-      return Math.sign(
-        candidate0.request.timestamp.getTime() - candidate1.request.timestamp.getTime()
-      )
-    })
+    candidates.sort(Candidate.sortByTimestamp)
     return candidates
   }
 
@@ -674,9 +603,7 @@ export class AnchorService {
       candidateLimit = candidates.length
     }
 
-    for (let i = 0; i < candidates.length; i++) {
-      const candidate = candidates[i] as Candidate
-
+    for (const candidate of candidates) {
       if (numSelectedCandidates >= candidateLimit) {
         // No need to process this candidate, we've already filled our anchor batch
         unprocessedRequests.push(candidate.request)

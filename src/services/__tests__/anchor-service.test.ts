@@ -2,7 +2,7 @@ import 'reflect-metadata'
 import { jest, describe, beforeAll, beforeEach, test, expect, afterAll } from '@jest/globals'
 
 import { Request, RequestStatus } from '../../models/request.js'
-import { AnchorService, Candidate } from '../anchor-service.js'
+import { AnchorService } from '../anchor-service.js'
 
 import { clearTables, createDbConnection } from '../../db-connection.js'
 
@@ -19,7 +19,7 @@ import {
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { CID } from 'multiformats/cid'
-import { Anchor } from '../../models/anchor.js'
+import type { FreshAnchor } from '../../models/anchor.js'
 import { toCID } from '@ceramicnetwork/common'
 import { Utils } from '../../utils.js'
 import { validate as validateUUID, v4 as uuidv4 } from 'uuid'
@@ -36,6 +36,7 @@ import { expectPresent } from '../../__tests__/expect-present.util.js'
 import type { AbortOptions } from '../abort-options.type.js'
 import { IQueueConsumerService, IQueueMessage } from '../queue/queue-service.type.js'
 import { AnchorBatch, QueueMessageData } from '../../models/queue-message.js'
+import { Candidate } from '../candidate.js'
 
 process.env['NODE_ENV'] = 'test'
 class MockEventProducerService implements EventProducerService {
@@ -103,7 +104,7 @@ async function anchorCandidates(
   candidates: Candidate[],
   anchorService: AnchorService,
   ipfsService: IIpfsService
-): Promise<Anchor[]> {
+): Promise<FreshAnchor[]> {
   const merkleTree = await anchorService._buildMerkleTree(candidates)
   const ipfsProofCid = await ipfsService.storeRecord({})
 
@@ -277,7 +278,7 @@ describe('anchor service', () => {
     for (const i in anchors) {
       const anchor = anchors[i]
       expectPresent(anchor)
-      expect(anchor.proofCid).toEqual(ipfsProofCid.toString())
+      expect(anchor.proofCid.toString()).toEqual(ipfsProofCid.toString())
       const request = requests.find((r) => r.id === anchor.requestId)
       expectPresent(request)
       expect(anchor.requestId).toEqual(request.id)

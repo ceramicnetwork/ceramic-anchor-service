@@ -1,5 +1,6 @@
 import type { AnchorCommit } from '@ceramicnetwork/common'
 import type { StreamID } from '@ceramicnetwork/streamid'
+import type { CAR } from 'cartonne'
 import type { CID } from 'multiformats/cid'
 import type { AbortOptions } from './abort-options.type.js'
 
@@ -26,6 +27,11 @@ export interface IIpfsService {
    * @param options - Can pass AbortSignal
    */
   storeRecord(record: any, options?: AbortOptions): Promise<CID>
+
+  /**
+   * Import CAR file. Pin all the entries.
+   */
+  importCAR(car: CAR, options?: AbortOptions): Promise<void>
 
   /**
    * Stores the anchor commit to ipfs and publishes an update pubsub message to the Ceramic pubsub topic

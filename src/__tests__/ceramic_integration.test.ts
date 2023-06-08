@@ -15,8 +15,9 @@ import { Ceramic } from '@ceramicnetwork/core'
 import { AnchorStatus, fetchJson, IpfsApi, Stream } from '@ceramicnetwork/common'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 
-import { create } from 'ipfs-core'
-import { HttpApi } from 'ipfs-http-server'
+import * as Ctl from 'ipfsd-ctl'
+import * as ipfsClient from 'ipfs-http-client'
+import { path } from 'go-ipfs'
 
 import express from 'express'
 import { makeGanache } from './make-ganache.util.js'
@@ -49,27 +50,65 @@ process.env.NODE_ENV = 'test'
 const randomNumber = Math.floor(Math.random() * 10000)
 const TOPIC = `/ceramic/local/${randomNumber}`
 
+const ipfsHttpModule = {
+  create: (ipfsEndpoint: string) => {
+    return ipfsClient.create({
+      url: ipfsEndpoint,
+    })
+  },
+}
+
+const createFactory = () => {
+  return Ctl.createFactory(
+    {
+      ipfsHttpModule,
+      ipfsOptions: {
+        repoAutoMigrate: true,
+      },
+    },
+    {
+      go: {
+        ipfsBin: path(),
+      },
+    }
+  )
+}
+
 /**
  * Create an IPFS instance
  */
 async function createIPFS(apiPort?: number): Promise<IpfsApi> {
   const tmpFolder = await tmp.dir({ unsafeCleanup: true })
   const swarmPort = await getPort()
+  const effectiveApiPort = apiPort || (await getPort())
+  const gatewayPort = await getPort()
 
   const config = {
     repo: `${tmpFolder.path}/ipfs${swarmPort}/`,
     config: {
       Addresses: {
         Swarm: [`/ip4/127.0.0.1/tcp/${swarmPort}`],
-        ...(apiPort && { API: `/ip4/127.0.0.1/tcp/${apiPort}` }),
+        Gateway: `/ip4/127.0.0.1/tcp/${gatewayPort}`,
+        API: `/ip4/127.0.0.1/tcp/${effectiveApiPort}`,
+      },
+      Pubsub: {
+        Enabled: true,
+        SeenMessagesTTL: '10m',
       },
       Discovery: { DNS: { Enabled: false }, webRTCStar: { Enabled: false } },
       Bootstrap: [],
     },
   }
 
+  const ipfsd = await createFactory().spawn({
+    type: 'go',
+    ipfsOptions: config,
+    disposable: true,
+  })
+
   console.log(`starting IPFS node with config: ${JSON.stringify(config, null, 2)}`)
-  return create(config)
+  const started = await ipfsd.start()
+  return started.api
 }
 
 async function swarmConnect(a: IpfsApi, b: IpfsApi) {
@@ -207,8 +246,8 @@ describe('Ceramic Integration Test', () => {
   let ipfs5: IpfsApi // Used by main ceramic 1
   let ipfs6: IpfsApi // Used by main ceramic 2
 
-  let ipfsServer1: HttpApi
-  let ipfsServer2: HttpApi
+  // let ipfsServer1: HttpApi
+  // let ipfsServer2: HttpApi
 
   let casCeramic1: Ceramic // Ceramic node used internally by CAS1
   let casCeramic2: Ceramic // Ceramic node used internally by CAS2
@@ -242,10 +281,10 @@ describe('Ceramic Integration Test', () => {
       createIPFS(),
     ])
 
-    ipfsServer1 = new HttpApi(ipfs1)
-    await ipfsServer1.start()
-    ipfsServer2 = new HttpApi(ipfs2)
-    await ipfsServer2.start()
+    // ipfsServer1 = new HttpApi(ipfs1)
+    // await ipfsServer1.start()
+    // ipfsServer2 = new HttpApi(ipfs2)
+    // await ipfsServer2.start()
 
     // Now make sure all ipfs nodes are connected to all other ipfs nodes
     const ipfsNodes = [ipfs1, ipfs2, ipfs3, ipfs4, ipfs5, ipfs6]
@@ -271,7 +310,7 @@ describe('Ceramic Integration Test', () => {
   })
 
   afterAll(async () => {
-    await Promise.all([ipfsServer1.stop(), ipfsServer2.stop()])
+    // await Promise.all([ipfsServer1.stop(), ipfsServer2.stop()])
     await Promise.all([
       ipfs1.stop(),
       ipfs2.stop(),
