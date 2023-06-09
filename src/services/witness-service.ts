@@ -35,6 +35,13 @@ export class InvalidWitnessCARError extends Error {
   }
 }
 
+/**
+ * Emits CIDs that are part of Merkle witness for an anchor commit.
+ * Includes CIDs of: the anchor commit, proof record, Merkle root record, nodes of Merkle tree, previous record.
+ * Here "previous record" means a Ceramic commit that was requested to be anchored.
+ *
+ * @param witnessCAR - Witness CAR file.
+ */
 export function* witnessCIDs(witnessCAR: CAR): Generator<CID> {
   const anchorCommitCID = witnessCAR.roots[0]
   if (!anchorCommitCID)
