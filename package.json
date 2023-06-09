@@ -50,7 +50,7 @@
     "@aws-sdk/client-sqs": "^3.348.0",
     "@ceramicnetwork/anchor-utils": "^1.6.0",
     "@ceramicnetwork/codecs": "^1.1.0",
-    "@ceramicnetwork/common": "^2.23.0",
+    "@ceramicnetwork/common": "^2.26.0",
     "@ceramicnetwork/core": "^2.29.0",
     "@ceramicnetwork/logger": "^2.5.0",
     "@ceramicnetwork/observability": "^1.2.0",
