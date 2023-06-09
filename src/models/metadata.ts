@@ -9,14 +9,14 @@ import {
   union,
   type TypeOf,
 } from 'codeco'
+import { controllers } from '../ancillary/codecs.js'
 import {
   commitIdAsString,
-  controllers,
   date,
   streamIdAsBytes,
   streamIdAsString,
   uint8ArrayAsBase64,
-} from '../ancillary/codecs.js'
+} from '@ceramicnetwork/codecs'
 
 /**
  * Metadata fields gathered from genesis commit.

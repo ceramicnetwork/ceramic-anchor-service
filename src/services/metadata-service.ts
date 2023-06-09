@@ -6,7 +6,8 @@ import type { AbortOptions } from './abort-options.type.js'
 import { assert, type IsExact } from 'conditional-type-checks'
 import { logger } from '../logger/index.js'
 import { strict, array, exact, optional, sparse, string, decode, type TypeOf } from 'codeco'
-import { commitIdAsString, controllers, streamIdAsBytes, uint8array } from '../ancillary/codecs.js'
+import { controllers } from '../ancillary/codecs.js'
+import { commitIdAsString, streamIdAsBytes, uint8array } from '@ceramicnetwork/codecs'
 
 /**
  * Public interface for MetadataService.

@@ -47,12 +47,14 @@ export class AnchorRepository implements IAnchorRepository {
    */
   async findByRequest(request: Request): Promise<AnchorWithRequest | null> {
     const row = await this.table.where({ requestId: request.id }).first()
-
-    if (!row) {
-      return null
-    }
+    if (!row) return null
     const anchor = decode(StoredAnchor, row)
-
     return { ...anchor, request }
+  }
+
+  async findByRequestId(requestId: string): Promise<StoredAnchor | null> {
+    const row = await this.table.where({ requestId: requestId }).first()
+    if (!row) return null
+    return decode(StoredAnchor, row)
   }
 }

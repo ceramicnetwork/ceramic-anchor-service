@@ -408,10 +408,7 @@ export class AnchorService {
    * of each anchor request.
    * @private
    */
-  async _createAnchorCommits(
-    ipfsProofCid: CID,
-    merkleTree: MerkleCAR
-  ): Promise<FreshAnchor[]> {
+  async _createAnchorCommits(ipfsProofCid: CID, merkleTree: MerkleCAR): Promise<FreshAnchor[]> {
     const leafNodes = merkleTree.leafNodes
     const anchors = []
 
@@ -552,7 +549,6 @@ export class AnchorService {
     const candidates = await this._buildCandidates(requests)
 
     logger.debug(`Loading candidate streams`)
-    // FIXME PREV
     const groupedRequests = await this._loadCandidateStreams(candidates, candidateLimit)
 
     for (const candidate of candidates) {

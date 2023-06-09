@@ -14,7 +14,7 @@ import {
 } from '../ancillary/anchor-request-params-parser.js'
 import bodyParser from 'body-parser'
 import type { RequestService } from '../services/request-service.js'
-import { cidAsString } from '../ancillary/codecs.js'
+import { cidAsString } from '@ceramicnetwork/codecs'
 import { isLeft, report, string, strict, validate } from 'codeco'
 
 /*
@@ -121,7 +121,13 @@ export class RequestController {
       return res.status(StatusCodes.CREATED).json(body)
     } catch (err: any) {
       Metrics.count(METRIC_NAMES.REQUEST_NOT_CREATED, 1, { source: parseOrigin(req) })
-      return this.getBadRequestResponse(res, err, requestParams, parseOriginDID(req) || 'none', parseOriginIP(req))
+      return this.getBadRequestResponse(
+        res,
+        err,
+        requestParams,
+        parseOriginDID(req) || 'none',
+        parseOriginIP(req)
+      )
     }
   }
 
@@ -129,7 +135,7 @@ export class RequestController {
     res: ExpRes,
     err: Error,
     requestParams: RequestAnchorParams,
-    originDID: string, 
+    originDID: string,
     originIP: string
   ): ExpRes {
     const errmsg = `Creating request with streamId ${requestParams.streamId} and commit CID ${requestParams.cid} from IP: ${originIP} and DID: ${originDID}  failed: ${err.message}`

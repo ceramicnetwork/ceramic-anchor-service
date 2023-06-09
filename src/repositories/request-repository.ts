@@ -13,7 +13,7 @@ import { METRIC_NAMES } from '../settings.js'
 import { parseCountResult } from './parse-count-result.util.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import type { IMetadataRepository } from './metadata-repository.js'
-import { date } from '../ancillary/codecs.js'
+import { date } from '@ceramicnetwork/codecs'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
 // AnchorCommit available to the network.

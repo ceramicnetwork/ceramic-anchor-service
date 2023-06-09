@@ -19,7 +19,7 @@ export interface IIpfsService {
    * @param cid - CID value
    * @param options - Can pass AbortSignal or IPLD `path`.
    */
-  retrieveRecord<T = any>(cid: CID | string, options?: RetrieveRecordOptions): Promise<T>
+  retrieveRecord<T = unknown>(cid: CID | string, options?: RetrieveRecordOptions): Promise<T>
 
   /**
    * Sets the record and returns its CID

@@ -1,5 +1,5 @@
 import { boolean, number, optional, sparse, string } from 'codeco'
-import { date, enumCodec } from '../ancillary/codecs.js'
+import { date, enumCodec } from '@ceramicnetwork/codecs'
 
 export enum RequestStatus {
   PENDING = 0,
