@@ -34,9 +34,13 @@ test('JS-to-PG conversion ignores timezone', async () => {
     .insert({ streamId: randomStreamID().toString(), metadata: {}, usedAt: withTimezone })
     .returning('usedAt')
     .then((rows) => rows[0].usedAt as Date)
-  const timezoneOffsetMinutes = new Date().getTimezoneOffset() // minutes
-  const timezoneOffsetMs = timezoneOffsetMinutes * 60 * 1000 // milliseconds
-  expect(pgTimestamp.valueOf()).toEqual(withTimezone.valueOf() - timezoneOffsetMs)
+  const timezoneOffset = pgTimestamp.getTimezoneOffset() * 60 * 1000 // milliseconds
+  // When you store timestamp to PG TIMESTAMP field, it gets stored as an instant in a local time zone stripped of TZ suffix.
+  // When you retrieve it, our fix reads (see `db-connection.ts`) the instant as in UTC timestamp.
+  // Here we check if `withTimezone` got stored indeed in a local TZ and retrieved as in UTC,
+  // which results in a difference being equal to your time zone offset on 2023-01-02.
+  // For example, if a machine is in UTC+3, instant "2023-01-02T03:04:05.678+08:00" gets stored as "2023-01-01 22:04:05.678".
+  expect(pgTimestamp.valueOf()).toEqual(withTimezone.valueOf() - timezoneOffset)
   const pgTimestamp1 = await dbConnection
     .table('metadata')
     .insert({
