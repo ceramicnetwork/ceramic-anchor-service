@@ -95,13 +95,13 @@ export class CeramicAnchorApp {
       .provideClass('ipfsService', IpfsService)
       .provideClass('metadataService', MetadataService)
       .provideClass('anchorBatchQueueService', AnchorBatchSqsQueueService)
+      .provideFactory('merkleCarService', makeMerkleCarService)
       .provideClass('anchorService', AnchorService)
       .provideClass('schedulerService', SchedulerService)
       .provideClass('healthcheckService', HealthcheckService)
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
       .provideClass('requestService', RequestService)
-      .provideFactory('merkleCarService', makeMerkleCarService)
 
     try {
       Metrics.start(

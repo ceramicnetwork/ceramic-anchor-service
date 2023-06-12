@@ -32,6 +32,7 @@ import { Candidate } from '../candidate.js'
 import { FakeFactory } from './fake-factory.util.js'
 import { FakeEthereumBlockchainService } from './fake-ethereum-blockchain-service.util.js'
 import { MockEventProducerService } from './mock-event-producer-service.util.js'
+import { IMerkleCarService, makeMerkleCarService } from '../merkle-car-service.js'
 
 process.env['NODE_ENV'] = 'test'
 
@@ -86,6 +87,9 @@ type Context = {
   anchorService: AnchorService
   metadataService: IMetadataService
   metadataRepository: MetadataRepository
+  merkleCarService: IMerkleCarService
+  anchorBatchQueueService: MockQueueService<any>
+  blockchainService: FakeEthereumBlockchainService
 }
 
 describe('anchor service', () => {
@@ -110,6 +114,9 @@ describe('anchor service', () => {
           merkleDepthLimit: MERKLE_DEPTH_LIMIT,
           minStreamCount: MIN_STREAM_COUNT,
           readyRetryIntervalMS: READY_RETRY_INTERVAL_MS,
+          carStorage: {
+            mode: 'inmemory',
+          },
           queue: {
             type: 'sqs',
             awsRegion: 'test',
@@ -129,6 +136,7 @@ describe('anchor service', () => {
       .provideClass('eventProducerService', MockEventProducerService)
       .provideClass('metadataService', MetadataService)
       .provideClass('anchorBatchQueueService', MockQueueService<AnchorBatch>)
+      .provideFactory('merkleCarService', makeMerkleCarService)
       .provideClass('anchorService', AnchorService)
 
     ipfsService = injector.resolve('ipfsService')
@@ -721,7 +729,10 @@ describe('anchor service', () => {
       }
 
       try {
+        const merkleCarService = injector.resolve('merkleCarService')
+        const storeCarFileSpy = jest.spyOn(merkleCarService, 'storeCarFile')
         await anchorService.anchorRequests()
+        expect(storeCarFileSpy).toBeCalled()
 
         const remainingRequests = await requestRepository.findByStatus(RequestStatus.PENDING)
         expect(remainingRequests.length).toEqual(0)

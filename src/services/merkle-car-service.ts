@@ -20,7 +20,7 @@ export interface IMerkleCarService {
  * Factory for IMerkleCarService.
  */
 export function makeMerkleCarService(config: Config): IMerkleCarService {
-  const mode = config.mode
+  const mode = config.carStorage.mode
   switch (mode) {
     case 's3':
       return new S3MerkleCarService(config)
