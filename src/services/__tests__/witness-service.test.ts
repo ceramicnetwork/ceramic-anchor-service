@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, test } from '@jest/globals'
-import { RequestStatus } from '../../models/request.js'
+import { RequestStatus, type StoredRequest } from '../../models/request.js'
 import { Transaction } from '../../models/transaction.js'
 import { verifyWitnessCAR, witnessCIDs, WitnessService } from '../witness-service.js'
 import { FakeFactory } from './fake-factory.util.js'
@@ -17,7 +17,6 @@ import { MockIpfsService } from '../../__tests__/test-utils.js'
 import { IMetadataService, MetadataService } from '../metadata-service.js'
 import { FakeEthereumBlockchainService } from './fake-ethereum-blockchain-service.util.js'
 import { MockEventProducerService } from './mock-event-producer-service.util.js'
-import { Request } from '../../models/request.js'
 import { AnchorBatchSqsQueueService } from '../queue/sqs-queue-service.js'
 import { CAR, CARFactory } from 'cartonne'
 import all from 'it-all'
@@ -76,7 +75,7 @@ beforeAll(async () => {
   fake = new FakeFactory(ipfsService, metadataService, requestRepository)
 })
 
-async function createAnchors(requests: Array<Request>) {
+async function createAnchors(requests: Array<StoredRequest>) {
   await requestRepository.findAndMarkReady(0)
   const [candidates] = await anchorService._findCandidates(requests, 0)
   const merkleTree = await anchorService._buildMerkleTree(candidates)

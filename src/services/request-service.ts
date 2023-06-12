@@ -6,7 +6,7 @@ import type {
 } from './request-presentation-service.js'
 import type { RequestAnchorParams } from '../ancillary/anchor-request-params-parser.js'
 import type { IMetadataService } from './metadata-service.js'
-import { Request, RequestStatus } from '../models/request.js'
+import { RequestStatus } from '../models/request.js'
 
 export class RequestService {
   static inject = [
@@ -44,19 +44,18 @@ export class RequestService {
       await this.metadataService.fillFromIpfs(params.streamId)
     }
 
-    const request = new Request()
-    request.cid = params.cid.toString()
-    request.origin = origin
-    request.streamId = params.streamId.toString()
-    request.status = RequestStatus.PENDING
-    request.message = 'Request is pending.'
     // We don't actually know with certainty that the stream is pinned, since the pinStream
     // call above can fail and swallows errors, but marking it as pinned incorrectly is harmless,
     // and this way we ensure the request is picked up by garbage collection.
-    request.pinned = true
-    request.timestamp = params.timestamp ?? new Date()
-
-    const storedRequest = await this.requestRepository.createOrUpdate(request)
+    const storedRequest = await this.requestRepository.createOrUpdate({
+      cid: params.cid,
+      origin: origin,
+      streamId: params.streamId,
+      status: RequestStatus.PENDING,
+      message: 'Request is pending.',
+      pinned: true,
+      timestamp: params.timestamp ?? new Date(),
+    })
     await this.requestRepository.markPreviousReplaced(storedRequest)
 
     return this.requestPresentationService.body(storedRequest)

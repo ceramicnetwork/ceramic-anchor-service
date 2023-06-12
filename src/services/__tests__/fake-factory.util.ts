@@ -3,7 +3,7 @@ import type { IMetadataService } from '../metadata-service.js'
 import type { RequestRepository } from '../../repositories/request-repository.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { randomString } from '@stablelib/random'
-import { RequestStatus, Request } from '../../models/request.js'
+import { RequestStatus, StoredRequest } from '../../models/request.js'
 import { times } from '../../__tests__/test-utils.js'
 
 /**
@@ -30,17 +30,17 @@ export class FakeFactory {
   async request(
     status: RequestStatus = RequestStatus.PENDING,
     streamId?: StreamID
-  ): Promise<Request> {
+  ): Promise<StoredRequest> {
     const actualStreamId = streamId || (await this.streamId())
     const cid = await this.ipfsService.storeRecord({ random: Math.random() })
-    const request = new Request()
-    request.cid = cid.toString()
-    request.streamId = actualStreamId.toString()
-    request.status = status
-    request.message = 'Request is pending.'
-    request.pinned = true
-
-    const stored = await this.requestRepository.createOrUpdate(request)
+    const stored = await this.requestRepository.createOrUpdate({
+      status: status,
+      cid: cid,
+      timestamp: new Date(),
+      streamId: actualStreamId,
+      origin: 'fake-origin',
+      message: '',
+    })
     await this.requestRepository.markPreviousReplaced(stored)
     return stored
   }

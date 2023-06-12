@@ -8,7 +8,7 @@ import type { IIpfsService, RetrieveRecordOptions } from '../services/ipfs-servi
 import { StreamID } from '@ceramicnetwork/streamid'
 import { AnchorCommit } from '@ceramicnetwork/common'
 import { randomBytes, randomString } from '@stablelib/random'
-import { Request, RequestStatus } from '../models/request.js'
+import { StoredRequest, RequestStatus } from '../models/request.js'
 import type { AbortOptions } from '../services/abort-options.type.js'
 import { Utils } from '../utils.js'
 import { CARFactory, type CAR } from 'cartonne'
@@ -125,21 +125,22 @@ export class MockIpfsService implements IIpfsService {
  * @param override request data to use. If some values are not provided, they will be generated.
  * @returns a promise for a request
  */
-export function generateRequest(override: Partial<Request>): Request {
-  const request = new Request()
+export function generateRequest(override: Partial<StoredRequest> = {}): StoredRequest {
   const streamID = randomStreamID()
-  request.cid = streamID.cid.toString()
-  request.streamId = streamID.toString()
-  request.status = RequestStatus.PENDING
-  request.createdAt = new Date(Date.now() - Math.random() * MS_IN_HOUR)
-  request.updatedAt = new Date(request.createdAt.getTime())
-  request.timestamp = new Date(request.createdAt.getTime())
-  request.origin = `origin:random:${randomString(8)}`
-  request.id = uuidv4()
-
-  Object.assign(request, override)
-
-  return request
+  const createdAt = new Date(Date.now() - Math.random() * MS_IN_HOUR)
+  const base = {
+    id: uuidv4(),
+    streamId: randomStreamID(),
+    cid: streamID.cid,
+    status: RequestStatus.PENDING,
+    createdAt: createdAt,
+    updatedAt: createdAt,
+    origin: `origin:random:${randomString(8)}`,
+    timestamp: createdAt,
+    pinned: true,
+    message: '',
+  }
+  return Object.assign(base, override)
 }
 
 /**
@@ -150,10 +151,10 @@ export function generateRequest(override: Partial<Request>): Request {
  * @returns a promise for an array of count requests
  */
 export function generateRequests(
-  override: Partial<Request>,
+  override: Partial<StoredRequest>,
   count = 1,
   varianceMS = 1000
-): Array<Request> {
+): Array<StoredRequest> {
   return times(count).map((i) => {
     if (varianceMS > 0) {
       const createdAt = override.createdAt || new Date(Date.now())

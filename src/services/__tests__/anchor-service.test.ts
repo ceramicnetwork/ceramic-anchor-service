@@ -1,7 +1,7 @@
 import 'reflect-metadata'
 import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals'
 
-import { Request, RequestStatus } from '../../models/request.js'
+import { RequestStatus, type StoredRequest } from '../../models/request.js'
 import { AnchorService } from '../anchor-service.js'
 
 import { clearTables, createDbConnection } from '../../db-connection.js'
@@ -10,12 +10,10 @@ import { RequestRepository } from '../../repositories/request-repository.js'
 import type { IIpfsService } from '../ipfs-service.type.js'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { config, Config } from 'node-config-ts'
-import { StreamID } from '@ceramicnetwork/streamid'
 import { generateRequests, MockIpfsService, repeat } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
-import { CID } from 'multiformats/cid'
 import type { FreshAnchor } from '../../models/anchor.js'
-import { toCID } from '@ceramicnetwork/common'
+import type { AnchorCommit } from '@ceramicnetwork/common'
 import { Utils } from '../../utils.js'
 import { validate as validateUUID, v4 as uuidv4 } from 'uuid'
 import { TransactionRepository } from '../../repositories/transaction-repository.js'
@@ -159,7 +157,7 @@ describe('anchor service', () => {
     )
 
     for (const req of requests) {
-      const retrievedRequest = await requestRepository.findByCid(CID.parse(req.cid))
+      const retrievedRequest = await requestRepository.findByCid(req.cid)
       expect(retrievedRequest).toHaveProperty('status', RequestStatus.PENDING) // FIXME Should be READY again??
     }
   })
@@ -204,14 +202,11 @@ describe('anchor service', () => {
       expectPresent(request)
       expect(anchor.requestId).toEqual(request.id)
 
-      const anchorRecord = await ipfsService.retrieveRecord(anchor.cid)
-      expect(anchorRecord.prev.toString()).toEqual(request.cid)
+      const anchorRecord = await ipfsService.retrieveRecord<AnchorCommit>(anchor.cid)
+      expect(anchorRecord.prev).toEqual(request.cid)
       expect(anchorRecord.proof).toEqual(ipfsProofCid)
       expect(anchorRecord.path).toEqual(anchor.path)
-      expect(publishSpy.mock.calls[index]).toEqual([
-        anchorRecord,
-        StreamID.fromString(request.streamId),
-      ])
+      expect(publishSpy.mock.calls[index]).toEqual([anchorRecord, request.streamId])
     }
 
     expectPresent(anchors[0])
@@ -237,7 +232,7 @@ describe('anchor service', () => {
     let requests = await requestRepository.batchProcessing(anchorLimit)
     expect(requests.length).toEqual(anchorLimit)
 
-    const anchorPendingRequests = async function (requests: Request[]): Promise<void> {
+    const anchorPendingRequests = async function (requests: StoredRequest[]): Promise<void> {
       const [candidates] = await anchorService._findCandidates(requests, anchorLimit)
       expect(candidates.length).toEqual(anchorLimit)
 
@@ -266,7 +261,7 @@ describe('anchor service', () => {
     // We want 2 requests per streamId, but don't want the requests on the same stream to be created
     // back-to-back.  So we do one pass to generate the first request for each stream, then another
     // to make the second requests.
-    const requests: Request[] = []
+    const requests: StoredRequest[] = []
     const numFailed = Math.floor(anchorLimit / 2)
     let failedIndex = numFailed
     for (let i = 0; i < numStreams; i++) {
@@ -284,9 +279,7 @@ describe('anchor service', () => {
     for (let i = numStreams - 1; i >= 0; i--) {
       const prevRequest = requests[i]
       expectPresent(prevRequest)
-      const streamId = StreamID.fromString(prevRequest.streamId)
-
-      const request = await fake.request(RequestStatus.PENDING, streamId)
+      const request = await fake.request(RequestStatus.PENDING, prevRequest.streamId)
       requests.push(request)
 
       // Make sure each stream gets a unique 'createdAt' Date
@@ -398,7 +391,7 @@ describe('anchor service', () => {
 
     const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
     expect(anchors.length).toEqual(2)
-    const isFound = (r: Request) => anchors.find((anchor) => anchor.requestId === r.id)
+    const isFound = (r: StoredRequest) => anchors.find((anchor) => anchor.requestId === r.id)
     expectPresent(requests[0])
     expect(isFound(requests[0])).toBeTruthy()
     expectPresent(requests[1])
@@ -470,7 +463,7 @@ describe('anchor service', () => {
   })
 
   describe('Request pinning', () => {
-    async function anchorRequests(numRequests: number): Promise<Request[]> {
+    async function anchorRequests(numRequests: number): Promise<StoredRequest[]> {
       // Create Requests
       const requests = await fake.multipleRequests(numRequests)
       const [candidates] = await anchorService._findCandidates(requests, 0)
@@ -485,7 +478,7 @@ describe('anchor service', () => {
       expectPresent(request0)
 
       // Request should be marked as completed and pinned
-      const updatedRequest0 = await requestRepository.findByCid(toCID(request0.cid))
+      const updatedRequest0 = await requestRepository.findByCid(request0.cid)
       expectPresent(updatedRequest0)
       expect(updatedRequest0.status).toEqual(RequestStatus.COMPLETED)
       expect(updatedRequest0.cid).toEqual(request0.cid)
@@ -589,7 +582,7 @@ describe('anchor service', () => {
       await requestRepository.createRequests(originalRequests)
       for (const request of originalRequests) {
         await metadataRepository.save({
-          streamId: StreamID.fromString(request.streamId),
+          streamId: request.streamId,
           metadata: {
             controllers: [asDIDString(`did:random:${Math.random()}`)],
           },
@@ -618,7 +611,7 @@ describe('anchor service', () => {
 
       for (const request of originalRequests) {
         await metadataRepository.save({
-          streamId: StreamID.fromString(request.streamId),
+          streamId: request.streamId,
           metadata: {
             controllers: ['did:foo'],
           },

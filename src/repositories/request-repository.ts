@@ -1,6 +1,11 @@
 import { CID } from 'multiformats/cid'
 import type { Knex } from 'knex'
-import { DATABASE_FIELDS, Request, RequestStatus, RequestUpdateFields } from '../models/request.js'
+import {
+  StoredRequest,
+  RequestStatus,
+  FreshOrStoredRequest,
+  type RequestUpdateFields,
+} from '../models/request.js'
 import { logEvent, logger } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { Utils } from '../utils.js'
@@ -13,7 +18,8 @@ import { METRIC_NAMES } from '../settings.js'
 import { parseCountResult } from './parse-count-result.util.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import type { IMetadataRepository } from './metadata-repository.js'
-import { date } from '@ceramicnetwork/codecs'
+import { date, streamIdAsString } from '@ceramicnetwork/codecs'
+import { decode } from 'codeco'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
 // AnchorCommit available to the network.
@@ -38,7 +44,7 @@ const REPEATED_READ_SERIALIZATION_ERROR = '40001'
  * @param anchoringDeadline
  * @returns
  */
-const recordAnchorRequestMetrics = (requests: Request[], anchoringDeadline: Date): void => {
+const recordAnchorRequestMetrics = (requests: StoredRequest[], anchoringDeadline: Date): void => {
   const created = new TimeableMetric(SinceField.CREATED_AT)
   const expired = new TimeableMetric(SinceField.CREATED_AT)
   const processing = new TimeableMetric(SinceField.UPDATED_AT)
@@ -105,9 +111,12 @@ export class RequestRepository {
    * Create/update client request
    * @returns A promise that resolves to the created request
    */
-  async createOrUpdate(request: Request): Promise<Request> {
+  async createOrUpdate(request: FreshOrStoredRequest): Promise<StoredRequest> {
     const keys = Object.keys(request).filter((key) => key !== 'id') // all keys except ID
-    const [{ id }] = await this.table.insert(request.toDB(), ['id']).onConflict('cid').merge(keys)
+    const [{ id }] = await this.table
+      .insert(FreshOrStoredRequest.encode(request), ['id'])
+      .onConflict('cid')
+      .merge(keys)
 
     const created = await this.table.where({ id }).first()
 
@@ -119,11 +128,12 @@ export class RequestRepository {
       updatedAt: created.updatedAt.getTime(),
     })
 
-    return new Request(created)
+    return decode(StoredRequest, created)
   }
 
-  async allRequests(): Promise<Array<Request>> {
-    return this.table.orderBy('createdAt', 'asc')
+  async allRequests(): Promise<Array<StoredRequest>> {
+    const retrieved = await this.table.orderBy('createdAt', 'asc')
+    return retrieved.map((r) => decode(StoredRequest, r))
   }
 
   /**
@@ -131,8 +141,8 @@ export class RequestRepository {
    * @param requests array of requests
    * @returns
    */
-  async createRequests(requests: Array<Request>): Promise<void> {
-    await this.table.insert(requests.map((request) => request.toDB()))
+  async createRequests(requests: Array<FreshOrStoredRequest>): Promise<void> {
+    await this.table.insert(requests.map((request) => FreshOrStoredRequest.encode(request)))
   }
 
   /**
@@ -140,7 +150,7 @@ export class RequestRepository {
    * @param ids array of request ids to retreive
    * @returns A promise that resolves to the requests associated with the provided ids
    */
-  async findByIds(givenIds: string[]): Promise<Request[]> {
+  async findByIds(givenIds: string[]): Promise<StoredRequest[]> {
     const uniqueIds = Array.from(new Set(givenIds))
     const requests = await this.table.whereIn('id', uniqueIds).orderBy('createdAt', 'asc')
 
@@ -148,7 +158,7 @@ export class RequestRepository {
       throw new Error(`Only found ${requests.length}/${uniqueIds.length} ids. Ids: ${uniqueIds}`)
     }
 
-    return requests
+    return requests.map((r) => decode(StoredRequest, r))
   }
 
   /**
@@ -157,7 +167,7 @@ export class RequestRepository {
    * @param requests - Requests to update
    * @returns A promise that resolves to the number of updated requests
    */
-  async updateRequests(fields: RequestUpdateFields, requests: Request[]): Promise<number> {
+  async updateRequests(fields: RequestUpdateFields, requests: StoredRequest[]): Promise<number> {
     const updatedAt = new Date()
     const ids = requests.map((r) => r.id)
     const result = await this.table
@@ -187,7 +197,7 @@ export class RequestRepository {
    * Finds all requests that are READY and sets them as PROCESSING
    * @returns A promise for the array of READY requests that were updated
    */
-  async findAndMarkAsProcessing(): Promise<Request[]> {
+  async findAndMarkAsProcessing(): Promise<StoredRequest[]> {
     return await this.connection
       .transaction(
         async (trx) => {
@@ -234,10 +244,13 @@ export class RequestRepository {
    * @param cid CID the request is for
    * @returns Promise for the associated request
    */
-  async findByCid(cid: CID | string): Promise<Request | undefined> {
+  async findByCid(cid: CID | string): Promise<StoredRequest | undefined> {
     const found = await this.table.where({ cid: String(cid) }).first()
+    console.log('found', found)
     if (found) {
-      return new Request(found)
+      const r = decode(StoredRequest, found)
+      console.log('decoded', r)
+      return r
     }
     return undefined
   }
@@ -247,7 +260,7 @@ export class RequestRepository {
    * no other requests in the last month.
    * @returns A promise that resolves to an array of request
    */
-  async findRequestsToGarbageCollect(): Promise<Request[]> {
+  async findRequestsToGarbageCollect(): Promise<Array<StoredRequest>> {
     const now: number = new Date().getTime()
     const deadlineDate = new Date(now - ANCHOR_DATA_RETENTION_WINDOW)
 
@@ -257,12 +270,13 @@ export class RequestRepository {
       .where('updatedAt', '>=', deadlineDate)
 
     // expired requests with streams that have not been recently updated
-    return this.table
+    const retrieved = await this.table
       .orderBy('updatedAt', 'desc')
       .whereIn('status', [RequestStatus.COMPLETED, RequestStatus.FAILED])
       .andWhere('pinned', true)
       .andWhere('updatedAt', '<', deadlineDate)
       .whereNotIn('streamId', requestsOnRecentlyUpdatedStreams)
+    return retrieved.map((r) => decode(StoredRequest, r))
   }
 
   /**
@@ -279,7 +293,7 @@ export class RequestRepository {
   async findAndMarkReady(
     maxStreamLimit: number,
     minStreamLimit = maxStreamLimit
-  ): Promise<Request[]> {
+  ): Promise<StoredRequest[]> {
     const now = new Date()
     const anchoringDeadline = new Date(now.getTime() - this.maxAnchoringDelayMS)
 
@@ -348,8 +362,9 @@ export class RequestRepository {
    * @param status
    * @returns A promise that resolves to an array of request with the given status
    */
-  async findByStatus(status: RequestStatus): Promise<Request[]> {
-    return this.table.orderBy('updatedAt', 'asc').where({ status })
+  async findByStatus(status: RequestStatus): Promise<StoredRequest[]> {
+    const retrieved = await this.table.orderBy('updatedAt', 'asc').where({ status })
+    return retrieved.map((r) => decode(StoredRequest, r))
   }
 
   /**
@@ -453,9 +468,9 @@ export class RequestRepository {
   /**
    * Mark PENDING requests older than `request.timestamp` REPLACED if they share same `request.origin` and `request.streamId`s.
    */
-  markPreviousReplaced(request: Request): Promise<number> {
+  markPreviousReplaced(request: StoredRequest): Promise<number> {
     return this.table
-      .where({ origin: request.origin, streamId: request.streamId })
+      .where({ origin: request.origin, streamId: streamIdAsString.encode(request.streamId) })
       .andWhere({ status: RequestStatus.PENDING })
       .andWhere('timestamp', '<', date.encode(request.timestamp))
       .update({ status: RequestStatus.REPLACED })
@@ -552,13 +567,14 @@ export class RequestRepository {
    * @param now
    * @returns
    */
-  findRequestsToAnchorForStreams(
+  async findRequestsToAnchorForStreams(
     streamIds: Array<StreamID | string>,
     now: Date
-  ): Promise<Array<Request>> {
-    return this.findRequestsToAnchor(now)
+  ): Promise<Array<StoredRequest>> {
+    const retrieved: Array<any> = await this.findRequestsToAnchor(now)
       .whereIn('streamId', streamIds.map(String))
       .orderBy('createdAt', 'asc')
+    return retrieved.map((r) => decode(StoredRequest, r))
   }
 
   /**
@@ -569,7 +585,7 @@ export class RequestRepository {
    */
   // TODO CDB-2231 Reconsider if minStreamLimit should be here or not
   // async batchProcessing(minStreamLimit: number, maxStreamLimit: number): Promise<Array<Request>> {
-  async batchProcessing(maxStreamLimit: number): Promise<Array<Request>> {
+  async batchProcessing(maxStreamLimit: number): Promise<Array<StoredRequest>> {
     let whereInSubQuery = this.table.select('id').where({ status: RequestStatus.READY })
     if (maxStreamLimit > 0) whereInSubQuery = whereInSubQuery.limit(maxStreamLimit)
 
@@ -587,7 +603,7 @@ export class RequestRepository {
       //   '<=',
       //   this.table.count('id').where({ status: RequestStatus.READY })
       // )
-      .returning(DATABASE_FIELDS)
-    return returned.map((r) => new Request(r))
+      .returning(Object.keys(StoredRequest.props))
+    return returned.map((r) => decode(StoredRequest, r))
   }
 }

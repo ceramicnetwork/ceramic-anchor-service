@@ -1,4 +1,4 @@
-import type { Request } from '../models/request.js'
+import type { StoredRequest } from '../models/request.js'
 import { InvalidRequestStatusError, RequestStatus } from '../models/request.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 
@@ -36,18 +36,18 @@ export class RequestPresentationService {
    *
    * @param request - Request to be rendered as JSON.
    */
-  async body(request: Request): Promise<RequestPresentation> {
+  async body(request: StoredRequest): Promise<RequestPresentation> {
     const status = request.status as RequestStatus
     switch (status) {
       case RequestStatus.COMPLETED: {
         const anchor = await this.anchorRepository.findByRequest(request)
         // TODO: This is a workaround, fix in CDB-2192
         const anchorCommit = {
-          cid: anchor ? anchor.cid.toString() : request.cid,
+          cid: anchor ? anchor.cid.toString() : request.cid.toString(),
           content: {
             // okay to be undefined because it is not used by ceramic node
             path: anchor?.path,
-            prev: request.cid,
+            prev: request.cid.toString(),
             // okay to be undefined because it is not used by ceramic node
             proof: anchor?.proofCid.toString(),
           },
@@ -56,8 +56,8 @@ export class RequestPresentationService {
         return {
           id: request.id,
           status: RequestStatus[status],
-          cid: request.cid,
-          streamId: request.streamId,
+          cid: request.cid.toString(),
+          streamId: request.streamId.toString(),
           message: request.message,
           createdAt: request.createdAt?.getTime(),
           updatedAt: request.updatedAt?.getTime(),
@@ -85,12 +85,12 @@ export class RequestPresentationService {
    * Vanilla presentation of a non-complete request.
    * Display status as is.
    */
-  private notCompleted(request: Request): NotCompletedRequestPresentation {
+  private notCompleted(request: StoredRequest): NotCompletedRequestPresentation {
     return {
       id: request.id,
-      status: RequestStatus[request.status!],
-      cid: request.cid,
-      streamId: request.streamId,
+      status: RequestStatus[request.status]!,
+      cid: request.cid.toString(),
+      streamId: request.streamId.toString(),
       message: request.message,
       createdAt: request.createdAt?.getTime(),
       updatedAt: request.updatedAt?.getTime(),

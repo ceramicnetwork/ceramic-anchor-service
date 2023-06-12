@@ -5,7 +5,7 @@ import { clearTables, createDbConnection } from '../../db-connection.js'
 import { config } from 'node-config-ts'
 import { PROCESSING_TIMEOUT, RequestRepository } from '../request-repository.js'
 import { AnchorRepository } from '../anchor-repository.js'
-import { Request, RequestStatus } from '../../models/request.js'
+import { StoredRequest, RequestStatus } from '../../models/request.js'
 import {
   generateRequest,
   generateRequests,
@@ -16,7 +16,6 @@ import {
 import { createInjector } from 'typed-inject'
 import { DateTime } from 'luxon'
 import { MetadataRepository } from '../metadata-repository.js'
-import { StreamID } from '@ceramicnetwork/streamid'
 import { asDIDString } from '@ceramicnetwork/codecs'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 
@@ -25,7 +24,11 @@ const MS_IN_HOUR = MS_IN_MINUTE * 60
 const MS_IN_DAY = MS_IN_HOUR * 24
 const MS_IN_MONTH = MS_IN_DAY * 30
 
-function generateCompletedRequest(expired: boolean, failed: boolean, varianceMS = 0): Request {
+function generateCompletedRequest(
+  expired: boolean,
+  failed: boolean,
+  varianceMS = 0
+): StoredRequest {
   const now = new Date()
   const threeMonthsAgo = new Date(now.getTime() - MS_IN_MONTH * 3 + varianceMS)
   const fiveDaysAgo = new Date(now.getTime() - MS_IN_DAY * 5 + varianceMS)
@@ -40,7 +43,7 @@ function generateCompletedRequest(expired: boolean, failed: boolean, varianceMS 
   })
 }
 
-function generateReadyRequests(count: number): Array<Request> {
+function generateReadyRequests(count: number): Array<StoredRequest> {
   return generateRequests({ status: RequestStatus.READY }, count, MS_IN_HOUR)
 }
 
@@ -114,7 +117,7 @@ describe('request repository test', () => {
     test("Don't cleanup streams who have both old and new requests", async () => {
       // Create two requests that are expired and should be garbage collected, and two that should not
       // be.
-      const requests: [Request, Request, Request, Request] = [
+      const requests: [StoredRequest, StoredRequest, StoredRequest, StoredRequest] = [
         generateCompletedRequest(false, false),
         generateCompletedRequest(true, false),
         generateCompletedRequest(false, true),
@@ -194,7 +197,7 @@ describe('request repository test', () => {
           const r = requests[index]
           expectPresent(r)
           return metadataRepository.save({
-            streamId: StreamID.fromString(r.streamId),
+            streamId: r.streamId,
             metadata: {
               controllers: [asDIDString(`did:key:r${index}`)],
             },
@@ -202,7 +205,7 @@ describe('request repository test', () => {
         })
       )
       const withoutMetadata = await requestRepository.allWithoutMetadata(TOTAL)
-      const streamIds = requests.map((r) => StreamID.fromString(r.streamId))
+      const streamIds = requests.map((r) => r.streamId)
       streamIds.slice(0, WITH_METADATA).forEach((streamId) => {
         expect(withoutMetadata).not.toContainEqual(streamId)
       })
@@ -226,7 +229,7 @@ describe('request repository test', () => {
           const r = requests[index]
           expectPresent(r)
           return metadataRepository.save({
-            streamId: StreamID.fromString(r.streamId),
+            streamId: r.streamId,
             metadata: {
               controllers: [asDIDString(`did:key:r${index}`)],
             },
@@ -234,7 +237,7 @@ describe('request repository test', () => {
         })
       )
 
-      const streamIds = requests.map((r) => StreamID.fromString(r.streamId))
+      const streamIds = requests.map((r) => r.streamId)
       const withMetadata = await requestRepository.hasMetadata(streamIds)
       streamIds.slice(0, WITH_METADATA).forEach((streamId) => {
         expect(withMetadata).toContainEqual(streamId)
@@ -295,7 +298,7 @@ describe('request repository test', () => {
       const pendingRequests = createdRequests.filter((r) => r.status === RequestStatus.PENDING)
       for (const request of pendingRequests) {
         await metadataRepository.save({
-          streamId: StreamID.fromString(request.streamId),
+          streamId: request.streamId,
           metadata: {
             controllers: [asDIDString(`did:random:${Math.random()}`)],
           },
@@ -354,7 +357,7 @@ describe('request repository test', () => {
       await requestRepository.createRequests(requests)
       for (const request of requests) {
         await metadataRepository.save({
-          streamId: StreamID.fromString(request.streamId),
+          streamId: request.streamId,
           metadata: {
             controllers: [asDIDString(`did:random:${Math.random()}`)],
           },
@@ -382,7 +385,7 @@ describe('request repository test', () => {
       expect(createdRequests.length).toEqual(requests.length)
       for (const request of createdRequests) {
         await metadataRepository.save({
-          streamId: StreamID.fromString(request.streamId),
+          streamId: request.streamId,
           metadata: {
             controllers: [asDIDString(`did:random:${Math.random()}`)],
           },
@@ -431,7 +434,7 @@ describe('request repository test', () => {
       expect(createdRequests.length).toEqual(requests.length)
       for (const request of createdRequests) {
         await metadataRepository.save({
-          streamId: StreamID.fromString(request.streamId),
+          streamId: request.streamId,
           metadata: {
             controllers: [asDIDString(`did:random:${Math.random()}`)],
           },
@@ -455,7 +458,7 @@ describe('request repository test', () => {
 
     test('Marks requests for same streams as ready', async () => {
       const streamLimit = 5
-      const repeatedStreamId = randomStreamID().toString()
+      const repeatedStreamId = randomStreamID()
       const requests = [
         // repeated request created an hour ago
         generateRequests(
@@ -494,7 +497,7 @@ describe('request repository test', () => {
       expect(createdRequests.length).toEqual(requests.length)
       for (const request of createdRequests) {
         await metadataRepository.save({
-          streamId: StreamID.fromString(request.streamId),
+          streamId: request.streamId,
           metadata: {
             controllers: [asDIDString(`did:random:${Math.random()}`)],
           },
@@ -504,13 +507,13 @@ describe('request repository test', () => {
       const updatedRequests = await requestRepository.findAndMarkReady(streamLimit)
       expect(updatedRequests.length).toEqual(streamLimit + 1)
 
-      const updatedRequestCids = updatedRequests.map(({ cid }) => cid)
-      expect(updatedRequestCids).toContain(repeatedRequest1.cid)
-      expect(updatedRequestCids).toContain(repeatedRequest2.cid)
+      const updatedRequestCids = updatedRequests.map(({ cid }) => cid.toString())
+      expect(updatedRequestCids).toContain(repeatedRequest1.cid.toString())
+      expect(updatedRequestCids).toContain(repeatedRequest2.cid.toString())
     })
 
     test('Does not mark irrelevant requests as READY if a new request comes in for a stream', async () => {
-      const repeatedStreamId = randomStreamID().toString()
+      const repeatedStreamId = randomStreamID()
 
       const shouldBeIncluded = [
         // PENDING created now
@@ -594,7 +597,7 @@ describe('request repository test', () => {
       expect(createdRequests.length).toEqual(requests.length)
       for (const request of createdRequests) {
         await metadataRepository.save({
-          streamId: StreamID.fromString(request.streamId),
+          streamId: request.streamId,
           metadata: {
             controllers: [asDIDString(`did:random:${Math.random()}`)],
           },
@@ -621,7 +624,7 @@ describe('request repository test', () => {
 
       for (const request of requests) {
         await metadataRepository.save({
-          streamId: StreamID.fromString(request.streamId),
+          streamId: request.streamId,
           metadata: {
             controllers: [asDIDString(`did:random:${Math.random()}`)],
           },
@@ -801,39 +804,38 @@ describe('request repository test', () => {
 
       // Create three COMPLETED requests. These should not be changed
       const completedRequests = await Promise.all(
-        times(3).map(async (n) => {
-          const request = new Request({
-            cid: randomCID().toString(),
-            streamId: streamId.toString(),
+        times(3).map((n) => {
+          return requestRepository.createOrUpdate({
+            cid: randomCID(),
+            streamId: streamId,
             timestamp: oneHourAgo.minus({ minute: n }).toJSDate(),
             status: RequestStatus.COMPLETED,
             origin: 'same-origin',
+            message: '',
           })
-          return requestRepository.createOrUpdate(request)
         })
       )
 
       // PENDING but with a different streamId
-      const unrelatedStreamRequest = await requestRepository.createOrUpdate(
-        new Request({
-          cid: randomCID().toString(),
-          streamId: randomStreamID().toString(),
-          timestamp: oneHourAgo.toJSDate(),
-          status: RequestStatus.PENDING,
-          origin: 'same-origin',
-        })
-      )
+      const unrelatedStreamRequest = await requestRepository.createOrUpdate({
+        cid: randomCID(),
+        streamId: randomStreamID(),
+        timestamp: oneHourAgo.toJSDate(),
+        status: RequestStatus.PENDING,
+        origin: 'same-origin',
+        message: '',
+      })
 
       // Create three PENDING requests at `oneHourAgo` plus some minutes
       const requestsP = times(3).map(async (n) => {
-        const request = new Request({
-          cid: randomCID().toString(),
-          streamId: streamId.toString(),
+        return requestRepository.createOrUpdate({
+          cid: randomCID(),
+          streamId: streamId,
           timestamp: oneHourAgo.plus({ minute: n }).toJSDate(),
           status: RequestStatus.PENDING,
           origin: 'same-origin',
+          message: '',
         })
-        return requestRepository.createOrUpdate(request)
       })
       const requests = await Promise.all(requestsP)
       const last = requests[requests.length - 1]
@@ -868,7 +870,7 @@ describe('request repository test', () => {
     const MIN_LIMIT = 2
     const MAX_LIMIT = 3
 
-    function createRequests(n: number): Promise<Request[]> {
+    function createRequests(n: number): Promise<StoredRequest[]> {
       return Promise.all(
         times(n).map(() => {
           return requestRepository.createOrUpdate(

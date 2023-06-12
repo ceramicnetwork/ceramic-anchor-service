@@ -1,6 +1,6 @@
 import type { ICandidate, ICandidateMetadata } from '@ceramicnetwork/anchor-utils'
 import type { StreamID } from '@ceramicnetwork/streamid'
-import type { Request } from '../models/request.js'
+import type { StoredRequest } from '../models/request.js'
 import { CID } from 'multiformats/cid'
 
 export enum Ordering {
@@ -29,12 +29,12 @@ export class Candidate implements ICandidate {
 
   constructor(
     readonly streamId: StreamID,
-    readonly request: Request,
+    readonly request: StoredRequest,
     readonly metadata: ICandidateMetadata
   ) {
     this.request = request
     if (!request.cid) throw new Error(`No CID present for request`)
-    this.cid = CID.parse(request.cid)
+    this.cid = request.cid
     this.metadata = metadata
     this.model = this.metadata.model
   }

@@ -1,5 +1,5 @@
 import { StoredAnchor, FreshAnchor } from '../models/anchor.js'
-import type { Request } from '../models/request.js'
+import type { StoredRequest } from '../models/request.js'
 import type { Knex } from 'knex'
 import type { AnchorWithRequest, IAnchorRepository } from './anchor-repository.type.js'
 import { parseCountResult } from './parse-count-result.util.js'
@@ -45,7 +45,7 @@ export class AnchorRepository implements IAnchorRepository {
    * @param request - Request
    * @returns A promise that resolve to the anchor associated to the request
    */
-  async findByRequest(request: Request): Promise<AnchorWithRequest | null> {
+  async findByRequest(request: StoredRequest): Promise<AnchorWithRequest | null> {
     const row = await this.table.where({ requestId: request.id }).first()
     if (!row) return null
     const anchor = decode(StoredAnchor, row)

@@ -4,8 +4,8 @@ import type { Config } from 'node-config-ts'
 
 import { logEvent, logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
-import { FreshAnchor } from '../models/anchor.js'
-import { Request, RequestStatus, RequestStatus as RS } from '../models/request.js'
+import { type FreshAnchor } from '../models/anchor.js'
+import { RequestStatus, type StoredRequest } from '../models/request.js'
 import type { Transaction } from '../models/transaction.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
 import type { TransactionRepository } from '../repositories/transaction-repository.js'
@@ -17,7 +17,6 @@ import {
 } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 import type { BlockchainService } from './blockchain/blockchain-service.js'
-import { StreamID } from '@ceramicnetwork/streamid'
 
 import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
@@ -27,18 +26,18 @@ import type { IMetadataService } from './metadata-service.js'
 import { pathString, type CIDHolder, type TreeMetadata } from '@ceramicnetwork/anchor-utils'
 import { Candidate } from './candidate.js'
 import { MerkleCarFactory, type IMerkleTree, type MerkleCAR } from '../merkle/merkle-car-factory.js'
-import { IQueueConsumerService } from './queue/queue-service.type.js'
-import { AnchorBatch } from '../models/queue-message.js'
+import type { IQueueConsumerService } from './queue/queue-service.type.js'
+import type { AnchorBatch } from '../models/queue-message.js'
 import { create as createMultihash } from 'multiformats/hashes/digest'
-import { CAR } from 'cartonne'
+import type { CAR } from 'cartonne'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
 type RequestGroups = {
-  alreadyAnchoredRequests: Request[]
-  failedRequests: Request[]
-  unprocessedRequests: Request[]
-  acceptedRequests: Request[]
+  alreadyAnchoredRequests: StoredRequest[]
+  failedRequests: StoredRequest[]
+  unprocessedRequests: StoredRequest[]
+  acceptedRequests: StoredRequest[]
 }
 
 type AnchorSummary = {
@@ -172,7 +171,7 @@ export class AnchorService {
     if (this.useQueueBatches) {
       return this.anchorNextQueuedBatch()
     } else {
-      const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
+      const readyRequestsCount = await this.requestRepository.countByStatus(RequestStatus.READY)
 
       if (readyRequestsCount === 0) {
         // Pull in twice as many streams as we want to anchor, since some of those streams may fail to load.
@@ -234,7 +233,7 @@ export class AnchorService {
     await Utils.delay(5000)
   }
 
-  private async _anchorRequests(requests: Request[]): Promise<void> {
+  private async _anchorRequests(requests: StoredRequest[]): Promise<void> {
     if (requests.length === 0) {
       logger.imp('No pending CID requests found. Skipping anchor.')
       return
@@ -257,7 +256,10 @@ export class AnchorService {
         `Updating PROCESSING requests to PENDING so they are retried in the next batch because an error occurred while creating the anchors: ${err}`
       )
       const acceptedRequests = candidates.map((candidate) => candidate.request).flat()
-      await this.requestRepository.updateRequests({ status: RS.PENDING }, acceptedRequests)
+      await this.requestRepository.updateRequests(
+        { status: RequestStatus.PENDING },
+        acceptedRequests
+      )
 
       Metrics.count(METRIC_NAMES.REVERT_TO_PENDING, acceptedRequests.length)
 
@@ -328,7 +330,7 @@ export class AnchorService {
    * mark them as PROCESSING, and perform an anchor.
    */
   async emitAnchorEventIfReady(): Promise<void> {
-    const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
+    const readyRequestsCount = await this.requestRepository.countByStatus(RequestStatus.READY)
 
     if (readyRequestsCount > 0) {
       // if ready requests have been updated because they have expired
@@ -478,7 +480,7 @@ export class AnchorService {
       } for stream ${candidate.streamId.toString()}: ${err}`
       logger.err(msg)
       Metrics.count(METRIC_NAMES.ERROR_IPFS, 1)
-      await this.requestRepository.updateRequests({ status: RS.FAILED, message: msg }, [
+      await this.requestRepository.updateRequests({ status: RequestStatus.FAILED, message: msg }, [
         candidate.request,
       ])
       return null
@@ -494,10 +496,7 @@ export class AnchorService {
    * @returns The number of anchors persisted
    * @private
    */
-  async _persistAnchorResult(
-    anchors: FreshAnchor[],
-    candidates: Candidate[]
-  ): Promise<number> {
+  async _persistAnchorResult(anchors: FreshAnchor[], candidates: Candidate[]): Promise<number> {
     // filter to requests for streams that were actually anchored successfully
     const acceptedRequests = []
     for (const candidate of candidates) {
@@ -513,7 +512,7 @@ export class AnchorService {
 
       await this.requestRepository.withConnection(trx).updateRequests(
         {
-          status: RS.COMPLETED,
+          status: RequestStatus.COMPLETED,
           message: 'CID successfully anchored.',
           pinned: true,
         },
@@ -542,7 +541,7 @@ export class AnchorService {
    * @private
    */
   async _findCandidates(
-    requests: Request[],
+    requests: StoredRequest[],
     candidateLimit: number
   ): Promise<[Candidate[], RequestGroups]> {
     logger.debug(`Grouping requests by stream`)
@@ -562,10 +561,10 @@ export class AnchorService {
    * Groups requests on the same StreamID into single Candidate objects.
    * @param requests
    */
-  async _buildCandidates(requests: Request[]): Promise<Array<Candidate>> {
+  async _buildCandidates(requests: StoredRequest[]): Promise<Array<Candidate>> {
     const candidates = []
     for (const request of requests) {
-      const streamId = StreamID.fromString(request.streamId)
+      const streamId = request.streamId
       const metadata = await this.metadataService.retrieve(streamId)
       if (metadata) {
         const candidate = new Candidate(streamId, request, metadata.metadata)
@@ -591,8 +590,8 @@ export class AnchorService {
     candidates: Candidate[],
     candidateLimit: number
   ): Promise<RequestGroups> {
-    const unprocessedRequests: Request[] = []
-    const alreadyAnchoredRequests: Request[] = []
+    const unprocessedRequests: StoredRequest[] = []
+    const alreadyAnchoredRequests: StoredRequest[] = []
 
     let numSelectedCandidates = 0
     if (candidateLimit == 0 || candidates.length < candidateLimit) {
