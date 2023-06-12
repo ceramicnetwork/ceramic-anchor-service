@@ -38,7 +38,11 @@ import { AnchorRequestParamsParser } from './ancillary/anchor-request-params-par
 import { HealthcheckService, IHealthcheckService } from './services/healthcheck-service.js'
 import { RequestService } from './services/request-service.js'
 import { AnchorBatchSqsQueueService } from './services/queue/sqs-queue-service.js'
-import { InMemoryMerkleCarService, S3MerkleCarService } from './services/merkle-car-service.js'
+import {
+  IMerkleCarService,
+  InMemoryMerkleCarService,
+  S3MerkleCarService,
+} from './services/merkle-car-service.js'
 
 type DependenciesContext = {
   config: Config
@@ -59,6 +63,7 @@ type ProvidedContext = {
   healthcheckService: IHealthcheckService
   anchorRequestParamsParser: AnchorRequestParamsParser
   requestService: RequestService
+  merkleCarService: IMerkleCarService
 } & DependenciesContext
 
 /**
@@ -82,7 +87,7 @@ export class CeramicAnchorApp {
 
     // TODO: Selectively register only the global singletons needed based on the config
 
-    this.container = container
+    container
       // register repositories
       .provideClass('metadataRepository', MetadataRepository)
       .provideFactory('requestRepository', RequestRepository.make)
@@ -102,12 +107,14 @@ export class CeramicAnchorApp {
       .provideClass('requestService', RequestService)
 
     if (this.config.carStorage.mode === 's3') {
-      this.container.provideClass('merkleCarService', S3MerkleCarService)
+      container.provideClass('merkleCarService', S3MerkleCarService)
     } else if (this.config.carStorage.mode === 'inmemory') {
-      this.container.provideClass('merkleCarService', InMemoryMerkleCarService)
+      container.provideClass('merkleCarService', InMemoryMerkleCarService)
     } else {
       throw new Error(`Unrecognized carStorage mode: ${this.config.carStorage.mode}`)
     }
+
+    this.container = container as Injector<ProvidedContext>
 
     try {
       Metrics.start(

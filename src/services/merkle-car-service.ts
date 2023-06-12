@@ -16,7 +16,7 @@ export interface IMerkleCarService {
   retrieveCarFile(anchorProofCID: CID): Promise<CAR | null>
 }
 
-export class InMemoryMerkleCarService {
+export class InMemoryMerkleCarService implements IMerkleCarService {
   readonly cars: Map<string, CAR> = new Map()
 
   async storeCarFile(anchorProofCID: CID, car: CAR): Promise<void> {
@@ -32,7 +32,7 @@ const S3_STORE_SUFFIX = '/cas/anchor/merkle-car/'
 const carFactory = new CARFactory()
 carFactory.codecs.add(DAG_JOSE)
 
-export class S3MerkleCarService {
+export class S3MerkleCarService implements IMerkleCarService {
   readonly s3store: LevelUp.LevelUp
 
   static inject = ['config'] as const
