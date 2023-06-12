@@ -1,4 +1,4 @@
-import { CARFactory, CAR } from 'cartonne'
+import { CARFactory, type CAR } from 'cartonne'
 import type { CID } from 'multiformats/cid'
 import AWSSDK from 'aws-sdk'
 import LevelUp from 'levelup'
@@ -15,6 +15,22 @@ export interface IMerkleCarService {
   storeCarFile(anchorProofCID: CID, car: CAR): Promise<void>
   retrieveCarFile(anchorProofCID: CID): Promise<CAR | null>
 }
+
+/**
+ * Factory for IMerkleCarService.
+ */
+export function makeMerkleCarService(config: Config): IMerkleCarService {
+  const mode = config.mode
+  switch (mode) {
+    case 's3':
+      return new S3MerkleCarService(config)
+    case 'inmemory':
+      return new InMemoryMerkleCarService()
+    default:
+      throw new Error(`Unrecognized carStorage mode: ${mode}`)
+  }
+}
+makeMerkleCarService.inject = ['config'] as const
 
 export class InMemoryMerkleCarService implements IMerkleCarService {
   readonly cars: Map<string, CAR> = new Map()
@@ -34,8 +50,6 @@ carFactory.codecs.add(DAG_JOSE)
 
 export class S3MerkleCarService implements IMerkleCarService {
   readonly s3store: LevelUp.LevelUp
-
-  static inject = ['config'] as const
 
   constructor(config: Config) {
     const s3StorePath = config.carStorage.s3BucketName + S3_STORE_SUFFIX
