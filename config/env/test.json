@@ -5,6 +5,10 @@
   "readyRetryIntervalMS": 10000,
   "requireAuth": false,
   "schedulerIntervalMS": 10000,
+  "carStorage": {
+    "mode": "s3",
+    "s3BucketName": "ceramic-tnet-cas"
+  },
   "ceramic": {
     "validateRecords": false
   },
