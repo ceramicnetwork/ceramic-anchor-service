@@ -2,7 +2,7 @@ import { test, expect, beforeAll, afterAll } from '@jest/globals'
 import type { Knex } from 'knex'
 import { createDbConnection } from '../db-connection.js'
 import { isClose, randomStreamID, seconds } from './test-utils.js'
-import { date } from '../ancillary/codecs.js'
+import { date } from '@ceramicnetwork/codecs'
 
 let dbConnection: Knex
 
