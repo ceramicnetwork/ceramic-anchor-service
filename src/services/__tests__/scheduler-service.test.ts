@@ -1,21 +1,16 @@
 import 'reflect-metadata'
 import { jest, describe, test, expect } from '@jest/globals'
 import { SchedulerService } from '../scheduler-service.js'
-import { config } from 'node-config-ts'
-import { createInjector } from 'typed-inject'
-
-const injector = createInjector()
-  .provideValue('config', Object.assign({}, config, { schedulerIntervalMS: 1000 }))
-  .provideClass('schedulerService', SchedulerService)
+import { Utils } from '../../utils.js'
 
 describe('scheduler service', () => {
   jest.setTimeout(20000)
 
   test('will run the task repeatedly', (done) => {
     const numberOfRunsBeforeDone = 3
-    const schedulerService = injector.resolve('schedulerService')
 
     const task = jest.fn()
+    const schedulerService = new SchedulerService()
 
     const runChecks = () => {
       // the task runs once right at the start before running every X seconds
@@ -24,7 +19,7 @@ describe('scheduler service', () => {
     }
 
     let count = 0
-    task.mockImplementation(() => {
+    task.mockImplementation(async () => {
       if (count === numberOfRunsBeforeDone) {
         schedulerService.stop()
         runChecks()
@@ -34,23 +29,25 @@ describe('scheduler service', () => {
       return Promise.resolve()
     })
 
-    schedulerService.start(task as any)
+    schedulerService.start(task as any, 1000)
     // test doesn't complete until 'done()' is called
   })
 
   test('will continue if the task fails', (done) => {
     const numberOfRunsBeforeDone = 5
-    const schedulerService = injector.resolve('schedulerService')
-
     const task = jest.fn()
+    const schedulerService = new SchedulerService()
+
     const runChecks = () => {
       // the task runs once right at the start before running every X seconds
       expect(task.mock.calls.length).toEqual(numberOfRunsBeforeDone + 1)
-      done()
+      Utils.delay(3000).then(() => {
+        done()
+      })
     }
 
     let count = 0
-    task.mockImplementation(() => {
+    task.mockImplementation(async () => {
       if (count === numberOfRunsBeforeDone) {
         schedulerService.stop()
         runChecks()
@@ -66,7 +63,29 @@ describe('scheduler service', () => {
       return Promise.resolve()
     })
 
-    schedulerService.start(task as any)
+    schedulerService.start(task as any, 1000)
+    // test doesn't complete until 'done()' is called
+  })
+
+  test('Will complete current task if stop is called', (done) => {
+    let calls = 0
+    const task = async () => {
+      await Utils.delay(2000)
+      calls = calls + 1
+    }
+    const schedulerService = new SchedulerService()
+
+    // stop is called during the task
+    // stop should only return once the task completes
+    Utils.delay(1000).then(async () => {
+      await schedulerService.stop()
+      await Utils.delay(3000)
+      // task should have compelted once
+      expect(calls).toEqual(1)
+      done()
+    })
+
+    schedulerService.start(task as any, 1000)
     // test doesn't complete until 'done()' is called
   })
 })

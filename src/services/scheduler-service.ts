@@ -1,6 +1,5 @@
-import { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
-import { from, concatWith, timer, exhaustMap, catchError, repeat, retry, Subscription } from 'rxjs'
+import { catchError, Observable, defer, share, timer, expand, concatMap, EMPTY } from 'rxjs'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 
@@ -8,38 +7,67 @@ import { METRIC_NAMES } from '../settings.js'
  * Repeatedly triggers a task to be run after a configured amount of ms
  */
 export class SchedulerService {
-  private _subscription?: Subscription
-
-  static inject = ['config'] as const
-
-  constructor(private readonly config: Config) {}
+  private _scheduledTask$?: Observable<void>
+  private _controller: AbortController
 
   /**
    * Starts the scheduler which will run the provided task
    *
    */
-  start(task: () => Promise<void>): void {
-    const intervalMS = this.config.schedulerIntervalMS
-
-    const repeatingTask$ = from(task()).pipe(
-      concatWith(
-        timer(intervalMS).pipe(
-          exhaustMap(() => task()),
-          catchError((err) => {
-            Metrics.count(METRIC_NAMES.SCHEDULER_TASK_UNCAUGHT_ERROR, 1)
-            logger.err(`Scheduler task failed: ${err}`)
-            throw err
-          }),
-          retry(),
-          repeat()
-        )
-      )
-    )
-
-    this._subscription = repeatingTask$.subscribe()
+  constructor() {
+    this._controller = new AbortController()
   }
 
-  stop(): void {
-    this._subscription?.unsubscribe()
+  start(task: () => Promise<void>, intervalMS = 60000): void {
+    if (this._scheduledTask$) {
+      return
+    }
+
+    const taskWithRetryOnError$ = defer(async () => {
+      if (this._controller.signal.aborted) {
+        return
+      }
+
+      await task()
+    }).pipe(
+      catchError((err, caught) => {
+        Metrics.count(METRIC_NAMES.SCHEDULER_TASK_UNCAUGHT_ERROR, 1)
+        logger.err(`Scheduler task failed: ${err}`)
+
+        if (this._controller.signal.aborted) {
+          return EMPTY
+        }
+
+        return timer(intervalMS).pipe(concatMap(() => caught))
+      })
+    )
+
+    this._scheduledTask$ = taskWithRetryOnError$.pipe(
+      expand(() => {
+        if (this._controller.signal.aborted) {
+          return EMPTY
+        }
+
+        return timer(intervalMS).pipe(concatMap(() => taskWithRetryOnError$))
+      }),
+      share()
+    )
+
+    this._scheduledTask$.subscribe()
+  }
+
+  async stop(): Promise<void> {
+    if (!this._scheduledTask$) return Promise.resolve()
+
+    return new Promise((resolve) => {
+      this._scheduledTask$?.subscribe({
+        complete: () => {
+          this._scheduledTask$ = undefined
+          resolve()
+        },
+      })
+
+      this._controller.abort()
+    })
   }
 }
