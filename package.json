@@ -47,7 +47,7 @@
     }
   },
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.348.0",
+    "@aws-sdk/client-sqs": "^3.350.0",
     "@ceramicnetwork/anchor-utils": "^1.6.0",
     "@ceramicnetwork/codecs": "^1.1.0",
     "@ceramicnetwork/common": "^2.23.0",
