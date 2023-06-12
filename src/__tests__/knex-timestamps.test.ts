@@ -34,9 +34,9 @@ test('JS-to-PG conversion ignores timezone', async () => {
     .insert({ streamId: randomStreamID().toString(), metadata: {}, usedAt: withTimezone })
     .returning('usedAt')
     .then((rows) => rows[0].usedAt as Date)
-  const timezoneOffsetMinutes = new Date().getTimezoneOffset() // minutes
-  const timezoneOffsetMs = timezoneOffsetMinutes * 60 * 1000 // milliseconds
-  expect(pgTimestamp.valueOf()).toEqual(withTimezone.valueOf() - timezoneOffsetMs)
+  const pastOffsetMinutes = pgTimestamp.getTimezoneOffset() // minutes
+  const pastOffsetMs = pastOffsetMinutes * 60 * 1000 // milliseconds
+  expect(pgTimestamp.valueOf()).toEqual(withTimezone.valueOf() - pastOffsetMs)
   const pgTimestamp1 = await dbConnection
     .table('metadata')
     .insert({
