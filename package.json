@@ -86,7 +86,7 @@
     "s3leveldown": "^2.2.2",
     "tsm": "^2.2.2",
     "typed-inject": "^4.0.0",
-    "uint8arrays": "^4.0.3",
+    "uint8arrays": "^4.0.4",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
