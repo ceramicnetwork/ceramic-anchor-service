@@ -59,7 +59,7 @@ type ProvidedContext = {
   healthcheckService: IHealthcheckService
   anchorRequestParamsParser: AnchorRequestParamsParser
   requestService: RequestService
-  merkleCarService: IMerkleCarService
+  merkleCarService: IMerkleCarService | null
 } & DependenciesContext
 
 /**
