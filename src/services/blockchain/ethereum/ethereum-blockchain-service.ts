@@ -13,7 +13,9 @@ import {
   TransactionResponse,
   TransactionReceipt,
 } from '@ethersproject/abstract-provider'
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { Utils } from '../../../utils.js'
+import { METRIC_NAMES } from '../../../settings.js'
 
 const BASE_CHAIN_ID = 'eip155'
 const TX_FAILURE = 0
@@ -410,6 +412,7 @@ export class EthereumBlockchainService implements BlockchainService {
     const txData = await this._buildTransactionRequest(rootCid)
     const txResponses: Array<TransactionResponse> = []
 
+    Metrics.count(METRIC_NAMES.ETH_REQUEST_TOTAL, 1)
     return this.withWalletBalance((walletBalance) => {
       return attempt(MAX_RETRIES, async (attemptNum) => {
         try {
@@ -420,6 +423,7 @@ export class EthereumBlockchainService implements BlockchainService {
         } catch (err: any) {
           logger.err(err)
           const { code } = err
+          Metrics.count(METRIC_NAMES.ETH_REQUEST_ERROR_TOTAL, 1, {'error_code': code})
           switch (code) {
             case ErrorCode.INSUFFICIENT_FUNDS:
               return handleInsufficientFundsError(txData, walletBalance)

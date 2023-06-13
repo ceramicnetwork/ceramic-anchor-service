@@ -49,6 +49,12 @@ export enum METRIC_NAMES {
   ANCHOR_REQUESTS_BATCH_FAILURE_TIME = 'anchor_requests_batch_failure_time',
 
   // *******************************************************************//
+  // Ethereum Blockchain Service
+
+  ETH_REQUEST_TOTAL = 'eth_request_total',
+  ETH_REQUEST_ERROR_TOTAL = 'eth_request_error_total',
+
+  // *******************************************************************//
   // Scheduler Service
   SCHEDULER_TASK_UNCAUGHT_ERROR = 'scheduler_task_uncaught_error',
 
