@@ -31,7 +31,7 @@ import { IQueueConsumerService } from './queue/queue-service.type.js'
 import { AnchorBatch } from '../models/queue-message.js'
 import { create as createMultihash } from 'multiformats/hashes/digest'
 import { CAR } from 'cartonne'
-import { IMerkleCarService } from './merkle-car-service'
+import { IMerkleCarService } from './merkle-car-service.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
