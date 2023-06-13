@@ -65,7 +65,7 @@ export class RequestService {
     await this.requestRepository.markPreviousReplaced(storedRequest)
 
     let did;
-    if (Array.isArray(genesisFields.controllers) && genesisFields.controllers.length > 0) {
+    if genesisFields && (Array.isArray(genesisFields.controllers) && genesisFields.controllers.length > 0) {
       did = genesisFields.controllers[0];
     }
 
