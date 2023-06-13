@@ -64,17 +64,14 @@ export class RequestService {
     const storedRequest = await this.requestRepository.createOrUpdate(request)
     await this.requestRepository.markPreviousReplaced(storedRequest)
 
-    let did;
-    if (genesisFields && Array.isArray(genesisFields.controllers) && genesisFields.controllers.length > 0) {
-      did = genesisFields.controllers[0];
-    }
+    const did = genesisFields?.controllers?.[0]
 
     Metrics.count(METRIC_NAMES.WRITE_TOTAL_TSDB, 1, {
       cid: request.cid,
       did,
-      schema: genesisFields.schema,
-      family: genesisFields.family,
-      model: genesisFields.model
+      schema: genesisFields?.schema,
+      family: genesisFields?.family,
+      model: genesisFields?.model
     })
 
     return this.requestPresentationService.body(storedRequest)
