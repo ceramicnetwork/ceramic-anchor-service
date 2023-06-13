@@ -19,13 +19,15 @@ export interface IMerkleCarService {
 /**
  * Factory for IMerkleCarService.
  */
-export function makeMerkleCarService(config: Config): IMerkleCarService {
+export function makeMerkleCarService(config: Config): IMerkleCarService | null {
   const mode = config.carStorage.mode
   switch (mode) {
     case 's3':
       return new S3MerkleCarService(config)
     case 'inmemory':
       return new InMemoryMerkleCarService()
+    case 'disabled':
+      return null
     default:
       throw new Error(`Unrecognized carStorage mode: ${mode}`)
   }
