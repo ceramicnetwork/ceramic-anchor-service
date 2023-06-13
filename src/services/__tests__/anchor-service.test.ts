@@ -32,7 +32,7 @@ import { Candidate } from '../candidate.js'
 import { FakeFactory } from './fake-factory.util.js'
 import { FakeEthereumBlockchainService } from './fake-ethereum-blockchain-service.util.js'
 import { MockEventProducerService } from './mock-event-producer-service.util.js'
-import { IMerkleCarService, makeMerkleCarService } from '../merkle-car-service.js'
+import { makeMerkleCarService, type IMerkleCarService } from '../merkle-car-service.js'
 
 process.env['NODE_ENV'] = 'test'
 
