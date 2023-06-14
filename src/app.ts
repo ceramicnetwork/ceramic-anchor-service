@@ -9,7 +9,7 @@ import { METRIC_NAMES } from './settings.js'
 import { IpfsService } from './services/ipfs-service.js'
 import type { IIpfsService } from './services/ipfs-service.type.js'
 import { AnchorService } from './services/anchor-service.js'
-import { SchedulerService } from './services/scheduler-service.js'
+import { TaskSchedulerService } from './services/task-scheduler-service.js'
 import { BlockchainService } from './services/blockchain/blockchain-service.js'
 import { HTTPEventProducerService } from './services/event-producer/http/http-event-producer-service.js'
 import { AnchorRepository } from './repositories/anchor-repository.js'
@@ -53,13 +53,13 @@ type ProvidedContext = {
   blockchainService: BlockchainService
   eventProducerService: EventProducerService
   ipfsService: IIpfsService
-  schedulerService: SchedulerService
+  markReadyScheduler: TaskSchedulerService
   requestPresentationService: RequestPresentationService
   metadataService: IMetadataService
   healthcheckService: IHealthcheckService
   anchorRequestParamsParser: AnchorRequestParamsParser
   requestService: RequestService
-  continualAnchoringService: SchedulerService
+  continualAnchoringScheduler: TaskSchedulerService
 } & DependenciesContext
 
 /**
@@ -97,12 +97,12 @@ export class CeramicAnchorApp {
       .provideClass('metadataService', MetadataService)
       .provideClass('anchorBatchQueueService', AnchorBatchSqsQueueService)
       .provideClass('anchorService', AnchorService)
-      .provideClass('schedulerService', SchedulerService)
+      .provideClass('markReadyScheduler', TaskSchedulerService)
       .provideClass('healthcheckService', HealthcheckService)
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
       .provideClass('requestService', RequestService)
-      .provideClass('continualAnchoringService', SchedulerService)
+      .provideClass('continualAnchoringScheduler', TaskSchedulerService)
 
     if (this.config.carStorage.mode === 's3') {
       this.container.provideClass('merkleCarService', S3MerkleCarService)
@@ -173,10 +173,10 @@ export class CeramicAnchorApp {
   }
 
   async stop(): Promise<void> {
-    const schedulerService = this.container.resolve('schedulerService')
-    const continualAnchoringService = this.container.resolve('continualAnchoringService')
+    const markReadyScheduler = this.container.resolve('markReadyScheduler')
+    const continualAnchoringScheduler = this.container.resolve('continualAnchoringScheduler')
 
-    await Promise.all([schedulerService.stop(), continualAnchoringService.stop()])
+    await Promise.all([markReadyScheduler.stop(), continualAnchoringScheduler.stop()])
 
     this._server?.stop()
   }
@@ -191,8 +191,8 @@ export class CeramicAnchorApp {
    */
   private async _startScheduler(): Promise<void> {
     const anchorService = this.container.resolve('anchorService')
-    const schedulerService = this.container.resolve('schedulerService')
-    schedulerService.start(
+    const markReadyScheduler = this.container.resolve('markReadyScheduler')
+    markReadyScheduler.start(
       async () => await anchorService.emitAnchorEventIfReady(),
       this.config.schedulerIntervalMS
     )
@@ -204,8 +204,8 @@ export class CeramicAnchorApp {
    */
   private async _startBundled(): Promise<void> {
     const anchorService = this.container.resolve('anchorService')
-    const schedulerService = this.container.resolve('schedulerService')
-    schedulerService.start(async () => {
+    const markReadyScheduler = this.container.resolve('markReadyScheduler')
+    markReadyScheduler.start(async () => {
       await anchorService.anchorRequests()
     })
     await this._startServer()
@@ -262,7 +262,7 @@ export class CeramicAnchorApp {
 
   private async _startContinualAnchoring(): Promise<void> {
     const anchorService = this.container.resolve('anchorService')
-    const continualAnchoringService = this.container.resolve('continualAnchoringService')
+    const continualAnchoringScheduler = this.container.resolve('continualAnchoringScheduler')
 
     const controller = new AbortController()
     let shutdownInProgress: Promise<void> | undefined
@@ -301,6 +301,6 @@ export class CeramicAnchorApp {
       // })
     }
 
-    continualAnchoringService.start(task, this.config.schedulerIntervalMS)
+    continualAnchoringScheduler.start(task, this.config.schedulerIntervalMS)
   }
 }

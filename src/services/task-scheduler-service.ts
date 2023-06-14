@@ -6,7 +6,7 @@ import { METRIC_NAMES } from '../settings.js'
 /**
  * Repeatedly triggers a task to be run after a configured amount of ms
  */
-export class SchedulerService {
+export class TaskSchedulerService {
   private _scheduledTask$?: Observable<void>
   private _controller: AbortController
 
