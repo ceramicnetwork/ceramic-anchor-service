@@ -1,5 +1,5 @@
 import { logger } from '../logger/index.js'
-import { catchError, Observable, defer, share, timer, expand, concatMap, EMPTY } from 'rxjs'
+import { catchError, Observable, defer, share, timer, expand, concatMap, EMPTY, retry } from 'rxjs'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 
@@ -27,10 +27,9 @@ export class SchedulerService {
       if (this._controller.signal.aborted) {
         return
       }
-
       await task()
     }).pipe(
-      catchError((err, caught) => {
+      catchError((err) => {
         Metrics.count(METRIC_NAMES.SCHEDULER_TASK_UNCAUGHT_ERROR, 1)
         logger.err(`Scheduler task failed: ${err}`)
 
@@ -38,7 +37,12 @@ export class SchedulerService {
           return EMPTY
         }
 
-        return timer(intervalMS).pipe(concatMap(() => caught))
+        throw err
+      }),
+      retry({
+        delay: intervalMS,
+        count: 3,
+        resetOnSuccess: true,
       })
     )
 
