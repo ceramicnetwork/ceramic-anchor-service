@@ -183,7 +183,10 @@ export class CeramicAnchorApp {
   private async _startScheduler(): Promise<void> {
     const anchorService = this.container.resolve('anchorService')
     const schedulerService = this.container.resolve('schedulerService')
-    schedulerService.start(async () => await anchorService.emitAnchorEventIfReady())
+    schedulerService.start(
+      async () => await anchorService.emitAnchorEventIfReady(),
+      this.config.schedulerIntervalMS
+    )
   }
 
   /**
