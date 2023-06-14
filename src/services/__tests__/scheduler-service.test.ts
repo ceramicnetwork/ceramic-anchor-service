@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { jest, describe, test, expect } from '@jest/globals'
-import { SchedulerService } from '../scheduler-service.js'
+import { TaskSchedulerService } from '../task-scheduler-service.js'
 import { Utils } from '../../utils.js'
 
 describe('scheduler service', () => {
@@ -10,7 +10,7 @@ describe('scheduler service', () => {
     const numberOfRunsBeforeDone = 3
 
     const task = jest.fn()
-    const schedulerService = new SchedulerService()
+    const testScheduler = new TaskSchedulerService()
 
     const runChecks = () => {
       // the task runs once right at the start before running every X seconds
@@ -21,7 +21,7 @@ describe('scheduler service', () => {
     let count = 0
     task.mockImplementation(async () => {
       if (count === numberOfRunsBeforeDone) {
-        schedulerService.stop()
+        testScheduler.stop()
         runChecks()
       }
 
@@ -29,14 +29,14 @@ describe('scheduler service', () => {
       return Promise.resolve()
     })
 
-    schedulerService.start(task as any, 1000)
+    testScheduler.start(task as any, 1000)
     // test doesn't complete until 'done()' is called
   })
 
   test('will continue if the task fails', (done) => {
     const numberOfRunsBeforeDone = 5
     const task = jest.fn()
-    const schedulerService = new SchedulerService()
+    const testScheduler = new TaskSchedulerService()
 
     const runChecks = () => {
       // the task runs once right at the start before running every X seconds
@@ -49,7 +49,7 @@ describe('scheduler service', () => {
     let count = 0
     task.mockImplementation(async () => {
       if (count === numberOfRunsBeforeDone) {
-        schedulerService.stop()
+        testScheduler.stop()
         runChecks()
       }
 
@@ -63,7 +63,7 @@ describe('scheduler service', () => {
       return Promise.resolve()
     })
 
-    schedulerService.start(task as any, 1000)
+    testScheduler.start(task as any, 1000)
     // test doesn't complete until 'done()' is called
   })
 
@@ -73,19 +73,19 @@ describe('scheduler service', () => {
       await Utils.delay(2000)
       calls = calls + 1
     }
-    const schedulerService = new SchedulerService()
+    const testScheduler = new TaskSchedulerService()
 
     // stop is called during the task
     // stop should only return once the task completes
     Utils.delay(1000).then(async () => {
-      await schedulerService.stop()
+      await testScheduler.stop()
       await Utils.delay(3000)
       // task should have compelted once
       expect(calls).toEqual(1)
       done()
     })
 
-    schedulerService.start(task as any, 1000)
+    testScheduler.start(task as any, 1000)
     // test doesn't complete until 'done()' is called
   })
 })

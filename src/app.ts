@@ -9,7 +9,7 @@ import { METRIC_NAMES } from './settings.js'
 import { IpfsService } from './services/ipfs-service.js'
 import type { IIpfsService } from './services/ipfs-service.type.js'
 import { AnchorService } from './services/anchor-service.js'
-import { SchedulerService } from './services/scheduler-service.js'
+import { TaskSchedulerService } from './services/task-scheduler-service.js'
 import { BlockchainService } from './services/blockchain/blockchain-service.js'
 import { HTTPEventProducerService } from './services/event-producer/http/http-event-producer-service.js'
 import { AnchorRepository } from './repositories/anchor-repository.js'
@@ -53,7 +53,7 @@ type ProvidedContext = {
   blockchainService: BlockchainService
   eventProducerService: EventProducerService
   ipfsService: IIpfsService
-  schedulerService: SchedulerService
+  markReadyScheduler: TaskSchedulerService
   requestPresentationService: RequestPresentationService
   metadataService: IMetadataService
   healthcheckService: IHealthcheckService
@@ -95,7 +95,7 @@ export class CeramicAnchorApp {
       .provideClass('metadataService', MetadataService)
       .provideClass('anchorBatchQueueService', AnchorBatchSqsQueueService)
       .provideClass('anchorService', AnchorService)
-      .provideClass('schedulerService', SchedulerService)
+      .provideClass('markReadyScheduler', TaskSchedulerService)
       .provideClass('healthcheckService', HealthcheckService)
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
@@ -167,8 +167,8 @@ export class CeramicAnchorApp {
   }
 
   stop(): void {
-    const schedulerService = this.container.resolve('schedulerService')
-    schedulerService.stop()
+    const markReadyScheduler = this.container.resolve('markReadyScheduler')
+    markReadyScheduler.stop()
     this._server?.stop()
   }
 
@@ -182,8 +182,8 @@ export class CeramicAnchorApp {
    */
   private async _startScheduler(): Promise<void> {
     const anchorService = this.container.resolve('anchorService')
-    const schedulerService = this.container.resolve('schedulerService')
-    schedulerService.start(
+    const markReadyScheduler = this.container.resolve('markReadyScheduler')
+    markReadyScheduler.start(
       async () => await anchorService.emitAnchorEventIfReady(),
       this.config.schedulerIntervalMS
     )
@@ -195,8 +195,8 @@ export class CeramicAnchorApp {
    */
   private async _startBundled(): Promise<void> {
     const anchorService = this.container.resolve('anchorService')
-    const schedulerService = this.container.resolve('schedulerService')
-    schedulerService.start(async () => {
+    const markReadyScheduler = this.container.resolve('markReadyScheduler')
+    markReadyScheduler.start(async () => {
       await anchorService.anchorRequests()
     })
     await this._startServer()
