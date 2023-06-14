@@ -79,8 +79,8 @@ export class CeramicAnchorApp {
     this.anchorsSupported =
       this.mode === AppMode.ANCHOR ||
       this.mode === AppMode.BUNDLED ||
-      this.mode === AppMode.CONTINUAL_ANCHORING
-    this.config.anchorControllerEnabled
+      this.mode === AppMode.CONTINUAL_ANCHORING ||
+      this.config.anchorControllerEnabled
 
     // TODO: Selectively register only the global singletons needed based on the config
 
