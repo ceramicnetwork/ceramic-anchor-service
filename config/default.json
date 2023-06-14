@@ -63,7 +63,8 @@
       "host": "localhost",
       "user": "root",
       "password": "root",
-      "port": 5432
+      "port": 5432,
+      "connectionString": ""
     },
     "debug": false,
     "migrations": {
