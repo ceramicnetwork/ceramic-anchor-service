@@ -59,6 +59,7 @@ type ProvidedContext = {
   healthcheckService: IHealthcheckService
   anchorRequestParamsParser: AnchorRequestParamsParser
   requestService: RequestService
+  continualAnchoringService: SchedulerService
 } & DependenciesContext
 
 /**
@@ -78,7 +79,8 @@ export class CeramicAnchorApp {
     this.anchorsSupported =
       this.mode === AppMode.ANCHOR ||
       this.mode === AppMode.BUNDLED ||
-      this.config.anchorControllerEnabled
+      this.mode === AppMode.CONTINUAL_ANCHORING
+    this.config.anchorControllerEnabled
 
     // TODO: Selectively register only the global singletons needed based on the config
 
@@ -100,6 +102,7 @@ export class CeramicAnchorApp {
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
       .provideClass('requestService', RequestService)
+      .provideClass('continualAnchoringService', SchedulerService)
 
     if (this.config.carStorage.mode === 's3') {
       this.container.provideClass('merkleCarService', S3MerkleCarService)
@@ -160,15 +163,21 @@ export class CeramicAnchorApp {
       case AppMode.SCHEDULER:
         await this._startScheduler()
         break
+      case AppMode.CONTINUAL_ANCHORING:
+        await this._startContinualAnchoring()
+        break
       default:
         throw new UnreachableCaseError(this.mode, `Unknown application mode ${this.mode}`)
     }
     logger.imp(`Ceramic Anchor Service initiated ${this.mode} mode`)
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     const schedulerService = this.container.resolve('schedulerService')
-    schedulerService.stop()
+    const continualAnchoringService = this.container.resolve('continualAnchoringService')
+
+    await Promise.all([schedulerService.stop(), continualAnchoringService.stop()])
+
     this._server?.stop()
   }
 
@@ -249,5 +258,49 @@ export class CeramicAnchorApp {
     //   process.exit(1)
     // })
     process.exit()
+  }
+
+  private async _startContinualAnchoring(): Promise<void> {
+    const anchorService = this.container.resolve('anchorService')
+    const continualAnchoringService = this.container.resolve('continualAnchoringService')
+
+    const controller = new AbortController()
+    let shutdownInProgress: Promise<void> | undefined
+    const shutdownSignalHandler = () => {
+      if (!shutdownInProgress) {
+        logger.imp('Gracefully shutting down continual anchoring')
+        controller.abort()
+        shutdownInProgress = this.stop()
+          .then(() => {
+            process.exit(0)
+          })
+          .catch((error) => {
+            console.error(error)
+            process.exit(1)
+          })
+      }
+    }
+    process.on('SIGINT', shutdownSignalHandler)
+    process.on('SIGTERM', shutdownSignalHandler)
+    process.on('SIGQUIT', shutdownSignalHandler)
+
+    const task = async () => {
+      await anchorService.anchorRequests({ signal: controller.signal }).catch((error) => {
+        logger.err(`Error when anchoring: ${error}`)
+        Metrics.count(METRIC_NAMES.ERROR_WHEN_ANCHORING, 1, {
+          message: error.message.substring(0, 50),
+        })
+      })
+
+      logger.imp(
+        `Temporarily skipping stream garbage collection to avoid unpinning important streams from private node`
+      )
+      // TODO: Uncomment once CAS has its own Ceramic node
+      // await anchorService.garbageCollectPinnedStreams().catch((error) => {
+      //   logger.err(`Error when garbage collecting pinned streams: ${error}`)
+      // })
+    }
+
+    continualAnchoringService.start(task, this.config.schedulerIntervalMS)
   }
 }

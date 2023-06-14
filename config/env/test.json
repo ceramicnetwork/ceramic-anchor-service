@@ -57,7 +57,7 @@
     "awsRegion": "us-east-1",
     "sqsBatchQueueUrl": "batchQueueUrl",
     "sqsFailureQueueUrl": "",
-    "usePolling": false,
+    "pollingIntervalMS": 1000,
     "maxTimeToHoldMessageSec": 10800,
     "waitTimeForMessageSec": 30
   }

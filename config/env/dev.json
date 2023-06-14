@@ -71,7 +71,7 @@
     "awsRegion": "@@AWS_REGION",
     "sqsBatchQueueUrl": "@@SQS_BATCH_QUEUE_URL",
     "sqsFailureQueueUrl": "@@SQS_FAILURE_QUEUE_URL",
-    "usePolling": "@@SQS_QUEUE_USE_POLLING",
+    "pollingIntervalMS": "@@QUEUE_POLLING_INTERVAL_MS",
     "maxTimeToHoldMessageSec": "@@MAX_TIME_TO_HOLD_MESSAGE_SEC",
     "waitTimeForMessageSec": "@@WAIT_TIME_FOR_MESSAGE_SEC"
   }

@@ -1,10 +1,11 @@
+import { AbortOptions } from '@ceramicnetwork/common'
 import { QueueMessageData } from '../../models/queue-message.js'
 
 /**
  * Queue consumer interface
  */
 export interface IQueueConsumerService<T extends QueueMessageData> {
-  receiveMessage(): Promise<IQueueMessage<T> | undefined>
+  receiveMessage(abortOptions?: AbortOptions): Promise<IQueueMessage<T> | undefined>
 }
 
 /**

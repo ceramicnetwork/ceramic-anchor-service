@@ -13,9 +13,10 @@ import {
   IQueueMessage,
 } from './queue-service.type.js'
 import type { Config } from 'node-config-ts'
-import { defer, retry, first, repeat, firstValueFrom } from 'rxjs'
 import { AnchorBatch } from '../../models/queue-message.js'
 import { Codec, decode } from 'codeco'
+import { AbortOptions } from '@ceramicnetwork/common'
+import { Utils } from '../../utils.js'
 
 /**
  * Sqs Queue Message received by consumers.
@@ -65,7 +66,7 @@ export class SqsQueueService<TValue extends QueueMessageData>
   implements IQueueConsumerService<TValue>, IQueueProducerService<TValue>
 {
   private readonly sqsClient: SQSClient
-  private readonly usePolling: boolean
+  private readonly pollingIntervalMS: number
   private readonly maxTimeToHoldMessageSec: number
   private readonly waitTimeForMessageSec: number
 
@@ -81,7 +82,7 @@ export class SqsQueueService<TValue extends QueueMessageData>
       region: config.queue.awsRegion,
       endpoint: this.sqsQueueUrl,
     })
-    this.usePolling = config.queue.usePolling
+    this.pollingIntervalMS = config.queue.pollingIntervalMS
     this.maxTimeToHoldMessageSec = config.queue.maxTimeToHoldMessageSec
     this.waitTimeForMessageSec = config.queue.waitTimeForMessageSec
   }
@@ -90,7 +91,7 @@ export class SqsQueueService<TValue extends QueueMessageData>
    * Consumes the next message off the queue
    * @returns One Sqs Queue Message
    */
-  async receiveMessage(): Promise<IQueueMessage<TValue> | undefined> {
+  async receiveMessage(abortOptions?: AbortOptions): Promise<IQueueMessage<TValue> | undefined> {
     const receiveMessageCommandInput = {
       QueueUrl: this.sqsQueueUrl,
       AttributeNames: ['All'],
@@ -100,22 +101,19 @@ export class SqsQueueService<TValue extends QueueMessageData>
       WaitTimeSeconds: this.waitTimeForMessageSec,
     }
 
-    let output
-    if (this.usePolling) {
-      output = await firstValueFrom(
-        defer(() =>
-          this.sqsClient.send(new ReceiveMessageCommand(receiveMessageCommandInput))
-        ).pipe(
-          repeat({ delay: 1000 }),
-          retry({ delay: 1000 }),
-          first((result) => Boolean(result.Messages))
-        )
-      )
-    } else {
-      output = await this.sqsClient.send(new ReceiveMessageCommand(receiveMessageCommandInput))
-    }
+    const messages = await Utils.poll(
+      () => {
+        return this.sqsClient
+          .send(new ReceiveMessageCommand(receiveMessageCommandInput), {
+            abortSignal: abortOptions?.signal,
+          })
+          .then((result) => result.Messages)
+      },
+      this.pollingIntervalMS,
+      abortOptions
+    )
 
-    if (!output.Messages || output.Messages.length !== 1) {
+    if (!messages || messages.length !== 1) {
       return undefined
     }
 
@@ -123,7 +121,7 @@ export class SqsQueueService<TValue extends QueueMessageData>
       this.sqsClient,
       this.sqsQueueUrl,
       this.messageType,
-      output.Messages[0] as Message
+      messages[0] as Message
     )
   }
 
