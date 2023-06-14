@@ -42,9 +42,7 @@ async function runMigrations(connection: Knex) {
 export async function createDbConnection(dbConfig: Db = config.db): Promise<Knex> {
   const knexConfig: Knex.Config = {
     client: dbConfig.client,
-    connection: dbConfig.connection.connectionString
-      ? dbConfig.connection.connectionString
-      : dbConfig.connection,
+    connection: dbConfig.connection.connectionString || dbConfig.connection,
     debug: dbConfig.debug,
     migrations: dbConfig.migrations,
 
