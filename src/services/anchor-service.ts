@@ -32,6 +32,7 @@ import { AnchorBatch } from '../models/queue-message.js'
 import { create as createMultihash } from 'multiformats/hashes/digest'
 import { CAR } from 'cartonne'
 import { AbortOptions } from '@ceramicnetwork/common'
+import type { IMerkleCarService } from './merkle-car-service.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
@@ -141,6 +142,7 @@ export class AnchorService {
     'eventProducerService',
     'metadataService',
     'anchorBatchQueueService',
+    'merkleCarService',
   ] as const
 
   constructor(
@@ -153,7 +155,8 @@ export class AnchorService {
     private readonly connection: Knex,
     private readonly eventProducerService: EventProducerService,
     private readonly metadataService: IMetadataService,
-    private readonly anchorBatchQueueService: IQueueConsumerService<AnchorBatch>
+    private readonly anchorBatchQueueService: IQueueConsumerService<AnchorBatch>,
+    private readonly merkleCarService: IMerkleCarService | null
   ) {
     this.merkleDepthLimit = config.merkleDepthLimit
     this.useSmartContractAnchors = config.useSmartContractAnchors
@@ -285,6 +288,10 @@ export class AnchorService {
   }
 
   private async _anchorCandidates(candidates: Candidate[]): Promise<Partial<AnchorSummary>> {
+    if (!this.merkleCarService) {
+      throw new Error(`Anchor Service instantiated without a MerkleCarService`)
+    }
+
     logger.imp(`Creating Merkle tree from ${candidates.length} selected streams`)
     const span = Metrics.startSpan('anchor_candidates')
     const merkleTree = await this._buildMerkleTree(candidates)
@@ -304,6 +311,7 @@ export class AnchorService {
     const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
 
     await this.ipfsService.importCAR(merkleTree.car)
+    await this.merkleCarService.storeCarFile(ipfsProofCid, merkleTree.car)
 
     // Update the database to record the successful anchors
     logger.debug('Persisting results to local database')
@@ -503,10 +511,7 @@ export class AnchorService {
    * @returns The number of anchors persisted
    * @private
    */
-  async _persistAnchorResult(
-    anchors: FreshAnchor[],
-    candidates: Candidate[]
-  ): Promise<number> {
+  async _persistAnchorResult(anchors: FreshAnchor[], candidates: Candidate[]): Promise<number> {
     // filter to requests for streams that were actually anchored successfully
     const acceptedRequests = []
     for (const candidate of candidates) {

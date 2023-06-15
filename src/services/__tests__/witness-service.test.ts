@@ -21,6 +21,7 @@ import { Request } from '../../models/request.js'
 import { AnchorBatchSqsQueueService } from '../queue/sqs-queue-service.js'
 import { CAR, CARFactory } from 'cartonne'
 import all from 'it-all'
+import { makeMerkleCarService } from '../merkle-car-service.js'
 
 const MERKLE_DEPTH_LIMIT = 3
 const READY_RETRY_INTERVAL_MS = 1000
@@ -66,6 +67,7 @@ beforeAll(async () => {
     .provideClass('eventProducerService', MockEventProducerService)
     .provideClass('metadataService', MetadataService)
     .provideClass('anchorBatchQueueService', AnchorBatchSqsQueueService)
+    .provideFactory('merkleCarService', makeMerkleCarService)
     .provideClass('anchorService', AnchorService)
 
   requestRepository = injector.resolve('requestRepository')

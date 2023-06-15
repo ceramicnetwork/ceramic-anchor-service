@@ -197,6 +197,9 @@ async function makeCAS(
   configCopy.blockchain.connectors.ethereum.network = 'ganache'
   configCopy.blockchain.connectors.ethereum.rpc.port = String(minConfig.ganachePort)
   configCopy.useSmartContractAnchors = minConfig.useSmartContractAnchors
+  configCopy.carStorage = {
+    mode: 'inmemory',
+  }
   return new CeramicAnchorApp(
     container.provideValue('config', configCopy).provideValue('dbConnection', dbConnection)
   )

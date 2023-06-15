@@ -1,4 +1,6 @@
 import type { CID } from 'multiformats/cid'
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
+import { METRIC_NAMES } from '../settings.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
 import type {
   RequestPresentation,
@@ -6,6 +8,7 @@ import type {
 } from './request-presentation-service.js'
 import type { RequestAnchorParams } from '../ancillary/anchor-request-params-parser.js'
 import type { IMetadataService } from './metadata-service.js'
+import type { GenesisFields } from '../models/metadata'
 import { Request, RequestStatus } from '../models/request.js'
 
 export class RequestService {
@@ -38,10 +41,12 @@ export class RequestService {
   }
 
   async createOrUpdate(params: RequestAnchorParams, origin: string): Promise<RequestPresentation> {
+    let genesisFields : GenesisFields
     if ('genesisFields' in params) {
+      genesisFields = params.genesisFields
       await this.metadataService.fill(params.streamId, params.genesisFields)
     } else {
-      await this.metadataService.fillFromIpfs(params.streamId)
+      genesisFields = await this.metadataService.fillFromIpfs(params.streamId)
     }
 
     const request = new Request()
@@ -58,6 +63,16 @@ export class RequestService {
 
     const storedRequest = await this.requestRepository.createOrUpdate(request)
     await this.requestRepository.markPreviousReplaced(storedRequest)
+
+    const did = genesisFields?.controllers?.[0]
+
+    Metrics.count(METRIC_NAMES.WRITE_TOTAL_TSDB, 1, {
+      cid: request.cid,
+      did,
+      schema: genesisFields?.schema,
+      family: genesisFields?.family,
+      model: genesisFields?.model
+    })
 
     return this.requestPresentationService.body(storedRequest)
   }

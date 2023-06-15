@@ -45,7 +45,8 @@
       "database": "test-db",
       "host": "localhost",
       "user": "test-user",
-      "port": 5432
+      "port": 5432,
+      "connectionString": "@@DATABASE_URL"
     },
     "debug": false,
     "migrations": {

@@ -15,7 +15,7 @@ import { commitIdAsString, streamIdAsBytes, uint8array } from '@ceramicnetwork/c
 export interface IMetadataService {
   fill(streamId: StreamID, genesisFields: GenesisFields): Promise<void>
   fillAllFromIpfs(streamIds: Array<StreamID>, options?: AbortOptions): Promise<void>
-  fillFromIpfs(streamId: StreamID, options?: AbortOptions): Promise<void>
+  fillFromIpfs(streamId: StreamID, options?: AbortOptions): Promise<GenesisFields>
   retrieve(streamId: StreamID): Promise<StoredMetadata | undefined>
 }
 
@@ -67,12 +67,13 @@ export class MetadataService implements IMetadataService {
   /**
    * Retrieve genesis header fields from IPFS, store to the database.
    */
-  async fillFromIpfs(streamId: StreamID, options: AbortOptions = {}): Promise<void> {
-    const isPresent = await this.metadataRepository.isPresent(streamId)
-    if (isPresent) return // Do not perform same work of retrieving from IPFS twice
+  async fillFromIpfs(streamId: StreamID, options: AbortOptions = {}): Promise<GenesisFields> {
+    const storedFields = await this.metadataRepository.retrieve(streamId)
+    if (storedFields) return storedFields.metadata // Do not perform same work of retrieving from IPFS twice
     const genesisFields = await this.retrieveFromGenesis(streamId, options)
     await this.storeMetadata(streamId, genesisFields)
     logger.debug(`Filled metadata from IPFS for ${streamId}`)
+    return genesisFields
   }
 
   /**

@@ -38,7 +38,7 @@ import { AnchorRequestParamsParser } from './ancillary/anchor-request-params-par
 import { HealthcheckService, IHealthcheckService } from './services/healthcheck-service.js'
 import { RequestService } from './services/request-service.js'
 import { AnchorBatchSqsQueueService } from './services/queue/sqs-queue-service.js'
-import { InMemoryMerkleCarService, S3MerkleCarService } from './services/merkle-car-service.js'
+import { makeMerkleCarService, type IMerkleCarService } from './services/merkle-car-service.js'
 
 type DependenciesContext = {
   config: Config
@@ -59,6 +59,7 @@ type ProvidedContext = {
   healthcheckService: IHealthcheckService
   anchorRequestParamsParser: AnchorRequestParamsParser
   requestService: RequestService
+  merkleCarService: IMerkleCarService | null
   continualAnchoringScheduler: TaskSchedulerService
 } & DependenciesContext
 
@@ -96,6 +97,7 @@ export class CeramicAnchorApp {
       .provideClass('ipfsService', IpfsService)
       .provideClass('metadataService', MetadataService)
       .provideClass('anchorBatchQueueService', AnchorBatchSqsQueueService)
+      .provideFactory('merkleCarService', makeMerkleCarService)
       .provideClass('anchorService', AnchorService)
       .provideClass('markReadyScheduler', TaskSchedulerService)
       .provideClass('healthcheckService', HealthcheckService)
@@ -103,14 +105,6 @@ export class CeramicAnchorApp {
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
       .provideClass('requestService', RequestService)
       .provideClass('continualAnchoringScheduler', TaskSchedulerService)
-
-    if (this.config.carStorage.mode === 's3') {
-      this.container.provideClass('merkleCarService', S3MerkleCarService)
-    } else if (this.config.carStorage.mode === 'inmemory') {
-      this.container.provideClass('merkleCarService', InMemoryMerkleCarService)
-    } else {
-      throw new Error(`Unrecognized carStorage mode: ${this.config.carStorage.mode}`)
-    }
 
     try {
       Metrics.start(

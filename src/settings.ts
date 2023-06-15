@@ -49,6 +49,10 @@ export enum METRIC_NAMES {
   ANCHOR_REQUESTS_BATCH_FAILURE_TIME = 'anchor_requests_batch_failure_time',
 
   // *******************************************************************//
+  // Request Service
+  WRITE_TOTAL_TSDB = 'write_total_tsdb', // note _tsdb implies handles high cardinality
+
+  // *******************************************************************//
   // Scheduler Service
   SCHEDULER_TASK_UNCAUGHT_ERROR = 'scheduler_task_uncaught_error',
 
