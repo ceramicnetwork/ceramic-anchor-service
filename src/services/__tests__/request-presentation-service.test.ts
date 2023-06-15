@@ -8,6 +8,7 @@ import type {
 import { generateRequest } from '../../__tests__/test-utils.js'
 import { InMemoryMerkleCarService } from '../merkle-car-service.js'
 import { WitnessService } from '../witness-service.js'
+import { CID } from 'multiformats/cid'
 
 const anchorRepository = {
   findByRequest: jest.fn(),
@@ -17,9 +18,11 @@ const witnessService = new WitnessService()
 
 const service = new RequestPresentationService(anchorRepository, merkleCarService, witnessService)
 
+const FAKE_CID = CID.parse('bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m')
+
 const REQUEST_OVERRIDE = {
   id: '889483296',
-  cid: 'bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m',
+  cid: FAKE_CID.toString(),
   streamId: 'k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72',
   message: 'Fresh request',
   createdAt: new Date('2020-01-02T03:04Z'),
@@ -63,8 +66,8 @@ describe('present by RequestStatus', () => {
     const findByRequestSpy = jest.spyOn(anchorRepository, 'findByRequest')
     const anchor = {
       path: '/some/path',
-      cid: 'anchor-cid',
-      proofCid: 'anchor-proof-cid',
+      cid: FAKE_CID,
+      proofCid: FAKE_CID,
     }
     findByRequestSpy.mockImplementationOnce(async () => {
       return { ...anchor, request: request } as AnchorWithRequest

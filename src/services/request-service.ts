@@ -2,14 +2,13 @@ import type { CID } from 'multiformats/cid'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
-import type {
-  RequestPresentation,
-  RequestPresentationService,
-} from './request-presentation-service.js'
+import type { RequestPresentationService } from './request-presentation-service.js'
 import type { RequestAnchorParams } from '../ancillary/anchor-request-params-parser.js'
 import type { IMetadataService } from './metadata-service.js'
 import type { GenesisFields } from '../models/metadata'
 import { Request, RequestStatus } from '../models/request.js'
+import type { OutputOf } from 'codeco'
+import type { CASResponse } from '../ancillary/anchor-codecs.js'
 
 export class RequestService {
   static inject = [
@@ -25,7 +24,7 @@ export class RequestService {
     private readonly metadataService: IMetadataService
   ) {}
 
-  async getStatusForCid(cid: CID): Promise<RequestPresentation | { error: string }> {
+  async getStatusForCid(cid: CID): Promise<OutputOf<typeof CASResponse> | { error: string }> {
     const request = await this.requestRepository.findByCid(cid)
     if (!request) {
       return { error: 'Request does not exist' }
@@ -34,14 +33,17 @@ export class RequestService {
     return this.requestPresentationService.body(request)
   }
 
-  async findByCid(cid: CID): Promise<RequestPresentation | undefined> {
+  async findByCid(cid: CID): Promise<OutputOf<typeof CASResponse> | undefined> {
     const found = await this.requestRepository.findByCid(cid)
     if (!found) return undefined
     return this.requestPresentationService.body(found)
   }
 
-  async createOrUpdate(params: RequestAnchorParams, origin: string): Promise<RequestPresentation> {
-    let genesisFields : GenesisFields
+  async createOrUpdate(
+    params: RequestAnchorParams,
+    origin: string
+  ): Promise<OutputOf<typeof CASResponse>> {
+    let genesisFields: GenesisFields
     if ('genesisFields' in params) {
       genesisFields = params.genesisFields
       await this.metadataService.fill(params.streamId, params.genesisFields)
@@ -71,7 +73,7 @@ export class RequestService {
       did,
       schema: genesisFields?.schema,
       family: genesisFields?.family,
-      model: genesisFields?.model
+      model: genesisFields?.model,
     })
 
     return this.requestPresentationService.body(storedRequest)

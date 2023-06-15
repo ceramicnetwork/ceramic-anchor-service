@@ -3,11 +3,11 @@
 exports[`present by RequestStatus COMPLETED 1`] = `
 {
   "anchorCommit": {
-    "cid": "anchor-cid",
+    "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
     "content": {
       "path": "/some/path",
       "prev": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
-      "proof": "anchor-proof-cid",
+      "proof": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
     },
   },
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
@@ -25,9 +25,7 @@ exports[`present by RequestStatus COMPLETED but no associated anchor 1`] = `
   "anchorCommit": {
     "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
     "content": {
-      "path": undefined,
       "prev": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
-      "proof": undefined,
     },
   },
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",

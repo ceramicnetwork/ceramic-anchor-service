@@ -6,6 +6,7 @@ import {
   optional,
   literal,
   union,
+  number,
   Type,
   type TypeOf,
   type Context,
@@ -16,6 +17,19 @@ import * as DAG_JOSE from 'dag-jose'
 
 const carFactory = new CARFactory()
 carFactory.codecs.add(DAG_JOSE)
+
+export const dateAsUnix = new Type<Date, number, number>(
+  'Date-as-UnixTimestamp',
+  (input: unknown): input is Date => Boolean(input && input instanceof Date),
+  (input: number, context: Context) => {
+    try {
+      return context.success(new Date(input))
+    } catch {
+      return context.failure()
+    }
+  },
+  (date) => date.getTime()
+)
 
 /**
  * codeco codec for CAR file encoded as a Uint8Array.
@@ -47,7 +61,14 @@ export enum RequestStatusName {
 export const CommitPresentation = sparse(
   {
     content: optional(
-      sparse({ path: optional(string), prev: string, proof: optional(string) }, 'content')
+      sparse(
+        {
+          path: optional(string),
+          prev: string.pipe(cidAsString),
+          proof: optional(string.pipe(cidAsString)),
+        },
+        'content'
+      )
     ),
     cid: string.pipe(cidAsString),
   },
@@ -66,21 +87,24 @@ export type NotCompleteStatusName = TypeOf<typeof NotCompleteStatusName>
 
 export const NotCompleteCASResponse = sparse(
   {
+    id: string,
     status: NotCompleteStatusName,
     streamId: streamIdAsString,
     cid: cidAsString,
     message: string,
+    createdAt: optional(number.pipe(dateAsUnix)),
+    updatedAt: optional(number.pipe(dateAsUnix)),
   },
   'NotCompleteCASResponse'
 )
 export type NotCompleteCASResponse = TypeOf<typeof NotCompleteCASResponse>
 
-export const CompleteCASResponse = type(
+export const CompleteCASResponse = sparse(
   {
     ...NotCompleteCASResponse.props,
     status: literal(RequestStatusName.COMPLETED),
     anchorCommit: CommitPresentation,
-    witnessCar: uint8ArrayAsBase64.pipe(carAsUint8Array),
+    witnessCar: optional(uint8ArrayAsBase64.pipe(carAsUint8Array)),
   },
   'CompleteCASResponse'
 )
