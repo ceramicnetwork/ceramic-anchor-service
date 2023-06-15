@@ -6,12 +6,16 @@ import type {
   IAnchorRepository,
 } from '../../repositories/anchor-repository.type.js'
 import { generateRequest } from '../../__tests__/test-utils.js'
+import { InMemoryMerkleCarService } from '../merkle-car-service.js'
+import { WitnessService } from '../witness-service.js'
 
 const anchorRepository = {
   findByRequest: jest.fn(),
 } as unknown as IAnchorRepository
+const merkleCarService = new InMemoryMerkleCarService()
+const witnessService = new WitnessService()
 
-const service = new RequestPresentationService(anchorRepository)
+const service = new RequestPresentationService(anchorRepository, merkleCarService, witnessService)
 
 const REQUEST_OVERRIDE = {
   id: '889483296',

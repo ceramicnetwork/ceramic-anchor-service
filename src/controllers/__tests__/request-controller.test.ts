@@ -15,7 +15,7 @@ import {
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { RequestStatus } from '../../models/request.js'
-import { StreamID } from '@ceramicnetwork/streamid'
+import { CommitID, StreamID } from '@ceramicnetwork/streamid'
 import type { IMetadataService } from '../../services/metadata-service.js'
 import { DateTime } from 'luxon'
 import { mockRequest, mockResponse } from './mock-request.util.js'
@@ -29,6 +29,8 @@ import { StoredMetadata } from '../../models/metadata.js'
 import { AnchorRequestParamsParser } from '../../ancillary/anchor-request-params-parser.js'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 import { RequestService } from '../../services/request-service.js'
+import { WitnessService } from '../../services/witness-service.js'
+import { makeMerkleCarService } from '../../services/merkle-car-service.js'
 
 type Tokens = {
   requestController: RequestController
@@ -56,8 +58,14 @@ class MockMetadataService implements IMetadataService {
     return
   }
 
-  async fillFromIpfs(): Promise<void> {
-    return
+  async fillFromIpfs(): Promise<GenesisFields> {
+    // Fake GenesisFields
+    return {
+      controllers: ['did:method:fake'],
+      schema: CommitID.fromString(
+        'k1dpgaqe3i64kjqcp801r3sn7ysi5i0k7nxvs7j351s7kewfzr3l7mdxnj7szwo4kr9mn2qki5nnj0cv836ythy1t1gya9s25cn1nexst3jxi5o3h6qprfyju'
+      ),
+    }
   }
 
   async fillAll(): Promise<void> {
@@ -89,6 +97,8 @@ describe('createRequest', () => {
       .provideFactory('requestRepository', RequestRepository.make)
       .provideClass('anchorRepository', AnchorRepository)
       .provideClass('ipfsService', MockIpfsService)
+      .provideFactory('merkleCarService', makeMerkleCarService)
+      .provideClass('witnessService', WitnessService)
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('metadataService', MockMetadataService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
