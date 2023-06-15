@@ -51,11 +51,22 @@ const carFactory = new CARFactory()
 carFactory.codecs.add(DAG_JOSE)
 
 export class S3MerkleCarService implements IMerkleCarService {
-  readonly s3store: LevelUp.LevelUp
+  readonly s3StorePath: string
+  private _s3store?: LevelUp.LevelUp
 
   constructor(config: Config) {
-    const s3StorePath = config.carStorage.s3BucketName + S3_STORE_SUFFIX
-    this.s3store = new LevelUp(new S3LevelDOWN(s3StorePath, new AWSSDK.S3()))
+    this.s3StorePath = config.carStorage.s3BucketName + S3_STORE_SUFFIX
+  }
+
+  /**
+   * `new LevelUp` attempts to open a database, which leads to a request to AWS.
+   * Let's make initialization lazy.
+   */
+  get s3store(): LevelUp.LevelUp {
+    if (!this._s3store) {
+      this._s3store = new LevelUp(new S3LevelDOWN(this.s3StorePath, new AWSSDK.S3()))
+    }
+    return this._s3store
   }
 
   /**
