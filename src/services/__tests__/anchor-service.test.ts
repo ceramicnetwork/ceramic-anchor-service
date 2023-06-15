@@ -121,7 +121,6 @@ describe('anchor service', () => {
             type: 'sqs',
             awsRegion: 'test',
             sqsBatchQueueUrl: 'test',
-            usePolling: false,
             maxTimeToHoldMessageSec: 10,
             waitTimeForMessageSec: 5,
           },

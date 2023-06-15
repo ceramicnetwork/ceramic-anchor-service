@@ -31,6 +31,7 @@ import { IQueueConsumerService } from './queue/queue-service.type.js'
 import { AnchorBatch } from '../models/queue-message.js'
 import { create as createMultihash } from 'multiformats/hashes/digest'
 import { CAR } from 'cartonne'
+import { AbortOptions } from '@ceramicnetwork/common'
 import type { IMerkleCarService } from './merkle-car-service.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
@@ -171,9 +172,9 @@ export class AnchorService {
    * Creates anchors for pending client requests
    */
   // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
-  async anchorRequests(): Promise<void> {
+  async anchorRequests(abortOptions?: AbortOptions): Promise<void> {
     if (this.useQueueBatches) {
-      return this.anchorNextQueuedBatch()
+      return this.anchorNextQueuedBatch(abortOptions)
     } else {
       const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
 
@@ -189,7 +190,11 @@ export class AnchorService {
   /**
    * Creates anchors for client requests that have been marked as READY
    */
-  async anchorNextQueuedBatch(): Promise<void> {
+  async anchorNextQueuedBatch(abortOptions?: AbortOptions): Promise<void> {
+    if (abortOptions?.signal?.aborted) {
+      throw new Error('User aborted before the next batch has been retrieved')
+    }
+
     if (!this.useQueueBatches) {
       throw new Error(
         'Cannot anchor next queued batch as the worker is not configured to do so. Please set `useQueueBatches` in the config if this is desired.'
@@ -197,7 +202,7 @@ export class AnchorService {
     }
 
     logger.imp('Retrieving next job from queue')
-    const batchMessage = await this.anchorBatchQueueService.receiveMessage()
+    const batchMessage = await this.anchorBatchQueueService.receiveMessage(abortOptions)
 
     if (!batchMessage) {
       // TODO: Add metric here
@@ -208,6 +213,10 @@ export class AnchorService {
     try {
       logger.imp('Anchoring requests from the batch')
       const requests = await this.requestRepository.findByIds(batchMessage.data.rids)
+
+      if (abortOptions?.signal?.aborted) {
+        throw new Error('User aborted before the batch could begin the anchoring process')
+      }
 
       logger.imp('Anchoring requests')
       await this._anchorRequests(requests)
