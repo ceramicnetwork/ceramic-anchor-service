@@ -15,6 +15,7 @@ import { RequestStatusName } from '@ceramicnetwork/anchor-utils'
 import { CID } from 'multiformats/cid'
 import { StreamID } from '@ceramicnetwork/streamid'
 import type { OutputOf } from 'codeco'
+import { LRUCache } from 'lru-cache'
 
 const NAME_FROM_STATUS = {
   [RequestStatus.REPLACED]: RequestStatusName.REPLACED,
@@ -25,11 +26,15 @@ const NAME_FROM_STATUS = {
   [RequestStatus.COMPLETED]: RequestStatusName.READY,
 } as const
 
+const WITNESS_CAR_CACHE = 1000 // ~2MiB if one witness car is 2KiB
+
 /**
  * Render anchoring Request as JSON for a client to consume.
  */
 export class RequestPresentationService {
   static inject = ['anchorRepository', 'merkleCarService', 'witnessService'] as const
+
+  private readonly cache = new LRUCache<string, CAR>({ max: WITNESS_CAR_CACHE })
 
   constructor(
     private readonly anchorRepository: IAnchorRepository,
@@ -39,9 +44,14 @@ export class RequestPresentationService {
 
   async witnessCAR(anchor: AnchorWithRequest | null): Promise<CAR | null> {
     if (!anchor) return null // TODO Add metric
+    const cacheKey = anchor.cid.toString()
+    const fromCache = this.cache.get(cacheKey)
+    if (fromCache) return fromCache
     const merkleCAR = await this.merkleCarService.retrieveCarFile(anchor.proofCid)
     if (!merkleCAR) return null // TODO Add metric
-    return this.witnessService.buildWitnessCAR(anchor.cid, merkleCAR)
+    const witnessCAR = this.witnessService.buildWitnessCAR(anchor.cid, merkleCAR)
+    this.cache.set(cacheKey, witnessCAR)
+    return witnessCAR
   }
 
   async response(request: Request): Promise<CASResponse> {
