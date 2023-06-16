@@ -1,4 +1,4 @@
-import { describe, expect, jest, test, beforeAll, afterAll, beforeEach } from '@jest/globals'
+import { describe, expect, jest, test, beforeAll, afterAll } from '@jest/globals'
 import { createDbConnection, clearTables } from '../../db-connection.js'
 import { createInjector, Injector } from 'typed-inject'
 import { config } from 'node-config-ts'
