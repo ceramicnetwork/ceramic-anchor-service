@@ -25,9 +25,8 @@ export function makeMerkleCarService(config: Config): IMerkleCarService {
     case 's3':
       return new S3MerkleCarService(config)
     case 'inmemory':
-      return new InMemoryMerkleCarService()
     default:
-      throw new Error(`Unrecognized carStorage mode: ${mode}`)
+      return new InMemoryMerkleCarService()
   }
 }
 makeMerkleCarService.inject = ['config'] as const
