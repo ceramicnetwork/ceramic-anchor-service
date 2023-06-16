@@ -700,7 +700,7 @@ describe('anchor service', () => {
       anchorBatchQueueService.reset()
     })
 
-    test('No batch', async () => {
+    test('Does not anchor anything if there is no batch', async () => {
       const numRequests = 4
       await fake.multipleRequests(numRequests)
 
@@ -712,7 +712,7 @@ describe('anchor service', () => {
       expect(anchorBatchQueueService.receiveMessage).toHaveReturnedWith(undefined)
     })
 
-    test('batch and successfully anchored', async () => {
+    test('Can successfuly anchor a batch and ack it', async () => {
       const numRequests = 4
       const requests = await fake.multipleRequests(numRequests)
 
@@ -745,7 +745,7 @@ describe('anchor service', () => {
       }
     })
 
-    test('batch and failed anchor', async () => {
+    test('Will nack the batch if the anchor failed', async () => {
       const numRequests = 4
       const requests = await fake.multipleRequests(numRequests)
 
@@ -765,6 +765,42 @@ describe('anchor service', () => {
       expect(completedRequests.length).toEqual(0)
 
       expect(batch.nack).toHaveBeenCalledTimes(1)
+    })
+
+    test('Ignores replaced requests when anchoring a batch', async () => {
+      const numRequests = 4
+      const requests = await Promise.all([
+        fake.multipleRequests(numRequests / 2),
+        fake.multipleRequests(numRequests / 2, RequestStatus.REPLACED),
+      ]).then((x) => x.flat())
+
+      const batch = new MockQueueMessage({
+        bid: uuidv4(),
+        rids: requests.map(({ id }) => id),
+      })
+      anchorBatchQueueService.receiveMessage.mockReturnValue(Promise.resolve(batch))
+
+      const original = blockchainService.sendTransaction
+      blockchainService.sendTransaction = () => {
+        return Promise.resolve(fakeTransaction)
+      }
+
+      try {
+        await anchorService.anchorRequests()
+
+        const remainingRequests = await requestRepository.findByStatus(RequestStatus.PENDING)
+        expect(remainingRequests.length).toEqual(0)
+
+        const completedRequests = await requestRepository.findByStatus(RequestStatus.COMPLETED)
+        expect(completedRequests.length).toEqual(numRequests / 2)
+
+        const replacedRequests = await requestRepository.findByStatus(RequestStatus.REPLACED)
+        expect(replacedRequests.length).toEqual(numRequests / 2)
+
+        expect(batch.ack).toHaveBeenCalledTimes(1)
+      } finally {
+        blockchainService.sendTransaction = original
+      }
     })
   })
 })
