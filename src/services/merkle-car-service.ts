@@ -55,7 +55,9 @@ export class S3MerkleCarService implements IMerkleCarService {
 
   constructor(config: Config) {
     const s3StorePath = config.carStorage.s3BucketName + S3_STORE_SUFFIX
-    this.s3store = new LevelUp(new S3LevelDOWN(s3StorePath, new AWSSDK.S3()))
+    this.s3store = new LevelUp(new S3LevelDOWN(s3StorePath, new AWSSDK.S3()), () => {
+      //do nothing if the db fails to open
+    })
   }
 
   /**

@@ -1,5 +1,5 @@
-import { describe, expect, jest, test, beforeAll, afterAll } from '@jest/globals'
-import { createDbConnection } from '../../db-connection.js'
+import { describe, expect, jest, test, beforeAll, afterAll, beforeEach } from '@jest/globals'
+import { createDbConnection, clearTables } from '../../db-connection.js'
 import { createInjector, Injector } from 'typed-inject'
 import { config } from 'node-config-ts'
 import { RequestController } from '../request-controller.js'
@@ -82,6 +82,7 @@ describe('createRequest', () => {
 
   beforeAll(async () => {
     dbConnection = await createDbConnection()
+    await clearTables(dbConnection)
     container = createInjector()
       .provideValue('config', config)
       .provideValue('dbConnection', dbConnection)
