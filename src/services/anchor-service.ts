@@ -28,7 +28,7 @@ import { pathString, type CIDHolder, type TreeMetadata } from '@ceramicnetwork/a
 import { Candidate } from './candidate.js'
 import { MerkleCarFactory, type IMerkleTree, type MerkleCAR } from '../merkle/merkle-car-factory.js'
 import { IQueueConsumerService } from './queue/queue-service.type.js'
-import { AnchorBatch } from '../models/queue-message.js'
+import { AnchorBatchQMessage } from '../models/queue-message.js'
 import { create as createMultihash } from 'multiformats/hashes/digest'
 import { CAR } from 'cartonne'
 import { AbortOptions } from '@ceramicnetwork/common'
@@ -155,7 +155,7 @@ export class AnchorService {
     private readonly connection: Knex,
     private readonly eventProducerService: EventProducerService,
     private readonly metadataService: IMetadataService,
-    private readonly anchorBatchQueueService: IQueueConsumerService<AnchorBatch>,
+    private readonly anchorBatchQueueService: IQueueConsumerService<AnchorBatchQMessage>,
     private readonly merkleCarService: IMerkleCarService | null
   ) {
     this.merkleDepthLimit = config.merkleDepthLimit

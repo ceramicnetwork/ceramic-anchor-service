@@ -1,5 +1,5 @@
 import { describe, expect, jest, test, beforeAll, afterAll } from '@jest/globals'
-import { createDbConnection } from '../../db-connection.js'
+import { createDbConnection, clearTables } from '../../db-connection.js'
 import { createInjector, Injector } from 'typed-inject'
 import { config } from 'node-config-ts'
 import { RequestController } from '../request-controller.js'
@@ -29,6 +29,7 @@ import { StoredMetadata } from '../../models/metadata.js'
 import { AnchorRequestParamsParser } from '../../ancillary/anchor-request-params-parser.js'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 import { RequestService } from '../../services/request-service.js'
+import { ValidationSqsQueueService } from '../../services/queue/sqs-queue-service.js'
 
 type Tokens = {
   requestController: RequestController
@@ -82,6 +83,7 @@ describe('createRequest', () => {
 
   beforeAll(async () => {
     dbConnection = await createDbConnection()
+    await clearTables(dbConnection)
     container = createInjector()
       .provideValue('config', config)
       .provideValue('dbConnection', dbConnection)
@@ -92,6 +94,7 @@ describe('createRequest', () => {
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('metadataService', MockMetadataService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
+      .provideClass('validationQueueService', ValidationSqsQueueService)
       .provideClass('requestService', RequestService)
       .provideClass('requestController', RequestController)
     controller = container.resolve('requestController')
@@ -313,6 +316,53 @@ describe('createRequest', () => {
       const markPreviousReplacedSpy = jest.spyOn(requestRepository, 'markPreviousReplaced')
       await controller.createRequest(req, mockResponse())
       expect(markPreviousReplacedSpy).toBeCalledTimes(1)
+    })
+  })
+
+  describe('Publish to queue', () => {
+    let container
+    let controllerPublishingToQueue
+    beforeAll(() => {
+      container = createInjector()
+        .provideValue('config', {
+          ...config,
+          useQueueBatches: true,
+          queue: { sqsQueueUrl: 'testurl' },
+        })
+        .provideValue('dbConnection', dbConnection)
+        .provideClass('metadataRepository', MetadataRepository)
+        .provideFactory('requestRepository', RequestRepository.make)
+        .provideClass('anchorRepository', AnchorRepository)
+        .provideClass('ipfsService', MockIpfsService)
+        .provideClass('requestPresentationService', RequestPresentationService)
+        .provideClass('metadataService', MockMetadataService)
+        .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
+        .provideClass('validationQueueService', ValidationSqsQueueService)
+        .provideClass('requestService', RequestService)
+        .provideClass('requestController', RequestController)
+
+      controllerPublishingToQueue = container.resolve('requestController')
+    })
+
+    test('Will publish to queue when new request is created', async () => {
+      const cid = randomCID()
+      const streamId = randomStreamID()
+      const req = mockRequest({
+        body: {
+          cid: cid.toString(),
+          streamId: streamId.toString(),
+        },
+      })
+      const validationQueueService = container.resolve('validationQueueService')
+      const sendMessageSpy = jest
+        .spyOn(validationQueueService, 'sendMessage')
+        .mockReturnValue(Promise.resolve())
+      const requestRepository = container.resolve('requestRepository')
+      const markPreviousReplacedSpy = jest.spyOn(requestRepository, 'markPreviousReplaced')
+      await controllerPublishingToQueue.createRequest(req, mockResponse())
+      expect(sendMessageSpy).toBeCalledTimes(1)
+      // should not mark requests as replaced, the validation service will handle this
+      expect(markPreviousReplacedSpy).toBeCalledTimes(0)
     })
   })
 

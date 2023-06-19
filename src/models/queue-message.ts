@@ -1,13 +1,27 @@
-import { array, string, type, type TypeOf } from 'codeco'
+import { array, string, type, type TypeOf, union } from 'codeco'
+import { date } from '@ceramicnetwork/codecs'
 
-export const AnchorBatch = type(
+export const AnchorBatchQMessage = type(
   {
     bid: string,
     rids: array(string),
   },
-  'AnchorBatch'
+  'AnchorBatchQMessage'
 )
-export type AnchorBatch = TypeOf<typeof AnchorBatch>
+export type AnchorBatchQMessage = TypeOf<typeof AnchorBatchQMessage>
 
-export const QueueMessageData = AnchorBatch
-export type QueueMessageData = AnchorBatch
+export const RequestQMessage = type(
+  {
+    rid: string,
+    cid: string,
+    sid: string,
+    ts: date,
+    org: string,
+    crt: date,
+  },
+  'RequestQMessage'
+)
+export type RequestQMessage = TypeOf<typeof RequestQMessage>
+
+export const QueueMessageData = union([RequestQMessage, AnchorBatchQMessage], 'QueueMessageData')
+export type QueueMessageData = TypeOf<typeof QueueMessageData>

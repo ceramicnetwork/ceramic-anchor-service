@@ -27,7 +27,7 @@ import { asDIDString } from '@ceramicnetwork/codecs'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 import type { AbortOptions } from '../abort-options.type.js'
 import { IQueueConsumerService, IQueueMessage } from '../queue/queue-service.type.js'
-import { AnchorBatch, QueueMessageData } from '../../models/queue-message.js'
+import { AnchorBatchQMessage, QueueMessageData } from '../../models/queue-message.js'
 import { Candidate } from '../candidate.js'
 import { FakeFactory } from './fake-factory.util.js'
 import { FakeEthereumBlockchainService } from './fake-ethereum-blockchain-service.util.js'
@@ -120,7 +120,7 @@ describe('anchor service', () => {
           queue: {
             type: 'sqs',
             awsRegion: 'test',
-            sqsBatchQueueUrl: 'test',
+            sqsQueueUrl: 'test',
             maxTimeToHoldMessageSec: 10,
             waitTimeForMessageSec: 5,
           },
@@ -134,7 +134,7 @@ describe('anchor service', () => {
       .provideClass('ipfsService', MockIpfsService)
       .provideClass('eventProducerService', MockEventProducerService)
       .provideClass('metadataService', MetadataService)
-      .provideClass('anchorBatchQueueService', MockQueueService<AnchorBatch>)
+      .provideClass('anchorBatchQueueService', MockQueueService<AnchorBatchQMessage>)
       .provideFactory('merkleCarService', makeMerkleCarService)
       .provideClass('anchorService', AnchorService)
 
@@ -682,7 +682,7 @@ describe('anchor service', () => {
   })
 
   describe('Anchoring Queued Batches', () => {
-    let anchorBatchQueueService: MockQueueService<AnchorBatch>
+    let anchorBatchQueueService: MockQueueService<AnchorBatchQMessage>
     let blockchainService: FakeEthereumBlockchainService
     const fakeTransaction = new Transaction('test', 'hash', 1, 1)
 

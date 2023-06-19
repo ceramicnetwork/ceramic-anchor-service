@@ -74,8 +74,7 @@
   "queue": {
     "type": "sqs",
     "awsRegion": "us-east-1",
-    "sqsBatchQueueUrl": "",
-    "sqsFailureQueueUrl": "",
+    "sqsQueueUrl": "",
     "pollingIntervalMS": 10000,
     "maxTimeToHoldMessageSec": 10800,
     "waitTimeForMessageSec": 30

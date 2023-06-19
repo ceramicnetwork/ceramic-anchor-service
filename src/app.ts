@@ -37,7 +37,10 @@ import { UnreachableCaseError } from '@ceramicnetwork/common'
 import { AnchorRequestParamsParser } from './ancillary/anchor-request-params-parser.js'
 import { HealthcheckService, IHealthcheckService } from './services/healthcheck-service.js'
 import { RequestService } from './services/request-service.js'
-import { AnchorBatchSqsQueueService } from './services/queue/sqs-queue-service.js'
+import {
+  AnchorBatchSqsQueueService,
+  ValidationSqsQueueService,
+} from './services/queue/sqs-queue-service.js'
 import { makeMerkleCarService, type IMerkleCarService } from './services/merkle-car-service.js'
 
 type DependenciesContext = {
@@ -97,6 +100,7 @@ export class CeramicAnchorApp {
       .provideClass('ipfsService', IpfsService)
       .provideClass('metadataService', MetadataService)
       .provideClass('anchorBatchQueueService', AnchorBatchSqsQueueService)
+      .provideClass('validationQueueService', ValidationSqsQueueService)
       .provideFactory('merkleCarService', makeMerkleCarService)
       .provideClass('anchorService', AnchorService)
       .provideClass('markReadyScheduler', TaskSchedulerService)
