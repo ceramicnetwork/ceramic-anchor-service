@@ -214,12 +214,16 @@ export class AnchorService {
       logger.imp('Anchoring requests from the batch')
       const requests = await this.requestRepository.findByIds(batchMessage.data.rids)
 
+      const requestsNotReplaced = requests.filter(
+        (request) => request.status !== RequestStatus.REPLACED
+      )
+
       if (abortOptions?.signal?.aborted) {
         throw new Error('User aborted before the batch could begin the anchoring process')
       }
 
       logger.imp('Anchoring requests')
-      await this._anchorRequests(requests)
+      await this._anchorRequests(requestsNotReplaced)
 
       // Sleep 5 seconds before exiting the process to give time for the logs to flush.
       await Utils.delay(5000)
