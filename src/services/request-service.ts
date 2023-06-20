@@ -32,7 +32,7 @@ export class RequestService {
     private readonly metadataService: IMetadataService,
     private readonly validationQueueService: IQueueProducerService<RequestQMessage>
   ) {
-    this.publishToQueue = config.useQueueBatches && config.queue.sqsQueueUrl !== ''
+    this.publishToQueue = config.queue.sqsQueueUrl !== ''
   }
 
   async getStatusForCid(cid: CID): Promise<RequestPresentation | { error: string }> {

@@ -326,7 +326,6 @@ describe('createRequest', () => {
       container = createInjector()
         .provideValue('config', {
           ...config,
-          useQueueBatches: true,
           queue: { sqsQueueUrl: 'testurl' },
         })
         .provideValue('dbConnection', dbConnection)

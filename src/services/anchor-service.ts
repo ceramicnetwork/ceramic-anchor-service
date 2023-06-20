@@ -160,7 +160,7 @@ export class AnchorService {
   ) {
     this.merkleDepthLimit = config.merkleDepthLimit
     this.useSmartContractAnchors = config.useSmartContractAnchors
-    this.useQueueBatches = config.useQueueBatches
+    this.useQueueBatches = config.queue.sqsQueueUrl !== ''
 
     const minStreamCount = Number(config.minStreamCount)
     this.maxStreamLimit = this.merkleDepthLimit > 0 ? Math.pow(2, this.merkleDepthLimit) : 0
@@ -197,7 +197,7 @@ export class AnchorService {
 
     if (!this.useQueueBatches) {
       throw new Error(
-        'Cannot anchor next queued batch as the worker is not configured to do so. Please set `useQueueBatches` in the config if this is desired.'
+        'Cannot anchor next queued batch as the worker is not configured to do so. Please set `queue.sqsQueueUrl` in the config if this is desired.'
       )
     }
 

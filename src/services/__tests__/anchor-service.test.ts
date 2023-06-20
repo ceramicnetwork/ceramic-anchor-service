@@ -120,7 +120,7 @@ describe('anchor service', () => {
           queue: {
             type: 'sqs',
             awsRegion: 'test',
-            sqsQueueUrl: 'test',
+            sqsQueueUrl: '',
             maxTimeToHoldMessageSec: 10,
             waitTimeForMessageSec: 5,
           },

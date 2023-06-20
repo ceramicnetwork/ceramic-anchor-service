@@ -2,7 +2,6 @@
   "mode": "@@APP_MODE",
   "port": "@@APP_PORT",
   "useSmartContractAnchors": "@@USE_SMART_CONTRACT_ANCHORS",
-  "useQueueBatches": "@@USE_QUEUE_BATCHES",
   "anchorControllerEnabled": "@@ANCHOR_CONTROLLER_ENABLED",
   "anchorLauncherUrl": "@@ANCHOR_LAUNCHER_URL",
   "expirationPeriod": "@@ANCHOR_EXPIRATION_PERIOD",
