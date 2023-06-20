@@ -343,6 +343,8 @@ describe('createRequest', () => {
         .provideFactory('requestRepository', RequestRepository.make)
         .provideClass('anchorRepository', AnchorRepository)
         .provideClass('ipfsService', MockIpfsService)
+        .provideFactory('merkleCarService', makeMerkleCarService)
+        .provideClass('witnessService', WitnessService)
         .provideClass('requestPresentationService', RequestPresentationService)
         .provideClass('metadataService', MockMetadataService)
         .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
