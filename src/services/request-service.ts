@@ -8,7 +8,7 @@ import type { IMetadataService } from './metadata-service.js'
 import type { GenesisFields } from '../models/metadata'
 import { Request, RequestStatus } from '../models/request.js'
 import type { OutputOf } from 'codeco'
-import type { CASResponse } from '../ancillary/anchor-codecs.js'
+import type { CASResponse } from '@ceramicnetwork/codecs'
 
 export class RequestService {
   static inject = [

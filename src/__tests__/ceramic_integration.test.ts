@@ -326,9 +326,9 @@ describe('Ceramic Integration Test', () => {
     await anchorLauncher.stop()
   })
 
-  describe.each([0, 1])('Using anchor version %i', (version) => {
+  describe('Using anchor version 1', () => {
     beforeAll(async () => {
-      const useSmartContractAnchors = version === 1
+      const useSmartContractAnchors = true
 
       // Start anchor services
       const daemonPort1 = await getPort()

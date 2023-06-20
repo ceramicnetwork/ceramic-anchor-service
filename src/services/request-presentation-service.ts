@@ -6,24 +6,24 @@ import type { IMerkleCarService } from './merkle-car-service.js'
 import type { WitnessService } from './witness-service.js'
 import type { CAR } from 'cartonne'
 import {
+  AnchorCommitPresentation,
+  AnchorRequestStatusName,
+  NotCompleteCASResponse,
   CASResponse,
   CompleteCASResponse,
-  NotCompleteCASResponse,
-  CommitPresentation,
-} from '../ancillary/anchor-codecs.js'
-import { RequestStatusName } from '@ceramicnetwork/anchor-utils'
+} from '@ceramicnetwork/codecs'
 import { CID } from 'multiformats/cid'
 import { StreamID } from '@ceramicnetwork/streamid'
 import type { OutputOf } from 'codeco'
 import { LRUCache } from 'lru-cache'
 
 const NAME_FROM_STATUS = {
-  [RequestStatus.REPLACED]: RequestStatusName.REPLACED,
-  [RequestStatus.FAILED]: RequestStatusName.FAILED,
-  [RequestStatus.PENDING]: RequestStatusName.PENDING,
-  [RequestStatus.PROCESSING]: RequestStatusName.PROCESSING,
-  [RequestStatus.READY]: RequestStatusName.READY,
-  [RequestStatus.COMPLETED]: RequestStatusName.READY,
+  [RequestStatus.REPLACED]: AnchorRequestStatusName.REPLACED,
+  [RequestStatus.FAILED]: AnchorRequestStatusName.FAILED,
+  [RequestStatus.PENDING]: AnchorRequestStatusName.PENDING,
+  [RequestStatus.PROCESSING]: AnchorRequestStatusName.PROCESSING,
+  [RequestStatus.READY]: AnchorRequestStatusName.READY,
+  [RequestStatus.COMPLETED]: AnchorRequestStatusName.READY,
 } as const
 
 const WITNESS_CAR_CACHE = 1000 // ~2MiB if one witness car is 2KiB
@@ -61,20 +61,13 @@ export class RequestPresentationService {
         const anchor = await this.anchorRepository.findByRequest(request)
         const witnessCAR = await this.witnessCAR(anchor)
         // TODO: This is a workaround, fix in CDB-2192
-        const anchorCommit: CommitPresentation = {
+        const anchorCommit: AnchorCommitPresentation = {
           cid: anchor ? anchor.cid : CID.parse(request.cid),
-          content: {
-            // okay to be undefined because it is not used by ceramic node
-            path: anchor?.path,
-            prev: CID.parse(request.cid),
-            // okay to be undefined because it is not used by ceramic node
-            proof: anchor?.proofCid,
-          },
         }
 
         const result: CompleteCASResponse = {
           id: request.id,
-          status: RequestStatusName.COMPLETED,
+          status: AnchorRequestStatusName.COMPLETED,
           cid: CID.parse(request.cid),
           streamId: StreamID.fromString(request.streamId),
           message: request.message,
