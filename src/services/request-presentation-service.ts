@@ -16,6 +16,8 @@ import { CID } from 'multiformats/cid'
 import { StreamID } from '@ceramicnetwork/streamid'
 import type { OutputOf } from 'codeco'
 import { LRUCache } from 'lru-cache'
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
+import { METRIC_NAMES } from '../settings.js'
 
 const NAME_FROM_STATUS = {
   [RequestStatus.REPLACED]: AnchorRequestStatusName.REPLACED,
@@ -43,12 +45,19 @@ export class RequestPresentationService {
   ) {}
 
   async witnessCAR(anchor: AnchorWithRequest | null): Promise<CAR | null> {
-    if (!anchor) return null // TODO Add metric
+    if (!anchor) return null // Expected behaviour
     const cacheKey = anchor.cid.toString()
     const fromCache = this.cache.get(cacheKey)
-    if (fromCache) return fromCache
+    if (fromCache) {
+      Metrics.count(METRIC_NAMES.MERKLE_CAR_CACHE_HIT, 1)
+      return fromCache
+    }
+    Metrics.count(METRIC_NAMES.MERKLE_CAR_CACHE_MISS, 1)
     const merkleCAR = await this.merkleCarService.retrieveCarFile(anchor.proofCid)
-    if (!merkleCAR) return null // TODO Add metric
+    if (!merkleCAR) {
+      Metrics.count(METRIC_NAMES.NO_MERKLE_CAR_FOR_ANCHOR, 1)
+      return null
+    }
     const witnessCAR = this.witnessService.buildWitnessCAR(anchor.cid, merkleCAR)
     this.cache.set(cacheKey, witnessCAR)
     return witnessCAR
@@ -59,6 +68,9 @@ export class RequestPresentationService {
     switch (status) {
       case RequestStatus.COMPLETED: {
         const anchor = await this.anchorRepository.findByRequest(request)
+        if (!anchor) {
+          Metrics.count(METRIC_NAMES.NO_ANCHOR_FOR_REQUEST, 1)
+        }
         const witnessCAR = await this.witnessCAR(anchor)
         // TODO: This is a workaround, fix in CDB-2192
         const anchorCommit: AnchorCommitPresentation = {

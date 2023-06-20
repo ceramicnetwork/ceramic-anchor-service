@@ -7,6 +7,8 @@ import * as DAG_JOSE from 'dag-jose'
 import { logger } from '../logger/index.js'
 import type { Config } from 'node-config-ts'
 import { LRUCache } from 'lru-cache'
+import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
+import { METRIC_NAMES } from '../settings.js'
 
 /**
  * A service for storing and retrieving the CAR file containing the entire anchor merkle tree,
@@ -84,7 +86,12 @@ export class S3MerkleCarService implements IMerkleCarService {
   async retrieveCarFile(anchorProofCID: CID): Promise<CAR | null> {
     const key = anchorProofCID.toString()
     const fromCache = this.cache.get(key)
-    if (fromCache) return fromCache
+    if (fromCache) {
+      Metrics.count(METRIC_NAMES.MERKLE_CAR_CACHE_HIT, 1)
+      return fromCache
+    } else {
+      Metrics.count(METRIC_NAMES.MERKLE_CAR_CACHE_MISS, 1)
+    }
     try {
       const carBytes = await this.s3store.get(key)
       return carFactory.fromBytes(carBytes)

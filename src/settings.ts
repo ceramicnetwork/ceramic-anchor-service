@@ -1,5 +1,4 @@
 export enum METRIC_NAMES {
-
   // *******************************************************************//
   // Anchor Service (counts)
 
@@ -20,6 +19,8 @@ export enum METRIC_NAMES {
   RETRY_EMIT_ANCHOR_EVENT = 'retry_emit_anchor_event',
   REVERT_TO_PENDING = 'revert_to_pending',
   UNPROCESSED_REQUESTS = 'unprocessed_requests',
+  NO_MERKLE_CAR_FOR_ANCHOR = 'no_merkle_car_for_anchor',
+  NO_ANCHOR_FOR_REQUEST = 'no_anchor_for_request',
 
   // Transaction repository
   MANY_ATTEMPTS_TO_ACQUIRE_MUTEX = 'many_attempts_to_acquire_mutex',
@@ -39,7 +40,7 @@ export enum METRIC_NAMES {
   // Anchor Service (histograms)
 
   // request that moves from ready -> processing
-  READY_PROCESSING_MS = "ready_processing_ms",
+  READY_PROCESSING_MS = 'ready_processing_ms',
 
   // request that moves from created -> success
   CREATED_SUCCESS_MS = 'created_success_ms',
@@ -51,6 +52,10 @@ export enum METRIC_NAMES {
   // *******************************************************************//
   // Request Service
   WRITE_TOTAL_TSDB = 'write_total_tsdb', // note _tsdb implies handles high cardinality
+  MERKLE_CAR_CACHE_HIT = 'merkle_car_cache_hit',
+  MERKLE_CAR_CACHE_MISS = 'merkle_car_cache_miss',
+  WITNESS_CAR_CACHE_HIT = 'witness_car_cache_hit',
+  WITNESS_CAR_CACHE_MISS = 'witness_car_cache_miss',
 
   // *******************************************************************//
   // Scheduler Service
@@ -70,5 +75,5 @@ export enum METRIC_NAMES {
   CAR_REQUESTED = 'car_requested',
   LEGACY_REQUESTED = 'legacy_requested',
   REQUEST_INVALID = 'request_invalid',
-  REQUEST_NOT_CREATED = 'request_not_created'
+  REQUEST_NOT_CREATED = 'request_not_created',
 }
