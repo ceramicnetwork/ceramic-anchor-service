@@ -42,6 +42,7 @@ import {
   ValidationSqsQueueService,
 } from './services/queue/sqs-queue-service.js'
 import { makeMerkleCarService, type IMerkleCarService } from './services/merkle-car-service.js'
+import { WitnessService } from './services/witness-service.js'
 
 type DependenciesContext = {
   config: Config
@@ -62,7 +63,7 @@ type ProvidedContext = {
   healthcheckService: IHealthcheckService
   anchorRequestParamsParser: AnchorRequestParamsParser
   requestService: RequestService
-  merkleCarService: IMerkleCarService | null
+  merkleCarService: IMerkleCarService
   continualAnchoringScheduler: TaskSchedulerService
 } & DependenciesContext
 
@@ -105,6 +106,7 @@ export class CeramicAnchorApp {
       .provideClass('anchorService', AnchorService)
       .provideClass('markReadyScheduler', TaskSchedulerService)
       .provideClass('healthcheckService', HealthcheckService)
+      .provideClass('witnessService', WitnessService)
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
       .provideClass('requestService', RequestService)

@@ -156,7 +156,7 @@ export class AnchorService {
     private readonly eventProducerService: EventProducerService,
     private readonly metadataService: IMetadataService,
     private readonly anchorBatchQueueService: IQueueConsumerService<AnchorBatchQMessage>,
-    private readonly merkleCarService: IMerkleCarService | null
+    private readonly merkleCarService: IMerkleCarService
   ) {
     this.merkleDepthLimit = config.merkleDepthLimit
     this.useSmartContractAnchors = config.useSmartContractAnchors
@@ -292,10 +292,6 @@ export class AnchorService {
   }
 
   private async _anchorCandidates(candidates: Candidate[]): Promise<Partial<AnchorSummary>> {
-    if (!this.merkleCarService) {
-      throw new Error(`Anchor Service instantiated without a MerkleCarService`)
-    }
-
     logger.imp(`Creating Merkle tree from ${candidates.length} selected streams`)
     const span = Metrics.startSpan('anchor_candidates')
     const merkleTree = await this._buildMerkleTree(candidates)
