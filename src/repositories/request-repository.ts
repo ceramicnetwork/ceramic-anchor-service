@@ -458,7 +458,7 @@ export class RequestRepository {
       .where({ origin: request.origin, streamId: request.streamId })
       .andWhere({ status: RequestStatus.PENDING })
       .andWhere('timestamp', '<', date.encode(request.timestamp))
-      .update({ status: RequestStatus.REPLACED })
+      .update({ status: RequestStatus.REPLACED, message: `Replaced by ${request.cid}` })
   }
 
   /**

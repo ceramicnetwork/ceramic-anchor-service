@@ -846,6 +846,7 @@ describe('request repository test', () => {
         const retrieved = await requestRepository.findByCid(r.cid)
         expectPresent(retrieved)
         expect(retrieved.status).toEqual(RequestStatus.REPLACED)
+        expect(retrieved.message).toEqual(`Replaced by ${last.cid}`)
       }
       // Last request should be marked PENDING still
       const lastRetrieved = await requestRepository.findByCid(last.cid)
