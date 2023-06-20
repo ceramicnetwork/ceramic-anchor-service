@@ -18,6 +18,7 @@ import type { OutputOf } from 'codeco'
 import { LRUCache } from 'lru-cache'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
+import { logger } from '../logger/index.js'
 
 const NAME_FROM_STATUS = {
   [RequestStatus.REPLACED]: AnchorRequestStatusName.REPLACED,
@@ -56,6 +57,7 @@ export class RequestPresentationService {
     const merkleCAR = await this.merkleCarService.retrieveCarFile(anchor.proofCid)
     if (!merkleCAR) {
       Metrics.count(METRIC_NAMES.NO_MERKLE_CAR_FOR_ANCHOR, 1)
+      logger.warn(`No Merkle CAR found for anchor ${anchor.cid}`)
       return null
     }
     const witnessCAR = this.witnessService.buildWitnessCAR(anchor.cid, merkleCAR)
