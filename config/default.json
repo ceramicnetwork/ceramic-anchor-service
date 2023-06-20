@@ -1,7 +1,6 @@
 {
   "mode": "bundled",
   "useSmartContractAnchors": false,
-  "useQueueBatches": false,
   "port": 8081,
   "anchorControllerEnabled": false,
   "anchorLauncherUrl": "http://localhost:8001",
@@ -74,8 +73,7 @@
   "queue": {
     "type": "sqs",
     "awsRegion": "us-east-1",
-    "sqsBatchQueueUrl": "",
-    "sqsFailureQueueUrl": "",
+    "sqsQueueUrl": "",
     "pollingIntervalMS": 10000,
     "maxTimeToHoldMessageSec": 10800,
     "waitTimeForMessageSec": 30

@@ -13,7 +13,7 @@ import {
   IQueueMessage,
 } from './queue-service.type.js'
 import type { Config } from 'node-config-ts'
-import { AnchorBatch } from '../../models/queue-message.js'
+import { AnchorBatchQMessage, RequestQMessage } from '../../models/queue-message.js'
 import { Codec, decode } from 'codeco'
 import { AbortOptions } from '@ceramicnetwork/common'
 import { Utils } from '../../utils.js'
@@ -140,11 +140,23 @@ export class SqsQueueService<TValue extends QueueMessageData>
 }
 
 /**
+ * ValidationSqsQueueService is used to publish request messages to the validation queue.
+ * The validation queue will dedupe messages and add pass them to the batcher
+ */
+export class ValidationSqsQueueService extends SqsQueueService<RequestQMessage> {
+  constructor(config: Config) {
+    const queueUrl = config.queue.sqsQueueUrl + 'validate'
+    super(config, queueUrl, RequestQMessage)
+  }
+}
+
+/**
  * AnchorBatchSqsQueueService is used to consume and publish anchor batch messages. These batches are anchored by anchor workers
  */
-export class AnchorBatchSqsQueueService extends SqsQueueService<AnchorBatch> {
+export class AnchorBatchSqsQueueService extends SqsQueueService<AnchorBatchQMessage> {
   constructor(config: Config) {
-    super(config, config.queue.sqsBatchQueueUrl, AnchorBatch)
+    const queueUrl = config.queue.sqsQueueUrl + 'batch'
+    super(config, queueUrl, AnchorBatchQMessage)
   }
 }
 
@@ -155,6 +167,7 @@ export class AnchorBatchSqsQueueService extends SqsQueueService<AnchorBatch> {
  */
 export class FailureSqsQueueService extends SqsQueueService<QueueMessageData> {
   constructor(config: Config) {
-    super(config, config.queue.sqsFailureQueueUrl, QueueMessageData)
+    const queueUrl = config.queue.sqsQueueUrl + 'failure'
+    super(config, queueUrl, QueueMessageData)
   }
 }

@@ -7,22 +7,32 @@ import type { RequestAnchorParams } from '../ancillary/anchor-request-params-par
 import type { IMetadataService } from './metadata-service.js'
 import type { GenesisFields } from '../models/metadata'
 import { Request, RequestStatus } from '../models/request.js'
+import { Config } from 'node-config-ts'
+import { IQueueProducerService } from './queue/queue-service.type.js'
+import { RequestQMessage } from '../models/queue-message.js'
 import type { OutputOf } from 'codeco'
 import type { CASResponse } from '@ceramicnetwork/codecs'
 
 export class RequestService {
+  private readonly publishToQueue: boolean
+
   static inject = [
+    'config',
     'requestRepository',
     'requestPresentationService',
     'metadataService',
-    'anchorRequestParamsParser',
+    'validationQueueService',
   ] as const
 
   constructor(
+    config: Config,
     private readonly requestRepository: RequestRepository,
     private readonly requestPresentationService: RequestPresentationService,
-    private readonly metadataService: IMetadataService
-  ) {}
+    private readonly metadataService: IMetadataService,
+    private readonly validationQueueService: IQueueProducerService<RequestQMessage>
+  ) {
+    this.publishToQueue = config.queue.sqsQueueUrl !== ''
+  }
 
   async getStatusForCid(cid: CID): Promise<OutputOf<typeof CASResponse> | { error: string }> {
     const request = await this.requestRepository.findByCid(cid)
@@ -64,7 +74,20 @@ export class RequestService {
     request.timestamp = params.timestamp ?? new Date()
 
     const storedRequest = await this.requestRepository.createOrUpdate(request)
-    await this.requestRepository.markPreviousReplaced(storedRequest)
+
+    if (this.publishToQueue) {
+      // the validation worker will handle replacing requests
+      await this.validationQueueService.sendMessage({
+        rid: storedRequest.id,
+        cid: storedRequest.cid,
+        sid: storedRequest.streamId,
+        ts: storedRequest.timestamp,
+        crt: storedRequest.createdAt,
+        org: origin,
+      })
+    } else {
+      await this.requestRepository.markPreviousReplaced(storedRequest)
+    }
 
     const did = genesisFields?.controllers?.[0]
 

@@ -2,7 +2,6 @@
   "mode": "@@APP_MODE",
   "port": "@@APP_PORT",
   "useSmartContractAnchors": "@@USE_SMART_CONTRACT_ANCHORS",
-  "useQueueBatches": "@@USE_QUEUE_BATCHES",
   "anchorControllerEnabled": "@@ANCHOR_CONTROLLER_ENABLED",
   "anchorLauncherUrl": "@@ANCHOR_LAUNCHER_URL",
   "expirationPeriod": "@@ANCHOR_EXPIRATION_PERIOD",
@@ -69,8 +68,7 @@
   "queue": {
     "type": "sqs",
     "awsRegion": "@@AWS_REGION",
-    "sqsBatchQueueUrl": "@@SQS_BATCH_QUEUE_URL",
-    "sqsFailureQueueUrl": "@@SQS_FAILURE_QUEUE_URL",
+    "sqsQueueUrl": "@@SQS_QUEUE_URL",
     "pollingIntervalMS": "@@QUEUE_POLLING_INTERVAL_MS",
     "maxTimeToHoldMessageSec": "@@MAX_TIME_TO_HOLD_MESSAGE_SEC",
     "waitTimeForMessageSec": "@@WAIT_TIME_FOR_MESSAGE_SEC"
