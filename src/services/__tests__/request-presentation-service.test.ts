@@ -30,12 +30,13 @@ const REQUEST_OVERRIDE = {
 }
 
 describe('present by RequestStatus', () => {
-  test('PENDING, PROCESSING, FAILED, READY', async () => {
+  test('PENDING, PROCESSING, FAILED, READY, REPLACED', async () => {
     const statuses = [
       RequestStatus.PENDING,
       RequestStatus.PROCESSING,
       RequestStatus.FAILED,
       RequestStatus.READY,
+      RequestStatus.REPLACED,
     ]
     for (const status of statuses) {
       const request = generateRequest({
@@ -45,17 +46,6 @@ describe('present by RequestStatus', () => {
       const presentation = await service.body(request)
       expect(presentation).toMatchSnapshot()
     }
-  })
-
-  test('REPLACED', async () => {
-    const request = generateRequest({
-      ...REQUEST_OVERRIDE,
-      status: RequestStatus.REPLACED,
-    })
-    const presentation = await service.body(request)
-    // REPLACED is an internal status, which translates to "FAILED" externally
-    expect(presentation.status).toEqual(RequestStatus[RequestStatus.FAILED])
-    expect(presentation).toMatchSnapshot()
   })
 
   test('COMPLETED', async () => {

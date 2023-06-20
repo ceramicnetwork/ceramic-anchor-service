@@ -30,7 +30,7 @@ exports[`present by RequestStatus COMPLETED but no associated anchor 1`] = `
 }
 `;
 
-exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY 1`] = `
+exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY, REPLACED 1`] = `
 {
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
   "createdAt": 1577934240000,
@@ -42,7 +42,7 @@ exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY 1`] = `
 }
 `;
 
-exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY 2`] = `
+exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY, REPLACED 2`] = `
 {
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
   "createdAt": 1577934240000,
@@ -54,7 +54,7 @@ exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY 2`] = `
 }
 `;
 
-exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY 3`] = `
+exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY, REPLACED 3`] = `
 {
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
   "createdAt": 1577934240000,
@@ -66,7 +66,7 @@ exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY 3`] = `
 }
 `;
 
-exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY 4`] = `
+exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY, REPLACED 4`] = `
 {
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
   "createdAt": 1577934240000,
@@ -78,13 +78,13 @@ exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY 4`] = `
 }
 `;
 
-exports[`present by RequestStatus REPLACED 1`] = `
+exports[`present by RequestStatus PENDING, PROCESSING, FAILED, READY, REPLACED 5`] = `
 {
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
   "createdAt": 1577934240000,
   "id": "889483296",
   "message": "Fresh request",
-  "status": "FAILED",
+  "status": "REPLACED",
   "streamId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
   "updatedAt": 1612325100000,
 }
