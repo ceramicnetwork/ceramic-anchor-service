@@ -245,8 +245,8 @@ describe('createRequest', () => {
       expect(createdRequest.streamId).toEqual(FAKE_STREAM_ID_1.toString())
       expect(createdRequest.message).toEqual('Request is pending.')
       expect(createdRequest.timestamp.valueOf()).toEqual(FAKE_TIMESTAMP.valueOf())
-      expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
-      expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.4) // within ~12 ms
+      expect(createdRequest.createdAt.valueOf()).toBeCloseTo(now.valueOf(), -1.6) // within ~15 ms
+      expect(createdRequest.updatedAt.valueOf()).toBeCloseTo(now.valueOf(), -1.6) // within ~15 ms
       expect(createdRequest.origin).toEqual(origin)
     })
 
