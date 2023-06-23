@@ -73,7 +73,10 @@ export class RequestPresentationService {
         if (!anchor) {
           Metrics.count(METRIC_NAMES.NO_ANCHOR_FOR_REQUEST, 1)
         }
-        const witnessCAR = await this.witnessCAR(anchor)
+        // TODO: re-enable witness CAR output once S3 permission issues are fixed
+        // const witnessCAR = await this.witnessCAR(anchor)
+        const witnessCAR = null
+
         // TODO: This is a workaround, fix in CDB-2192
         const anchorCommit: AnchorCommitPresentation = {
           cid: anchor ? anchor.cid : CID.parse(request.cid),
