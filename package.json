@@ -84,7 +84,7 @@
     "pg": "^8.8.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.5.2",
-    "s3leveldown": "^2.2.2",
+    "s3leveldown": "^3.0.0",
     "tsm": "^2.2.2",
     "typed-inject": "^4.0.0",
     "uint8arrays": "^4.0.3",
