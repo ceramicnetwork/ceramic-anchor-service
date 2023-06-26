@@ -77,7 +77,7 @@
     "lodash.camelcase": "^4.3.0",
     "lodash.clonedeep": "^4.5.0",
     "lodash.snakecase": "^4.1.1",
-    "lru-cache": "^9.1.2",
+    "lru-cache": "^10.0.0",
     "morgan": "^1.10.0",
     "multiformats": "^11.0.1",
     "os-utils": "^0.0.14",
