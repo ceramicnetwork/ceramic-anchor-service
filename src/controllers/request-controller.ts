@@ -141,6 +141,7 @@ export class RequestController {
     const errmsg = `Creating request with streamId ${requestParams.streamId} and commit CID ${requestParams.cid} from IP: ${originIP} and DID: ${originDID}  failed: ${err.message}`
     logger.err(errmsg)
     logger.err(err) // Log stack trace
+    Metrics.count(METRIC_NAMES.FAILED_REQUESTS, 1, { source: originIP })
     return res.status(StatusCodes.BAD_REQUEST).json({
       error: errmsg,
     })
