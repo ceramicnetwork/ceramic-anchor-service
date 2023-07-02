@@ -23,6 +23,8 @@ import {
   isLeft,
   decode,
   validate,
+  type,
+  union,
   type TypeOf,
   type Decoder,
   type Validation,
@@ -49,6 +51,13 @@ const RequestAnchorParamsV2Root = strict({
   tip: cid,
 })
 
+export const RequestAnchorParamsV2Codec = type({
+  streamId: streamIdAsString,
+  timestamp: date,
+  cid: cidAsString,
+  genesisFields: GenesisFields,
+})
+
 export type RequestAnchorParamsV2 = {
   streamId: StreamID
   timestamp: Date
@@ -57,6 +66,8 @@ export type RequestAnchorParamsV2 = {
 }
 
 export type RequestAnchorParams = RequestAnchorParamsV1 | RequestAnchorParamsV2
+
+export const RequestAnchorParamsCodec = union([RequestAnchorParamsV1, RequestAnchorParamsV2Codec])
 
 const DAG_JOSE_CODE = 133
 const DAG_CBOR_CODE = 113
