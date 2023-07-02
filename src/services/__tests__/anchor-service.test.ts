@@ -216,7 +216,7 @@ describe('anchor service', () => {
       expect(anchorRecord.proof).toEqual(ipfsProofCid)
       expect(anchorRecord.path).toEqual(anchor.path)
       expect(publishSpy.mock.calls[index]).toEqual([
-        anchorRecord,
+        anchor.cid,
         StreamID.fromString(request.streamId),
       ])
     }
