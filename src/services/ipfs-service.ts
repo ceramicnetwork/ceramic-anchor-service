@@ -3,7 +3,7 @@ import { LRUCache } from 'lru-cache'
 import { create as createIpfsClient } from 'ipfs-http-client'
 import type { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
-import { AnchorCommit, toCID, IpfsApi } from '@ceramicnetwork/common'
+import { toCID, IpfsApi } from '@ceramicnetwork/common'
 import type { StreamID } from '@ceramicnetwork/streamid'
 import { Utils } from '../utils.js'
 import { Agent as HttpAgent } from 'node:http'
@@ -142,29 +142,25 @@ export class IpfsService implements IIpfsService {
 
   /**
    * Stores `anchorCommit` to ipfs and publishes an update pubsub message to the Ceramic pubsub topic
-   * @param anchorCommit - anchor commit
+   * @param anchorCID - CID of anchor commit
    * @param streamId
    * @param options
    */
   async publishAnchorCommit(
-    anchorCommit: AnchorCommit,
+    anchorCID: CID,
     streamId: StreamID,
     options: AbortOptions = {}
-  ): Promise<CID> {
-    const anchorCid = await this.storeRecord(anchorCommit as any, { signal: options.signal })
-
+  ): Promise<void> {
     const serializedMessage = serialize({
       typ: MsgType.UPDATE,
       stream: streamId,
-      tip: anchorCid,
+      tip: anchorCID,
     })
 
     await this.ipfs.pubsub.publish(this.pubsubTopic, serializedMessage, { signal: options.signal })
 
     // wait so that we don't flood the pubsub
     await Utils.delay(PUBSUB_DELAY)
-
-    return anchorCid
   }
 
   async importCAR(car: CAR, options: AbortOptions = {}): Promise<void> {

@@ -472,13 +472,11 @@ export class AnchorService {
       proof: ipfsProofCid,
       path: path,
     }
+    car.put(ipfsAnchorCommit)
 
     try {
-      const anchorCid = await this.ipfsService.publishAnchorCommit(
-        ipfsAnchorCommit,
-        candidate.streamId
-      )
-      car.put(ipfsAnchorCommit)
+      const anchorCid = await this.ipfsService.storeRecord(ipfsAnchorCommit)
+      await this.ipfsService.publishAnchorCommit(anchorCid, candidate.streamId)
       const anchor: FreshAnchor = {
         requestId: candidate.request.id,
         proofCid: ipfsProofCid,
