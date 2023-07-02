@@ -44,6 +44,7 @@ import { Server } from 'http'
 import type { Injector } from 'typed-inject'
 import { createInjector } from 'typed-inject'
 import { teeDbConnection } from './tee-db-connection.util.js'
+import { CARFactory, type CAR } from 'cartonne'
 
 process.env.NODE_ENV = 'test'
 
@@ -550,5 +551,84 @@ describe('Ceramic Integration Test', () => {
       )
       expect(RequestStatus[tipWithNoRequestAfterAnchorInfo.status]).toEqual(RequestStatus.COMPLETED)
     })
+  })
+})
+
+describe('CAR file', () => {
+  test('do not depend on ipfs', async () => {
+    // Preparation: start a Ceramic node and an instance of CAS
+    const ipfsApiPort = await getPort()
+    const casIPFS = await createIPFS(ipfsApiPort)
+    const ganacheServer = await makeGanache()
+    const dbConnection = await createDbConnection()
+    const casPort = await getPort()
+    const cas = await makeCAS(createInjector(), dbConnection, {
+      mode: 'server',
+      ipfsPort: ipfsApiPort,
+      ceramicPort: await getPort(),
+      ganachePort: ganacheServer.port,
+      port: casPort,
+      useSmartContractAnchors: true,
+    })
+    await cas.start()
+
+    const ceramicIPFS = await createIPFS(await getPort())
+    const ceramic = await makeCeramicCore(
+      ceramicIPFS,
+      `http://localhost:${casPort}`,
+      ganacheServer.url
+    )
+
+    // Poll more often to speed up the test
+    const anchorService = ceramic.context.anchorService as any
+    anchorService.pollInterval = 200
+
+    // CAS: Do not publish to IPFS
+    const carFactory = new CARFactory()
+    const carFile = carFactory.build()
+    jest
+      .spyOn(cas.container.resolve('ipfsService'), 'storeRecord')
+      .mockImplementation(async (record) => {
+        return carFile.put(record)
+      })
+    // CAS: Do not publish over pubsub
+    // Now the only way a Ceramic node can get an anchor commit is a witness CAR through polling
+    jest
+      .spyOn(cas.container.resolve('ipfsService'), 'publishAnchorCommit')
+      .mockImplementation(async () => {
+        // Do Nothing
+      })
+
+    // Intercept witness CAR built on CAS side
+    let witnessCAR: CAR
+    const witnessService = cas.container.resolve('witnessService')
+    const buildWitnessCAR = witnessService.buildWitnessCAR.bind(witnessCAR)
+    const spyBuildWitnessCAR = jest
+      .spyOn(witnessService, 'buildWitnessCAR')
+      .mockImplementation((anchorCommitCID, merkleCAR) => {
+        witnessCAR = buildWitnessCAR(anchorCommitCID, merkleCAR)
+        return witnessCAR
+      })
+
+    const spyIpfsDagGet = jest.spyOn(ceramic.ipfs.dag, 'get')
+    const spyImportCAR = jest.spyOn(ceramic.dispatcher, 'importCAR')
+
+    // Start the meat of the test: create a tile stream, and anchor it
+    const tile = await TileDocument.create(ceramic as any, { foo: 'blah' }, null, { anchor: true })
+    await cas.container.resolve('anchorService').anchorRequests()
+    await waitForAnchor(tile)
+
+    // CAS builds a witness CAR
+    expect(spyBuildWitnessCAR).toBeCalledTimes(1)
+    // Ceramic node imports witness CAR prepared by CAS
+    expect(spyImportCAR).toHaveBeenCalledWith(witnessCAR)
+    // Ceramic node only retrieves a genesis and an anchor commits in `handleCommit`
+    expect(spyIpfsDagGet.mock.calls.length).toEqual(2)
+
+    // Teardown
+    await ceramic.close()
+    await cas.stop()
+    await ganacheServer.close()
+    await casIPFS.stop()
   })
 })
