@@ -476,6 +476,9 @@ export class AnchorService {
 
     try {
       const anchorCid = await this.ipfsService.storeRecord(ipfsAnchorCommit)
+      logger.debug(
+        `Stored anchor commit for ${candidate.cid} of stream ${candidate.streamId} on IPFS`
+      )
       await this.ipfsService.publishAnchorCommit(anchorCid, candidate.streamId)
       const anchor: FreshAnchor = {
         requestId: candidate.request.id,
