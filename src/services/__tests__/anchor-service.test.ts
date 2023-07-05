@@ -17,7 +17,7 @@ import { CID } from 'multiformats/cid'
 import type { FreshAnchor } from '../../models/anchor.js'
 import { toCID } from '@ceramicnetwork/common'
 import { Utils } from '../../utils.js'
-import { validate as validateUUID, v4 as uuidv4 } from 'uuid'
+import { v4 as uuidv4, validate as validateUUID } from 'uuid'
 import { TransactionRepository } from '../../repositories/transaction-repository.js'
 import { Transaction } from '../../models/transaction.js'
 import { createInjector, Injector } from 'typed-inject'
@@ -32,7 +32,7 @@ import { Candidate } from '../candidate.js'
 import { FakeFactory } from './fake-factory.util.js'
 import { FakeEthereumBlockchainService } from './fake-ethereum-blockchain-service.util.js'
 import { MockEventProducerService } from './mock-event-producer-service.util.js'
-import { makeMerkleCarService, type IMerkleCarService } from '../merkle-car-service.js'
+import { type IMerkleCarService, makeMerkleCarService } from '../merkle-car-service.js'
 
 process.env['NODE_ENV'] = 'test'
 
@@ -102,6 +102,7 @@ describe('anchor service', () => {
   let anchorService: AnchorService
   let eventProducerService: MockEventProducerService
   let metadataRepository: MetadataRepository
+  let merkleCarService: IMerkleCarService
   let fake: FakeFactory
 
   beforeAll(async () => {
@@ -145,6 +146,7 @@ describe('anchor service', () => {
     eventProducerService = injector.resolve('eventProducerService')
     metadataService = injector.resolve('metadataService')
     metadataRepository = injector.resolve('metadataRepository')
+    merkleCarService = injector.resolve('merkleCarService')
     fake = new FakeFactory(ipfsService, metadataService, requestRepository)
   })
 
@@ -367,81 +369,6 @@ describe('anchor service', () => {
     // All requests should have been processed
     const requestsReady = await requestRepository.countByStatus(RequestStatus.READY)
     expect(requestsReady).toEqual(0)
-  })
-
-  test('filters anchors that fail to publish AnchorCommit', async () => {
-    // Create pending requests
-    const numRequests = 4
-    await fake.multipleRequests(numRequests)
-
-    await requestRepository.findAndMarkReady(numRequests)
-    const requests = await requestRepository.findByStatus(RequestStatus.READY)
-
-    expect(requests.length).toEqual(numRequests)
-    const [candidates] = await anchorService._findCandidates(requests, 0)
-    expect(candidates.length).toEqual(numRequests)
-
-    const storeRecordOriginal = ipfsService.storeRecord.bind(ipfsService)
-    const storeRecordSpy = jest.spyOn(ipfsService, 'storeRecord')
-    storeRecordSpy.mockImplementation(async (record: any, options?: AbortOptions) => {
-      expectPresent(requests[1])
-      if (record.prev && record.prev.toString() == requests[1].cid.toString()) {
-        throw new Error('Storing record failed')
-      }
-
-      return storeRecordOriginal(record, options)
-    })
-
-    const publishAnchorCommitOriginal = ipfsService.publishAnchorCommit.bind(ipfsService)
-    const publishAnchorCommitSpy = jest.spyOn(ipfsService, 'publishAnchorCommit')
-    publishAnchorCommitSpy.mockImplementation(async (anchorCommit, streamId, options) => {
-      expectPresent(requests[3])
-      if (streamId.toString() == requests[3].streamId.toString()) {
-        throw new Error('publishing update failed')
-      }
-
-      return publishAnchorCommitOriginal(anchorCommit, streamId, options)
-    })
-
-    const anchors = await anchorCandidates(candidates, anchorService, ipfsService)
-    expect(anchors.length).toEqual(2)
-    const isFound = (r: Request) => anchors.find((anchor) => anchor.requestId === r.id)
-    expectPresent(requests[0])
-    expect(isFound(requests[0])).toBeTruthy()
-    expectPresent(requests[1])
-    expect(isFound(requests[1])).toBeFalsy()
-    expectPresent(requests[2])
-    expect(isFound(requests[2])).toBeTruthy()
-    expectPresent(requests[3])
-    expect(isFound(requests[3])).toBeFalsy()
-  })
-
-  test('will not throw if no anchor commits were created', async () => {
-    const requestRepository = injector.resolve('requestRepository')
-    const anchorService = injector.resolve('anchorService')
-
-    const anchorLimit = 2
-    const numRequests = 2
-
-    // Create pending requests
-    await fake.multipleRequests(numRequests)
-
-    await requestRepository.findAndMarkReady(anchorLimit)
-
-    const requests = await requestRepository.findByStatus(RequestStatus.READY)
-    expect(requests.length).toEqual(numRequests)
-    const [candidates] = await anchorService._findCandidates(requests, anchorLimit)
-    expect(candidates.length).toEqual(numRequests)
-
-    const original = anchorService._createAnchorCommit
-    try {
-      anchorService._createAnchorCommit = async () => {
-        return null
-      }
-      await anchorCandidates(candidates, anchorService, ipfsService)
-    } finally {
-      anchorService._createAnchorCommit = original
-    }
   })
 
   test('Does not create anchor commits if stream has already been anchored for those requests', async () => {
@@ -728,7 +655,6 @@ describe('anchor service', () => {
       }
 
       try {
-        const merkleCarService = injector.resolve('merkleCarService')
         const storeCarFileSpy = jest.spyOn(merkleCarService, 'storeCarFile')
         await anchorService.anchorRequests()
         expect(storeCarFileSpy).toBeCalled()
@@ -801,6 +727,54 @@ describe('anchor service', () => {
       } finally {
         blockchainService.sendTransaction = original
       }
+    })
+
+    test('fail a batch if can not import Merkle CAR to IPFS', async () => {
+      const numRequests = 4
+      const requests = await fake.multipleRequests(numRequests)
+
+      const batch = new MockQueueMessage({
+        bid: uuidv4(),
+        rids: requests.map(({ id }) => id),
+      })
+      anchorBatchQueueService.receiveMessage.mockReturnValue(Promise.resolve(batch))
+
+      const original = blockchainService.sendTransaction
+      blockchainService.sendTransaction = () => {
+        return Promise.resolve(fakeTransaction)
+      }
+
+      jest.spyOn(ipfsService, 'importCAR').mockImplementation(async () => {
+        throw new Error(`Can not import merkle CAR`)
+      })
+      await expect(anchorService.anchorRequests()).rejects.toThrow()
+      const retrieved = await requestRepository.findByIds(requests.map((r) => r.id))
+      expect(retrieved.every((r) => r.status === RequestStatus.PENDING)).toBeTruthy()
+      blockchainService.sendTransaction = original
+    })
+
+    test('fail a batch if can not store Merkle CAR to S3', async () => {
+      const numRequests = 4
+      const requests = await fake.multipleRequests(numRequests)
+
+      const batch = new MockQueueMessage({
+        bid: uuidv4(),
+        rids: requests.map(({ id }) => id),
+      })
+      anchorBatchQueueService.receiveMessage.mockReturnValue(Promise.resolve(batch))
+
+      const original = blockchainService.sendTransaction
+      blockchainService.sendTransaction = () => {
+        return Promise.resolve(fakeTransaction)
+      }
+
+      jest.spyOn(merkleCarService, 'storeCarFile').mockImplementation(async () => {
+        throw new Error(`Can not store Merkle CAR to S3`)
+      })
+      await expect(anchorService.anchorRequests()).rejects.toThrow()
+      const retrieved = await requestRepository.findByIds(requests.map((r) => r.id))
+      expect(retrieved.every((r) => r.status === RequestStatus.PENDING)).toBeTruthy()
+      blockchainService.sendTransaction = original
     })
   })
 })
