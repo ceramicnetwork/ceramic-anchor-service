@@ -160,7 +160,7 @@ export class AnchorService {
   ) {
     this.merkleDepthLimit = config.merkleDepthLimit
     this.useSmartContractAnchors = config.useSmartContractAnchors
-    this.useQueueBatches = config.queue.sqsQueueUrl !== ''
+    this.useQueueBatches = !config.queue.sqsQueueUrl
 
     const minStreamCount = Number(config.minStreamCount)
     this.maxStreamLimit = this.merkleDepthLimit > 0 ? Math.pow(2, this.merkleDepthLimit) : 0
