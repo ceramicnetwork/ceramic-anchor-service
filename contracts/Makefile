@@ -20,7 +20,7 @@ endif
 SHELL = /bin/bash
 
 build:
-	forge build --use 0.8.17
+	forge build
 	ls -lah out/
 t:
 	forge test -vvvvv
@@ -36,6 +36,6 @@ anchor:
 	cast send --private-key ${ETH_WALLET_PK} ${CONTRACT_ADDRESS} "anchorDagCbor(bytes32)" "0x3078300000000000000000000000000000000000000000000000000000000000" --legacy
 installDeps:
 	forge install foundry-rs/forge-std --no-git
-	forge install openzeppelin/openzeppelin-contracts --no-git
+	forge install openzeppelin/openzeppelin-contracts@v4.9.2 --no-git
 clean:
 	rm -rf cache/ out/ lib/
