@@ -115,7 +115,7 @@ export class CeramicAnchorApp {
     try {
       Metrics.start(
         this.config.metrics.collectorHost,
-        'cas-' + this.mode,
+        'cas_' + this.mode,
         DEFAULT_TRACE_SAMPLE_RATIO,
         null,
         false
@@ -123,6 +123,7 @@ export class CeramicAnchorApp {
       Metrics.count('HELLO', 1)
       logger.imp('Metrics exporter started')
     } catch (e: any) {
+      logger.imp('ERROR: Metrics exporter failed to start. Continuing anyway.')
       logger.err(e)
       // start anchor service even if metrics threw an error
     }
