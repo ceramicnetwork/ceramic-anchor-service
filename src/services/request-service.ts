@@ -1,6 +1,7 @@
 import type { CID } from 'multiformats/cid'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
+import { logger } from '../logger/index.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
 import type { RequestPresentationService } from './request-presentation-service.js'
 import type { RequestAnchorParams } from '../ancillary/anchor-request-params-parser.js'
@@ -98,6 +99,7 @@ export class RequestService {
       family: genesisFields?.family,
       model: genesisFields?.model,
     })
+    logger.info(`Write requested: ${request.cid}`)
 
     return this.requestPresentationService.body(storedRequest)
   }
