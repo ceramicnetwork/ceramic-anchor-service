@@ -121,7 +121,7 @@ export class IpfsService implements IIpfsService {
   }
 
   /**
-   * Sets the record and returns its CID.
+   * Store the record and return its CID.
    *
    * The record will also be pinned non-recusively.
    */
