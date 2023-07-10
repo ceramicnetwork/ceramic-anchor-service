@@ -141,7 +141,8 @@ export class IpfsService implements IIpfsService {
   }
 
   /**
-   * Stores `anchorCommit` to ipfs and publishes an update pubsub message to the Ceramic pubsub topic
+   * Publish an UPDATE pubsub message to the Ceramic pubsub topic.
+   *
    * @param anchorCID - CID of anchor commit
    * @param streamId
    * @param options
