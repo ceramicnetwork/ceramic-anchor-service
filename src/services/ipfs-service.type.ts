@@ -1,4 +1,3 @@
-import type { AnchorCommit } from '@ceramicnetwork/common'
 import type { StreamID } from '@ceramicnetwork/streamid'
 import type { CAR } from 'cartonne'
 import type { CID } from 'multiformats/cid'
@@ -35,13 +34,9 @@ export interface IIpfsService {
 
   /**
    * Stores the anchor commit to ipfs and publishes an update pubsub message to the Ceramic pubsub topic
-   * @param anchorCommit - anchor commit
+   * @param anchorCID - CID of anchor commit
    * @param streamId
    * @param options - Can pass AbortSignal
    */
-  publishAnchorCommit(
-    anchorCommit: AnchorCommit,
-    streamId: StreamID,
-    options?: AbortOptions
-  ): Promise<CID>
+  publishAnchorCommit(anchorCID: CID, streamId: StreamID, options?: AbortOptions): Promise<void>
 }

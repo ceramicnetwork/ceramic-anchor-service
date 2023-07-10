@@ -310,8 +310,23 @@ export class AnchorService {
     logger.debug('Creating anchor commits')
     const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
 
-    await this.ipfsService.importCAR(merkleTree.car)
-    await this.merkleCarService.storeCarFile(ipfsProofCid, merkleTree.car)
+    try {
+      await this.ipfsService.importCAR(merkleTree.car)
+    } catch (e) {
+      Metrics.count(METRIC_NAMES.MERKLE_CAR_STORAGE_FAILURE_IPFS, 1)
+      const message = `Can not store Merkle CAR to IPFS. Batch failed: ${e}`
+      logger.err(message)
+      throw e
+    }
+
+    try {
+      await this.merkleCarService.storeCarFile(ipfsProofCid, merkleTree.car)
+    } catch (e) {
+      Metrics.count(METRIC_NAMES.MERKLE_CAR_STORAGE_FAILURE_S3, 1)
+      const message = `Can not store Merkle CAR to S3. Batch failed: ${e}`
+      logger.err(message)
+      throw e
+    }
 
     // Update the database to record the successful anchors
     logger.debug('Persisting results to local database')
@@ -443,9 +458,7 @@ export class AnchorService {
         ipfsProofCid,
         merkleTree
       )
-      if (anchor) {
-        anchors.push(anchor)
-      }
+      anchors.push(anchor)
     }
 
     return anchors
@@ -464,7 +477,7 @@ export class AnchorService {
     candidateIndex: number,
     ipfsProofCid: CID,
     merkleTree: IMerkleTree<CIDHolder, Candidate, TreeMetadata>
-  ): Promise<FreshAnchor | null> {
+  ): Promise<FreshAnchor> {
     const path = pathString(merkleTree.getDirectPathFromRoot(candidateIndex))
     const ipfsAnchorCommit = {
       id: candidate.streamId.cid,
@@ -472,19 +485,20 @@ export class AnchorService {
       proof: ipfsProofCid,
       path: path,
     }
+    const anchorCid = car.put(ipfsAnchorCommit)
+    const anchor: FreshAnchor = {
+      requestId: candidate.request.id,
+      proofCid: ipfsProofCid,
+      path: path,
+      cid: anchorCid,
+    }
 
     try {
-      const anchorCid = await this.ipfsService.publishAnchorCommit(
-        ipfsAnchorCommit,
-        candidate.streamId
+      await this.ipfsService.storeRecord(ipfsAnchorCommit)
+      logger.debug(
+        `Stored anchor commit for ${candidate.cid} of stream ${candidate.streamId} on IPFS`
       )
-      car.put(ipfsAnchorCommit)
-      const anchor: FreshAnchor = {
-        requestId: candidate.request.id,
-        proofCid: ipfsProofCid,
-        path: path,
-        cid: anchorCid,
-      }
+      await this.ipfsService.publishAnchorCommit(anchorCid, candidate.streamId)
       logger.debug(
         `Created anchor commit with CID ${anchorCid.toString()} for stream ${candidate.streamId.toString()}`
       )
@@ -495,10 +509,7 @@ export class AnchorService {
       } for stream ${candidate.streamId.toString()}: ${err}`
       logger.err(msg)
       Metrics.count(METRIC_NAMES.ERROR_IPFS, 1)
-      await this.requestRepository.updateRequests({ status: RS.FAILED, message: msg }, [
-        candidate.request,
-      ])
-      return null
+      return anchor
     }
   }
 

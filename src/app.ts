@@ -65,6 +65,7 @@ type ProvidedContext = {
   requestService: RequestService
   merkleCarService: IMerkleCarService
   continualAnchoringScheduler: TaskSchedulerService
+  witnessService: WitnessService
 } & DependenciesContext
 
 /**

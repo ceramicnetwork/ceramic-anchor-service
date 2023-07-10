@@ -6,7 +6,6 @@ import { v4 as uuidv4 } from 'uuid'
 import { create } from 'multiformats/hashes/digest'
 import type { IIpfsService, RetrieveRecordOptions } from '../services/ipfs-service.type.js'
 import { StreamID } from '@ceramicnetwork/streamid'
-import { AnchorCommit } from '@ceramicnetwork/common'
 import { randomBytes, randomString } from '@stablelib/random'
 import { Request, RequestStatus } from '../models/request.js'
 import type { AbortOptions } from '../services/abort-options.type.js'
@@ -107,8 +106,8 @@ export class MockIpfsService implements IIpfsService {
     return this.car.put(record)
   }
 
-  async publishAnchorCommit(anchorCommit: AnchorCommit): Promise<CID> {
-    return this.storeRecord(anchorCommit as any)
+  async publishAnchorCommit(): Promise<void> {
+    // Do Nothing
   }
 
   reset() {
