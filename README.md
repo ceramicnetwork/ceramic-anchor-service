@@ -61,6 +61,7 @@ npm run start
 ## Testing
 
 1. Install node modules by running `npm install`
+1. Build source with `npm run build`
 1. Compile smart contracts
     1. Install [foundry](https://github.com/foundry-rs/foundry)
     1. `npm run installContractDeps`
