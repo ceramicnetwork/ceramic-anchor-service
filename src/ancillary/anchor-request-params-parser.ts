@@ -1,6 +1,5 @@
 import type { Request as ExpReq } from 'express'
 import type { CID } from 'multiformats/cid'
-import type { StreamID } from '@ceramicnetwork/streamid'
 import { CARFactory, type CAR } from 'cartonne'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
@@ -23,6 +22,8 @@ import {
   isLeft,
   decode,
   validate,
+  type,
+  union,
   type TypeOf,
   type Decoder,
   type Validation,
@@ -49,14 +50,24 @@ const RequestAnchorParamsV2Root = strict({
   tip: cid,
 })
 
-export type RequestAnchorParamsV2 = {
-  streamId: StreamID
-  timestamp: Date
-  cid: CID
-  genesisFields: GenesisFields
-}
+/**
+ * Used to encode request params for logging purposes
+ */
+export const RequestAnchorParamsV2 = type({
+  streamId: streamIdAsString,
+  timestamp: date,
+  cid: cidAsString,
+  genesisFields: GenesisFields,
+})
+
+export type RequestAnchorParamsV2 = TypeOf<typeof RequestAnchorParamsV2>
 
 export type RequestAnchorParams = RequestAnchorParamsV1 | RequestAnchorParamsV2
+
+/**
+ * Encode request params for logging purposes.
+ */
+export const RequestAnchorParamsCodec = union([RequestAnchorParamsV1, RequestAnchorParamsV2])
 
 const DAG_JOSE_CODE = 133
 const DAG_CBOR_CODE = 113

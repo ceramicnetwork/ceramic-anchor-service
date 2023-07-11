@@ -11,6 +11,7 @@ import { METRIC_NAMES } from '../settings.js'
 import {
   AnchorRequestParamsParser,
   RequestAnchorParams,
+  RequestAnchorParamsCodec,
 } from '../ancillary/anchor-request-params-parser.js'
 import bodyParser from 'body-parser'
 import type { RequestService } from '../services/request-service.js'
@@ -94,8 +95,6 @@ export class RequestController {
   async createRequest(req: ExpReq, res: ExpRes): Promise<ExpRes<any>> {
     const origin = parseOrigin(req)
 
-    logger.debug(`Create request ${JSON.stringify(req.body)}`)
-
     const validation = this.anchorRequestParamsParser.parse(req)
 
     if (isLeft(validation)) {
@@ -107,6 +106,8 @@ export class RequestController {
       })
     }
     const requestParams = validation.right
+
+    logger.debug(`Create request ${JSON.stringify(RequestAnchorParamsCodec.encode(requestParams))}`)
 
     try {
       const found = await this.requestService.findByCid(requestParams.cid)
