@@ -98,6 +98,7 @@ export class RequestService {
       schema: genesisFields?.schema,
       family: genesisFields?.family,
       model: genesisFields?.model,
+      stream: request.streamId
     })
     logger.imp(`Write requested: ${request.cid}`)
 
