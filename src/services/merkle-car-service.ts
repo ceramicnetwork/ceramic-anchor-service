@@ -80,7 +80,7 @@ export class S3MerkleCarService implements IMerkleCarService {
   async storeCarFile(anchorProofCID: CID, car: CAR): Promise<void> {
     const key = anchorProofCID.toString()
     this.cache.set(key, car)
-    await this.s3store.put(key, car.bytes)
+    await this.s3store.put(key, Buffer.from(car.bytes))
   }
 
   async retrieveCarFile(anchorProofCID: CID): Promise<CAR | null> {
