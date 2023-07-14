@@ -98,8 +98,9 @@ export class RequestService {
       schema: genesisFields?.schema,
       family: genesisFields?.family,
       model: genesisFields?.model,
+      stream: request.streamId
     })
-    logger.imp(`Write requested: ${request.cid}`)
+    logger.debug(`Anchor request received for CID ${request.cid} of streamid ${request.streamId} from origin ${request.origin}`)
 
     return this.requestPresentationService.body(storedRequest)
   }
