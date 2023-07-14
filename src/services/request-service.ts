@@ -99,7 +99,7 @@ export class RequestService {
       family: genesisFields?.family,
       model: genesisFields?.model,
     })
-    logger.debug(`Write requested: ${request.cid}`)
+    logger.imp(`Write requested: ${request.cid}`)
 
     return this.requestPresentationService.body(storedRequest)
   }
