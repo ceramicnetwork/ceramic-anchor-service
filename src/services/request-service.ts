@@ -104,7 +104,7 @@ export class RequestService {
 
     Metrics.count(METRIC_NAMES.WRITE_TOTAL_TSDB, 1, logData)
 
-    logger.debug('Anchor request received:', logData);
+    logger.debug(`Anchor request received: ${JSON.stringify(logData)}`);
 
     return this.requestPresentationService.body(storedRequest)
   }
