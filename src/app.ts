@@ -119,7 +119,9 @@ export class CeramicAnchorApp {
         'cas_' + this.mode,
         DEFAULT_TRACE_SAMPLE_RATIO,
         null,
-        false
+        false,
+        this.config.metrics.exporterIntervalMillis,
+        this.config.metrics.exporterTimeoutMillis
       )
       Metrics.count('HELLO', 1)
       logger.imp('Metrics exporter started')
