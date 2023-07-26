@@ -44,6 +44,7 @@ import {
 import { makeMerkleCarService, type IMerkleCarService } from './services/merkle-car-service.js'
 import { WitnessService } from './services/witness-service.js'
 
+
 type DependenciesContext = {
   config: Config
   dbConnection: Knex
@@ -118,10 +119,11 @@ export class CeramicAnchorApp {
         this.config.metrics.collectorHost,
         'cas_' + this.mode,
         DEFAULT_TRACE_SAMPLE_RATIO,
-        null,
-        false,
-        this.config.metrics.exporterIntervalMillis,
-        this.config.metrics.exporterTimeoutMillis
+        null,    // no logging inside metrics
+        false,   // do not append total to counters automatically
+        0,       // do not turn on the prometheus exporter (use collector only)
+        this.config.metrics.exportIntervalMillis,
+        this.config.metrics.exportTimeoutMillis
       )
       Metrics.count('HELLO', 1)
       logger.imp('Metrics exporter started')
