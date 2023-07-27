@@ -19,8 +19,8 @@ import { AbortOptions } from '@ceramicnetwork/common'
 import { Utils } from '../../utils.js'
 
 const DEFAULT_POLLING_INTERVAL_MS = 10000
-const DEFAULT_MAX_TIME_TO_HOLD_MESSAGES_S = 10800
-const DEFAULT_WAIT_TIME_FOR_MESSAGE_S = 30
+const DEFAULT_MAX_TIME_TO_HOLD_MESSAGES_S = 21600
+const DEFAULT_WAIT_TIME_FOR_MESSAGE_S = 0
 const DEFAULT_MAX_ATTEMPTS_TO_RETRIEVE_MESSAGES = 3
 /**
  * Sqs Queue Message received by consumers.

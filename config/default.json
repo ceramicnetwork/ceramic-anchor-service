@@ -76,7 +76,7 @@
     "sqsQueueUrl": "",
     "pollingIntervalMS": 10000,
     "maxAttemptsToRetrieveMessages": 3,
-    "maxTimeToHoldMessageSec": 10800,
-    "waitTimeForMessageSec": 30
+    "maxTimeToHoldMessageSec": 21600,
+    "waitTimeForMessageSec": 0
   }
 }
