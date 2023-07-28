@@ -14,6 +14,12 @@ import { RequestQMessage } from '../models/queue-message.js'
 import type { OutputOf } from 'codeco'
 import type { CASResponse } from '@ceramicnetwork/codecs'
 
+const ISO8601_DATE_FORMAT = new Intl.DateTimeFormat('sv-SE', {
+  month: '2-digit',
+  year: 'numeric',
+  day: 'numeric',
+})
+
 export class RequestService {
   private readonly publishToQueue: boolean
 
@@ -40,6 +46,12 @@ export class RequestService {
     if (!request) {
       return { error: 'Request does not exist' }
     }
+
+    logger.debug(
+      `Found request for ${cid} of ${request.streamId} created at ${ISO8601_DATE_FORMAT.format(
+        request.createdAt
+      )}`
+    )
 
     return this.requestPresentationService.body(request)
   }
@@ -98,9 +110,11 @@ export class RequestService {
       schema: genesisFields?.schema,
       family: genesisFields?.family,
       model: genesisFields?.model,
-      stream: request.streamId
+      stream: request.streamId,
     })
-    logger.debug(`Anchor request received for CID ${request.cid} of streamid ${request.streamId} from origin ${request.origin}`)
+    logger.debug(
+      `Anchor request received for CID ${request.cid} of streamid ${request.streamId} from origin ${request.origin}`
+    )
 
     return this.requestPresentationService.body(storedRequest)
   }

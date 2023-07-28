@@ -76,10 +76,6 @@ class MockMetadataService implements IMetadataService {
   async retrieve(): Promise<StoredMetadata | undefined> {
     return
   }
-
-  async fillAllFromIpfs(): Promise<void> {
-    return
-  }
 }
 
 // TODO: CDB-2287 Add tests checking for expected errors when missing/malformed CID/StreamID/GenesisCommit
