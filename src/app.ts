@@ -132,7 +132,7 @@ export class CeramicAnchorApp {
 
   async anchor(): Promise<void> {
     const anchorService = this.container.resolve('anchorService')
-    return anchorService.anchorRequests()
+    await anchorService.anchorRequests()
   }
 
   /**
@@ -286,12 +286,13 @@ export class CeramicAnchorApp {
     process.on('SIGTERM', shutdownSignalHandler)
     process.on('SIGQUIT', shutdownSignalHandler)
 
-    const task = async () => {
-      await anchorService.anchorRequests({ signal: controller.signal }).catch((error) => {
+    const task = async (): Promise<boolean> => {
+      const success = await anchorService.anchorRequests({ signal: controller.signal }).catch((error: Error) => {
         logger.err(`Error when anchoring: ${error}`)
         Metrics.count(METRIC_NAMES.ERROR_WHEN_ANCHORING, 1, {
           message: error.message.substring(0, 50),
         })
+        throw error
       })
 
       logger.imp(
@@ -301,8 +302,16 @@ export class CeramicAnchorApp {
       // await anchorService.garbageCollectPinnedStreams().catch((error) => {
       //   logger.err(`Error when garbage collecting pinned streams: ${error}`)
       // })
+
+      return success
     }
 
-    continualAnchoringScheduler.start(task, this.config.schedulerIntervalMS)
+
+    const cbAfterEmptyBatch = () => {
+      logger.imp('No batches available. Continual anchoring is shutting down.')
+      process.exit(0)
+    }
+
+    continualAnchoringScheduler.start(task, this.config.schedulerIntervalMS, this.config.schedulerStopAfterFail ? cbAfterEmptyBatch : undefined)
   }
 }

@@ -13,6 +13,7 @@
   "readyRetryIntervalMS": 300000,
   "requireAuth": false,
   "schedulerIntervalMS": 300000,
+  "schedulerStopAfterFail": false,
   "carStorage": {
     "mode": "inmemory",
     "s3BucketName": "myS3Bucket"
