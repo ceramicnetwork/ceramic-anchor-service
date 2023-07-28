@@ -89,7 +89,7 @@ describe('scheduler service', () => {
     // test doesn't complete until 'done()' is called
   })
 
-  test('Will stop after failure if stopAfterFailure set', async () => {
+  test('Will run cbAfterFailure after failure if set', async () => {
     let completedOnce = false
     const task = jest.fn()
     task.mockImplementation(async (): Promise<boolean> => {
