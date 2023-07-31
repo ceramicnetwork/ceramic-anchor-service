@@ -13,6 +13,7 @@
   "readyRetryIntervalMS": "@@READY_RETRY_INTERVAL_MS",
   "requireAuth": "@@REQUIRE_AUTH",
   "schedulerIntervalMS": "@@SCHEDULER_INTERVAL_MS",
+  "schedulerStopAfterNoOp": "@@SCHEDULER_STOP_AFTER_NO_OP",
   "carStorage": {
     "mode": "@@MERKLE_CAR_STORAGE_MODE",
     "s3BucketName": "@@S3_BUCKET_NAME"
@@ -71,8 +72,6 @@
     "type": "sqs",
     "awsRegion": "@@AWS_REGION",
     "sqsQueueUrl": "@@SQS_QUEUE_URL",
-    "pollingIntervalMS": "@@QUEUE_POLLING_INTERVAL_MS",
-    "maxAttemptsToRetrieveMessages": "@@QUEUE_MAX_ATTEMPTS_TO_RETRIEVE_MESSAGES",
     "maxTimeToHoldMessageSec": "@@MAX_TIME_TO_HOLD_MESSAGE_SEC",
     "waitTimeForMessageSec": "@@WAIT_TIME_FOR_MESSAGE_SEC"
   }

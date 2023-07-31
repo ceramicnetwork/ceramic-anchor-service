@@ -172,7 +172,7 @@ export class AnchorService {
    * Creates anchors for pending client requests
    */
   // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
-  async anchorRequests(abortOptions?: AbortOptions): Promise<void> {
+  async anchorRequests(abortOptions?: AbortOptions): Promise<boolean> {
     if (this.useQueueBatches) {
       return this.anchorNextQueuedBatch(abortOptions)
     } else {
@@ -183,14 +183,16 @@ export class AnchorService {
         await this.requestRepository.findAndMarkReady(this.maxStreamLimit * 2, this.minStreamLimit)
       }
 
-      return this.anchorReadyRequests()
+      await this.anchorReadyRequests()
+      return true
     }
   }
 
   /**
-   * Creates anchors for client requests that have been marked as READY
+   * Retrieves a batch of requests and creates anchors for them.
+   * Return true if we anchoed a batch. Returns false if there was no batch to anchor therefore no anchor was completed
    */
-  async anchorNextQueuedBatch(abortOptions?: AbortOptions): Promise<void> {
+  async anchorNextQueuedBatch(abortOptions?: AbortOptions): Promise<boolean> {
     if (abortOptions?.signal?.aborted) {
       throw new Error('User aborted before the next batch has been retrieved')
     }
@@ -207,7 +209,7 @@ export class AnchorService {
     if (!batchMessage) {
       // TODO: Add metric here
       logger.imp('No batches available')
-      return
+      return false
     }
 
     try {
@@ -230,6 +232,8 @@ export class AnchorService {
 
       logger.imp('Acking the batch')
       await batchMessage.ack()
+
+      return true
     } catch (err) {
       logger.warn(`Anchoring of the batch failed. Nacking the batch`)
       await batchMessage.nack()
