@@ -14,7 +14,6 @@ import { commitIdAsString, streamIdAsBytes, uint8array } from '@ceramicnetwork/c
  */
 export interface IMetadataService {
   fill(streamId: StreamID, genesisFields: GenesisFields): Promise<void>
-  fillAllFromIpfs(streamIds: Array<StreamID>, options?: AbortOptions): Promise<void>
   fillFromIpfs(streamId: StreamID, options?: AbortOptions): Promise<GenesisFields>
   retrieve(streamId: StreamID): Promise<StoredMetadata | undefined>
 }
@@ -60,6 +59,7 @@ export class MetadataService implements IMetadataService {
   ) {}
 
   async fill(streamId: StreamID, genesisFields: GenesisFields): Promise<void> {
+    logger.debug(`Filling metadata from a CAR file for ${streamId}`)
     await this.storeMetadata(streamId, genesisFields)
     logger.debug(`Filled metadata from a CAR file for ${streamId}`)
   }
@@ -68,9 +68,13 @@ export class MetadataService implements IMetadataService {
    * Retrieve genesis header fields from IPFS, store to the database.
    */
   async fillFromIpfs(streamId: StreamID, options: AbortOptions = {}): Promise<GenesisFields> {
+    logger.debug(`Filling metadata for ${streamId}`)
     const storedFields = await this.metadataRepository.retrieve(streamId)
+    logger.debug(`Found metadata for ${streamId} in the database`)
     if (storedFields) return storedFields.metadata // Do not perform same work of retrieving from IPFS twice
+    logger.debug(`Filling metadata from IPFS for ${streamId}`)
     const genesisFields = await this.retrieveFromGenesis(streamId, options)
+    logger.debug(`Retrieved metadata from IPFS for ${streamId}`)
     await this.storeMetadata(streamId, genesisFields)
     logger.debug(`Filled metadata from IPFS for ${streamId}`)
     return genesisFields
@@ -107,17 +111,5 @@ export class MetadataService implements IMetadataService {
       streamId: streamId,
       metadata: fields,
     })
-  }
-
-  async fillAllFromIpfs(streamIds: Array<StreamID>, options?: AbortOptions): Promise<void> {
-    await Promise.all(
-      streamIds.map(async (streamId) => {
-        try {
-          await this.fillFromIpfs(streamId, options)
-        } catch (e) {
-          logger.err(`Can not fill metadata for ${streamId}: ${e}`)
-        }
-      })
-    )
   }
 }

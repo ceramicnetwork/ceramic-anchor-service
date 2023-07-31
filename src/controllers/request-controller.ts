@@ -76,7 +76,7 @@ export class RequestController {
       })
     }
     const cid = paramsE.right.cid
-    logger.debug(`Get info for ${cid}`)
+    logger.debug(`Getting info for ${cid}`)
 
     try {
       const response = await this.requestService.getStatusForCid(cid)
@@ -107,10 +107,13 @@ export class RequestController {
     }
     const requestParams = validation.right
 
-    logger.debug(`Create request ${JSON.stringify(RequestAnchorParamsCodec.encode(requestParams))}`)
+    logger.debug(
+      `Creating request ${JSON.stringify(RequestAnchorParamsCodec.encode(requestParams))}`
+    )
 
     try {
       const found = await this.requestService.findByCid(requestParams.cid)
+      logger.debug(`Found request for ${requestParams.cid} of stream ${requestParams.streamId}`)
       if (found) {
         return res.status(StatusCodes.ACCEPTED).json(found)
       }
