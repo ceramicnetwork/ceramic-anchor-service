@@ -57,9 +57,7 @@
     "type": "sqs",
     "awsRegion": "us-east-1",
     "sqsQueueUrl": "",
-    "pollingIntervalMS": 10000,
-    "maxAttemptsToRetrieveMessages": 0,
     "maxTimeToHoldMessageSec": 10800,
-    "waitTimeForMessageSec": 30
+    "waitTimeForMessageSec": 10
   }
 }

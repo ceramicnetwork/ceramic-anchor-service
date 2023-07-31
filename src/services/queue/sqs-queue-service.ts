@@ -16,12 +16,9 @@ import type { Config } from 'node-config-ts'
 import { AnchorBatchQMessage, RequestQMessage } from '../../models/queue-message.js'
 import { Codec, decode } from 'codeco'
 import { AbortOptions } from '@ceramicnetwork/common'
-import { Utils } from '../../utils.js'
 
-const DEFAULT_POLLING_INTERVAL_MS = 10000
 const DEFAULT_MAX_TIME_TO_HOLD_MESSAGES_S = 21600
-const DEFAULT_WAIT_TIME_FOR_MESSAGE_S = 0
-const DEFAULT_MAX_ATTEMPTS_TO_RETRIEVE_MESSAGES = 3
+const DEFAULT_WAIT_TIME_FOR_MESSAGE_S = 10
 /**
  * Sqs Queue Message received by consumers.
  * Once the message is done processing you can either "ack" the message (remove the message from the queue) or "nack" the message (put the message back on the queue)
@@ -70,10 +67,8 @@ export class SqsQueueService<TValue extends QueueMessageData>
   implements IQueueConsumerService<TValue>, IQueueProducerService<TValue>
 {
   private readonly sqsClient: SQSClient
-  private readonly pollingIntervalMS: number
   private readonly maxTimeToHoldMessageSec: number
   private readonly waitTimeForMessageSec: number
-  private readonly maxAttemptsToRetrieveMessages: number
 
   static inject = ['config'] as const
 
@@ -87,8 +82,6 @@ export class SqsQueueService<TValue extends QueueMessageData>
       region: config.queue.awsRegion,
       endpoint: this.sqsQueueUrl,
     })
-    this.pollingIntervalMS = config.queue.pollingIntervalMS || DEFAULT_POLLING_INTERVAL_MS
-    this.maxAttemptsToRetrieveMessages = config.queue.maxAttemptsToRetrieveMessages === 0 ? Infinity : (config.queue.maxAttemptsToRetrieveMessages || DEFAULT_MAX_ATTEMPTS_TO_RETRIEVE_MESSAGES)
     this.maxTimeToHoldMessageSec = config.queue.maxTimeToHoldMessageSec || DEFAULT_MAX_TIME_TO_HOLD_MESSAGES_S
     this.waitTimeForMessageSec = config.queue.waitTimeForMessageSec || DEFAULT_WAIT_TIME_FOR_MESSAGE_S
   }
@@ -107,18 +100,11 @@ export class SqsQueueService<TValue extends QueueMessageData>
       WaitTimeSeconds: this.waitTimeForMessageSec,
     }
 
-    const messages = await Utils.poll(
-      () => {
-        return this.sqsClient
-          .send(new ReceiveMessageCommand(receiveMessageCommandInput), {
-            abortSignal: abortOptions?.signal,
-          })
-          .then((result) => result.Messages)
-      },
-      this.maxAttemptsToRetrieveMessages,
-      this.pollingIntervalMS,
-      abortOptions
-    )
+    const messages = await this.sqsClient
+      .send(new ReceiveMessageCommand(receiveMessageCommandInput), {
+        abortSignal: abortOptions?.signal,
+      })
+      .then((result) => result.Messages)
 
     if (!messages || messages.length !== 1) {
       return undefined

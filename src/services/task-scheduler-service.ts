@@ -1,5 +1,5 @@
 import { logger } from '../logger/index.js'
-import { catchError, Observable, defer, share, timer, expand, concatMap, EMPTY, retry } from 'rxjs'
+import { catchError, Observable, Subscription, defer, share, timer, expand, concatMap, EMPTY, retry } from 'rxjs'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 
@@ -9,7 +9,7 @@ import { METRIC_NAMES } from '../settings.js'
 export class TaskSchedulerService {
   private _scheduledTask$?: Observable<boolean | void>
   private _controller: AbortController
-  private _completed = false
+  private _subscription?: Subscription
 
 
   constructor() {
@@ -70,12 +70,9 @@ export class TaskSchedulerService {
     )
 
 
-    this._scheduledTask$.subscribe({
+    this._subscription = this._scheduledTask$.subscribe({
       complete: async () => {
-        if (!this._completed) {
-          this._completed = true
-          if (cbAfterFailure) await cbAfterFailure()
-        }
+        if (cbAfterFailure) await cbAfterFailure()
       }
     })
   }
@@ -83,7 +80,7 @@ export class TaskSchedulerService {
   async stop(): Promise<void> {
     if (!this._scheduledTask$) return Promise.resolve()
 
-    if (this._completed) return Promise.resolve()
+    if (!this._subscription || this._subscription.closed) return Promise.resolve()
 
     return new Promise((resolve) => {
       this._scheduledTask$?.subscribe({
