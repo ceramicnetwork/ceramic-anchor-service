@@ -104,17 +104,19 @@ export class RequestService {
 
     const did = genesisFields?.controllers?.[0]
 
-    Metrics.count(METRIC_NAMES.WRITE_TOTAL_TSDB, 1, {
+    const logData = {
       cid: request.cid,
       did,
       schema: genesisFields?.schema,
       family: genesisFields?.family,
       model: genesisFields?.model,
       stream: request.streamId,
-    })
-    logger.debug(
-      `Anchor request received for CID ${request.cid} of streamid ${request.streamId} from origin ${request.origin}`
-    )
+      origin: request.origin,
+    };
+
+    Metrics.count(METRIC_NAMES.WRITE_TOTAL_TSDB, 1, logData)
+
+    logger.debug(`Anchor request received: ${JSON.stringify(logData)}`);
 
     return this.requestPresentationService.body(storedRequest)
   }

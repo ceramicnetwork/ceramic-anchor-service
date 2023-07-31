@@ -53,7 +53,9 @@
     "filePath": ""
   },
   "metrics": {
-    "collectorHost": ""
+    "collectorHost": "",
+    "exportIntervalMillis": 60000,
+    "exportTimeoutMillis": 30000
   },
   "db": {
     "client": "postgresql",

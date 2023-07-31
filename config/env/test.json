@@ -37,7 +37,9 @@
   },
   "metrics": {
     "collectorHost": "@@COLLECTOR_HOSTNAME",
-    "traceRatio": "@@METRICS_TRACE_RATIO"
+    "traceRatio": "@@METRICS_TRACE_RATIO",
+    "exportIntervalMillis": "@@METRICS_EXPORT_INTERVAL_MS",
+    "exportTimeoutMillis": "@@METRICS_EXPORT_TIMEOUT_MS"
   },
   "db": {
     "client": "postgresql",
