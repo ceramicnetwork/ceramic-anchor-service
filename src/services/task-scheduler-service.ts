@@ -21,10 +21,10 @@ export class TaskSchedulerService {
    * Starts the scheduler which will run the provided task at regular intervals
    * @param task task to perform regularly with a delay of intervalMS between runs
    * @param intervalMS default: 60000, delay between task runs
-   * @param cbAfterFailure default undefined. cbAfterFailure is the callback to run if the task returns false. A task returning false indicates that it did not run or finish. 
-   * cbAfterFailure will not be called if the task errors. If cbAfterFailure is not set then the scheduler will continue to run the task regardless if the task was successful or not.
+   * @param cbAfterNoOp default undefined. cbAfterNoOp is the callback to run if the task returns false. A task returning false indicates that it did not do anything (no op)
+   * cbAfterNoOp will not be called if the task errors. If cbAfterNoOp is not set then the scheduler will continue to run the task regardless if the task was a no op or not
    */
-  start(task: () => Promise<boolean | void>, intervalMS = 60000, cbAfterFailure?: () => Promise<void>): void {
+  start(task: () => Promise<boolean | void>, intervalMS = 60000, cbAfterNoOp?: () => Promise<void>): void {
     if (this._scheduledTask$) {
       throw new Error('Task already scheduled')
     }
@@ -59,7 +59,7 @@ export class TaskSchedulerService {
           return EMPTY
         }
 
-        if (cbAfterFailure && !success) {
+        if (cbAfterNoOp && !success) {
           logger.imp(`Last run of the task was not successful. Stopping the task scheduler`)
           return EMPTY
         }
@@ -72,7 +72,7 @@ export class TaskSchedulerService {
 
     this._subscription = this._scheduledTask$.subscribe({
       complete: async () => {
-        if (cbAfterFailure) await cbAfterFailure()
+        if (cbAfterNoOp) await cbAfterNoOp()
       }
     })
   }

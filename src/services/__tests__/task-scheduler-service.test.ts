@@ -89,7 +89,7 @@ describe('scheduler service', () => {
     // test doesn't complete until 'done()' is called
   })
 
-  test('Will run cbAfterFailure after failure if set', async () => {
+  test('Will run cbAfterNoOp after failure if set', async () => {
     let completedOnce = false
     const task = jest.fn()
     task.mockImplementation(async (): Promise<boolean> => {
@@ -99,15 +99,15 @@ describe('scheduler service', () => {
       }
       return Promise.resolve(false)
     })
-    const cbAfterFailure = jest.fn(() => Promise.resolve())
+    const cbAfterNoOp = jest.fn(() => Promise.resolve())
 
     const testScheduler = new TaskSchedulerService()
-    testScheduler.start(task as any, 1000, cbAfterFailure)
+    testScheduler.start(task as any, 1000, cbAfterNoOp)
 
     await Utils.delay(5000)
 
     await testScheduler.stop()
     expect(task.mock.calls.length).toEqual(2)
-    expect(cbAfterFailure.mock.calls.length).toEqual(1)
+    expect(cbAfterNoOp.mock.calls.length).toEqual(1)
   })
 })

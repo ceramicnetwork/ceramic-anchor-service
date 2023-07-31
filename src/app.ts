@@ -307,11 +307,11 @@ export class CeramicAnchorApp {
     }
 
 
-    const cbAfterEmptyBatch = () => {
+    const cbAfterNoOp = () => {
       logger.imp('No batches available. Continual anchoring is shutting down.')
       process.exit(0)
     }
 
-    continualAnchoringScheduler.start(task, this.config.schedulerIntervalMS, this.config.schedulerStopAfterFail ? cbAfterEmptyBatch : undefined)
+    continualAnchoringScheduler.start(task, this.config.schedulerIntervalMS, this.config.schedulerStopAfterNoOp ? cbAfterNoOp : undefined)
   }
 }
