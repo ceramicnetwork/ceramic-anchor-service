@@ -13,7 +13,7 @@ which in turn triggers a separate workflow that deploys to the 3box infrastructu
 
 Available targets are listed as "Type of publish"
 
- - rc     : will merge to release-candidate and deploy to Clay
+ - rc     : will merge develop to release-candidate and deploy to Clay
  - main   : will merge release-candidate to main and deploy to Mainnet
  - both   : will merge to release-candidate and mainnet and deploy to both Clay and Mainnet
  - hotfix : will build the release from the current main branch 
