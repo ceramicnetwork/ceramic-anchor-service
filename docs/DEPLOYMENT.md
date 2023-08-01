@@ -16,7 +16,7 @@ Available targets are listed as "Type of publish"
  - rc     : will merge develop to release-candidate and deploy to Clay
  - main   : will merge release-candidate to main and deploy to Mainnet
  - both   : will merge to release-candidate and mainnet and deploy to both Clay and Mainnet
- - hotfix : will build the release from the current main branch 
+ - hotfix : will build the release from the current main branch without doing any cross-branch merging.
 
 In all cases where the main branch is in use, the main branch will also be merged down to release-candidate, and release-candidate will be merged down to develop
 
