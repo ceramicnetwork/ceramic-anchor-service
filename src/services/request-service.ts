@@ -38,7 +38,7 @@ export class RequestService {
     private readonly metadataService: IMetadataService,
     private readonly validationQueueService: IQueueProducerService<RequestQMessage>
   ) {
-    this.publishToQueue = config.queue.sqsQueueUrl !== ''
+    this.publishToQueue =  Boolean(config.queue.sqsQueueUrl)
   }
 
   async getStatusForCid(cid: CID): Promise<OutputOf<typeof CASResponse> | { error: string }> {
