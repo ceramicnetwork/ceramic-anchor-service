@@ -19,11 +19,11 @@ import all from 'it-all'
 
 const { serialize, MsgType } = PubsubMessage
 
-export const IPFS_GET_RETRIES = 2
-export const IPFS_GET_TIMEOUT = 30000 // 30 seconds
-const MAX_CACHE_ENTRIES = 100
-export const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
-const PUBSUB_DELAY = 100
+export const DEFAULT_IPFS_GET_RETRIES = 2
+export const DEFAULT_IPFS_GET_TIMEOUT_MS = 30000 // 30 seconds
+const DEFAULT_MAX_CACHE_ENTRIES = 100
+export const DEFAULT_IPFS_PUT_TIMEOUT_MS = 30 * 1000 // 30 seconds
+const DEFAULT_PUBSUB_DELAY_MS = 100
 const DEFAULT_CONCURRENT_GET_LIMIT = 100
 
 function buildHttpAgent(endpoint: string | undefined): HttpAgent {
@@ -93,7 +93,7 @@ export class IpfsService implements IIpfsService {
     options: RetrieveRecordOptions = {}
   ): Promise<T> {
     const cacheKey = `${cid}${options.path || ''}`
-    let retryTimes = IPFS_GET_RETRIES
+    let retryTimes = config.ipfsConfig.getRetries || DEFAULT_IPFS_GET_RETRIES
     while (retryTimes > 0) {
       try {
         const found = this.cache.get(cacheKey)
@@ -101,7 +101,7 @@ export class IpfsService implements IIpfsService {
         const record = await this.semaphore.use(() =>
           this.ipfs.dag.get(toCID(cid), {
             path: options.path,
-            timeout: IPFS_GET_TIMEOUT,
+            timeout: config.ipfsConfig.getTimeoutMS || DEFAULT_IPFS_GET_TIMEOUT_MS,
             signal: options.signal,
           })
         )
@@ -128,13 +128,13 @@ export class IpfsService implements IIpfsService {
   async storeRecord(record: Record<string, unknown>, options: AbortOptions = {}): Promise<CID> {
     const cid = await this.ipfs.dag.put(record, {
       signal: options.signal,
-      timeout: IPFS_PUT_TIMEOUT,
+      timeout: config.ipfsConfig.putTimeoutMS || DEFAULT_IPFS_PUT_TIMEOUT_MS,
     })
     // Note: While dag.put has a pin flag it always recurses and
     // we do not want to recurse so we explicitly call pin.add.
     await this.ipfs.pin.add(cid, {
       signal: options.signal,
-      timeout: IPFS_PUT_TIMEOUT,
+      timeout: config.ipfsConfig.putTimeoutMS || DEFAULT_IPFS_PUT_TIMEOUT_MS,
       recursive: false,
     })
     return cid
@@ -169,7 +169,7 @@ export class IpfsService implements IIpfsService {
     for (const cid of car.blocks.cids()) {
       await this.ipfs.pin.add(cid, {
         signal: options.signal,
-        timeout: IPFS_PUT_TIMEOUT,
+        timeout: config.ipfsConfig.putTimeoutMS || DEFAULT_IPFS_PUT_TIMEOUT_MS,
         recursive: false,
       })
     }

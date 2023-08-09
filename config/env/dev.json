@@ -22,7 +22,12 @@
     "url": "@@IPFS_API_URL",
     "pubsubTopic": "@@IPFS_PUBSUB_TOPIC",
     "timeout": "@@IPFS_API_TIMEOUT",
-    "concurrentGetLimit": "@@IPFS_CONCURRENT_GET_LIMIT"
+    "concurrentGetLimit": "@@IPFS_CONCURRENT_GET_LIMIT",
+    "getRetries": "@@IPFS_GET_RETRIES",
+    "getTimeoutMS": "@@IPFS_GET_TIMEOUT_MS",
+    "maxCacheEntries": "@@IPFS_MAX_CACHE_ENTRIES",
+    "pubsubDelayMS": "@@IPFS_PUBSUB_DELAY_MS",
+    "putTimeoutMS": "@@IPFS_PUT_TIMEOUT_MS"
   },
   "ceramic": {
     "apiUrl": "@@CERAMIC_API_URL",

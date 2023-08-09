@@ -22,7 +22,12 @@
     "url": "http://localhost:5001",
     "pubsubTopic": "/ceramic/testnet-clay",
     "timeout": 120000,
-    "concurrentGetLimit": 100
+    "concurrentGetLimit": 100,
+    "getRetries": 2,
+    "getTimeoutMS": 30000,
+    "maxCacheEntries": 100,
+    "pubsubDelayMS": 100,
+    "putTimeoutMS": 30000
   },
   "ceramic": {
     "apiUrl": "http://localhost:7007",
