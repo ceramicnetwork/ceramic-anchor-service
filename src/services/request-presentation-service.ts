@@ -15,7 +15,7 @@ import {
 import { CID } from 'multiformats/cid'
 import { StreamID } from '@ceramicnetwork/streamid'
 import type { OutputOf } from 'codeco'
-import { LRUCache } from 'lru-cache'
+import { LRUCache } from 'least-recent'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 import { logger } from '../logger/index.js'
@@ -37,7 +37,7 @@ const WITNESS_CAR_CACHE = 1000 // ~2MiB if one witness car is 2KiB
 export class RequestPresentationService {
   static inject = ['anchorRepository', 'merkleCarService', 'witnessService'] as const
 
-  private readonly cache = new LRUCache<string, CAR>({ max: WITNESS_CAR_CACHE })
+  private readonly cache = new LRUCache<string, CAR>(WITNESS_CAR_CACHE)
 
   constructor(
     private readonly anchorRepository: IAnchorRepository,
