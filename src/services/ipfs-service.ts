@@ -1,5 +1,5 @@
 import type { CID } from 'multiformats/cid'
-import { LRUCache } from 'lru-cache'
+import { LRUCache } from 'least-recent'
 import { create as createIpfsClient } from 'ipfs-http-client'
 import type { Config } from 'node-config-ts'
 import { logger } from '../logger/index.js'
@@ -57,7 +57,7 @@ export class IpfsService implements IIpfsService {
   static inject = ['config'] as const
 
   constructor(config: Config, ipfs: IpfsApi = buildIpfsClient(config)) {
-    this.cache = new LRUCache<string, any>({ max: MAX_CACHE_ENTRIES })
+    this.cache = new LRUCache<string, any>(MAX_CACHE_ENTRIES)
     this.ipfs = ipfs
     this.pubsubTopic = config.ipfsConfig.pubsubTopic
     const concurrentGetLimit = config.ipfsConfig.concurrentGetLimit || DEFAULT_CONCURRENT_GET_LIMIT

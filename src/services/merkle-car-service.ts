@@ -6,7 +6,7 @@ import S3LevelDOWN from 's3leveldown'
 import * as DAG_JOSE from 'dag-jose'
 import { logger } from '../logger/index.js'
 import type { Config } from 'node-config-ts'
-import { LRUCache } from 'lru-cache'
+import { LRUCache } from 'least-recent'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 
@@ -59,7 +59,7 @@ export class S3MerkleCarService implements IMerkleCarService {
 
   constructor(config: Config) {
     this.s3StorePath = config.carStorage.s3BucketName + S3_STORE_SUFFIX
-    this.cache = new LRUCache({ max: MAX_CACHE_SIZE })
+    this.cache = new LRUCache(MAX_CACHE_SIZE)
   }
 
   /**
