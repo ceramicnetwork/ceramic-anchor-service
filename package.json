@@ -79,7 +79,7 @@
     "lodash.clonedeep": "^4.5.0",
     "lodash.snakecase": "^4.1.1",
     "morgan": "^1.10.0",
-    "multiformats": "^11.0.1",
+    "multiformats": "^12.1.0",
     "os-utils": "^0.0.14",
     "pg": "^8.8.0",
     "reflect-metadata": "^0.1.13",
