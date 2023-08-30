@@ -795,8 +795,9 @@ describe('request repository test', () => {
   })
 
   describe('markPreviousReplaced', () => {
+    const ONE_HOUR_AGO = DateTime.fromISO('2023-01-01T00:00Z')
+
     test('mark older PENDING entries REPLACED', async () => {
-      const oneHourAgo = DateTime.fromISO('1900-01-01T00:00Z')
       const streamId = randomStreamID()
 
       // Create three COMPLETED requests. These should not be changed
@@ -805,7 +806,7 @@ describe('request repository test', () => {
           const request = new Request({
             cid: randomCID().toString(),
             streamId: streamId.toString(),
-            timestamp: oneHourAgo.minus({ minute: n }).toJSDate(),
+            timestamp: ONE_HOUR_AGO.minus({ minute: n }).toJSDate(),
             status: RequestStatus.COMPLETED,
             origin: 'same-origin',
           })
@@ -818,7 +819,7 @@ describe('request repository test', () => {
         new Request({
           cid: randomCID().toString(),
           streamId: randomStreamID().toString(),
-          timestamp: oneHourAgo.toJSDate(),
+          timestamp: ONE_HOUR_AGO.toJSDate(),
           status: RequestStatus.PENDING,
           origin: 'same-origin',
         })
@@ -829,7 +830,7 @@ describe('request repository test', () => {
         const request = new Request({
           cid: randomCID().toString(),
           streamId: streamId.toString(),
-          timestamp: oneHourAgo.plus({ minute: n }).toJSDate(),
+          timestamp: ONE_HOUR_AGO.plus({ minute: n }).toJSDate(),
           status: RequestStatus.PENDING,
           origin: 'same-origin',
         })
@@ -862,6 +863,25 @@ describe('request repository test', () => {
       // Our unrelated request should not be affected
       const retrieved = await requestRepository.findByCid(unrelatedStreamRequest.cid)
       expect(retrieved).toEqual(unrelatedStreamRequest)
+    })
+
+    test('mark regardless of time', async () => {
+      const streamId = randomStreamID()
+      const requestsP = times(3).map(async (n) => {
+        const request = new Request({
+          cid: randomCID().toString(),
+          streamId: streamId.toString(),
+          timestamp: ONE_HOUR_AGO.plus({ minute: n }).toJSDate(),
+          status: RequestStatus.PENDING,
+          origin: 'same-origin',
+        })
+        return requestRepository.createOrUpdate(request)
+      })
+      const requests: Array<Request> = await Promise.all(requestsP)
+      const first = requests[0]
+      expectPresent(first)
+      const rowsAffected = await requestRepository.markPreviousReplaced(first)
+      expect(rowsAffected).toEqual(requests.length - 1) // Mark every request except the last one
     })
   })
 

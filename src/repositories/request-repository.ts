@@ -27,6 +27,8 @@ export const FAILURE_RETRY_INTERVAL = 1000 * 60 * 60 * 6 // 6H
 // application is recommended to automatically retry when seeing this error
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
 
+const TABLE_NAME = 'request'
+
 /**
  * Records statistics about the set of requests
  * Groups by EXPIRED (if the time is past the deadline), PROCESSING, and FAILED
@@ -89,7 +91,7 @@ export class RequestRepository {
   ) {}
 
   get table() {
-    return this.connection('request')
+    return this.connection(TABLE_NAME)
   }
 
   withConnection(connection: Knex): RequestRepository {
@@ -453,12 +455,27 @@ export class RequestRepository {
   /**
    * Mark PENDING requests older than `request.timestamp` REPLACED if they share same `request.origin` and `request.streamId`s.
    */
-  markPreviousReplaced(request: Request): Promise<number> {
+  markPreviousReplaced(
+    request: Pick<Request, 'origin' | 'streamId' | 'cid' | 'timestamp'>
+  ): Promise<number> {
     return this.table
       .where({ origin: request.origin, streamId: request.streamId })
       .andWhere({ status: RequestStatus.PENDING })
       .andWhere('timestamp', '<', date.encode(request.timestamp))
       .update({ status: RequestStatus.REPLACED, message: `Replaced by ${request.cid}` })
+    // return this.table
+    //   .whereIn('id', function () {
+    //     return this.select('id')
+    //       .from(TABLE_NAME)
+    //       .where({
+    //         origin: request.origin,
+    //         streamId: request.streamId,
+    //         status: RequestStatus.PENDING,
+    //       })
+    //       .orderBy('timestamp', 'DESC')
+    //       .offset(1)
+    //   })
+    //   .update({ status: RequestStatus.REPLACED, message: `Replaced by ${request.cid}` })
   }
 
   /**
