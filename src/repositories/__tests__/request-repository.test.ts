@@ -878,9 +878,8 @@ describe('request repository test', () => {
         return requestRepository.createOrUpdate(request)
       })
       const requests: Array<Request> = await Promise.all(requestsP)
-      const first = requests[0]
-      expectPresent(first)
-      const rowsAffected = await requestRepository.markPreviousReplaced(first)
+      expectPresent(requests[0])
+      const rowsAffected = await requestRepository.markPreviousReplaced(requests[0])
       expect(rowsAffected).toEqual(requests.length - 1) // Mark every request except the last one
     })
   })

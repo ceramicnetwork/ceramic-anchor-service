@@ -455,27 +455,20 @@ export class RequestRepository {
   /**
    * Mark PENDING requests older than `request.timestamp` REPLACED if they share same `request.origin` and `request.streamId`s.
    */
-  markPreviousReplaced(
-    request: Pick<Request, 'origin' | 'streamId' | 'cid' | 'timestamp'>
-  ): Promise<number> {
+  markPreviousReplaced(request: Pick<Request, 'origin' | 'streamId' | 'cid'>): Promise<number> {
     return this.table
-      .where({ origin: request.origin, streamId: request.streamId })
-      .andWhere({ status: RequestStatus.PENDING })
-      .andWhere('timestamp', '<', date.encode(request.timestamp))
+      .whereIn('id', function () {
+        return this.select('id')
+          .from(TABLE_NAME)
+          .where({
+            origin: request.origin,
+            streamId: request.streamId,
+            status: RequestStatus.PENDING,
+          })
+          .orderBy('timestamp', 'DESC')
+          .offset(1)
+      })
       .update({ status: RequestStatus.REPLACED, message: `Replaced by ${request.cid}` })
-    // return this.table
-    //   .whereIn('id', function () {
-    //     return this.select('id')
-    //       .from(TABLE_NAME)
-    //       .where({
-    //         origin: request.origin,
-    //         streamId: request.streamId,
-    //         status: RequestStatus.PENDING,
-    //       })
-    //       .orderBy('timestamp', 'DESC')
-    //       .offset(1)
-    //   })
-    //   .update({ status: RequestStatus.REPLACED, message: `Replaced by ${request.cid}` })
   }
 
   /**
