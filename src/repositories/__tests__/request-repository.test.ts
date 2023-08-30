@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { jest, describe, beforeAll, beforeEach, test, afterAll, expect } from '@jest/globals'
+import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals'
 import type { Knex } from 'knex'
 import { clearTables, createDbConnection } from '../../db-connection.js'
 import { config } from 'node-config-ts'
@@ -881,6 +881,17 @@ describe('request repository test', () => {
       expectPresent(requests[0])
       const rowsAffected = await requestRepository.markReplaced(requests[0])
       expect(rowsAffected).toEqual(requests.length - 1) // Mark every request except the last one
+      const all = await requestRepository.findByIds(requests.map((r) => r.id))
+      const allById = new Map(
+        all.map((r) => {
+          return [r.id, r]
+        })
+      )
+      expect(allById.get(requests[0].id)?.status).toEqual(RequestStatus.REPLACED)
+      expectPresent(requests[1])
+      expect(allById.get(requests[1].id)?.status).toEqual(RequestStatus.REPLACED)
+      expectPresent(requests[2])
+      expect(allById.get(requests[2].id)?.status).toEqual(RequestStatus.PENDING)
     })
   })
 
