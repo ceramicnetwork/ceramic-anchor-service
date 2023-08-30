@@ -453,7 +453,7 @@ export class RequestRepository {
   }
 
   /**
-   * Mark all PENDING requests but the last one REPLACED if they share same `request.origin` and `request.streamId`s.
+   * Mark all PENDING requests but the most recent one (by client-side creation timestamp, which may be different than the order that the CAS received them in) REPLACED if they share same `request.origin` and `request.streamId`s.
    */
   markReplaced(request: Pick<Request, 'origin' | 'streamId' | 'cid'>): Promise<number> {
     return this.table
