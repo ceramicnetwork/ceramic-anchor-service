@@ -840,7 +840,7 @@ describe('request repository test', () => {
       const last = requests[requests.length - 1]
       expectPresent(last)
       // First two requests should be marked REPLACED
-      const rowsAffected = await requestRepository.markPreviousReplaced(last)
+      const rowsAffected = await requestRepository.markReplaced(last)
       expect(rowsAffected).toEqual(2)
       const expectedAffected = requests.slice(0, rowsAffected)
       for (const r of expectedAffected) {
@@ -879,7 +879,7 @@ describe('request repository test', () => {
       })
       const requests: Array<Request> = await Promise.all(requestsP)
       expectPresent(requests[0])
-      const rowsAffected = await requestRepository.markPreviousReplaced(requests[0])
+      const rowsAffected = await requestRepository.markReplaced(requests[0])
       expect(rowsAffected).toEqual(requests.length - 1) // Mark every request except the last one
     })
   })

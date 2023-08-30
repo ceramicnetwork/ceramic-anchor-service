@@ -453,9 +453,9 @@ export class RequestRepository {
   }
 
   /**
-   * Mark PENDING requests older than `request.timestamp` REPLACED if they share same `request.origin` and `request.streamId`s.
+   * Mark all PENDING requests but the last one REPLACED if they share same `request.origin` and `request.streamId`s.
    */
-  markPreviousReplaced(request: Pick<Request, 'origin' | 'streamId' | 'cid'>): Promise<number> {
+  markReplaced(request: Pick<Request, 'origin' | 'streamId' | 'cid'>): Promise<number> {
     return this.table
       .whereIn('id', function () {
         return this.select('id')

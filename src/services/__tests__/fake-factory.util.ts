@@ -41,7 +41,7 @@ export class FakeFactory {
     request.pinned = true
 
     const stored = await this.requestRepository.createOrUpdate(request)
-    await this.requestRepository.markPreviousReplaced(stored)
+    await this.requestRepository.markReplaced(stored)
     return stored
   }
 
