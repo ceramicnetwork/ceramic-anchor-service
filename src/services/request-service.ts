@@ -112,6 +112,7 @@ export class RequestService {
       model: genesisFields?.model,
       stream: request.streamId,
       origin: request.origin,
+      cap_cid: 'capCID' in params ? params.capCID : '',
     };
 
     Metrics.count(METRIC_NAMES.WRITE_TOTAL_TSDB, 1, logData)

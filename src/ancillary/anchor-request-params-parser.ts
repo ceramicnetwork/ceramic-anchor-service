@@ -22,7 +22,6 @@ import {
   isLeft,
   decode,
   validate,
-  type,
   union,
   type TypeOf,
   type Decoder,
@@ -53,11 +52,12 @@ const RequestAnchorParamsV2Root = strict({
 /**
  * Used to encode request params for logging purposes
  */
-export const RequestAnchorParamsV2 = type({
+export const RequestAnchorParamsV2 = sparse({
   streamId: streamIdAsString,
   timestamp: date,
   cid: cidAsString,
   genesisFields: GenesisFields,
+  capCID: optional(cidAsString)
 })
 
 export type RequestAnchorParamsV2 = TypeOf<typeof RequestAnchorParamsV2>
@@ -86,7 +86,7 @@ export class AnchorRequestCarFileDecoder implements Decoder<Uint8Array, RequestA
       if (isLeft(rootE)) return context.failures(rootE.left)
       const root = rootE.right
       const genesisCid = root.streamId.cid
-      const maybeGenesisRecord = this.retrieveGenesisRecord(genesisCid, carFile)
+      const [maybeGenesisRecord, capCID] = this.retrieveGenesisRecord(genesisCid, carFile)
       const genesisRecord = decode(IpfsGenesis, maybeGenesisRecord)
       const genesisFields = genesisRecord.header
 
@@ -95,6 +95,7 @@ export class AnchorRequestCarFileDecoder implements Decoder<Uint8Array, RequestA
         timestamp: root.timestamp,
         cid: root.tip,
         genesisFields: genesisFields,
+        capCID: capCID,
       })
     } catch (e: any) {
       const message = e.message || String(e)
@@ -102,13 +103,18 @@ export class AnchorRequestCarFileDecoder implements Decoder<Uint8Array, RequestA
     }
   }
 
-  private retrieveGenesisRecord(genesisCid: CID, carFile: CAR): unknown {
+  private retrieveGenesisRecord(genesisCid: CID, carFile: CAR): [unknown, CID | undefined] {
     switch (genesisCid.code) {
       case DAG_CBOR_CODE:
-        return carFile.get(genesisCid)
+        return [carFile.get(genesisCid), undefined]
       case DAG_JOSE_CODE: {
         const genesisJWS = carFile.get(genesisCid)
-        return carFile.get(genesisJWS.link)
+        const capIPFSUri = genesisJWS.signatures[0].protected.cap
+        let capCID = undefined
+        if (capIPFSUri) {
+            capCID = capIPFSUri.replace('ipfs://', '')
+        }
+        return [carFile.get(genesisJWS.link), capCID]
       }
       default:
         throw new Error(`Unsupported codec ${genesisCid.code} for genesis CID ${genesisCid}`)
