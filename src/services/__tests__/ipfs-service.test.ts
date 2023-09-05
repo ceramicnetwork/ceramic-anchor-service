@@ -1,32 +1,92 @@
-import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals'
-import type { Config } from 'node-config-ts'
+import { jest, describe, test, expect, beforeEach, afterEach, beforeAll } from '@jest/globals'
+import { type Config, config } from 'node-config-ts'
 import {
   IPFS_GET_RETRIES,
   IPFS_GET_TIMEOUT,
   IPFS_PUT_TIMEOUT,
   IpfsService,
 } from '../ipfs-service.js'
-import { MockIpfsClient, times } from '../../__tests__/test-utils.js'
+import { MockIpfsClient, randomCID, times } from '../../__tests__/test-utils.js'
 import type { IpfsApi } from '@ceramicnetwork/common'
 import type { AbortOptions } from '../abort-options.type.js'
 import type { CID } from 'multiformats/cid'
 import { DelayAbortedError, Utils } from '../../utils.js'
+import { MetadataRepository } from '../../repositories/metadata-repository.js'
+import { RequestRepository } from '../../repositories/request-repository.js'
+import { AnchorRepository } from '../../repositories/anchor-repository.js'
+import { createDbConnection } from '../../db-connection.js'
+import { createInjector, type Injector } from 'typed-inject'
+import { MockQueueService } from '../../__tests__/test-utils.js'
+import { IpfsPubSubPublishQMessage } from '../../models/queue-message.js'
+import type { Knex } from 'knex'
+import { IQueueProducerService } from '../../services//queue/queue-service.type.js'
+import type { Message, SignedMessage } from '@libp2p/interface-pubsub'
+import { PubsubMessage } from '@ceramicnetwork/core'
+import { type TypeOf } from 'codeco'
+import { peerIdFromString } from '@libp2p/peer-id'
+import * as random from '@stablelib/random'
+import { randomStreamID, generateRequest } from '../../__tests__/test-utils.js'
+import { RequestStatus } from '../../models/request.js'
 
-const FAUX_CONFIG = {
-  ipfsConfig: {
-    pubsubTopic: '/faux',
-    concurrentGetLimit: 100,
-  },
-} as Config
+const { serialize, deserialize, PubsubMessage: PubsubMessageCodec } = PubsubMessage
+declare type PubsubMessage = TypeOf<typeof PubsubMessageCodec>
+
+type Context = {
+  config: Config
+  anchorRepository: AnchorRepository
+  metadataRepository: MetadataRepository
+  ipfsQueueService: MockQueueService<IpfsPubSubPublishQMessage>
+  requestRepository: RequestRepository
+}
 
 const RECORD = { hello: 'world' }
 
 let mockIpfsClient: MockIpfsClient
 let service: IpfsService
+let connection: Knex
+let injector: Injector<Context>
 
-beforeEach(() => {
+beforeAll(async () => {
+  connection = await createDbConnection()
+  injector = createInjector()
+    .provideValue('dbConnection', connection)
+    .provideValue(
+      'config',
+      Object.assign({}, config, {
+        ipfsConfig: {
+          pubsubTopic: '/faux',
+          concurrentGetLimit: 100,
+        },
+        queue: {
+          type: 'sqs',
+          awsRegion: 'test',
+          sqsQueueUrl: '',
+          maxTimeToHoldMessageSec: 10,
+          waitTimeForMessageSec: 5,
+        },
+      })
+    )
+    .provideClass('anchorRepository', AnchorRepository)
+    .provideClass('metadataRepository', MetadataRepository)
+    .provideFactory('requestRepository', RequestRepository.make)
+    .provideClass('ipfsQueueService', MockQueueService<IpfsPubSubPublishQMessage>)
+})
+
+beforeEach(async () => {
   mockIpfsClient = new MockIpfsClient()
-  service = new IpfsService(FAUX_CONFIG, mockIpfsClient as unknown as IpfsApi)
+
+  const config = injector.resolve('config')
+  const ipfsQueueService = injector.resolve('ipfsQueueService')
+  const requestRepository = injector.resolve('requestRepository')
+  const anchorRepository = injector.resolve('anchorRepository')
+
+  service = new IpfsService(
+    config,
+    ipfsQueueService as IQueueProducerService<IpfsPubSubPublishQMessage>,
+    requestRepository,
+    anchorRepository,
+    mockIpfsClient as unknown as IpfsApi
+  )
 })
 
 afterEach(() => {
@@ -132,5 +192,181 @@ describe('retrieveRecord', () => {
       timeout: IPFS_GET_TIMEOUT,
       signal: abortController.signal,
     })
+  })
+})
+
+export function asIpfsMessage(data: Uint8Array): SignedMessage {
+  return {
+    type: 'signed',
+    from: peerIdFromString('QmQSzwPncmYm8sfgZg5Fz29YFzB6fRFBtGHqWPCDjrMLfV'),
+    topic: 'topic',
+    data: data,
+    sequenceNumber: BigInt(random.randomUint32()),
+    signature: random.randomBytes(10),
+    key: random.randomBytes(10),
+  }
+}
+
+describe('pubsub', () => {
+  test('Will ignore non query pubsub messages', async () => {
+    const pubsubMessage = { typ: 3, ts: random.randomUint32(), ver: '2.39.0-rc.1' }
+
+    const ipfsQueueService = injector.resolve('ipfsQueueService')
+    const queueSendMessageSpy = jest.spyOn(ipfsQueueService, 'sendMessage')
+    const handleMessageSpy = jest.spyOn(service, 'handleMessage')
+    const pubsubSubscribeSpy = jest.spyOn(mockIpfsClient.pubsub, 'subscribe')
+    pubsubSubscribeSpy.mockImplementationOnce(
+      (topic: string, onMessage: (message: Message) => void) => {
+        expect(topic).toEqual('/faux')
+        onMessage(asIpfsMessage(serialize(pubsubMessage)))
+        return Promise.resolve()
+      }
+    )
+
+    // @ts-ignore
+    service.respondToPubsubQueries = true
+    await service.init()
+
+    await Utils.delay(1000)
+    expect(handleMessageSpy).toBeCalledTimes(1)
+    expect(handleMessageSpy).toBeCalledWith(pubsubMessage)
+    expect(queueSendMessageSpy).toBeCalledTimes(0)
+  })
+
+  test('Will not respond to query message about stream without any anchors', async () => {
+    const pubsubMessage = { typ: 1, id: '1', stream: randomStreamID() }
+
+    const ipfsQueueService = injector.resolve('ipfsQueueService')
+    const queueSendMessageSpy = jest.spyOn(ipfsQueueService, 'sendMessage')
+    const handleMessageSpy = jest.spyOn(service, 'handleMessage')
+    const pubsubSubscribeSpy = jest.spyOn(mockIpfsClient.pubsub, 'subscribe')
+    pubsubSubscribeSpy.mockImplementationOnce(
+      (topic: string, onMessage: (message: Message) => void) => {
+        expect(topic).toEqual('/faux')
+        onMessage(asIpfsMessage(serialize(pubsubMessage)))
+        return Promise.resolve()
+      }
+    )
+
+    // @ts-ignore
+    service.respondToPubsubQueries = true
+    await service.init()
+
+    await Utils.delay(1000)
+    expect(handleMessageSpy).toBeCalledTimes(1)
+    expect(handleMessageSpy).toBeCalledWith(pubsubMessage)
+    expect(queueSendMessageSpy).toBeCalledTimes(0)
+  })
+
+  test('Will respond to query message about stream with an anchor', async () => {
+    const pubsubMessage = { typ: 1, id: '1', stream: randomStreamID() }
+
+    const ipfsQueueService = injector.resolve('ipfsQueueService')
+    const queueSendMessageSpy = jest.spyOn(ipfsQueueService, 'sendMessage')
+    const handleMessageSpy = jest.spyOn(service, 'handleMessage')
+    const pubsubSubscribeSpy = jest.spyOn(mockIpfsClient.pubsub, 'subscribe')
+    pubsubSubscribeSpy.mockImplementationOnce(
+      (topic: string, onMessage: (message: Message) => void) => {
+        expect(topic).toEqual('/faux')
+        onMessage(asIpfsMessage(serialize(pubsubMessage)))
+        return Promise.resolve()
+      }
+    )
+    const requestRepository = injector.resolve('requestRepository')
+    const createdRequest = await requestRepository.createOrUpdate(
+      generateRequest({
+        streamId: pubsubMessage.stream.toString(),
+        status: RequestStatus.COMPLETED,
+      })
+    )
+    const anchorRepository = injector.resolve('anchorRepository')
+    const anchorCid = randomCID()
+    await anchorRepository.createAnchors([
+      {
+        requestId: createdRequest.id,
+        proofCid: randomCID(),
+        path: '0',
+        cid: anchorCid,
+      },
+    ])
+
+    // @ts-ignore
+    service.respondToPubsubQueries = true
+    await service.init()
+
+    await Utils.delay(1000)
+    expect(handleMessageSpy).toBeCalledTimes(1)
+    expect(handleMessageSpy).toBeCalledWith(pubsubMessage)
+    expect(queueSendMessageSpy).toBeCalledTimes(1)
+    const receivedQueueMessage = queueSendMessageSpy.mock.calls[0][0] as any
+    const deserialized = deserialize({ data: Uint8Array.from(receivedQueueMessage.data) }) as any
+    expect(deserialized.typ).toEqual(2)
+    const receivedTips = deserialized.tips
+    expect(receivedTips.size).toEqual(1)
+    const receivedTip = deserialized.tips.get(pubsubMessage.stream.toString()).toString()
+    expect(receivedTip).toEqual(anchorCid.toString())
+  })
+
+  test('Will ignore non pusub messages', async () => {
+    const pubsubMessage = { typ: 1, id: '1', stream: randomStreamID() }
+
+    const ipfsQueueService = injector.resolve('ipfsQueueService')
+    const queueSendMessageSpy = jest.spyOn(ipfsQueueService, 'sendMessage')
+    const handleMessageSpy = jest.spyOn(service, 'handleMessage')
+    const pubsubSubscribeSpy = jest.spyOn(mockIpfsClient.pubsub, 'subscribe')
+    pubsubSubscribeSpy.mockImplementationOnce(
+      (topic: string, onMessage: (message: Message) => void) => {
+        expect(topic).toEqual('/faux')
+        onMessage(asIpfsMessage(Buffer.from('stuff', 'base64')))
+        onMessage(asIpfsMessage(serialize(pubsubMessage)))
+        return Promise.resolve()
+      }
+    )
+
+    // @ts-ignore
+    service.respondToPubsubQueries = true
+    await service.init()
+
+    await Utils.delay(1000)
+    expect(handleMessageSpy).toBeCalledTimes(1)
+    expect(handleMessageSpy).toBeCalledWith(pubsubMessage)
+    expect(queueSendMessageSpy).toBeCalledTimes(0)
+  })
+
+  test('Will resubscribe if error received from pubsub subscription', async () => {
+    const pubsubMessage = { typ: 1, id: '1', stream: randomStreamID() }
+
+    const ipfsQueueService = injector.resolve('ipfsQueueService')
+    const queueSendMessageSpy = jest.spyOn(ipfsQueueService, 'sendMessage')
+    const handleMessageSpy = jest.spyOn(service, 'handleMessage')
+    const pubsubSubscribeSpy = jest.spyOn(mockIpfsClient.pubsub, 'subscribe')
+    pubsubSubscribeSpy
+      .mockImplementationOnce(
+        (
+          topic: string,
+          onMessage: (message: Message) => void,
+          options?: { onError?: (err: Error) => void }
+        ) => {
+          expect(topic).toEqual('/faux')
+          if (options?.onError) {
+            options.onError(new Error('test'))
+          }
+          return Promise.resolve()
+        }
+      )
+      .mockImplementationOnce((topic: string, onMessage: (message: Message) => void) => {
+        onMessage(asIpfsMessage(serialize(pubsubMessage)))
+        return Promise.resolve()
+      })
+
+    // @ts-ignore
+    service.respondToPubsubQueries = true
+    // @ts-ignore
+    service.resubscribeAfterErrorDelay = 500
+    await service.init()
+
+    await Utils.delay(1000)
+    expect(handleMessageSpy).toBeCalledTimes(1)
+    expect(queueSendMessageSpy).toBeCalledTimes(0)
   })
 })

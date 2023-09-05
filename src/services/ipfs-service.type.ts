@@ -39,4 +39,9 @@ export interface IIpfsService {
    * @param options - Can pass AbortSignal
    */
   publishAnchorCommit(anchorCID: CID, streamId: StreamID, options?: AbortOptions): Promise<void>
+
+  /**
+   * Gracefully stops the ipfs service. Unsubscribes from the pubsub topic
+   */
+  stop(): Promise<void>
 }

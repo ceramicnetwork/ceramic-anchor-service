@@ -11,6 +11,9 @@ import { Request, RequestStatus } from '../models/request.js'
 import type { AbortOptions } from '../services/abort-options.type.js'
 import { Utils } from '../utils.js'
 import { CARFactory, type CAR } from 'cartonne'
+import { QueueMessageData } from '../models/queue-message.js'
+import { IQueueConsumerService, IQueueMessage } from '../services/queue/queue-service.type.js'
+import { peerIdFromString } from '@libp2p/peer-id'
 
 const MS_IN_MINUTE = 1000 * 60
 const MS_IN_HOUR = MS_IN_MINUTE * 60
@@ -35,7 +38,10 @@ export function randomStreamID(type: string | number = 'tile'): StreamID {
 export class MockIpfsClient {
   private _streams: Record<string, any> = {}
 
-  pubsub: any
+  pubsub: {
+    subscribe: (topic: string, onMessage: (message: any) => void) => Promise<void>
+    publish: (topic: string, data: Uint8Array) => Promise<void>
+  }
 
   dag: {
     get: (cid: CID, options?: AbortOptions) => Promise<any>
@@ -43,6 +49,14 @@ export class MockIpfsClient {
   }
 
   pin: any
+
+  codecs = {
+    listCodecs: () => [],
+  }
+
+  hashers = { listHashers: () => [] }
+
+  id = () => ({ id: peerIdFromString('QmS6CGhQeQf5JMWRLeX9xvmqkzayAFAbg7kkxm5AyHY8ob') })
 
   constructor() {
     this.reset()
@@ -116,6 +130,10 @@ export class MockIpfsService implements IIpfsService {
 
   async importCAR(car: CAR, options?: AbortOptions): Promise<void> {
     // Do nothing
+  }
+
+  async stop() {
+    // do nothing
   }
 }
 
@@ -199,4 +217,34 @@ export function isClose(a: number, b: number, delta = 0.01): boolean {
  */
 export function seconds(date: Date): number {
   return Math.floor(date.valueOf() / 1000)
+}
+
+export class MockQueueMessage<T extends QueueMessageData> implements IQueueMessage<T> {
+  readonly data: T
+  nack = jest.fn(() => Promise.resolve())
+  ack = jest.fn(() => Promise.resolve())
+
+  constructor(data: T) {
+    this.data = data
+  }
+}
+
+export class MockQueueService<T extends QueueMessageData> implements IQueueConsumerService<T> {
+  //@ts-ignore
+  receiveMessage
+  //@ts-ignore
+  sendMessage
+
+  constructor() {
+    this.reset()
+  }
+
+  reset() {
+    this.receiveMessage = jest.fn((): Promise<IQueueMessage<T> | undefined> => {
+      return Promise.resolve(undefined)
+    })
+    this.sendMessage = jest.fn((message: T, attempt?: number): Promise<void> => {
+      return Promise.resolve()
+    })
+  }
 }

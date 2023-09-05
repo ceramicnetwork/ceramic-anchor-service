@@ -590,4 +590,14 @@ export class RequestRepository {
       .returning(DATABASE_FIELDS)
     return returned.map((r) => new Request(r))
   }
+
+  async findCompletedForStream(streamId: string | StreamID, limit = 1): Promise<Array<Request>> {
+    const found = await this.table
+      .where({ streamId: streamId.toString() })
+      .where({ status: RequestStatus.COMPLETED })
+      .orderBy('updatedAt', 'desc')
+      .limit(limit)
+
+    return found.map((r) => new Request(r))
+  }
 }

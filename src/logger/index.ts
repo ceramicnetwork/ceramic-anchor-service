@@ -63,6 +63,7 @@ function buildExpressMiddleware() {
 const anchorEventsLogger = loggerProvider.makeServiceLogger('anchor', EVENTS_LOG_NAME)
 const dbEventsLogger = loggerProvider.makeServiceLogger('db', EVENTS_LOG_NAME)
 const ethereumEventsLogger = loggerProvider.makeServiceLogger('ethereum', EVENTS_LOG_NAME)
+export const pubsubEventsLogger = loggerProvider.makeServiceLogger('pubsub')
 
 export const logEvent = {
   anchor: (log: ServiceLog): void => anchorEventsLogger.log(log),
@@ -107,8 +108,3 @@ export function expressErrorLogger(err: Error, req: ExpReq, res: ExpRes, next: E
   logger.log(errorData);
   next(err); 
 }
-
-
-
-
-

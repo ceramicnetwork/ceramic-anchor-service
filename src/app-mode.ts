@@ -4,4 +4,5 @@ export enum AppMode {
   BUNDLED = 'bundled',
   SCHEDULER = 'scheduler',
   CONTINUAL_ANCHORING = 'continual-anchoring',
+  PUBSUB_RESPONDER = 'pubsub-responder',
 }

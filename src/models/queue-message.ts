@@ -1,4 +1,4 @@
-import { array, string, type, type TypeOf, union } from 'codeco'
+import { array, string, type, type TypeOf, union, number, optional } from 'codeco'
 import { date } from '@ceramicnetwork/codecs'
 
 export const AnchorBatchQMessage = type(
@@ -23,5 +23,19 @@ export const RequestQMessage = type(
 )
 export type RequestQMessage = TypeOf<typeof RequestQMessage>
 
-export const QueueMessageData = union([RequestQMessage, AnchorBatchQMessage], 'QueueMessageData')
+export const IpfsPubSubPublishQMessage = type(
+  {
+    createdAt: date,
+    topic: string,
+    data: array(number),
+    timeoutMs: optional(number),
+  },
+  'IpfsPubSubPublishQMessage'
+)
+export type IpfsPubSubPublishQMessage = TypeOf<typeof IpfsPubSubPublishQMessage>
+
+export const QueueMessageData = union(
+  [RequestQMessage, AnchorBatchQMessage, IpfsPubSubPublishQMessage],
+  'QueueMessageData'
+)
 export type QueueMessageData = TypeOf<typeof QueueMessageData>
