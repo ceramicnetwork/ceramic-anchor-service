@@ -208,7 +208,6 @@ describe('verify witness', () => {
     const anchorCommitCID = witnessCAR.roots[0]
     const proofCID = witnessCAR.get(anchorCommitCID).proof
     const merkleRootCID = witnessCAR.get(proofCID).root
-    console.log('root', witnessCAR.get(merkleRootCID))
     const left = witnessCAR.get(merkleRootCID)[0]
     for (const block of Array.from(witnessCAR.blocks)) {
       if (!block.cid.equals(left)) {
