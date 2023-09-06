@@ -99,7 +99,7 @@ export class RequestService {
         org: origin,
       })
     } else {
-      await this.requestRepository.markPreviousReplaced(storedRequest)
+      await this.requestRepository.markReplaced(storedRequest)
     }
 
     const did = genesisFields?.controllers?.[0]
