@@ -203,74 +203,76 @@ export class IpfsService implements IIpfsService {
   }
 
   private async createPubsub() {
-    if (this.respondToPubsubQueries) {
-      const ipfsId = await this.ipfs.id()
-      this.pubsub$ = new Observable<Message>((subscriber) => {
-        const onMessage = (message: Message) => subscriber.next(message)
-        const onError = (error: Error) => subscriber.error(error)
-        this.ipfs.pubsub
-          .subscribe(this.pubsubTopic, onMessage, { onError })
-          .then(() => {
-            logger.debug(`successfully subscribed to topic ${this.pubsubTopic}`)
-          })
-          .catch(onError)
-      })
-        .pipe(
-          filter(
-            (message: Message) =>
-              message.type === 'signed' && message.from.toString() !== ipfsId.id.toString()
-          ),
-          mergeMap((incoming) =>
-            of(incoming).pipe(
-              map((incoming) => deserialize(incoming)),
-              catchError(() => EMPTY)
-            )
-          ),
-          catchError((err) => {
-            logger.err(
-              `Received error from pubsub subscription for topic ${this.pubsubTopic}: ${err}`
-            )
-            throw err
-          }),
-          retry({
-            delay: this.resubscribeAfterErrorDelay,
-          })
-        )
-        .subscribe(this.handleMessage.bind(this))
-    } else {
+    if (!this.respondToPubsubQueries) {
       // We have to subscribe to pubsub to keep ipfs connections alive.
       // TODO Remove this when the underlying ipfs issue is fixed
       await this.ipfs.pubsub.subscribe(this.pubsubTopic, () => {
         /* do nothing */
       })
+      return
     }
+    const ipfsId = await this.ipfs.id()
+    this.pubsub$ = new Observable<Message>((subscriber) => {
+      const onMessage = (message: Message) => subscriber.next(message)
+      const onError = (error: Error) => subscriber.error(error)
+      this.ipfs.pubsub
+        .subscribe(this.pubsubTopic, onMessage, { onError })
+        .then(() => {
+          logger.debug(`successfully subscribed to topic ${this.pubsubTopic}`)
+        })
+        .catch(onError)
+    })
+      .pipe(
+        filter(
+          (message: Message) =>
+            message.type === 'signed' && message.from.toString() !== ipfsId.id.toString()
+        ),
+        mergeMap((incoming) =>
+          of(incoming).pipe(
+            map((incoming) => deserialize(incoming)),
+            catchError(() => EMPTY)
+          )
+        ),
+        catchError((err) => {
+          logger.err(
+            `Received error from pubsub subscription for topic ${this.pubsubTopic}: ${err}`
+          )
+          throw err
+        }),
+        retry({
+          delay: this.resubscribeAfterErrorDelay,
+        })
+      )
+      .subscribe(this.handleMessage.bind(this))
   }
 
   async handleMessage(message: PubsubMessage): Promise<void> {
-    if (message.typ === MsgType.QUERY) {
-      const { stream: streamId, id } = message
-
-      const completedRequest = await this.requestRepository.findCompletedForStream(streamId, 1)
-      if (completedRequest.length === 0) {
-        return
-      }
-      const anchor = await this.anchorRepository.findByRequest(completedRequest[0] as Request)
-      if (!anchor) {
-        logger.err(`Could not find anchor for completed request ${completedRequest}`)
-        return
-      }
-
-      const tipMap = new Map().set(streamId.toString(), anchor.cid)
-
-      const serializedMessage = serialize({ typ: MsgType.RESPONSE, id, tips: tipMap })
-
-      const ipfsQueueMessage = {
-        createdAt: new Date(),
-        topic: this.pubsubTopic,
-        data: Array.from(serializedMessage),
-        timeoutMs: undefined,
-      }
-      await this.ipfsQueueService.sendMessage(ipfsQueueMessage)
+    if (message.typ !== MsgType.QUERY) {
+      return
     }
+
+    const { stream: streamId, id } = message
+
+    const completedRequest = await this.requestRepository.findCompletedForStream(streamId, 1)
+    if (completedRequest.length === 0) {
+      return
+    }
+    const anchor = await this.anchorRepository.findByRequest(completedRequest[0] as Request)
+    if (!anchor) {
+      logger.err(`Could not find anchor for completed request ${completedRequest}`)
+      return
+    }
+
+    const tipMap = new Map().set(streamId.toString(), anchor.cid)
+
+    const serializedMessage = serialize({ typ: MsgType.RESPONSE, id, tips: tipMap })
+
+    const ipfsQueueMessage = {
+      createdAt: new Date(),
+      topic: this.pubsubTopic,
+      data: Array.from(serializedMessage),
+      timeoutMs: undefined,
+    }
+    await this.ipfsQueueService.sendMessage(ipfsQueueMessage)
   }
 }
