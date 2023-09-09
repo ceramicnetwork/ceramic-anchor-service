@@ -2,10 +2,12 @@ import type { Request as ExpReq } from 'express'
 import type { CID } from 'multiformats/cid'
 import { CARFactory, type CAR } from 'cartonne'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
+import { base64urlToJSON } from '@ceramicnetwork/common'
 import { METRIC_NAMES } from '../settings.js'
 import * as DAG_JOSE from 'dag-jose'
 import { GenesisFields } from '../models/metadata.js'
 import { IpfsGenesis } from '../services/metadata-service.js'
+import { logger } from '../logger/index.js'
 import {
   uint8array,
   cid,
@@ -109,10 +111,16 @@ export class AnchorRequestCarFileDecoder implements Decoder<Uint8Array, RequestA
         return [carFile.get(genesisCid), undefined]
       case DAG_JOSE_CODE: {
         const genesisJWS = carFile.get(genesisCid)
-        const capIPFSUri = genesisJWS.signatures[0].protected.cap
         let capCID = undefined
-        if (capIPFSUri) {
+        const protectedHeader = genesisJWS.signatures[0].protected
+        try { 
+          const capIPFSUri = base64urlToJSON(protectedHeader).cap
+          if (capIPFSUri) {
             capCID = capIPFSUri.replace('ipfs://', '')
+          }
+        } catch (e:any) {
+          const message = e.message || String(e)
+          logger.warn(`Unable to decode protectedHeader: ${message}`)
         }
         return [carFile.get(genesisJWS.link), capCID]
       }
