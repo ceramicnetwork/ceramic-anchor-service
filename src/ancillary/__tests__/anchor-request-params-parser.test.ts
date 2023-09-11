@@ -11,7 +11,7 @@ import { bases } from 'multiformats/basics'
 import { GenesisFields } from '../../models/metadata.js'
 import { asDIDString } from '@ceramicnetwork/codecs'
 import { mockRequest } from '../../controllers/__tests__/mock-request.util.js'
-import { isRight, type Right } from 'codeco'
+import { isRight, isLeft, type Right } from 'codeco'
 
 const FAKE_SIGNED_STREAM_ID = StreamID.fromString(
   'k2t6wzhkhabz5h9xxyrc6qoh1mcj6b0ul90xxkoin4t5bns89e3vh0gyyy1exj'
@@ -67,6 +67,17 @@ const CAR_FILE_REQUEST_EXAMPLE_SIGNED_GENESIS_WITH_CAPCID = mockRequest({
   ),
 })
 
+
+const CAR_FILE_INVALID = mockRequest({
+  headers: {
+    'Content-Type': 'application/vnd.ipld.car',
+  },
+  body: bases['base64url'].decode(
+    'uQ3JlYXRlZEJ5Q2hhdEdQVDRZb3VjYW5Vc2VUaGlzU3RyaW5n'
+  ),
+})
+
+
 const CAR_FILE_FAKE_GENESIS_FIELDS: GenesisFields = {
   controllers: [asDIDString('did:pkh:eip155:1:0x926eeb192c18b7be607a7e10c8e7a7e8d9f70742')],
   model: StreamID.fromBytes(
@@ -115,6 +126,11 @@ describe('AnchoRequestParamsParser', () => {
 
     const params: RequestAnchorParams = (validation as Right<RequestAnchorParams>).right
     expect(params.capCID).toEqual(FAKE_CAPCID)
+  })
+
+  test('isleft indicates invalid car file', () => {
+    const validation =  parser.parse(CAR_FILE_INVALID as ExpReq)
+    expect(isLeft(validation)).toBeTruthy()
   })
 
 })
