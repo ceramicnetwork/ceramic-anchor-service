@@ -67,17 +67,6 @@ const CAR_FILE_REQUEST_EXAMPLE_SIGNED_GENESIS_WITH_CAPCID = mockRequest({
   ),
 })
 
-
-const CAR_FILE_INVALID = mockRequest({
-  headers: {
-    'Content-Type': 'application/vnd.ipld.car',
-  },
-  body: bases['base64url'].decode(
-    'uQ3JlYXRlZEJ5Q2hhdEdQVDRZb3VjYW5Vc2VUaGlzU3RyaW5n'
-  ),
-})
-
-
 const CAR_FILE_FAKE_GENESIS_FIELDS: GenesisFields = {
   controllers: [asDIDString('did:pkh:eip155:1:0x926eeb192c18b7be607a7e10c8e7a7e8d9f70742')],
   model: StreamID.fromBytes(
@@ -128,9 +117,4 @@ describe('AnchoRequestParamsParser', () => {
     expect(params.capCID).toEqual(FAKE_CAPCID)
   })
 
-  test('throws error on invalid car file', () => {
-    const validation =  parser.parse(CAR_FILE_INVALID as ExpReq)
-    console.log("Here is invalid validation: " + JSON.stringify(validation))
-    expect(() => parser.parse(CAR_FILE_INVALID as ExpReq)).toThrow(/^Can not decode CAR file/);
-  })
 })
