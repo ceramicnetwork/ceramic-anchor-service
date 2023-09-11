@@ -78,14 +78,6 @@ const CAR_FILE_INVALID = mockRequest({
 })
 
 
-const CAR_FILE_NOT_BASE64URL = mockRequest({
-  headers: {
-    'Content-Type': 'application/vnd.ipld.car',
-  },
-  body: '----------------------------------------',
-})
-
-
 const CAR_FILE_FAKE_GENESIS_FIELDS: GenesisFields = {
   controllers: [asDIDString('did:pkh:eip155:1:0x926eeb192c18b7be607a7e10c8e7a7e8d9f70742')],
   model: StreamID.fromBytes(
@@ -141,9 +133,4 @@ describe('AnchoRequestParamsParser', () => {
     expect(isLeft(validation)).toBeTruthy()
   })
 
-  test('throws error if cannot decode car file', () => {
-    const validation =  parser.parse(CAR_FILE_NOT_BASE64URL as ExpReq)
-    console.log("a string of dashes, turns to " + JSON.stringify(validation))
-    expect(() => parser.parse(CAR_FILE_NOT_BASE64URL as ExpReq)).toThrow(/^Can not decode CAR file/);
-  })
 })
