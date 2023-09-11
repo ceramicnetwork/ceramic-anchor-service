@@ -114,7 +114,7 @@ export class AnchorRequestCarFileDecoder implements Decoder<Uint8Array, RequestA
         let capCID = undefined
         const protectedHeader = genesisJWS.signatures[0].protected
         try { 
-          const capIPFSUri = base64urlToJSON(protectedHeader).cap
+          const capIPFSUri = base64urlToJSON(protectedHeader)['cap']
           if (capIPFSUri) {
             capCID = capIPFSUri.replace('ipfs://', '')
           }
