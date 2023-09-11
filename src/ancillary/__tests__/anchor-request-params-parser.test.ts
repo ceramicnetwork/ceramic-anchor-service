@@ -121,7 +121,7 @@ describe('AnchoRequestParamsParser', () => {
   })
 
   test('parses CAR file with signed genesis with capCID properly', () => {
-    const validation = parser.parse(CAR_FILE_REQUEST_EXAMPLE_SIGNED_GENESIS as ExpReq)
+    const validation = parser.parse(CAR_FILE_REQUEST_EXAMPLE_SIGNED_GENESIS_WITH_CAPCID as ExpReq)
     expect(isRight(validation)).toEqual(true)
 
     const params: RequestAnchorParams = (validation as Right<RequestAnchorParams>).right
@@ -129,6 +129,8 @@ describe('AnchoRequestParamsParser', () => {
   })
 
   test('throws error on invalid car file', () => {
+    const validation =  parser.parse(CAR_FILE_INVALID as ExpReq)
+    console.log("Here is invalid validation: " + JSON.stringify(validation))
     expect(() => parser.parse(CAR_FILE_INVALID as ExpReq)).toThrow(/^Can not decode CAR file/);
   })
 })
