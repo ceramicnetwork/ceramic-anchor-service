@@ -11,7 +11,7 @@ import { bases } from 'multiformats/basics'
 import { GenesisFields } from '../../models/metadata.js'
 import { asDIDString } from '@ceramicnetwork/codecs'
 import { mockRequest } from '../../controllers/__tests__/mock-request.util.js'
-import { isRight, type Right } from 'codeco'
+import { isRight, isLeft, type Right } from 'codeco'
 
 const FAKE_SIGNED_STREAM_ID = StreamID.fromString(
   'k2t6wzhkhabz5h9xxyrc6qoh1mcj6b0ul90xxkoin4t5bns89e3vh0gyyy1exj'
@@ -142,6 +142,8 @@ describe('AnchoRequestParamsParser', () => {
   })
 
   test('throws error if cannot decode car file', () => {
+    const validation =  parser.parse(CAR_FILE_NOT_BASE64URL as ExpReq)
+    console.log("a string of dashes, turns to " + JSON.stringify(validation))
     expect(() => parser.parse(CAR_FILE_NOT_BASE64URL as ExpReq)).toThrow(/^Can not decode CAR file/);
   })
 })
