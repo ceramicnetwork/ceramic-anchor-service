@@ -13,7 +13,7 @@ import { InMemoryMerkleCarService } from '../merkle-car-service.js'
 import { WitnessService } from '../witness-service.js'
 import { CID } from 'multiformats/cid'
 import { CARFactory } from 'cartonne'
-import { pathLine } from '../../ancillary/codecs'
+import { pathLine } from '../../ancillary/codecs.js'
 import { PathDirection } from '@ceramicnetwork/anchor-utils'
 
 const carFactory = new CARFactory()
