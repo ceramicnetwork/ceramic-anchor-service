@@ -27,8 +27,7 @@ const FAKE_UNSIGNED_TIP = toCID('bafyreigoetnvcimetv4n3dh3pxjeg7x2vym6bjgf7pxjcb
 
 const TIMESTAMP_ISO = '2023-01-25T17:32:42.971Z'
 
-const FAKE_CAPCID='bafyreie2r6tmsvwfatlhpxxqm53npwww36pejsbna36swgvhqm7ukzq3ka'
-
+const FAKE_CACAO='test'  // the p.domain of the cacao in our test blob
 
 const LEGACY_REQUEST_EXAMPLE = mockRequest({
   headers: {
@@ -59,7 +58,7 @@ const CAR_FILE_REQUEST_EXAMPLE_UNSIGNED_GENESIS = mockRequest({
   ),
 })
 
-const CAR_FILE_REQUEST_EXAMPLE_SIGNED_GENESIS_WITH_CAPCID = mockRequest({
+const CAR_FILE_REQUEST_EXAMPLE_SIGNED_GENESIS_WITH_CACAO = mockRequest({
   headers: {
     'Content-Type': 'application/vnd.ipld.car',
   },
@@ -120,12 +119,12 @@ describe('AnchoRequestParamsParser', () => {
     expect((params as RequestAnchorParamsV2).genesisFields).toEqual(CAR_FILE_FAKE_GENESIS_FIELDS)
   })
 
-  test('parses CAR file with signed genesis with capCID properly', () => {
-    const validation = parser.parse(CAR_FILE_REQUEST_EXAMPLE_SIGNED_GENESIS_WITH_CAPCID as ExpReq)
+  test('parses CAR file with signed genesis with cacao properly', () => {
+    const validation = parser.parse(CAR_FILE_REQUEST_EXAMPLE_SIGNED_GENESIS_WITH_CACAO as ExpReq)
     expect(isRight(validation)).toEqual(true)
 
     const params: RequestAnchorParams = (validation as Right<RequestAnchorParams>).right
-    expect(params.capCID).toEqual(FAKE_CAPCID)
+    expect(params.cacaoDomain).toEqual(FAKE_CACAO)
   })
 
   test('isleft indicates invalid car file', () => {
