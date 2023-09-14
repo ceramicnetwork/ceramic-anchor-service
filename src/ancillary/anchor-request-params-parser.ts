@@ -1,5 +1,6 @@
 import type { Request as ExpReq } from 'express'
 import type { CID } from 'multiformats/cid'
+import { CID as CIDObj } from 'multiformats/cid'
 import { CARFactory, type CAR } from 'cartonne'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { base64urlToJSON } from '@ceramicnetwork/common'
@@ -59,7 +60,7 @@ export const RequestAnchorParamsV2 = sparse({
   timestamp: date,
   cid: cidAsString,
   genesisFields: GenesisFields,
-  cacaoDomain: optional(String)
+  cacaoDomain: optional(string)
 })
 
 export type RequestAnchorParamsV2 = TypeOf<typeof RequestAnchorParamsV2>
@@ -106,11 +107,10 @@ export class AnchorRequestCarFileDecoder implements Decoder<Uint8Array, RequestA
     }
   }
 
-  private extractCacaoDomain(rootRecord: any, carFile: CAR): String {
+  private extractCacaoDomain(rootRecord: any, carFile: CAR): string {
     try {
-      const tip = carFile.get(rootRecord.tip)
       const tipProtectedHeader = base64urlToJSON(carFile.get(rootRecord.tip).signatures[0].protected)
-      return carFile.get(CID.parse(tipProtectedHeader.cap.replace('ipfs://', ''))).p.domain
+      return carFile.get(CIDObj.parse(tipProtectedHeader['cap'].replace('ipfs://', ''))).p.domain
     } catch (e: any) {
       const message = e.message || String(e)
       logger.warn(`Error extracting cacao: ${message}`)
