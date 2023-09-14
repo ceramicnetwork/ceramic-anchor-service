@@ -99,7 +99,7 @@ export class RequestService {
         org: origin,
       })
     } else {
-      await this.requestRepository.markPreviousReplaced(storedRequest)
+      await this.requestRepository.markReplaced(storedRequest)
     }
 
     const did = genesisFields?.controllers?.[0]
@@ -112,6 +112,7 @@ export class RequestService {
       model: genesisFields?.model,
       stream: request.streamId,
       origin: request.origin,
+      cap_cid: 'capCID' in params ? params.capCID : '',
     };
 
     Metrics.count(METRIC_NAMES.WRITE_TOTAL_TSDB, 1, logData)

@@ -56,7 +56,8 @@
   "metrics": {
     "collectorHost": "",
     "exportIntervalMillis": 60000,
-    "exportTimeoutMillis": 30000
+    "exportTimeoutMillis": 30000,
+    "prometheusPort": 0
   },
   "db": {
     "client": "postgresql",

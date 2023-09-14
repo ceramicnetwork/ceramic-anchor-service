@@ -319,7 +319,7 @@ describe('createRequest', () => {
         },
       })
       const requestRepository = container.resolve('requestRepository')
-      const markPreviousReplacedSpy = jest.spyOn(requestRepository, 'markPreviousReplaced')
+      const markPreviousReplacedSpy = jest.spyOn(requestRepository, 'markReplaced')
       await controller.createRequest(req, mockResponse())
       expect(markPreviousReplacedSpy).toBeCalledTimes(1)
     })
@@ -365,7 +365,7 @@ describe('createRequest', () => {
         .spyOn(validationQueueService, 'sendMessage')
         .mockReturnValue(Promise.resolve())
       const requestRepository = container.resolve('requestRepository')
-      const markPreviousReplacedSpy = jest.spyOn(requestRepository, 'markPreviousReplaced')
+      const markPreviousReplacedSpy = jest.spyOn(requestRepository, 'markReplaced')
       await controllerPublishingToQueue.createRequest(req, mockResponse())
       expect(sendMessageSpy).toBeCalledTimes(1)
       // should not mark requests as replaced, the validation service will handle this

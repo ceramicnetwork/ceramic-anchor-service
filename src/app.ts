@@ -123,7 +123,7 @@ export class CeramicAnchorApp {
         DEFAULT_TRACE_SAMPLE_RATIO,
         null, // no logging inside metrics
         false, // do not append total to counters automatically
-        0, // do not turn on the prometheus exporter (use collector only)
+        this.config.metrics.prometheusPort, // turn on the prometheus exporter if port is set
         this.config.metrics.exportIntervalMillis,
         this.config.metrics.exportTimeoutMillis
       )
