@@ -6,7 +6,7 @@ import {
   ChangeMessageVisibilityCommand,
   SendMessageCommand,
 } from '@aws-sdk/client-sqs'
-import { QueueMessageData } from '../../models/queue-message.js'
+import { IpfsPubSubPublishQMessage, QueueMessageData } from '../../models/queue-message.js'
 import {
   IQueueConsumerService,
   IQueueProducerService,
@@ -82,8 +82,10 @@ export class SqsQueueService<TValue extends QueueMessageData>
       region: config.queue.awsRegion,
       endpoint: this.sqsQueueUrl,
     })
-    this.maxTimeToHoldMessageSec = config.queue.maxTimeToHoldMessageSec || DEFAULT_MAX_TIME_TO_HOLD_MESSAGES_S
-    this.waitTimeForMessageSec = config.queue.waitTimeForMessageSec || DEFAULT_WAIT_TIME_FOR_MESSAGE_S
+    this.maxTimeToHoldMessageSec =
+      config.queue.maxTimeToHoldMessageSec || DEFAULT_MAX_TIME_TO_HOLD_MESSAGES_S
+    this.waitTimeForMessageSec =
+      config.queue.waitTimeForMessageSec || DEFAULT_WAIT_TIME_FOR_MESSAGE_S
   }
 
   /**
@@ -162,5 +164,12 @@ export class FailureSqsQueueService extends SqsQueueService<QueueMessageData> {
   constructor(config: Config) {
     const queueUrl = config.queue.sqsQueueUrl + 'failure'
     super(config, queueUrl, QueueMessageData)
+  }
+}
+
+export class IpfsQueueService extends SqsQueueService<IpfsPubSubPublishQMessage> {
+  constructor(config: Config) {
+    const queueUrl = config.queue.sqsQueueUrl + 'ipfs'
+    super(config, queueUrl, IpfsPubSubPublishQMessage)
   }
 }

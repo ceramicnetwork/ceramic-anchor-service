@@ -16,11 +16,22 @@ import type { AbortOptions } from './abort-options.type.js'
 import { Semaphore } from 'await-semaphore'
 import type { CAR } from 'cartonne'
 import all from 'it-all'
+import { Observable, map, filter, catchError, of, mergeMap, EMPTY, Subscription, retry } from 'rxjs'
+import type { Message } from '@libp2p/interface-pubsub'
+import { type TypeOf } from 'codeco'
+import { IQueueProducerService } from './queue/queue-service.type.js'
+import { IpfsPubSubPublishQMessage } from '../models/queue-message.js'
+import { type Request } from '../models/request.js'
+import type { RequestRepository } from '../repositories/request-repository.js'
+import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
+import { AppMode } from '../app-mode.js'
 
-const { serialize, MsgType } = PubsubMessage
+const { serialize, MsgType, deserialize, PubsubMessage: PubsubMessageCodec } = PubsubMessage
+declare type PubsubMessage = TypeOf<typeof PubsubMessageCodec>
 
 export const IPFS_GET_RETRIES = 2
 export const IPFS_GET_TIMEOUT = 30000 // 30 seconds
+const IPFS_RESUBSCRIBE_AFTER_ERROR_DELAY = 1000 * 15 // 15 sec
 const MAX_CACHE_ENTRIES = 100
 export const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
 const PUBSUB_DELAY = 100
@@ -53,10 +64,19 @@ export class IpfsService implements IIpfsService {
   private readonly semaphore: Semaphore
   private readonly hasherNames: Map<number, string>
   private readonly codecNames: Map<number, string>
+  private pubsub$?: Subscription
+  private readonly respondToPubsubQueries: boolean
+  private readonly resubscribeAfterErrorDelay: number
 
-  static inject = ['config'] as const
+  static inject = ['config', 'ipfsQueueService', 'requestRepository', 'anchorRepository'] as const
 
-  constructor(config: Config, ipfs: IpfsApi = buildIpfsClient(config)) {
+  constructor(
+    config: Config,
+    private readonly ipfsQueueService: IQueueProducerService<IpfsPubSubPublishQMessage>,
+    private readonly requestRepository: RequestRepository,
+    private readonly anchorRepository: IAnchorRepository,
+    ipfs: IpfsApi = buildIpfsClient(config)
+  ) {
     this.cache = new LRUCache<string, any>(MAX_CACHE_ENTRIES)
     this.ipfs = ipfs
     this.pubsubTopic = config.ipfsConfig.pubsubTopic
@@ -64,6 +84,8 @@ export class IpfsService implements IIpfsService {
     this.semaphore = new Semaphore(concurrentGetLimit)
     this.hasherNames = new Map()
     this.codecNames = new Map()
+    this.respondToPubsubQueries = config.mode === AppMode.PUBSUB_RESPONDER ? true : false
+    this.resubscribeAfterErrorDelay = IPFS_RESUBSCRIBE_AFTER_ERROR_DELAY
   }
 
   /**
@@ -76,11 +98,8 @@ export class IpfsService implements IIpfsService {
     for (const hasher of this.ipfs.hashers.listHashers()) {
       this.hasherNames.set(hasher.code, hasher.name)
     }
-    // We have to subscribe to pubsub to keep ipfs connections alive.
-    // TODO Remove this when the underlying ipfs issue is fixed
-    await this.ipfs.pubsub.subscribe(this.pubsubTopic, () => {
-      /* do nothing */
-    })
+
+    await this.createPubsub()
   }
 
   /**
@@ -173,5 +192,87 @@ export class IpfsService implements IIpfsService {
         recursive: false,
       })
     }
+  }
+
+  async stop(): Promise<void> {
+    if (this.pubsub$) {
+      this.pubsub$.unsubscribe()
+    }
+
+    await this.ipfs.pubsub.unsubscribe(this.pubsubTopic)
+  }
+
+  private async createPubsub() {
+    if (!this.respondToPubsubQueries) {
+      // We have to subscribe to pubsub to keep ipfs connections alive.
+      // TODO Remove this when the underlying ipfs issue is fixed
+      await this.ipfs.pubsub.subscribe(this.pubsubTopic, () => {
+        /* do nothing */
+      })
+      return
+    }
+    const ipfsId = await this.ipfs.id()
+    this.pubsub$ = new Observable<Message>((subscriber) => {
+      const onMessage = (message: Message) => subscriber.next(message)
+      const onError = (error: Error) => subscriber.error(error)
+      this.ipfs.pubsub
+        .subscribe(this.pubsubTopic, onMessage, { onError })
+        .then(() => {
+          logger.debug(`successfully subscribed to topic ${this.pubsubTopic}`)
+        })
+        .catch(onError)
+    })
+      .pipe(
+        filter(
+          (message: Message) =>
+            message.type === 'signed' && message.from.toString() !== ipfsId.id.toString()
+        ),
+        mergeMap((incoming) =>
+          of(incoming).pipe(
+            map((incoming) => deserialize(incoming)),
+            catchError(() => EMPTY)
+          )
+        ),
+        catchError((err) => {
+          logger.err(
+            `Received error from pubsub subscription for topic ${this.pubsubTopic}: ${err}`
+          )
+          throw err
+        }),
+        retry({
+          delay: this.resubscribeAfterErrorDelay,
+        })
+      )
+      .subscribe(this.handleMessage.bind(this))
+  }
+
+  async handleMessage(message: PubsubMessage): Promise<void> {
+    if (message.typ !== MsgType.QUERY) {
+      return
+    }
+
+    const { stream: streamId, id } = message
+
+    const completedRequest = await this.requestRepository.findCompletedForStream(streamId, 1)
+    if (completedRequest.length === 0) {
+      return
+    }
+    const anchor = await this.anchorRepository.findByRequest(completedRequest[0] as Request)
+    if (!anchor) {
+      logger.err(`Could not find anchor for completed request ${completedRequest}`)
+      return
+    }
+
+    const tipMap = new Map().set(streamId.toString(), anchor.cid)
+
+    const serializedMessage = serialize({ typ: MsgType.RESPONSE, id, tips: tipMap })
+
+    const ipfsQueueMessage = {
+      createdAt: new Date(),
+      topic: this.pubsubTopic,
+      data: Array.from(serializedMessage),
+      timeoutMs: undefined,
+    }
+    await this.ipfsQueueService.sendMessage(ipfsQueueMessage)
   }
 }

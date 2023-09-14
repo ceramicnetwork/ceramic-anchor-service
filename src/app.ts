@@ -39,11 +39,11 @@ import { HealthcheckService, IHealthcheckService } from './services/healthcheck-
 import { RequestService } from './services/request-service.js'
 import {
   AnchorBatchSqsQueueService,
+  IpfsQueueService,
   ValidationSqsQueueService,
 } from './services/queue/sqs-queue-service.js'
 import { makeMerkleCarService, type IMerkleCarService } from './services/merkle-car-service.js'
 import { WitnessService } from './services/witness-service.js'
-
 
 type DependenciesContext = {
   config: Config
@@ -77,16 +77,17 @@ export class CeramicAnchorApp {
   readonly container: Injector<ProvidedContext>
   private readonly config: Config
   private readonly mode: AppMode
-  private readonly anchorsSupported: boolean
+  private readonly usesIpfs: boolean
 
   constructor(container: Injector<DependenciesContext>) {
     this.config = container.resolve('config')
     normalizeConfig(this.config)
     this.mode = this.config.mode as AppMode
-    this.anchorsSupported =
+    this.usesIpfs =
       this.mode === AppMode.ANCHOR ||
       this.mode === AppMode.BUNDLED ||
       this.mode === AppMode.CONTINUAL_ANCHORING ||
+      this.mode === AppMode.PUBSUB_RESPONDER ||
       this.config.anchorControllerEnabled
 
     // TODO: Selectively register only the global singletons needed based on the config
@@ -100,6 +101,7 @@ export class CeramicAnchorApp {
       // register services
       .provideFactory('blockchainService', EthereumBlockchainService.make)
       .provideClass('eventProducerService', HTTPEventProducerService)
+      .provideClass('ipfsQueueService', IpfsQueueService)
       .provideClass('ipfsService', IpfsService)
       .provideClass('metadataService', MetadataService)
       .provideClass('anchorBatchQueueService', AnchorBatchSqsQueueService)
@@ -119,8 +121,8 @@ export class CeramicAnchorApp {
         this.config.metrics.collectorHost,
         'cas_' + this.mode,
         DEFAULT_TRACE_SAMPLE_RATIO,
-        null,    // no logging inside metrics
-        false,   // do not append total to counters automatically
+        null, // no logging inside metrics
+        false, // do not append total to counters automatically
         this.config.metrics.prometheusPort, // turn on the prometheus exporter if port is set
         this.config.metrics.exportIntervalMillis,
         this.config.metrics.exportTimeoutMillis
@@ -151,7 +153,7 @@ export class CeramicAnchorApp {
     const blockchainService = this.container.resolve('blockchainService')
     await blockchainService.connect()
 
-    if (this.anchorsSupported) {
+    if (this.usesIpfs) {
       const ipfsService = this.container.resolve('ipfsService')
       await ipfsService.init()
     }
@@ -172,6 +174,9 @@ export class CeramicAnchorApp {
       case AppMode.CONTINUAL_ANCHORING:
         await this._startContinualAnchoring()
         break
+      case AppMode.PUBSUB_RESPONDER:
+        this._startPubsubResponder()
+        break
       default:
         throw new UnreachableCaseError(this.mode, `Unknown application mode ${this.mode}`)
     }
@@ -185,6 +190,9 @@ export class CeramicAnchorApp {
     await Promise.all([markReadyScheduler.stop(), continualAnchoringScheduler.stop()])
 
     this._server?.stop()
+
+    const ipfsService = this.container.resolve('ipfsService')
+    await ipfsService.stop()
   }
 
   /**
@@ -291,13 +299,15 @@ export class CeramicAnchorApp {
     process.on('SIGQUIT', shutdownSignalHandler)
 
     const task = async (): Promise<boolean> => {
-      const success = await anchorService.anchorRequests({ signal: controller.signal }).catch((error: Error) => {
-        logger.err(`Error when anchoring: ${error}`)
-        Metrics.count(METRIC_NAMES.ERROR_WHEN_ANCHORING, 1, {
-          message: error.message.substring(0, 50),
+      const success = await anchorService
+        .anchorRequests({ signal: controller.signal })
+        .catch((error: Error) => {
+          logger.err(`Error when anchoring: ${error}`)
+          Metrics.count(METRIC_NAMES.ERROR_WHEN_ANCHORING, 1, {
+            message: error.message.substring(0, 50),
+          })
+          throw error
         })
-        throw error
-      })
 
       logger.imp(
         `Temporarily skipping stream garbage collection to avoid unpinning important streams from private node`
@@ -310,12 +320,39 @@ export class CeramicAnchorApp {
       return success
     }
 
-
     const cbAfterNoOp = () => {
       logger.imp('No batches available. Continual anchoring is shutting down.')
       process.exit(0)
     }
 
-    continualAnchoringScheduler.start(task, this.config.schedulerIntervalMS, this.config.schedulerStopAfterNoOp ? cbAfterNoOp : undefined)
+    continualAnchoringScheduler.start(
+      task,
+      this.config.schedulerIntervalMS,
+      this.config.schedulerStopAfterNoOp ? cbAfterNoOp : undefined
+    )
+  }
+
+  private _startPubsubResponder(): void {
+    // The ipfs service automatically subscribes to the provided pubsub topic
+    // If we are in `pubsub-responder` mode we will handle Query messages
+    // If we are not in `pubsub-responder` mode we will ignore all messages
+
+    let shutdownInProgress: Promise<void> | undefined
+    const shutdownSignalHandler = () => {
+      if (!shutdownInProgress) {
+        logger.imp('Gracefully shutting down pubsub responder mode')
+        shutdownInProgress = this.stop()
+          .then(() => {
+            process.exit(0)
+          })
+          .catch((error) => {
+            console.error(error)
+            process.exit(1)
+          })
+      }
+    }
+    process.on('SIGINT', shutdownSignalHandler)
+    process.on('SIGTERM', shutdownSignalHandler)
+    process.on('SIGQUIT', shutdownSignalHandler)
   }
 }

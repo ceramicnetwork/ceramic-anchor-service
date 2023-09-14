@@ -11,7 +11,13 @@ import type { IIpfsService } from '../ipfs-service.type.js'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { config, Config } from 'node-config-ts'
 import { StreamID } from '@ceramicnetwork/streamid'
-import { generateRequests, MockIpfsService, repeat } from '../../__tests__/test-utils.js'
+import {
+  generateRequests,
+  MockIpfsService,
+  repeat,
+  MockQueueService,
+  MockQueueMessage,
+} from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { CID } from 'multiformats/cid'
 import type { FreshAnchor } from '../../models/anchor.js'
@@ -25,9 +31,7 @@ import { MetadataRepository } from '../../repositories/metadata-repository.js'
 import { IMetadataService, MetadataService } from '../metadata-service.js'
 import { asDIDString } from '@ceramicnetwork/codecs'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
-import type { AbortOptions } from '../abort-options.type.js'
-import { IQueueConsumerService, IQueueMessage } from '../queue/queue-service.type.js'
-import { AnchorBatchQMessage, QueueMessageData } from '../../models/queue-message.js'
+import { AnchorBatchQMessage } from '../../models/queue-message.js'
 import { Candidate } from '../candidate.js'
 import { FakeFactory } from './fake-factory.util.js'
 import { FakeEthereumBlockchainService } from './fake-ethereum-blockchain-service.util.js'
@@ -35,30 +39,6 @@ import { MockEventProducerService } from './mock-event-producer-service.util.js'
 import { type IMerkleCarService, makeMerkleCarService } from '../merkle-car-service.js'
 
 process.env['NODE_ENV'] = 'test'
-
-class MockQueueMessage<T extends QueueMessageData> implements IQueueMessage<T> {
-  readonly data: T
-  nack = jest.fn(() => Promise.resolve())
-  ack = jest.fn(() => Promise.resolve())
-
-  constructor(data: T) {
-    this.data = data
-  }
-}
-
-class MockQueueService<T extends QueueMessageData> implements IQueueConsumerService<T> {
-  receiveMessage
-
-  constructor() {
-    this.reset()
-  }
-
-  reset() {
-    this.receiveMessage = jest.fn((): Promise<IQueueMessage<T> | undefined> => {
-      return Promise.resolve(undefined)
-    })
-  }
-}
 
 async function anchorCandidates(
   candidates: Candidate[],

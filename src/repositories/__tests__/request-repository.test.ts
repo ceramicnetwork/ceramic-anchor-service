@@ -982,4 +982,86 @@ describe('request repository test', () => {
       expect(received).toEqual(createdRequests)
     })
   })
+
+  describe('findCompletedForStream', () => {
+    test('Retrieve completed request for a given stream ', async () => {
+      const myStreamId = randomStreamID().toString()
+      const expectedRequest = await generateRequests(
+        {
+          streamId: myStreamId,
+          status: RequestStatus.COMPLETED,
+        },
+        1
+      )
+      const requests = [
+        generateRequests(
+          {
+            status: RequestStatus.READY,
+          },
+          2
+        ),
+        generateRequests(
+          {
+            status: RequestStatus.PENDING,
+          },
+          2
+        ),
+        generateRequests(
+          {
+            streamId: myStreamId,
+            status: RequestStatus.PROCESSING,
+          },
+          2
+        ),
+        expectedRequest,
+        generateRequests(
+          {
+            streamId: myStreamId,
+            status: RequestStatus.COMPLETED,
+            updatedAt: new Date(Date.now() - MS_IN_MONTH),
+          },
+          1
+        ),
+        generateRequests(
+          {
+            status: RequestStatus.FAILED,
+          },
+          2
+        ),
+      ].flat()
+
+      await requestRepository.createRequests(requests)
+
+      const createdRequests = await requestRepository.allRequests()
+      expect(requests.length).toEqual(createdRequests.length)
+
+      const received = await requestRepository.findCompletedForStream(myStreamId)
+      expect(expectedRequest.map(({ id }) => id)).toEqual(received.map(({ id }) => id))
+    })
+    test('If there is no completed request for a given stream, return an empty array', async () => {
+      const myStreamId = randomStreamID().toString()
+      const requests = [
+        generateRequests(
+          {
+            status: RequestStatus.COMPLETED,
+          },
+          2
+        ),
+        generateRequests(
+          {
+            status: RequestStatus.FAILED,
+          },
+          2
+        ),
+      ].flat()
+
+      await requestRepository.createRequests(requests)
+
+      const createdRequests = await requestRepository.allRequests()
+      expect(requests.length).toEqual(createdRequests.length)
+
+      const received = await requestRepository.findCompletedForStream(myStreamId)
+      expect(received.length).toEqual(0)
+    })
+  })
 })
