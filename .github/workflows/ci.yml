@@ -81,9 +81,26 @@ jobs:
         if: ${{ env.BRANCH == 'main' || env.BRANCH == 'release-candidate' || env.BRANCH == 'develop' }}
         run: echo "PUBLISH=true" >> $GITHUB_ENV
       -
-        name: Push Docker image
+        name: Push private Docker image
         if: ${{ env.PUBLISH == 'true' }}
         run: dagger do push -w "actions:push:\"${{ env.AWS_REGION }}\":\"${{ env.ENV_TAG }}\":\"${{ env.BRANCH }}\":\"${{ env.SHA }}\":\"${{ env.SHA_TAG }}\":_" -p ${{ env.DAGGER_PLAN }}
+      -
+        name: Login to public ECR
+        if: ${{ env.BRANCH == 'develop' }}
+        uses: docker/login-action@v2
+        with:
+          registry: public.ecr.aws
+          username: ${{ env.AWS_ACCESS_KEY_ID }}
+          password: ${{ env.AWS_SECRET_ACCESS_KEY }}
+        env:
+          AWS_REGION: us-east-1
+      -
+        name: Push public Docker image
+        if: ${{ env.BRANCH == 'develop' }}
+        run: |
+          docker buildx build --load --target base -t 3box/cas .
+          docker tag 3box/cas:latest public.ecr.aws/r5b3e0r5/3box/cas:latest
+          docker push public.ecr.aws/r5b3e0r5/3box/cas:latest
       -
         name: Create deployment job
         if: ${{ env.PUBLISH == 'true' }}

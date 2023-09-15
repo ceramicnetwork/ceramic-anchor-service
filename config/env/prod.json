@@ -16,7 +16,8 @@
   "schedulerStopAfterNoOp": "@@SCHEDULER_STOP_AFTER_NO_OP",
   "carStorage": {
     "mode": "@@MERKLE_CAR_STORAGE_MODE",
-    "s3BucketName": "@@S3_BUCKET_NAME"
+    "s3BucketName": "@@S3_BUCKET_NAME",
+    "s3Endpoint": "@@S3_ENDPOINT"
   },
   "ipfsConfig": {
     "url": "@@IPFS_API_URL",

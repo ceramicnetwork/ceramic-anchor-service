@@ -16,7 +16,8 @@
   "schedulerStopAfterNoOp": false,
   "carStorage": {
     "mode": "inmemory",
-    "s3BucketName": "myS3Bucket"
+    "s3BucketName": "myS3Bucket",
+    "s3Endpoint": ""
   },
   "ipfsConfig": {
     "url": "http://localhost:5001",
