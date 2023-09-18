@@ -1,5 +1,6 @@
 import type { Request as ExpReq } from 'express'
 import type { CID } from 'multiformats/cid'
+import { CID as CIDObj } from 'multiformats/cid'
 import { CARFactory, type CAR } from 'cartonne'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { base64urlToJSON } from '@ceramicnetwork/common'
@@ -59,7 +60,7 @@ export const RequestAnchorParamsV2 = sparse({
   timestamp: date,
   cid: cidAsString,
   genesisFields: GenesisFields,
-  capCID: optional(cidAsString)
+  cacaoDomain: optional(string)
 })
 
 export type RequestAnchorParamsV2 = TypeOf<typeof RequestAnchorParamsV2>
@@ -88,16 +89,17 @@ export class AnchorRequestCarFileDecoder implements Decoder<Uint8Array, RequestA
       if (isLeft(rootE)) return context.failures(rootE.left)
       const root = rootE.right
       const genesisCid = root.streamId.cid
-      const [maybeGenesisRecord, capCID] = this.retrieveGenesisRecord(genesisCid, carFile)
+      const maybeGenesisRecord = this.retrieveGenesisRecord(genesisCid, carFile)
       const genesisRecord = decode(IpfsGenesis, maybeGenesisRecord)
       const genesisFields = genesisRecord.header
+      const cacaoDomain = this.extractCacaoDomain(rootRecord, carFile)
 
       return context.success({
         streamId: root.streamId,
         timestamp: root.timestamp,
         cid: root.tip,
         genesisFields: genesisFields,
-        capCID: capCID,
+        cacaoDomain: cacaoDomain,
       })
     } catch (e: any) {
       const message = e.message || String(e)
@@ -105,29 +107,30 @@ export class AnchorRequestCarFileDecoder implements Decoder<Uint8Array, RequestA
     }
   }
 
-  private retrieveGenesisRecord(genesisCid: CID, carFile: CAR): [unknown, CID | undefined] {
+  private extractCacaoDomain(rootRecord: any, carFile: CAR): string {
+    try {
+      const tipProtectedHeader = base64urlToJSON(carFile.get(rootRecord.tip).signatures[0].protected)
+      return carFile.get(CIDObj.parse(tipProtectedHeader['cap'].replace('ipfs://', ''))).p.domain
+    } catch (e: any) {
+      const message = e.message || String(e)
+      logger.warn(`Error extracting cacao: ${message}`)
+      return ''
+    }
+  }
+
+  private retrieveGenesisRecord(genesisCid: CID, carFile: CAR): unknown {
     switch (genesisCid.code) {
       case DAG_CBOR_CODE:
-        return [carFile.get(genesisCid), undefined]
+        return carFile.get(genesisCid)
       case DAG_JOSE_CODE: {
         const genesisJWS = carFile.get(genesisCid)
-        let capCID = undefined
-        const protectedHeader = genesisJWS.signatures[0].protected
-        try { 
-          const capIPFSUri = base64urlToJSON(protectedHeader)['cap']
-          if (capIPFSUri) {
-            capCID = capIPFSUri.replace('ipfs://', '')
-          }
-        } catch (e:any) {
-          const message = e.message || String(e)
-          logger.warn(`Unable to decode protectedHeader: ${message}`)
-        }
-        return [carFile.get(genesisJWS.link), capCID]
+        return carFile.get(genesisJWS.link)
       }
       default:
         throw new Error(`Unsupported codec ${genesisCid.code} for genesis CID ${genesisCid}`)
     }
   }
+
 }
 
 export class AnchorRequestParamsParser {
