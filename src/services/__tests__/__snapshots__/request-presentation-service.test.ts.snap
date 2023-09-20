@@ -3,7 +3,7 @@
 exports[`present by RequestStatus COMPLETED 1`] = `
 {
   "anchorCommit": {
-    "cid": "bafyreid4y5savur6cqzlul6ik35oucgczxkk3pfd62zht5yu54tezsube4",
+    "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
   },
   "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
   "createdAt": 1577934240000,
@@ -12,7 +12,21 @@ exports[`present by RequestStatus COMPLETED 1`] = `
   "status": "COMPLETED",
   "streamId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
   "updatedAt": 1612325100000,
-  "witnessCar": "OqJlcm9vdHOB2CpYJQABcRIgfMdkCtI+FDK6L8hW+uoIws3Urbyj9rJ59xTvJkzKgSdndmVyc2lvbgGIAQFxEiB8x2QK0j4UMrovyFb66gjCzdStvKP2snn3FO8mTMqBJ6NjY2lk2CpYJQABcRIgJcL6/vrpGCKCaf8MUssqdzIMYbPHvglDAor2bm6LxvNkcGF0aGEwZXByb29m2CpYJQABcRIgpwbPkSxvbUrkQBQzYF2+AvUKUrt9Wt5mtT0xWy9xGFFTAXESIKcGz5Esb21K5EAUM2BdvgL1ClK7fVreZrU9MVsvcRhRoWRyb2902CpYJQABcRIg8+mIUYRM2fJ1/CL+kpuxTMLn0GJkdC9un23kCXNm4RBOAXESIPPpiFGETNnydfwi/pKbsUzC59BiZHQvbp9t5AlzZuEQgdgqWCUAAXESIATVsKOYecAQpYEE71SWFx7t+6eZMYGJ4U6vxk8bBO2vKAFxEiAE1bCjmHnAEKWBBO9Ulhce7funmTGBieFOr8ZPGwTtr6FhYQM",
+}
+`;
+
+exports[`present by RequestStatus COMPLETED but no associated anchor 1`] = `
+{
+  "anchorCommit": {
+    "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
+  },
+  "cid": "bafyreibfyl5p56xjdarie2p7brjmwktxgiggdm6hxyeugauk6zxg5c6g6m",
+  "createdAt": 1577934240000,
+  "id": "889483296",
+  "message": "Fresh request",
+  "status": "COMPLETED",
+  "streamId": "k2t6wyfsu4pfxu08vo93w38oyu9itsuf374ekyeno0wb62ozm2o9sznrn8qp72",
+  "updatedAt": 1612325100000,
 }
 `;
 
