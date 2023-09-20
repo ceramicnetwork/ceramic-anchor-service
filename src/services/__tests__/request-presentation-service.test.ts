@@ -1,9 +1,6 @@
 import { describe, expect, jest, test } from '@jest/globals'
 import { RequestStatus } from '../../models/request.js'
-import {
-  CompletedAnchorlessError,
-  RequestPresentationService,
-} from '../request-presentation-service.js'
+import { RequestPresentationService } from '../request-presentation-service.js'
 import type {
   AnchorWithRequest,
   IAnchorRepository,
@@ -12,11 +9,6 @@ import { generateRequest } from '../../__tests__/test-utils.js'
 import { InMemoryMerkleCarService } from '../merkle-car-service.js'
 import { WitnessService } from '../witness-service.js'
 import { CID } from 'multiformats/cid'
-import { CARFactory } from 'cartonne'
-import { pathLine } from '../../ancillary/codecs.js'
-import { PathDirection } from '@ceramicnetwork/anchor-utils'
-
-const carFactory = new CARFactory()
 
 const anchorRepository = {
   findByRequest: jest.fn(),
@@ -62,26 +54,13 @@ describe('present by RequestStatus', () => {
       status: RequestStatus.COMPLETED,
     })
     const findByRequestSpy = jest.spyOn(anchorRepository, 'findByRequest')
-    const merkleCar = carFactory.build()
-    const witnessElement = merkleCar.put({ a: 3 })
-    const root = merkleCar.put([witnessElement])
-    const proofCid = merkleCar.put({ root: root })
-    const cid = merkleCar.put({
-      proof: proofCid,
+    const anchor = {
+      path: '/some/path',
       cid: FAKE_CID,
-      path: pathLine.encode([PathDirection.L]),
-    })
+      proofCid: FAKE_CID,
+    }
     findByRequestSpy.mockImplementationOnce(async () => {
-      return {
-        path: pathLine.encode([PathDirection.L]),
-        cid: cid,
-        proofCid: proofCid,
-        request: request,
-      } as AnchorWithRequest
-    })
-    const retrieveCarFileSpy = jest.spyOn(merkleCarService, 'retrieveCarFile')
-    retrieveCarFileSpy.mockImplementationOnce(async () => {
-      return merkleCar
+      return { ...anchor, request: request } as AnchorWithRequest
     })
     const presentation = await service.body(request)
     expect(presentation).toMatchSnapshot()
@@ -96,6 +75,7 @@ describe('present by RequestStatus', () => {
     findByRequestSpy.mockImplementationOnce(async () => {
       return null
     })
-    await expect(service.body(request)).rejects.toThrow(CompletedAnchorlessError)
+    const presentation = await service.body(request)
+    expect(presentation).toMatchSnapshot()
   })
 })

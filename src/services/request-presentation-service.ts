@@ -10,6 +10,7 @@ import {
   AnchorRequestStatusName,
   NotCompleteCASResponse,
   CASResponse,
+  CompleteCASResponse,
 } from '@ceramicnetwork/codecs'
 import { CID } from 'multiformats/cid'
 import { StreamID } from '@ceramicnetwork/streamid'
@@ -30,18 +31,6 @@ const NAME_FROM_STATUS = {
 
 const WITNESS_CAR_CACHE = 1000 // ~2MiB if one witness car is 2KiB
 
-export class CompletedAnchorlessError extends Error {
-  constructor(cid: string) {
-    super(`No anchor for COMPLETED request ${cid} found`)
-  }
-}
-
-class NoMerkleCarError extends Error {
-  constructor(proofCID: CID) {
-    super(`No MerkleCAR found for proof ${proofCID}`)
-  }
-}
-
 /**
  * Render anchoring Request as JSON for a client to consume.
  */
@@ -56,7 +45,8 @@ export class RequestPresentationService {
     private readonly witnessService: WitnessService
   ) {}
 
-  async witnessCAR(anchor: AnchorWithRequest): Promise<CAR> {
+  async witnessCAR(anchor: AnchorWithRequest | null): Promise<CAR | null> {
+    if (!anchor) return null // Expected behaviour
     const cacheKey = anchor.cid.toString()
     const fromCache = this.cache.get(cacheKey)
     if (fromCache) {
@@ -68,7 +58,7 @@ export class RequestPresentationService {
     if (!merkleCAR) {
       Metrics.count(METRIC_NAMES.NO_MERKLE_CAR_FOR_ANCHOR, 1)
       logger.warn(`No Merkle CAR found for anchor ${anchor.cid}`)
-      throw new NoMerkleCarError(anchor.proofCid)
+      return null
     }
     const witnessCAR = this.witnessService.buildWitnessCAR(anchor.cid, merkleCAR)
     this.cache.set(cacheKey, witnessCAR)
@@ -82,15 +72,14 @@ export class RequestPresentationService {
         const anchor = await this.anchorRepository.findByRequest(request)
         if (!anchor) {
           Metrics.count(METRIC_NAMES.NO_ANCHOR_FOR_REQUEST, 1)
-          throw new CompletedAnchorlessError(request.cid)
         }
         const witnessCAR = await this.witnessCAR(anchor)
-        // TODO CDB-2759 Drop this after enough Ceramic nodes can 100% rely on WitnessCAR
+        // TODO: This is a workaround, fix in CDB-2192
         const anchorCommit: AnchorCommitPresentation = {
           cid: anchor ? anchor.cid : CID.parse(request.cid),
         }
 
-        return {
+        const result: CompleteCASResponse = {
           id: request.id,
           status: AnchorRequestStatusName.COMPLETED,
           cid: CID.parse(request.cid),
@@ -99,8 +88,11 @@ export class RequestPresentationService {
           createdAt: new Date(request.createdAt),
           updatedAt: new Date(request.updatedAt),
           anchorCommit: anchorCommit,
-          witnessCar: witnessCAR,
         }
+        if (witnessCAR) {
+          result.witnessCar = witnessCAR
+        }
+        return result
       }
       case RequestStatus.PENDING:
       case RequestStatus.PROCESSING:
