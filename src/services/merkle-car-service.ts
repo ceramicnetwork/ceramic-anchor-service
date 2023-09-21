@@ -54,11 +54,13 @@ const MAX_CACHE_SIZE = 100 // ~40MiB if 1 batch is 400KiB
 
 export class S3MerkleCarService implements IMerkleCarService {
   readonly s3StorePath: string
+  readonly s3Endpoint?: string
   private _s3store?: LevelUp.LevelUp
   private readonly cache: LRUCache<string, CAR>
 
   constructor(config: Config) {
     this.s3StorePath = config.carStorage.s3BucketName + S3_STORE_SUFFIX
+    this.s3Endpoint = config.carStorage.s3Endpoint ? config.carStorage.s3Endpoint : undefined
     this.cache = new LRUCache(MAX_CACHE_SIZE)
   }
 
@@ -68,7 +70,17 @@ export class S3MerkleCarService implements IMerkleCarService {
    */
   get s3store(): LevelUp.LevelUp {
     if (!this._s3store) {
-      this._s3store = new LevelUp(new S3LevelDOWN(this.s3StorePath, new AWSSDK.S3()))
+      const levelDown = this.s3Endpoint
+        ? new S3LevelDOWN(
+          this.s3StorePath,
+          new AWSSDK.S3({
+            endpoint: this.s3Endpoint,
+            s3ForcePathStyle: true,
+          })
+        )
+        : new S3LevelDOWN(this.s3StorePath)
+
+      this._s3store = new LevelUp(levelDown)
     }
     return this._s3store
   }
