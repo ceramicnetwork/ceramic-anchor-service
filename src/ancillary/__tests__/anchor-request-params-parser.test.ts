@@ -136,7 +136,7 @@ describe('AnchoRequestParamsParser', () => {
 
     const params: RequestAnchorParams = (validation as Right<RequestAnchorParams>).right
     expect(params.cacaoDomain).toEqual(FAKE_CACAO)
-    expect((params as RequestAnchorParamsV2).genesisFields.model?.toString() ?? '').toEqual('')
+    expect((params as RequestAnchorParamsV2).genesisFields.model).toBeUndefined()
   })
 
 
