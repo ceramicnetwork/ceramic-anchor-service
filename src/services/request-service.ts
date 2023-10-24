@@ -109,7 +109,7 @@ export class RequestService {
       did,
       schema: genesisFields?.schema,
       family: genesisFields?.family,
-      model: genesisFields?.model,
+      model: genesisFields?.model?.toString() ?? '',
       stream: request.streamId,
       origin: request.origin,
       cacao: 'cacaoDomain' in params ? params.cacaoDomain : '',
