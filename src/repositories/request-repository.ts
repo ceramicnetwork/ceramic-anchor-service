@@ -1,6 +1,12 @@
 import { CID } from 'multiformats/cid'
 import type { Knex } from 'knex'
-import { DATABASE_FIELDS, Request, RequestStatus, RequestUpdateFields } from '../models/request.js'
+import {
+  DATABASE_FIELDS,
+  Request,
+  RequestStatus,
+  RequestUpdateFields,
+  RequestCodec,
+} from '../models/request.js'
 import { logEvent, logger } from '../logger/index.js'
 import { Config } from 'node-config-ts'
 import { Utils } from '../utils.js'
@@ -109,9 +115,11 @@ export class RequestRepository {
    */
   async createOrUpdate(request: Request): Promise<Request> {
     const keys = Object.keys(request).filter((key) => key !== 'id') // all keys except ID
-    const [{ id }] = await this.table.insert(request.toDB(), ['id']).onConflict('cid').merge(keys)
-
-    const created = await this.table.where({ id }).first()
+    const [created] = await this.table
+      .insert(request.toDB(), ['id'])
+      .returning(Object.keys(RequestCodec.props))
+      .onConflict('cid')
+      .merge(keys)
 
     logEvent.db({
       type: 'request',
