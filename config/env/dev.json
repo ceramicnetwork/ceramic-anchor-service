@@ -59,7 +59,7 @@
     "traceRatio": "@@METRICS_TRACE_RATIO",
     "exportIntervalMillis": "@@METRICS_EXPORT_INTERVAL_MS",
     "exportTimeoutMillis": "@@METRICS_EXPORT_TIMEOUT_MS",
-    "prometheusPort": "@@METRICS_PROMETHEUS_PORT"
+    "prometheusPort": "@@METRICS_PORT"
   },
   "db": {
     "connection": {
