@@ -307,6 +307,53 @@ describe('pubsub', () => {
     expect(receivedTip).toEqual(anchorCid.toString())
   })
 
+  test('Will not respond to query message about stream with an anchor if it is too old', async () => {
+    const pubsubMessage = { typ: 1, id: '1', stream: randomStreamID() }
+
+    const ipfsQueueService = injector.resolve('ipfsQueueService')
+    const queueSendMessageSpy = jest.spyOn(ipfsQueueService, 'sendMessage')
+    const handleMessageSpy = jest.spyOn(service, 'handleMessage')
+    const pubsubSubscribeSpy = jest.spyOn(mockIpfsClient.pubsub, 'subscribe')
+    pubsubSubscribeSpy.mockImplementationOnce(
+      (topic: string, onMessage: (message: Message) => void) => {
+        expect(topic).toEqual('/faux')
+        onMessage(asIpfsMessage(serialize(pubsubMessage)))
+        return Promise.resolve()
+      }
+    )
+    // @ts-ignore
+    const beforeWindow = new Date(Date.now() - service.pubsubResponderWindowMs - 1000)
+    const requestRepository = injector.resolve('requestRepository')
+    const createdRequest = await requestRepository.createOrUpdate(
+      generateRequest({
+        streamId: pubsubMessage.stream.toString(),
+        status: RequestStatus.COMPLETED,
+        // @ts-ignore
+        createdAt: beforeWindow,
+        updatedAt: beforeWindow,
+      })
+    )
+    const anchorRepository = injector.resolve('anchorRepository')
+    const anchorCid = randomCID()
+    await anchorRepository.createAnchors([
+      {
+        requestId: createdRequest.id,
+        proofCid: randomCID(),
+        path: '0',
+        cid: anchorCid,
+      },
+    ])
+
+    // @ts-ignore
+    service.respondToPubsubQueries = true
+    await service.init()
+
+    await Utils.delay(1000)
+    expect(handleMessageSpy).toBeCalledTimes(1)
+    expect(handleMessageSpy).toBeCalledWith(pubsubMessage)
+    expect(queueSendMessageSpy).toBeCalledTimes(0)
+  })
+
   test('Will ignore non pusub messages', async () => {
     const pubsubMessage = { typ: 1, id: '1', stream: randomStreamID() }
 

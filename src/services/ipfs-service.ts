@@ -36,6 +36,7 @@ const MAX_CACHE_ENTRIES = 100
 export const IPFS_PUT_TIMEOUT = 30 * 1000 // 30 seconds
 const PUBSUB_DELAY = 100
 const DEFAULT_CONCURRENT_GET_LIMIT = 100
+export const DEFAULT_PUBSUB_RESPONDER_WINDOW = 1_000 * 60 * 60 * 24 * 31 * 3 // 3 months
 
 function buildHttpAgent(endpoint: string | undefined): HttpAgent {
   const agentOptions = {
@@ -67,6 +68,7 @@ export class IpfsService implements IIpfsService {
   private pubsub$?: Subscription
   private readonly respondToPubsubQueries: boolean
   private readonly resubscribeAfterErrorDelay: number
+  private readonly pubsubResponderWindowMs: number
 
   static inject = ['config', 'ipfsQueueService', 'requestRepository', 'anchorRepository'] as const
 
@@ -86,6 +88,7 @@ export class IpfsService implements IIpfsService {
     this.codecNames = new Map()
     this.respondToPubsubQueries = config.mode === AppMode.PUBSUB_RESPONDER ? true : false
     this.resubscribeAfterErrorDelay = IPFS_RESUBSCRIBE_AFTER_ERROR_DELAY
+    this.pubsubResponderWindowMs = config.pubsubResponderWindowMs || DEFAULT_PUBSUB_RESPONDER_WINDOW
   }
 
   /**
@@ -253,7 +256,11 @@ export class IpfsService implements IIpfsService {
 
     const { stream: streamId, id } = message
 
-    const completedRequest = await this.requestRepository.findCompletedForStream(streamId, 1)
+    const completedRequest = await this.requestRepository.findCompletedForStream(
+      streamId,
+      1,
+      new Date(Date.now() - this.pubsubResponderWindowMs)
+    )
     if (completedRequest.length === 0) {
       return
     }
@@ -262,6 +269,12 @@ export class IpfsService implements IIpfsService {
       logger.err(`Could not find anchor for completed request ${completedRequest}`)
       return
     }
+
+    logger.debug(
+      `Pubsub responder responding with anchor commit ${
+        anchor.cid
+      } for stream ${streamId.toString()}`
+    )
 
     const tipMap = new Map().set(streamId.toString(), anchor.cid)
 
