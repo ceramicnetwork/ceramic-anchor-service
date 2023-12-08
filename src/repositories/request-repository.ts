@@ -609,12 +609,22 @@ export class RequestRepository {
     return returned.map((r) => new Request(r))
   }
 
-  async findCompletedForStream(streamId: string | StreamID, limit = 1): Promise<Array<Request>> {
-    const found = await this.table
+  async findCompletedForStream(
+    streamId: string | StreamID,
+    limit = 1,
+    after?: Date
+  ): Promise<Array<Request>> {
+    const query = this.table
       .where({ streamId: streamId.toString() })
-      .where({ status: RequestStatus.COMPLETED })
+      .andWhere({ status: RequestStatus.COMPLETED })
       .orderBy('updatedAt', 'desc')
       .limit(limit)
+
+    if (after) {
+      query.andWhere('updatedAt', '>=', date.encode(after))
+    }
+
+    const found = await query
 
     return found.map((r) => new Request(r))
   }

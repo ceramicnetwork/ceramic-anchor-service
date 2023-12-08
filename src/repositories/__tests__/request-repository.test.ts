@@ -1038,6 +1038,28 @@ describe('request repository test', () => {
       const received = await requestRepository.findCompletedForStream(myStreamId)
       expect(expectedRequest.map(({ id }) => id)).toEqual(received.map(({ id }) => id))
     })
+
+    test('If the completed request for a given stream is too old, return an empty array', async () => {
+      const myStreamId = randomStreamID().toString()
+      const after = new Date(Date.now() - 1000 * 60 * 60)
+      const requests = generateRequests(
+        {
+          streamId: myStreamId,
+          status: RequestStatus.COMPLETED,
+          updatedAt: new Date(after.getTime() - 1),
+        },
+        1
+      )
+
+      await requestRepository.createRequests(requests)
+
+      const createdRequests = await requestRepository.allRequests()
+      expect(requests.length).toEqual(createdRequests.length)
+
+      const received = await requestRepository.findCompletedForStream(myStreamId, 1, after)
+      expect(received.length).toEqual(0)
+    })
+
     test('If there is no completed request for a given stream, return an empty array', async () => {
       const myStreamId = randomStreamID().toString()
       const requests = [
