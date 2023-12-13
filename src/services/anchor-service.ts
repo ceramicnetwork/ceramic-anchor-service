@@ -497,6 +497,9 @@ export class AnchorService {
       cid: anchorCid,
     }
 
+    logger.debug(
+      `Created anchor commit with CID ${anchorCid.toString()} for stream ${candidate.streamId.toString()}`
+    )
     return anchor
 
     // try {
