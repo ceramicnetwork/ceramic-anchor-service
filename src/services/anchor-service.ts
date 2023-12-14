@@ -273,13 +273,17 @@ export class AnchorService {
       await logAnchorSummary(this.requestRepository, groupedRequests, candidates, results)
       return
     } catch (err) {
-      logger.warn(
-        `Updating PROCESSING requests to PENDING so they are retried in the next batch because an error occurred while creating the anchors: ${err}`
-      )
       const acceptedRequests = candidates.map((candidate) => candidate.request).flat()
-      await this.requestRepository.updateRequests({ status: RS.PENDING }, acceptedRequests)
 
-      Metrics.count(METRIC_NAMES.REVERT_TO_PENDING, acceptedRequests.length)
+      // If we are using queued batches, the queue will retry the entire batch. Status updates are not needed for retry.
+      if (!this.useQueueBatches) {
+        logger.warn(
+          `Updating PROCESSING requests to PENDING so they are retried in the next batch because an error occurred while creating the anchors: ${err}`
+        )
+        await this.requestRepository.updateRequests({ status: RS.PENDING }, acceptedRequests)
+
+        Metrics.count(METRIC_NAMES.REVERT_TO_PENDING, acceptedRequests.length)
+      }
 
       // groupRequests.failedRequests does not include all the newly failed requests so we recount here
       const failedRequests = []
