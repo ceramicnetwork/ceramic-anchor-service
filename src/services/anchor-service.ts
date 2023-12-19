@@ -501,24 +501,29 @@ export class AnchorService {
       cid: anchorCid,
     }
 
-    try {
-      await this.ipfsService.storeRecord(ipfsAnchorCommit)
-      logger.debug(
-        `Stored anchor commit for ${candidate.cid} of stream ${candidate.streamId} on IPFS`
-      )
-      await this.ipfsService.publishAnchorCommit(anchorCid, candidate.streamId)
-      logger.debug(
-        `Created anchor commit with CID ${anchorCid.toString()} for stream ${candidate.streamId.toString()}`
-      )
-      return anchor
-    } catch (err) {
-      const msg = `Error publishing anchor commit of commit ${
-        candidate.cid
-      } for stream ${candidate.streamId.toString()}: ${err}`
-      logger.err(msg)
-      Metrics.count(METRIC_NAMES.ERROR_IPFS, 1)
-      return anchor
-    }
+    logger.debug(
+      `Created anchor commit with CID ${anchorCid.toString()} for stream ${candidate.streamId.toString()}`
+    )
+    return anchor
+
+    // try {
+    //   await this.ipfsService.storeRecord(ipfsAnchorCommit)
+    //   logger.debug(
+    //     `Stored anchor commit for ${candidate.cid} of stream ${candidate.streamId} on IPFS`
+    //   )
+    //   await this.ipfsService.publishAnchorCommit(anchorCid, candidate.streamId)
+    //   logger.debug(
+    //     `Created anchor commit with CID ${anchorCid.toString()} for stream ${candidate.streamId.toString()}`
+    //   )
+    //   return anchor
+    // } catch (err) {
+    //   const msg = `Error publishing anchor commit of commit ${
+    //     candidate.cid
+    //   } for stream ${candidate.streamId.toString()}: ${err}`
+    //   logger.err(msg)
+    //   Metrics.count(METRIC_NAMES.ERROR_IPFS, 1)
+    //   return anchor
+    // }
   }
 
   /**
