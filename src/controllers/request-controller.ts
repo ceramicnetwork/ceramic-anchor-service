@@ -83,6 +83,7 @@ export class RequestController {
       return res.status(StatusCodes.OK).json(response)
     } catch (err: any) {
       if (err instanceof RequestDoesNotExistError) {
+        Metrics.count(METRIC_NAMES.REQUEST_NOT_FOUND, 1, { source: parseOrigin(req) })
         return res.status(StatusCodes.NOT_FOUND).json({
           error: err.message,
         })
