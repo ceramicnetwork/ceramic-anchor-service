@@ -14,7 +14,7 @@ import {
   RequestAnchorParamsCodec,
 } from '../ancillary/anchor-request-params-parser.js'
 import bodyParser from 'body-parser'
-import type { RequestService } from '../services/request-service.js'
+import { type RequestService, RequestDoesNotExistError } from '../services/request-service.js'
 import { cidAsString } from '@ceramicnetwork/codecs'
 import { isLeft, report, string, strict, validate } from 'codeco'
 
@@ -82,6 +82,12 @@ export class RequestController {
       const response = await this.requestService.getStatusForCid(cid)
       return res.status(StatusCodes.OK).json(response)
     } catch (err: any) {
+      if (err instanceof RequestDoesNotExistError) {
+        return res.status(StatusCodes.NOT_FOUND).json({
+          error: err.message,
+        })
+      }
+
       const errmsg = `Loading request status for CID ${cid} failed: ${err.message}`
       logger.err(errmsg)
       return res.status(StatusCodes.BAD_REQUEST).json({
