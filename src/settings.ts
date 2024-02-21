@@ -78,5 +78,6 @@ export enum METRIC_NAMES {
   LEGACY_REQUESTED = 'legacy_requested',
   REQUEST_INVALID = 'request_invalid',
   REQUEST_NOT_CREATED = 'request_not_created',
+  REQUEST_NOT_FOUND = 'request_not_found',
 }
 

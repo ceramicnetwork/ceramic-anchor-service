@@ -506,4 +506,19 @@ describe('createRequest', () => {
     expectPresent(createdRequest)
     expect(createdRequest.origin).toEqual(sourceIp)
   })
+
+  test('request that does not exist returns not found error', async () => {
+    const req = mockRequest({
+      headers: {
+        'Content-type': 'application/json',
+      },
+      cid: randomCID().toString(),
+    })
+    const res = mockResponse()
+    const jsonSpy = jest.spyOn(res, 'json')
+    await controller.getStatusForCid(req, res)
+    expect(res.status).toBeCalledWith(StatusCodes.NOT_FOUND)
+    expectPresent(jsonSpy.mock.calls[0])
+    expect(jsonSpy.mock.calls[0][0].error).toBeDefined()
+  })
 })

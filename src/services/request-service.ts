@@ -20,6 +20,12 @@ const ISO8601_DATE_FORMAT = new Intl.DateTimeFormat('sv-SE', {
   day: 'numeric',
 })
 
+export class RequestDoesNotExistError extends Error {
+  constructor(cid: CID) {
+    super(`Request does not exist for cid ${cid.toString()}`)
+  }
+}
+
 export class RequestService {
   private readonly publishToQueue: boolean
 
@@ -44,7 +50,7 @@ export class RequestService {
   async getStatusForCid(cid: CID): Promise<OutputOf<typeof CASResponse> | { error: string }> {
     const request = await this.requestRepository.findByCid(cid)
     if (!request) {
-      return { error: 'Request does not exist' }
+      throw new RequestDoesNotExistError(cid)
     }
 
     logger.debug(
