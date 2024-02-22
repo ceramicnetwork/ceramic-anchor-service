@@ -26,6 +26,10 @@
     "timeout": "@@IPFS_API_TIMEOUT",
     "concurrentGetLimit": "@@IPFS_CONCURRENT_GET_LIMIT"
   },
+  "ceramic": {
+    "apiUrl": "@@CERAMIC_API_URL",
+    "validateRecords": "@@VALIDATE_RECORDS"
+  },
   "blockchain": {
     "selectedConnector": "@@BLOCKCHAIN_CONNECTOR",
     "connectors": {

@@ -26,6 +26,10 @@
     "timeout": 120000,
     "concurrentGetLimit": 100
   },
+  "ceramic": {
+    "apiUrl": "http://localhost:7007",
+    "validateRecords": false
+  },
   "blockchain": {
     "selectedConnector": "ethereum",
     "connectors": {
