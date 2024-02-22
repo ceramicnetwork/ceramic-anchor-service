@@ -296,12 +296,7 @@ describe('Ceramic Integration Test', () => {
 
   afterAll(async () => {
     // await Promise.all([ipfsServer1.stop(), ipfsServer2.stop()])
-    await Promise.all([
-      ipfs1.stop(),
-      ipfs2.stop(),
-      ipfs3.stop(),
-      ipfs4.stop(),
-    ])
+    await Promise.all([ipfs1.stop(), ipfs2.stop(), ipfs3.stop(), ipfs4.stop()])
     await ganacheServer.close()
     await anchorLauncher.stop()
   })
@@ -348,15 +343,10 @@ describe('Ceramic Integration Test', () => {
     })
 
     afterAll(async () => {
-      cas1.stop()
-      cas2.stop()
+      await cas1.stop()
+      await cas2.stop()
       await Promise.all([dbConnection1.destroy(), dbConnection2.destroy()])
-      await Promise.all([
-        casCeramic1.close(),
-        casCeramic2.close(),
-        ceramic1.close(),
-        ceramic2.close(),
-      ])
+      await Promise.all([ceramic1.close(), ceramic2.close()])
     })
 
     beforeEach(async () => {
