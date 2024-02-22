@@ -9,9 +9,6 @@
     "mode": "s3",
     "s3BucketName": "ceramic-tnet-cas"
   },
-  "ceramic": {
-    "validateRecords": false
-  },
   "blockchain": {
     "selectedConnector": "ethereum",
     "connectors": {

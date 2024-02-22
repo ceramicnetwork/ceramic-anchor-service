@@ -174,7 +174,6 @@ function makeAnchorLauncher(port: number): FauxAnchorLauncher {
 
 interface MinimalCASConfig {
   ipfsPort: number
-  ceramicPort: number
   ganachePort: number
   mode: string
   port: number
@@ -194,7 +193,6 @@ async function makeCAS(
   configCopy.minStreamCount = 1
   configCopy.ipfsConfig.url = `http://localhost:${minConfig.ipfsPort}`
   configCopy.ipfsConfig.pubsubTopic = TOPIC
-  configCopy.ceramic.apiUrl = `http://localhost:${minConfig.ceramicPort}`
   configCopy.blockchain.connectors.ethereum.network = 'ganache'
   configCopy.blockchain.connectors.ethereum.rpc.port = String(minConfig.ganachePort)
   configCopy.useSmartContractAnchors = minConfig.useSmartContractAnchors
@@ -245,21 +243,11 @@ describe('Ceramic Integration Test', () => {
 
   let ipfs1: IpfsApi // Used by CAS1 directly
   let ipfs2: IpfsApi // Used by CAS2 directly
-  let ipfs3: IpfsApi // Used by CAS1 ceramic
-  let ipfs4: IpfsApi // Used by CAS2 ceramic
-  let ipfs5: IpfsApi // Used by main ceramic 1
-  let ipfs6: IpfsApi // Used by main ceramic 2
+  let ipfs3: IpfsApi // Used by main ceramic 1
+  let ipfs4: IpfsApi // Used by main ceramic 2
 
-  // let ipfsServer1: HttpApi
-  // let ipfsServer2: HttpApi
-
-  let casCeramic1: Ceramic // Ceramic node used internally by CAS1
-  let casCeramic2: Ceramic // Ceramic node used internally by CAS2
   let ceramic1: Ceramic // First main Ceramic node used by the tests
   let ceramic2: Ceramic // Second main Ceramic node used by the tests
-
-  let daemon1: CeramicDaemon // CAS1 Ceramic http server
-  let daemon2: CeramicDaemon // CAS2 Ceramic http server
 
   let dbConnection1: Knex
   let dbConnection2: Knex
@@ -276,22 +264,15 @@ describe('Ceramic Integration Test', () => {
   beforeAll(async () => {
     ipfsApiPort1 = await getPort()
     ipfsApiPort2 = await getPort()
-    ;[ipfs1, ipfs2, ipfs3, ipfs4, ipfs5, ipfs6] = await Promise.all([
+    ;[ipfs1, ipfs2, ipfs3, ipfs4] = await Promise.all([
       createIPFS(ipfsApiPort1),
       createIPFS(ipfsApiPort2),
       createIPFS(),
       createIPFS(),
-      createIPFS(),
-      createIPFS(),
     ])
 
-    // ipfsServer1 = new HttpApi(ipfs1)
-    // await ipfsServer1.start()
-    // ipfsServer2 = new HttpApi(ipfs2)
-    // await ipfsServer2.start()
-
     // Now make sure all ipfs nodes are connected to all other ipfs nodes
-    const ipfsNodes = [ipfs1, ipfs2, ipfs3, ipfs4, ipfs5, ipfs6]
+    const ipfsNodes = [ipfs1, ipfs2, ipfs3, ipfs4]
     for (const [i] of ipfsNodes.entries()) {
       for (const [j] of ipfsNodes.entries()) {
         if (i == j) {
@@ -320,8 +301,6 @@ describe('Ceramic Integration Test', () => {
       ipfs2.stop(),
       ipfs3.stop(),
       ipfs4.stop(),
-      ipfs5.stop(),
-      ipfs6.stop(),
     ])
     await ganacheServer.close()
     await anchorLauncher.stop()
@@ -332,15 +311,12 @@ describe('Ceramic Integration Test', () => {
       const useSmartContractAnchors = true
 
       // Start anchor services
-      const daemonPort1 = await getPort()
-      const daemonPort2 = await getPort()
       dbConnection1 = await createDbConnection()
       casPort1 = await getPort()
 
       cas1 = await makeCAS(createInjector(), dbConnection1, {
         mode: 'server',
         ipfsPort: ipfsApiPort1,
-        ceramicPort: daemonPort1,
         ganachePort: ganacheServer.port,
         port: casPort1,
         useSmartContractAnchors,
@@ -352,7 +328,6 @@ describe('Ceramic Integration Test', () => {
       cas2 = await makeCAS(createInjector(), dbConnection2, {
         mode: 'server',
         ipfsPort: ipfsApiPort2,
-        ceramicPort: daemonPort2,
         ganachePort: ganacheServer.port,
         port: casPort2,
         useSmartContractAnchors,
@@ -360,25 +335,9 @@ describe('Ceramic Integration Test', () => {
       await cas2.start()
       anchorService2 = cas2.container.resolve('anchorService')
 
-      // Make the Ceramic nodes that will be used by the CAS.
-      ;[casCeramic1, casCeramic2] = await Promise.all([
-        makeCeramicCore(ipfs3, `http://localhost:${casPort1}`, ganacheServer.url),
-        makeCeramicCore(ipfs4, `http://localhost:${casPort2}`, ganacheServer.url),
-      ])
-      daemon1 = new CeramicDaemon(
-        casCeramic1,
-        DaemonConfig.fromObject({ 'http-api': { port: daemonPort1 } })
-      )
-      daemon2 = new CeramicDaemon(
-        casCeramic1,
-        DaemonConfig.fromObject({ 'http-api': { port: daemonPort2 } })
-      )
-      await daemon1.listen()
-      await daemon2.listen()
-
       // Finally make the Ceramic nodes that will be used in the tests.
-      ceramic1 = await makeCeramicCore(ipfs5, `http://localhost:${casPort1}`, ganacheServer.url)
-      ceramic2 = await makeCeramicCore(ipfs6, `http://localhost:${casPort2}`, ganacheServer.url)
+      ceramic1 = await makeCeramicCore(ipfs3, `http://localhost:${casPort1}`, ganacheServer.url)
+      ceramic2 = await makeCeramicCore(ipfs4, `http://localhost:${casPort2}`, ganacheServer.url)
 
       // Speed up polling interval to speed up test
       ceramic1.context.anchorService.pollInterval = 100
@@ -396,7 +355,6 @@ describe('Ceramic Integration Test', () => {
       cas1.stop()
       cas2.stop()
       await Promise.all([dbConnection1.destroy(), dbConnection2.destroy()])
-      await Promise.all([daemon1.close(), daemon2.close()])
       await Promise.all([
         casCeramic1.close(),
         casCeramic2.close(),
@@ -569,7 +527,6 @@ describe('CAR file', () => {
     const cas = await makeCAS(createInjector(), dbConnection, {
       mode: 'server',
       ipfsPort: ipfsApiPort,
-      ceramicPort: await getPort(),
       ganachePort: ganacheServer.port,
       port: casPort,
       useSmartContractAnchors: true,
