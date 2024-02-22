@@ -503,12 +503,9 @@ export class AnchorService {
 
     try {
       await this.ipfsService.storeRecord(ipfsAnchorCommit)
-      logger.debug(
-        `Stored anchor commit for ${candidate.cid} of stream ${candidate.streamId} on IPFS`
-      )
       await this.ipfsService.publishAnchorCommit(anchorCid, candidate.streamId)
       logger.debug(
-        `Created anchor commit with CID ${anchorCid.toString()} for stream ${candidate.streamId.toString()}`
+        `Created anchor commit with CID ${anchorCid} for commit ${candidate.cid} of stream ${candidate.streamId}`
       )
       return anchor
     } catch (err) {
