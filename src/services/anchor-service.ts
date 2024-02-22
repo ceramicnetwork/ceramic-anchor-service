@@ -505,7 +505,7 @@ export class AnchorService {
       await this.ipfsService.storeRecord(ipfsAnchorCommit)
 
       // Do not publish to pubsub by default
-      if (process.env.CAS_PUBSUB_PUBLISH) {
+      if (process.env['CAS_PUBSUB_PUBLISH']) {
         // TODO: Remove this case entirely after js-ceramic no longer supports pubsub
         await this.ipfsService.publishAnchorCommit(anchorCid, candidate.streamId)
         logger.debug(
