@@ -334,6 +334,10 @@ describe('Ceramic Integration Test', () => {
       ceramic1 = await makeCeramicCore(ipfs3, `http://localhost:${casPort1}`, ganacheServer.url)
       ceramic2 = await makeCeramicCore(ipfs4, `http://localhost:${casPort2}`, ganacheServer.url)
 
+      // Speed up polling interval to speed up test
+      ceramic1.context.anchorService.pollInterval = 100
+      ceramic2.context.anchorService.pollInterval = 100
+
       // The two user-facing ceramic nodes need to have the same DID Provider so that they can modify
       // each others streams.
       const did = makeDID()
@@ -528,7 +532,7 @@ describe('CAR file', () => {
 
     // Poll more often to speed up the test
     const anchorService = ceramic.context.anchorService as any
-    anchorService.pollInterval = 200
+    anchorService.pollInterval = 100
 
     // CAS: Do not publish to IPFS
     const carFactory = new CARFactory()

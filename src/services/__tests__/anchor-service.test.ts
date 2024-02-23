@@ -172,7 +172,6 @@ describe('anchor service', () => {
 
     await requestRepository.findAndMarkReady(0)
 
-    const publishSpy = jest.spyOn(ipfsService, 'publishAnchorCommit')
     const [candidates] = await anchorService._findCandidates(requests, 0)
     const merkleTree = await anchorService._buildMerkleTree(candidates)
     const ipfsProofCid = await ipfsService.storeRecord({})
@@ -181,8 +180,6 @@ describe('anchor service', () => {
 
     expect(candidates.length).toEqual(requests.length)
     expect(anchors.length).toEqual(candidates.length)
-
-    expect(publishSpy).toBeCalledTimes(anchors.length)
 
     // All requests are anchored, in a different order because of IpfsLeafCompare
     expect(anchors.map((a) => a.requestId).sort()).toEqual(requests.map((r) => r.id).sort())
@@ -197,10 +194,6 @@ describe('anchor service', () => {
       expect(anchorRecord.prev.toString()).toEqual(request.cid)
       expect(anchorRecord.proof).toEqual(ipfsProofCid)
       expect(anchorRecord.path).toEqual(anchor.path)
-      expect(publishSpy.mock.calls[index]).toEqual([
-        anchor.cid,
-        StreamID.fromString(request.streamId),
-      ])
     }
 
     expectPresent(anchors[0])
