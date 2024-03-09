@@ -302,10 +302,12 @@ export class CeramicAnchorApp {
       const success = await anchorService
         .anchorRequests({ signal: controller.signal })
         .catch((error: Error) => {
-          logger.err(`Error when anchoring: ${error}`)
-          Metrics.count(METRIC_NAMES.ERROR_WHEN_ANCHORING, 1, {
-            message: error.message.substring(0, 50),
-          })
+          if (!controller.signal.aborted) {
+            logger.err(`Error when anchoring: ${error}`)
+            Metrics.count(METRIC_NAMES.ERROR_WHEN_ANCHORING, 1, {
+              message: error.message.substring(0, 50),
+            })
+          }
           throw error
         })
 
