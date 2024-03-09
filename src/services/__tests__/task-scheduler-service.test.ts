@@ -2,7 +2,6 @@ import 'reflect-metadata'
 import { jest, describe, test, expect } from '@jest/globals'
 import { TaskSchedulerService } from '../task-scheduler-service.js'
 import { Utils } from '../../utils.js'
-import { TestUtils } from '@ceramicnetwork/common'
 
 describe('scheduler service', () => {
   jest.setTimeout(20000)
