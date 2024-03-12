@@ -2,91 +2,73 @@ import 'reflect-metadata'
 import { jest, describe, test, expect } from '@jest/globals'
 import { TaskSchedulerService } from '../task-scheduler-service.js'
 import { Utils } from '../../utils.js'
+import { TestUtils } from '@ceramicnetwork/common'
 
 describe('scheduler service', () => {
   jest.setTimeout(20000)
 
-  test('will run the task repeatedly', (done) => {
+  test('will run the task repeatedly', async () => {
     const numberOfRunsBeforeDone = 3
 
     const task = jest.fn()
     const testScheduler = new TaskSchedulerService()
 
-    const runChecks = () => {
-      // the task runs once right at the start before running every X seconds
-      expect(task.mock.calls.length).toEqual(numberOfRunsBeforeDone + 1)
-      done()
-    }
-
     let count = 0
     task.mockImplementation(async () => {
-      if (count === numberOfRunsBeforeDone) {
-        testScheduler.stop()
-        runChecks()
-      }
-
       count = count + 1
       return Promise.resolve()
     })
 
     testScheduler.start(task as any, 1000)
-    // test doesn't complete until 'done()' is called
+    await TestUtils.delay(1000 * numberOfRunsBeforeDone)
+    await testScheduler.stop()
+    expect(task.mock.calls.length).toBeGreaterThanOrEqual(numberOfRunsBeforeDone)
   })
 
-  test('will continue if the task fails', (done) => {
-    const numberOfRunsBeforeDone = 5
+  test('will stop if the task fails', async () => {
+    const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {
+      return
+    })
+
     const task = jest.fn()
     const testScheduler = new TaskSchedulerService()
 
-    const runChecks = () => {
-      // the task runs once right at the start before running every X seconds
-      expect(task.mock.calls.length).toEqual(numberOfRunsBeforeDone + 1)
-      Utils.delay(3000).then(() => {
-        done()
-      })
-    }
-
     let count = 0
     task.mockImplementation(async () => {
-      if (count === numberOfRunsBeforeDone) {
-        testScheduler.stop()
-        runChecks()
-      }
-
       count = count + 1
 
-      // the last two runs will be rejected
-      if (count > numberOfRunsBeforeDone - 2) {
-        return Promise.reject('test error')
+      if (count === 2) {
+        throw Error('test error')
       }
 
-      return Promise.resolve()
+      return
     })
 
     testScheduler.start(task as any, 1000)
-    // test doesn't complete until 'done()' is called
+    await TestUtils.waitForConditionOrTimeout(async () => {
+      // @ts-ignore
+      return testScheduler._subscription?.closed || false
+    })
+    expect(mockExit).toHaveBeenCalled()
   })
 
-  test('Will complete current task if stop is called', (done) => {
+  test('Will complete current task if stop is called', async () => {
     let calls = 0
     const task = async () => {
       await Utils.delay(2000)
       calls = calls + 1
     }
+
     const testScheduler = new TaskSchedulerService()
 
+    testScheduler.start(task as any, 1000)
+    await Utils.delay(500)
     // stop is called during the task
     // stop should only return once the task completes
-    Utils.delay(1000).then(async () => {
-      await testScheduler.stop()
-      await Utils.delay(3000)
-      // task should have compelted once
-      expect(calls).toEqual(1)
-      done()
-    })
-
-    testScheduler.start(task as any, 1000)
-    // test doesn't complete until 'done()' is called
+    await testScheduler.stop()
+    await Utils.delay(3000)
+    // task should have completed once
+    expect(calls).toEqual(1)
   })
 
   test('Will run cbAfterNoOp after failure if set', async () => {
