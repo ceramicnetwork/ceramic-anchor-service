@@ -10,8 +10,6 @@ import {
   concatMap,
   EMPTY,
 } from 'rxjs'
-import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
-import { METRIC_NAMES } from '../settings.js'
 
 /**
  * Repeatedly triggers a task to be run after a configured amount of ms
@@ -49,9 +47,6 @@ export class TaskSchedulerService {
       return await task().then((result) => result === undefined || result)
     }).pipe(
       catchError((err: Error) => {
-        Metrics.count(METRIC_NAMES.SCHEDULER_TASK_UNCAUGHT_ERROR, 1)
-        logger.err(`Scheduler task failed: ${err}`)
-
         if (this._controller.signal.aborted) {
           return EMPTY
         }
@@ -78,6 +73,10 @@ export class TaskSchedulerService {
     this._subscription = this._scheduledTask$.subscribe({
       complete: async () => {
         if (cbAfterNoOp) await cbAfterNoOp()
+      },
+      error: (err) => {
+        logger.err(`Task scheduler exiting because of error: ${err}`)
+        process.exit(1)
       },
     })
   }

@@ -60,10 +60,6 @@ export enum METRIC_NAMES {
   WITNESS_CAR_CACHE_MISS = 'witness_car_cache_miss',
 
   // *******************************************************************//
-  // Scheduler Service
-  SCHEDULER_TASK_UNCAUGHT_ERROR = 'scheduler_task_uncaught_error',
-
-  // *******************************************************************//
   // Ceramic Service
   PIN_SUCCEEDED = 'pin_succeeded',
   PIN_FAILED = 'pin_failed',
@@ -80,4 +76,3 @@ export enum METRIC_NAMES {
   REQUEST_NOT_CREATED = 'request_not_created',
   REQUEST_NOT_FOUND = 'request_not_found',
 }
-
