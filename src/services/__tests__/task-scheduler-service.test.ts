@@ -26,7 +26,9 @@ describe('scheduler service', () => {
   })
 
   test('will stop if the task fails', async () => {
-    const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {})
+    const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {
+      return
+    })
 
     const task = jest.fn()
     const testScheduler = new TaskSchedulerService()
