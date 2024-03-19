@@ -11,6 +11,16 @@ https://github.com/ceramicnetwork/CIP/blob/main/CIPs/CIP-110/CIP-110.md
 - CeramicAnchorServiceV2.t.sol
     - test suite for Core
 
+# Deployments
+
+## Sepolia
+```
+SEPOLIA_DEPLOYER_ADDRESS=0x85d4e0b71bB3B1155eEa18708e8cc699d09efa8c
+SEPLOIA_CONTRACT_ADDRESS=0x2563B369CA2118061B7bb01c66A5858cA9588DbD
+SEPOLIA_TRANSACTION_HASH=0xcbf13202c228dcb6ee5267745a862372defef561ccec764ced391b7e1f220acd
+SEPLOIA_DEPLOYMENT_HEIGHT=5518585
+```
+
 # Makefile Variables
 Vriables in Makefile
 - ```RPC```
