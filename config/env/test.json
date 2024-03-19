@@ -61,6 +61,7 @@
     "type": "sqs",
     "awsRegion": "us-east-1",
     "sqsQueueUrl": "",
+    "s3BucketName": "ceramic-tnet-cas",
     "maxTimeToHoldMessageSec": 10800,
     "waitTimeForMessageSec": 10
   }
