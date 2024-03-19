@@ -71,6 +71,8 @@
     "type": "sqs",
     "awsRegion": "@@AWS_REGION",
     "sqsQueueUrl": "@@SQS_QUEUE_URL",
+    "s3BucketName": "@@S3_BUCKET_NAME",
+    "s3Endpoint": "@@S3_ENDPOINT",
     "maxTimeToHoldMessageSec": "@@MAX_TIME_TO_HOLD_MESSAGE_SEC",
     "waitTimeForMessageSec": "@@WAIT_TIME_FOR_MESSAGE_SEC"
   }
