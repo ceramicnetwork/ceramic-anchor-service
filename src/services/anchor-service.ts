@@ -314,17 +314,20 @@ export class AnchorService {
     logger.debug('Creating IPFS anchor proof')
     const ipfsProofCid = this._createIPFSProof(merkleTree.car, tx, merkleTree.root.data.cid)
 
-    // Create anchor records on IPFS
+    // Create anchor records
     logger.debug('Creating anchor commits')
     const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
 
-    try {
-      await this.ipfsService.importCAR(merkleTree.car)
-    } catch (e) {
-      Metrics.count(METRIC_NAMES.MERKLE_CAR_STORAGE_FAILURE_IPFS, 1)
-      const message = `Can not store Merkle CAR to IPFS. Batch failed: ${e}`
-      logger.err(message)
-      throw e
+    // Do not use IPFS by default
+    if (process.env['CAS_USE_IPFS']) {
+      try {
+        await this.ipfsService.importCAR(merkleTree.car)
+      } catch (e) {
+        Metrics.count(METRIC_NAMES.MERKLE_CAR_STORAGE_FAILURE_IPFS, 1)
+        const message = `Can not store Merkle CAR to IPFS. Batch failed: ${e}`
+        logger.err(message)
+        throw e
+      }
     }
 
     try {
@@ -501,29 +504,37 @@ export class AnchorService {
       cid: anchorCid,
     }
 
-    try {
-      await this.ipfsService.storeRecord(ipfsAnchorCommit)
+    // Do not use IPFS by default
+    if (process.env['CAS_USE_IPFS']) {
+      try {
+        await this.ipfsService.storeRecord(ipfsAnchorCommit)
 
-      // Do not publish to pubsub by default
-      if (process.env['CAS_PUBSUB_PUBLISH']) {
-        // TODO: Remove this case entirely after js-ceramic no longer supports pubsub
-        await this.ipfsService.publishAnchorCommit(anchorCid, candidate.streamId)
-        logger.debug(
-          `Created anchor commit with CID ${anchorCid} for commit ${candidate.cid} of stream ${candidate.streamId} and published it to pubsub`
-        )
-      } else {
-        logger.debug(
-          `Created anchor commit with CID ${anchorCid} for commit ${candidate.cid} of stream ${candidate.streamId}`
-        )
+        // Do not publish to pubsub by default
+        if (process.env['CAS_PUBSUB_PUBLISH']) {
+          // TODO: Remove this case entirely after js-ceramic no longer supports pubsub
+          await this.ipfsService.publishAnchorCommit(anchorCid, candidate.streamId)
+          logger.debug(
+            `Created anchor commit with CID ${anchorCid} for commit ${candidate.cid} of stream ${candidate.streamId} and published it to pubsub`
+          )
+        } else {
+          logger.debug(
+            `Created anchor commit with CID ${anchorCid} for commit ${candidate.cid} of stream ${candidate.streamId}`
+          )
+        }
+
+        return anchor
+      } catch (err) {
+        const msg = `Error publishing anchor commit of commit ${
+          candidate.cid
+        } for stream ${candidate.streamId.toString()}: ${err}`
+        logger.err(msg)
+        Metrics.count(METRIC_NAMES.ERROR_IPFS, 1)
+        return anchor
       }
-
-      return anchor
-    } catch (err) {
-      const msg = `Error publishing anchor commit of commit ${
-        candidate.cid
-      } for stream ${candidate.streamId.toString()}: ${err}`
-      logger.err(msg)
-      Metrics.count(METRIC_NAMES.ERROR_IPFS, 1)
+    } else {
+      logger.debug(
+        `Created anchor commit with CID ${anchorCid} for commit ${candidate.cid} of stream ${candidate.streamId}`
+      )
       return anchor
     }
   }
