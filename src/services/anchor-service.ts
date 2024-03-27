@@ -318,8 +318,8 @@ export class AnchorService {
     logger.debug('Creating anchor commits')
     const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
 
-    // Do not use IPFS by default
-    if (process.env['CAS_USE_IPFS']) {
+    // Do not store CAR file in IPFS by default
+    if (process.env['CAS_USE_IPFS_STORAGE']) {
       try {
         await this.ipfsService.importCAR(merkleTree.car)
       } catch (e) {
@@ -504,37 +504,31 @@ export class AnchorService {
       cid: anchorCid,
     }
 
-    // Do not use IPFS by default
-    if (process.env['CAS_USE_IPFS']) {
-      try {
+    try {
+      // Do not store in IPFS by default
+      if (process.env['CAS_USE_IPFS_STORAGE']) {
         await this.ipfsService.storeRecord(ipfsAnchorCommit)
-
-        // Do not publish to pubsub by default
-        if (process.env['CAS_PUBSUB_PUBLISH']) {
-          // TODO: Remove this case entirely after js-ceramic no longer supports pubsub
-          await this.ipfsService.publishAnchorCommit(anchorCid, candidate.streamId)
-          logger.debug(
-            `Created anchor commit with CID ${anchorCid} for commit ${candidate.cid} of stream ${candidate.streamId} and published it to pubsub`
-          )
-        } else {
-          logger.debug(
-            `Created anchor commit with CID ${anchorCid} for commit ${candidate.cid} of stream ${candidate.streamId}`
-          )
-        }
-
-        return anchor
-      } catch (err) {
-        const msg = `Error publishing anchor commit of commit ${
-          candidate.cid
-        } for stream ${candidate.streamId.toString()}: ${err}`
-        logger.err(msg)
-        Metrics.count(METRIC_NAMES.ERROR_IPFS, 1)
-        return anchor
       }
-    } else {
-      logger.debug(
-        `Created anchor commit with CID ${anchorCid} for commit ${candidate.cid} of stream ${candidate.streamId}`
-      )
+      // Do not publish to pubsub by default
+      if (process.env['CAS_PUBSUB_PUBLISH']) {
+        // TODO: Remove this case entirely after js-ceramic no longer supports pubsub
+        await this.ipfsService.publishAnchorCommit(anchorCid, candidate.streamId)
+        logger.debug(
+          `Created anchor commit with CID ${anchorCid} for commit ${candidate.cid} of stream ${candidate.streamId} and published it to pubsub`
+        )
+      } else {
+        logger.debug(
+          `Created anchor commit with CID ${anchorCid} for commit ${candidate.cid} of stream ${candidate.streamId}`
+        )
+      }
+
+      return anchor
+    } catch (err) {
+      const msg = `Error publishing anchor commit of commit ${
+        candidate.cid
+      } for stream ${candidate.streamId.toString()}: ${err}`
+      logger.err(msg)
+      Metrics.count(METRIC_NAMES.ERROR_IPFS, 1)
       return anchor
     }
   }
