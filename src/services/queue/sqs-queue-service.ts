@@ -22,7 +22,7 @@ import { AbortOptions } from '@ceramicnetwork/common'
 
 const DEFAULT_MAX_TIME_TO_HOLD_MESSAGES_S = 21600
 const DEFAULT_WAIT_TIME_FOR_MESSAGE_S = 10
-const BATCH_STORE_PATH = '/cas/anchor/batch/'
+const BATCH_STORE_PATH = '/cas/anchor/batch'
 /**
  * Sqs Queue Message received by consumers.
  * Once the message is done processing you can either "ack" the message (remove the message from the queue) or "nack" the message (put the message back on the queue)
@@ -212,7 +212,7 @@ export class AnchorBatchSqsQueueService extends SqsQueueService<AnchorBatchQMess
     if (anchorBatchMessage && anchorBatchMessage.data.rids.length === 0) {
       try {
         const batchJson = await this.s3store.get(anchorBatchMessage.data.bid)
-        return new BatchQueueMessage(anchorBatchMessage, batchJson)
+        return new BatchQueueMessage(anchorBatchMessage, JSON.parse(batchJson))
       } catch (err: any) {
         throw Error(`Error retrieving batch ${anchorBatchMessage.data.bid} from S3: ${err.message}`)
       }
