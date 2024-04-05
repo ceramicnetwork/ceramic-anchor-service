@@ -76,16 +76,19 @@ describe('request repository test', () => {
     await connection2.destroy()
   })
 
-  test('createOrUpdate: can createOrUpdate simultaneously', async () => {
+  test('create: simultaneous creates will only create one request', async () => {
     const request = generateRequest({
       status: RequestStatus.READY,
     })
 
     const [result1, result2] = await Promise.all([
-      requestRepository.createOrUpdate(request),
-      requestRepository.createOrUpdate(request),
+      requestRepository.create(request),
+      requestRepository.create(request),
     ])
-    expect(result1).toEqual(result2)
+    expect(
+      (result1 === null && result2?.cid === request.cid) ||
+        (result2 === null && result1?.cid === request.cid)
+    ).toBeTruthy()
   })
 
   describe('findRequestsToGarbageCollect', () => {
@@ -801,41 +804,41 @@ describe('request repository test', () => {
       const streamId = randomStreamID()
 
       // Create three COMPLETED requests. These should not be changed
-      const completedRequests = await Promise.all(
-        times(3).map(async (n) => {
-          const request = new Request({
+      const completedRequests = await requestRepository.createRequests(
+        times(3).map((n) => {
+          return new Request({
             cid: randomCID().toString(),
             streamId: streamId.toString(),
             timestamp: ONE_HOUR_AGO.minus({ minute: n }).toJSDate(),
             status: RequestStatus.COMPLETED,
             origin: 'same-origin',
           })
-          return requestRepository.createOrUpdate(request)
         })
       )
 
       // PENDING but with a different streamId
-      const unrelatedStreamRequest = await requestRepository.createOrUpdate(
+      const [unrelatedStreamRequest] = await requestRepository.createRequests([
         new Request({
           cid: randomCID().toString(),
           streamId: randomStreamID().toString(),
           timestamp: ONE_HOUR_AGO.toJSDate(),
           status: RequestStatus.PENDING,
           origin: 'same-origin',
-        })
-      )
+        }),
+      ])
 
       // Create three PENDING requests at `oneHourAgo` plus some minutes
-      const requestsP = times(3).map(async (n) => {
-        const request = new Request({
-          cid: randomCID().toString(),
-          streamId: streamId.toString(),
-          timestamp: ONE_HOUR_AGO.plus({ minute: n }).toJSDate(),
-          status: RequestStatus.PENDING,
-          origin: 'same-origin',
+      const requestsP = await requestRepository.createRequests(
+        times(3).map((n) => {
+          return new Request({
+            cid: randomCID().toString(),
+            streamId: streamId.toString(),
+            timestamp: ONE_HOUR_AGO.plus({ minute: n }).toJSDate(),
+            status: RequestStatus.PENDING,
+            origin: 'same-origin',
+          })
         })
-        return requestRepository.createOrUpdate(request)
-      })
+      )
       const requests = await Promise.all(requestsP)
       const last = requests[requests.length - 1]
       expectPresent(last)
@@ -867,17 +870,18 @@ describe('request repository test', () => {
 
     test('mark regardless of time', async () => {
       const streamId = randomStreamID()
-      const requestsP = times(3).map(async (n) => {
-        const request = new Request({
-          cid: randomCID().toString(),
-          streamId: streamId.toString(),
-          timestamp: ONE_HOUR_AGO.plus({ minute: n }).toJSDate(),
-          status: RequestStatus.PENDING,
-          origin: 'same-origin',
+      const requestsP = requestRepository.createRequests(
+        times(3).map((n) => {
+          return new Request({
+            cid: randomCID().toString(),
+            streamId: streamId.toString(),
+            timestamp: ONE_HOUR_AGO.plus({ minute: n }).toJSDate(),
+            status: RequestStatus.PENDING,
+            origin: 'same-origin',
+          })
         })
-        return requestRepository.createOrUpdate(request)
-      })
-      const requests: Array<Request> = await Promise.all(requestsP)
+      )
+      const requests: Array<Request> = await requestsP
       expectPresent(requests[0])
       const rowsAffected = await requestRepository.markReplaced(requests[0])
       expect(rowsAffected).toEqual(requests.length - 1) // Mark every request except the last one
@@ -900,14 +904,8 @@ describe('request repository test', () => {
     const MAX_LIMIT = 3
 
     function createRequests(n: number): Promise<Request[]> {
-      return Promise.all(
-        times(n).map(() => {
-          return requestRepository.createOrUpdate(
-            generateRequest({
-              status: RequestStatus.READY,
-            })
-          )
-        })
+      return requestRepository.createRequests(
+        times(n).map(() => generateRequest({ status: RequestStatus.READY }))
       )
     }
 

@@ -40,7 +40,10 @@ export class FakeFactory {
     request.message = 'Request is pending.'
     request.pinned = true
 
-    const stored = await this.requestRepository.createOrUpdate(request)
+    const stored = await this.requestRepository.create(request)
+    if (!stored) {
+      throw new Error(`Request with cid ${request.cid} already exists. Cannot create again`)
+    }
     await this.requestRepository.markReplaced(stored)
     return stored
   }

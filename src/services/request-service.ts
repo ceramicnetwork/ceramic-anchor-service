@@ -44,7 +44,7 @@ export class RequestService {
     private readonly metadataService: IMetadataService,
     private readonly validationQueueService: IQueueProducerService<RequestQMessage>
   ) {
-    this.publishToQueue =  Boolean(config.queue.sqsQueueUrl)
+    this.publishToQueue = Boolean(config.queue.sqsQueueUrl)
   }
 
   async getStatusForCid(cid: CID): Promise<OutputOf<typeof CASResponse> | { error: string }> {
@@ -68,10 +68,10 @@ export class RequestService {
     return this.requestPresentationService.body(found)
   }
 
-  async createOrUpdate(
+  async create(
     params: RequestAnchorParams,
     origin: string
-  ): Promise<OutputOf<typeof CASResponse>> {
+  ): Promise<OutputOf<typeof CASResponse> | null> {
     let genesisFields: GenesisFields
     if ('genesisFields' in params) {
       genesisFields = params.genesisFields
@@ -92,7 +92,12 @@ export class RequestService {
     request.pinned = true
     request.timestamp = params.timestamp ?? new Date()
 
-    const storedRequest = await this.requestRepository.createOrUpdate(request)
+    const storedRequest = await this.requestRepository.create(request)
+
+    // request already exists
+    if (!storedRequest) {
+      return null
+    }
 
     if (this.publishToQueue) {
       // the validation worker will handle replacing requests
