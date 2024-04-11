@@ -6,6 +6,7 @@ import { parseCountResult } from './parse-count-result.util.js'
 import { decode } from 'codeco'
 
 const TABLE_NAME = 'anchor'
+const chunkSize = 10000
 
 export class AnchorRepository implements IAnchorRepository {
   static inject = ['dbConnection'] as const
@@ -32,11 +33,8 @@ export class AnchorRepository implements IAnchorRepository {
    * @returns A promise that resolve to the number of anchors created
    */
   async createAnchors(anchors: Array<FreshAnchor>): Promise<number> {
-    const result: any = await this.table
-      .insert(anchors.map((anchor) => FreshAnchor.encode(anchor)))
-      .onConflict('requestId')
-      .ignore()
-    return parseCountResult(result.rowCount)
+    const result = await this.connection.batchInsert(TABLE_NAME, anchors, chunkSize)
+    return parseCountResult(result.length)
   }
 
   /**
