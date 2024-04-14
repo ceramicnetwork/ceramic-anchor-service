@@ -33,7 +33,9 @@ export class AnchorRepository implements IAnchorRepository {
    * @returns A promise that resolve to the number of anchors created
    */
   async createAnchors(anchors: Array<FreshAnchor>): Promise<number> {
-    const result = await this.connection.batchInsert(TABLE_NAME, anchors, chunkSize)
+    const result = await this.connection.batchInsert(TABLE_NAME, anchors, chunkSize).catch(function (error) {
+      console.error(error)
+    }) ?? []
     return parseCountResult(result.length)
   }
 

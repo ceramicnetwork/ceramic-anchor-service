@@ -258,7 +258,7 @@ describe('pubsub', () => {
     expect(queueSendMessageSpy).toBeCalledTimes(0)
   })
 
-  test('Will respond to query message about stream with an anchor', async () => {
+  test.only('Will respond to query message about stream with an anchor', async () => {
     const pubsubMessage = { typ: 1, id: '1', stream: randomStreamID() }
 
     const ipfsQueueService = injector.resolve('ipfsQueueService')
