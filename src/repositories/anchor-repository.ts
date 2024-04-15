@@ -55,7 +55,6 @@ export class AnchorRepository implements IAnchorRepository {
   async findByRequestId(requestId: string): Promise<StoredAnchor | null> {
     const row = await this.table.where({ requestId: requestId }).first()
     if (!row) return null
-    console.log("IM HERE with ", row, requestId)
     return decode(StoredAnchor, row)
   }
 }
