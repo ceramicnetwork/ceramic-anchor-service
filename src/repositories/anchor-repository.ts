@@ -33,7 +33,7 @@ export class AnchorRepository implements IAnchorRepository {
    * @returns A promise that resolve to the number of anchors created
    */
   async createAnchors(anchors: Array<FreshAnchor>): Promise<number> {
-    const result = await this.connection.batchInsert(TABLE_NAME, anchors, chunkSize).catch(function (error) {
+    const result = await this.connection.batchInsert(TABLE_NAME, anchors.map((anchor) => FreshAnchor.encode(anchor)), chunkSize).catch(function (error) {
       console.error(error)
     }) ?? []
     return parseCountResult(result.length)
@@ -55,6 +55,7 @@ export class AnchorRepository implements IAnchorRepository {
   async findByRequestId(requestId: string): Promise<StoredAnchor | null> {
     const row = await this.table.where({ requestId: requestId }).first()
     if (!row) return null
+    console.log("IM HERE with ", row, requestId)
     return decode(StoredAnchor, row)
   }
 }
