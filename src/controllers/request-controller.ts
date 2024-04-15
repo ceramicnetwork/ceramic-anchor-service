@@ -119,17 +119,23 @@ export class RequestController {
     )
 
     try {
-      const found = await this.requestService.findByCid(requestParams.cid)
-      logger.debug(`Found request for ${requestParams.cid} of stream ${requestParams.streamId}`)
-      if (found) {
-        return res.status(StatusCodes.ACCEPTED).json(found)
+      const body = await this.requestService.create(requestParams, origin)
+
+      // request was newly created
+      if (body) {
+        Metrics.count(METRIC_NAMES.ANCHOR_REQUESTED, 1, { source: parseOrigin(req) })
+        return res.status(StatusCodes.CREATED).json(body)
       }
 
-      const body = await this.requestService.createOrUpdate(requestParams, origin)
-
-      Metrics.count(METRIC_NAMES.ANCHOR_REQUESTED, 1, { source: parseOrigin(req) })
-
-      return res.status(StatusCodes.CREATED).json(body)
+      // request already exists so retrieve it
+      const found = await this.requestService.findByCid(requestParams.cid)
+      if (!found) {
+        throw new Error(
+          `Request with cid ${requestParams.cid} was not created and not found. This should not happen`
+        )
+      }
+      logger.debug(`Found request for ${requestParams.cid} of stream ${requestParams.streamId}`)
+      return res.status(StatusCodes.ACCEPTED).json(found)
     } catch (err: any) {
       Metrics.count(METRIC_NAMES.REQUEST_NOT_CREATED, 1, { source: parseOrigin(req) })
       return this.getBadRequestResponse(

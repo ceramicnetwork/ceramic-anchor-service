@@ -273,12 +273,15 @@ describe('pubsub', () => {
       }
     )
     const requestRepository = injector.resolve('requestRepository')
-    const createdRequest = await requestRepository.createOrUpdate(
+    const createdRequest = await requestRepository.create(
       generateRequest({
         streamId: pubsubMessage.stream.toString(),
         status: RequestStatus.COMPLETED,
       })
     )
+    if (!createdRequest) {
+      throw new Error('Failed to create request because it already exists')
+    }
     const anchorRepository = injector.resolve('anchorRepository')
     const anchorCid = randomCID()
     await anchorRepository.createAnchors([
@@ -324,7 +327,7 @@ describe('pubsub', () => {
     // @ts-ignore
     const beforeWindow = new Date(Date.now() - service.pubsubResponderWindowMs - 1000)
     const requestRepository = injector.resolve('requestRepository')
-    const createdRequest = await requestRepository.createOrUpdate(
+    const createdRequest = await requestRepository.create(
       generateRequest({
         streamId: pubsubMessage.stream.toString(),
         status: RequestStatus.COMPLETED,
@@ -333,6 +336,9 @@ describe('pubsub', () => {
         updatedAt: beforeWindow,
       })
     )
+    if (!createdRequest) {
+      throw new Error('Failed to create request because it already exists')
+    }
     const anchorRepository = injector.resolve('anchorRepository')
     const anchorCid = randomCID()
     await anchorRepository.createAnchors([

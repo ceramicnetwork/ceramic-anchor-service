@@ -323,6 +323,41 @@ describe('createRequest', () => {
       await controller.createRequest(req, mockResponse())
       expect(markPreviousReplacedSpy).toBeCalledTimes(1)
     })
+
+    test('simultaenous requests', async () => {
+      const cid = randomCID()
+      const streamId = randomStreamID()
+      const timestamp = new Date()
+      const origin = '203.0.113.195'
+      const req = mockRequest({
+        headers: {
+          'Content-type': 'application/json',
+          'X-Forwarded-For': [` ${origin}`, `${origin}, 2001:db8:85a3:8d3:1319:8a2e:370:7348`],
+        },
+        body: {
+          cid: cid.toString(),
+          streamId: streamId.toString(),
+          timestamp: timestamp.toISOString(),
+        },
+      })
+
+      const requestRepository = container.resolve('requestRepository')
+      const findByCidSpy = jest.spyOn(requestRepository, 'findByCid')
+      const res0 = mockResponse()
+      const res1 = mockResponse()
+
+      await Promise.all([controller.createRequest(req, res0), controller.createRequest(req, res1)])
+
+      expect(findByCidSpy).toBeCalledTimes(1)
+      expect(findByCidSpy).toBeCalledWith(cid)
+
+      const status0 = res0.status.mock.calls[0][0]
+      const status1 = res1.status.mock.calls[0][0]
+      const onlyOneCreated =
+        (status0 === StatusCodes.CREATED && status1 === StatusCodes.ACCEPTED) ||
+        (status1 === StatusCodes.CREATED && status0 === StatusCodes.ACCEPTED)
+      expect(onlyOneCreated).toBeTruthy()
+    })
   })
 
   describe('Publish to queue', () => {

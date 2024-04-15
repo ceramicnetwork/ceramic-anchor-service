@@ -111,16 +111,19 @@ export class RequestRepository {
   }
 
   /**
-   * Create/update client request
-   * @returns A promise that resolves to the created request
+   * Create a client request
+   * @returns A promise that resolves to the created request if it doesn't already exist
    */
-  async createOrUpdate(request: Request): Promise<Request> {
-    const keys = Object.keys(request).filter((key) => key !== 'id') // all keys except ID
+  async create(request: Request): Promise<Request | null> {
     const [created] = await this.table
       .insert(request.toDB(), ['id'])
       .returning(Object.keys(RequestCodec.props))
       .onConflict('cid')
-      .merge(keys)
+      .ignore()
+
+    if (!created) {
+      return null
+    }
 
     logEvent.db({
       type: 'request',
@@ -140,10 +143,13 @@ export class RequestRepository {
   /**
    * For test use. Creates an array of requests.
    * @param requests array of requests
-   * @returns
+   * @returns array of the stored requests
    */
-  async createRequests(requests: Array<Request>): Promise<void> {
-    await this.table.insert(requests.map((request) => request.toDB()))
+  async createRequests(requests: Array<Request>): Promise<Request[]> {
+    const stored = await this.table
+      .insert(requests.map((request) => request.toDB()))
+      .returning(Object.keys(RequestCodec.props))
+    return stored.map((r) => new Request(r))
   }
 
   /**
