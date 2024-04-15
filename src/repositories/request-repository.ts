@@ -175,19 +175,15 @@ export class RequestRepository {
     for (let i = 0; i < requests.length; i += chunkSize) {
       const chunk = requests.slice(i, i + chunkSize)
       const ids = chunk.map((r) => r.id)
-      try {
-        result += await this.table
-        .update({
-          message: fields.message,
-          status: fields.status,
-          pinned: fields.pinned,
-          updatedAt: date.encode(updatedAt),
-        })
-        .whereIn('id', ids)
 
-      } catch (error) {
-        throw error
-      }
+      result += await this.table
+      .update({
+        message: fields.message,
+        status: fields.status,
+        pinned: fields.pinned,
+        updatedAt: date.encode(updatedAt),
+      })
+      .whereIn('id', ids)
     }
 
     requests.map((request) => {
