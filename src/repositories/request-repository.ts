@@ -34,6 +34,7 @@ export const FAILURE_RETRY_INTERVAL = 1000 * 60 * 60 * 6 // 6H
 const REPEATED_READ_SERIALIZATION_ERROR = '40001'
 
 const TABLE_NAME = 'request'
+const chunkSize = 10000
 
 /**
  * Records statistics about the set of requests
@@ -175,8 +176,13 @@ export class RequestRepository {
    */
   async updateRequests(fields: RequestUpdateFields, requests: Request[]): Promise<number> {
     const updatedAt = new Date()
-    const ids = requests.map((r) => r.id)
-    const result = await this.table
+    let result = 0
+
+    for (let i = 0; i < requests.length; i += chunkSize) {
+      const chunk = requests.slice(i, i + chunkSize)
+      const ids = chunk.map((r) => r.id)
+
+      result += await this.table
       .update({
         message: fields.message,
         status: fields.status,
@@ -184,6 +190,7 @@ export class RequestRepository {
         updatedAt: date.encode(updatedAt),
       })
       .whereIn('id', ids)
+    }
 
     requests.map((request) => {
       logEvent.db({

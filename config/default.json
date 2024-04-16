@@ -76,6 +76,8 @@
     "type": "sqs",
     "awsRegion": "us-east-1",
     "sqsQueueUrl": "",
+    "s3BucketName": "myS3Bucket",
+    "s3Endpoint": "",
     "maxTimeToHoldMessageSec": 21600,
     "waitTimeForMessageSec": 0
   }
