@@ -135,6 +135,7 @@ export class RequestController {
         )
       }
       logger.debug(`Found request for ${requestParams.cid} of stream ${requestParams.streamId}`)
+      Metrics.count(METRIC_NAMES.ANCHOR_REQUEST_ACCEPTED, 1, { source: parseOrigin(req) })
       return res.status(StatusCodes.ACCEPTED).json(found)
     } catch (err: any) {
       Metrics.count(METRIC_NAMES.REQUEST_NOT_CREATED, 1, { source: parseOrigin(req) })

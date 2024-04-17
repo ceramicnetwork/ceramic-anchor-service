@@ -51,6 +51,8 @@ export enum METRIC_NAMES {
   ANCHOR_REQUESTS_BATCH_TIME = 'anchor_requests_batch_time',
   ANCHOR_REQUESTS_BATCH_FAILURE_TIME = 'anchor_requests_batch_failure_time',
 
+  ANCHOR_REQUEST_ACCEPTED = 'anchor_request_accepted',  // in controller
+
   // *******************************************************************//
   // Request Service
   WRITE_TOTAL_TSDB = 'write_total_tsdb', // note _tsdb implies handles high cardinality
@@ -58,6 +60,8 @@ export enum METRIC_NAMES {
   MERKLE_CAR_CACHE_MISS = 'merkle_car_cache_miss',
   WITNESS_CAR_CACHE_HIT = 'witness_car_cache_hit',
   WITNESS_CAR_CACHE_MISS = 'witness_car_cache_miss',
+  PUBLISH_TO_QUEUE = 'publish_to_queue',
+  UPDATED_STORED_REQUEST = 'updated_stored_request',
 
   // *******************************************************************//
   // Ceramic Service

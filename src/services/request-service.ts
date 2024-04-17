@@ -109,8 +109,10 @@ export class RequestService {
         crt: storedRequest.createdAt,
         org: origin,
       })
+      Metrics.count(METRIC_NAMES.PUBLISH_TO_QUEUE, 1) 
     } else {
       await this.requestRepository.markReplaced(storedRequest)
+      Metrics.count(METRIC_NAMES.UPDATED_STORED_REQUEST, 1)
     }
 
     const did = genesisFields?.controllers?.[0]
@@ -126,6 +128,7 @@ export class RequestService {
       cacao: 'cacaoDomain' in params ? params.cacaoDomain : '',
     };
 
+    // High cardinality business metrics, should be skipped by prometheus
     Metrics.count(METRIC_NAMES.WRITE_TOTAL_TSDB, 1, logData)
 
     logger.debug(`Anchor request received: ${JSON.stringify(logData)}`);
