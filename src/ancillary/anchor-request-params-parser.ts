@@ -139,13 +139,13 @@ export class AnchorRequestParamsParser {
   parse(req: ExpReq): Validation<RequestAnchorParams> {
     if (req.get('Content-Type') !== 'application/vnd.ipld.car') {
       // Legacy requests
-      Metrics.count(METRIC_NAMES.LEGACY_REQUESTED, 1)
+      Metrics.count(METRIC_NAMES.C_LEGACY_REQUESTED, 1)
       return validate(RequestAnchorParamsV1, req.body)
     } else {
       // Next version of anchor requests, using the CAR file format
       // TODO: CDB-2212 Store the car file somewhere for future reference/validation of signatures
       // (as it also includes the tip commit and optionally CACAO for the tip commit)
-      Metrics.count(METRIC_NAMES.CAR_REQUESTED, 1)
+      Metrics.count(METRIC_NAMES.C_CAR_REQUESTED, 1)
       return validate(this.v2decoder, req.body)
     }
   }

@@ -83,7 +83,7 @@ export class RequestController {
       return res.status(StatusCodes.OK).json(response)
     } catch (err: any) {
       if (err instanceof RequestDoesNotExistError) {
-        Metrics.count(METRIC_NAMES.REQUEST_NOT_FOUND, 1, { source: parseOrigin(req) })
+        Metrics.count(METRIC_NAMES.C_REQUEST_NOT_FOUND, 1, { source: parseOrigin(req) })
         return res.status(StatusCodes.NOT_FOUND).json({
           error: err.message,
         })
@@ -107,7 +107,7 @@ export class RequestController {
     if (isLeft(validation)) {
       const errorMessage = report(validation).join(';')
       logger.err(errorMessage)
-      Metrics.count(METRIC_NAMES.REQUEST_INVALID, 1, { source: parseOrigin(req) })
+      Metrics.count(METRIC_NAMES.C_INVALID_REQUEST, 1, { source: parseOrigin(req) })
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: errorMessage,
       })
@@ -123,7 +123,7 @@ export class RequestController {
 
       // request was newly created
       if (body) {
-        Metrics.count(METRIC_NAMES.ANCHOR_REQUESTED, 1, { source: parseOrigin(req) })
+        Metrics.count(METRIC_NAMES.C_NEW_ANCHOR_REQUEST, 1, { source: parseOrigin(req) })
         return res.status(StatusCodes.CREATED).json(body)
       }
 
@@ -135,10 +135,10 @@ export class RequestController {
         )
       }
       logger.debug(`Found request for ${requestParams.cid} of stream ${requestParams.streamId}`)
-      Metrics.count(METRIC_NAMES.ANCHOR_REQUEST_ACCEPTED, 1, { source: parseOrigin(req) })
+      Metrics.count(METRIC_NAMES.C_FOUND_EXISTING_REQUEST, 1, { source: parseOrigin(req) })
       return res.status(StatusCodes.ACCEPTED).json(found)
     } catch (err: any) {
-      Metrics.count(METRIC_NAMES.REQUEST_NOT_CREATED, 1, { source: parseOrigin(req) })
+      Metrics.count(METRIC_NAMES.C_ERROR_CREATING_REQUEST, 1, { source: parseOrigin(req) })
       return this.getBadRequestResponse(
         res,
         err,
