@@ -60,6 +60,8 @@ export enum METRIC_NAMES {
   MERKLE_CAR_CACHE_MISS = 'merkle_car_cache_miss',
   WITNESS_CAR_CACHE_HIT = 'witness_car_cache_hit',
   WITNESS_CAR_CACHE_MISS = 'witness_car_cache_miss',
+  PUBLISH_TO_QUEUE = 'publish_to_queue',
+  UPDATED_STORED_REQUEST = 'updated_stored_request',
 
   // *******************************************************************//
   // Ceramic Service
