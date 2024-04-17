@@ -51,6 +51,8 @@ export enum METRIC_NAMES {
   ANCHOR_REQUESTS_BATCH_TIME = 'anchor_requests_batch_time',
   ANCHOR_REQUESTS_BATCH_FAILURE_TIME = 'anchor_requests_batch_failure_time',
 
+  ANCHOR_REQUEST_ACCEPTED = 'anchor_request_accepted',  // in controller
+
   // *******************************************************************//
   // Request Service
   WRITE_TOTAL_TSDB = 'write_total_tsdb', // note _tsdb implies handles high cardinality
