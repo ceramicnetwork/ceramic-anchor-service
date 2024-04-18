@@ -17,6 +17,8 @@ const allowRegisteredDIDSchema = Joi.object({
   nonce: nonceValidation.required()
 })
 
+const dynamodbClient = new DynamoDB(false)
+
 export const handler = async (event: APIGatewayRequestAuthorizerEvent, context, callback) => {
   console.log(event)
   console.log(context)
@@ -63,7 +65,7 @@ function allowAll(event: APIGatewayRequestAuthorizerEvent, callback: any): any {
 async function allowPermissionedIPAddress(event: APIGatewayRequestAuthorizerEvent, callback: any): Promise<[boolean, any]> {
     const ip = event.requestContext.identity.sourceIp
     console.log('ip', ip)
-    
+
     const context = {
       "sourceIp": ip
     }
@@ -99,9 +101,7 @@ async function allowRegisteredDID(event: APIGatewayRequestAuthorizerEvent, callb
       if (error) {
         console.error(error.details)
       } else {
-        const createTableIfNotExists = false
-        const db = new DynamoDB(createTableIfNotExists)
-        const data = await db.addNonce(did, nonce)
+        const data = await dynamodbClient.addNonce(did, nonce)
         if (data) {
           if (data.did == did && data.nonce == nonce) {
             const context = {
