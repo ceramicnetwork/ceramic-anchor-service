@@ -79,11 +79,11 @@ export enum METRIC_NAMES {
   IPFS_GET_FAILED = 'ipfs_get_failed',
 
   // Request Controller
-  C_NEW_ANCHOR_REQUEST = 'c_new_anchor_request',
-  C_FOUND_EXISTING_REQUEST = 'c_found_existing_request',
-  C_CAR_REQUESTED = 'c_car_requested',
-  C_LEGACY_REQUESTED = 'c_legacy_requested',
-  C_INVALID_REQUEST = 'c_invalid_request',
-  C_ERROR_CREATING_REQUEST = 'c_error_creating_request',
-  C_REQUEST_NOT_FOUND = 'c_request_not_found',
+  CTRL_NEW_ANCHOR_REQUEST = 'ctrl_new_anchor_request',
+  CTRL_FOUND_EXISTING_REQUEST = 'ctrl_found_existing_request',
+  CTRL_CAR_REQUESTED = 'ctrl_car_requested',
+  CTRL_LEGACY_REQUESTED = 'ctrl_legacy_requested',
+  CTRL_INVALID_REQUEST = 'ctrl_invalid_request',
+  CTRL_ERROR_CREATING_REQUEST = 'ctrl_error_creating_request',
+  CTRL_REQUEST_NOT_FOUND = 'ctrl_request_not_found',
 }
