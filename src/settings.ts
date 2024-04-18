@@ -1,13 +1,18 @@
 export enum METRIC_NAMES {
   // *******************************************************************//
+  // All metrics are counts unless noted otherwise
+  // counts are running totals and should be used with rate() or increase()
+
   // Anchor Service (counts)
 
-  // Happy path
-  ACCEPTED_REQUESTS = 'accepted_requests',
-  ANCHOR_SUCCESS = 'anchor_success',
+  // NOTE that anchor service worker metrics are not currently showing up in dev cas
 
-  // Errors and warnings
-  ALREADY_ANCHORED_REQUESTS = 'already_anchored_requests',
+  // Happy path
+  ACCEPTED_REQUESTS = 'accepted_requests', // Anchor service: request candidates accepted
+  ANCHOR_SUCCESS = 'anchor_success',       // Anchor service: requests successfully anchored
+
+  // Anchor Service Errors and warnings
+  ALREADY_ANCHORED_REQUESTS = 'already_anchored_requests', 
   CONFLICTING_REQUESTS = 'conflicting_requests',
   ERROR_IPFS = 'error_ipfs',
   ERROR_MULTIQUERY = 'error_multiquery',
@@ -51,11 +56,11 @@ export enum METRIC_NAMES {
   ANCHOR_REQUESTS_BATCH_TIME = 'anchor_requests_batch_time',
   ANCHOR_REQUESTS_BATCH_FAILURE_TIME = 'anchor_requests_batch_failure_time',
 
-  ANCHOR_REQUEST_ACCEPTED = 'anchor_request_accepted',  // in controller
-
   // *******************************************************************//
   // Request Service
   WRITE_TOTAL_TSDB = 'write_total_tsdb', // note _tsdb implies handles high cardinality
+  // DO NOT change TSDB as it is used downstream
+
   MERKLE_CAR_CACHE_HIT = 'merkle_car_cache_hit',
   MERKLE_CAR_CACHE_MISS = 'merkle_car_cache_miss',
   WITNESS_CAR_CACHE_HIT = 'witness_car_cache_hit',
@@ -73,10 +78,11 @@ export enum METRIC_NAMES {
   IPFS_GET_FAILED = 'ipfs_get_failed',
 
   // Request Controller
-  ANCHOR_REQUESTED = 'anchor_requested',
-  CAR_REQUESTED = 'car_requested',
-  LEGACY_REQUESTED = 'legacy_requested',
-  REQUEST_INVALID = 'request_invalid',
-  REQUEST_NOT_CREATED = 'request_not_created',
-  REQUEST_NOT_FOUND = 'request_not_found',
+  CTRL_NEW_ANCHOR_REQUEST = 'ctrl_new_anchor_request',
+  CTRL_FOUND_EXISTING_REQUEST = 'ctrl_found_existing_request',
+  CTRL_CAR_REQUESTED = 'ctrl_car_requested',
+  CTRL_LEGACY_REQUESTED = 'ctrl_legacy_requested',
+  CTRL_INVALID_REQUEST = 'ctrl_invalid_request',
+  CTRL_ERROR_CREATING_REQUEST = 'ctrl_error_creating_request',
+  CTRL_REQUEST_NOT_FOUND = 'ctrl_request_not_found',
 }
