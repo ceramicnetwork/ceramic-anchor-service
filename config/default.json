@@ -53,8 +53,8 @@
   },
   "metrics": {
     "collectorHost": "",
-    "exportIntervalMillis": 60000,
-    "exportTimeoutMillis": 30000,
+    "exportIntervalMillis": 30000,
+    "exportTimeoutMillis": 20000,
     "prometheusPort": 0
   },
   "db": {
