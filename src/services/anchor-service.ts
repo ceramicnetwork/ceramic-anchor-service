@@ -318,6 +318,7 @@ export class AnchorService {
     logger.debug('Creating anchor commits')
     const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
 
+    logger.debug('Importing Merkle CAR to IPFS')
     try {
       await this.ipfsService.importCAR(merkleTree.car)
     } catch (e) {
@@ -327,6 +328,7 @@ export class AnchorService {
       throw e
     }
 
+    logger.debug('Storing Merkle CAR file')
     try {
       await this.merkleCarService.storeCarFile(ipfsProofCid, merkleTree.car)
     } catch (e) {
