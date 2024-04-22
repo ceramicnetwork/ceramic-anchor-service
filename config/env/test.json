@@ -37,6 +37,7 @@
     "traceRatio": "@@METRICS_TRACE_RATIO",
     "exportIntervalMillis": "@@METRICS_EXPORT_INTERVAL_MS",
     "exportTimeoutMillis": "@@METRICS_EXPORT_TIMEOUT_MS",
+    "instanceIdentifier": "@@ECS_CONTAINER_METADATA_URI",
     "prometheusPort": "@@METRICS_PORT"
   },
   "db": {

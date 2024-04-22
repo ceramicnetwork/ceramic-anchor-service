@@ -129,6 +129,15 @@ export class CeramicAnchorApp {
       )
       Metrics.count('HELLO', 1)
       logger.imp('Metrics exporter started')
+      if (this.config.metrics.instanceIdentifier) {
+         // In the API server, the instanceIdentifer is set from ECS_CONTAINER_METADATA_URI
+         // example value: http://169.254.170.2/v3/234fae8d117d4b76a7af0600b94fc195-2439726129
+
+         // in this case, return only the task id following the last /
+         const match = this.config.metrics.instanceIdentifier.match(/\/([^\/]*)$/);
+         const instanceId = match ? match[1] : this.config.metrics.instanceIdentifier
+         Metrics.setInstanceIdentifier(instanceId)
+      }
     } catch (e: any) {
       logger.imp('ERROR: Metrics exporter failed to start. Continuing anyway.')
       logger.err(e)
