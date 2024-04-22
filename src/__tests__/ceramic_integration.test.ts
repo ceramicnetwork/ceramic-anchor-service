@@ -200,6 +200,9 @@ async function makeCAS(
   configCopy.carStorage = {
     mode: 'inmemory',
   }
+  configCopy.metrics = {
+    instanceIdentifier: 'http://127.0.0.1/v3/234fffffffffffffffffffffffffffffffff9726129'
+  }
   return new CeramicAnchorApp(
     container.provideValue('config', configCopy).provideValue('dbConnection', dbConnection)
   )
