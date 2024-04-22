@@ -200,9 +200,6 @@ async function makeCAS(
   configCopy.carStorage = {
     mode: 'inmemory',
   }
-  configCopy.metrics = {
-    instanceIdentifier: 'http://127.0.0.1/v3/234fffffffffffffffffffffffffffffffff9726129'
-  }
   return new CeramicAnchorApp(
     container.provideValue('config', configCopy).provideValue('dbConnection', dbConnection)
   )
@@ -583,6 +580,45 @@ describe('CAR file', () => {
     // Teardown
     await ceramic.close()
     await cas.stop()
+    await ganacheServer.close()
+    await casIPFS.stop()
+  })
+})
+
+describe('Metrics Options', () => {
+  test('cas starts with a typical instance identifier', async () => {
+    const ipfsApiPort = await getPort()
+    const casIPFS = await createIPFS(ipfsApiPort)
+    const ganacheServer = await makeGanache()
+    const dbConnection = await createDbConnection()
+    const casPort = await getPort()
+    const cas = await makeCAS(createInjector(), dbConnection, {
+      mode: 'server',
+      ipfsPort: ipfsApiPort,
+      ganachePort: ganacheServer.port,
+      port: casPort,
+      useSmartContractAnchors: true,
+      metrics: {
+        instanceIdentifier: 'http://127.0.0.1/v3/234fffffffffffffffffffffffffffffffff9726129'
+      }
+    })
+    await cas.start()
+    // Teardown
+    await cas.stop()
+
+    const cas2 = await makeCAS(createInjector(), dbConnection, {
+      mode: 'server',
+      ipfsPort: ipfsApiPort,
+      ganachePort: ganacheServer.port,
+      port: casPort,
+      useSmartContractAnchors: true,
+      metrics: {
+        instanceIdentifier: 'fred'
+      }
+    })
+    await cas2.start()
+    await cas2.stop()
+
     await ganacheServer.close()
     await casIPFS.stop()
   })
