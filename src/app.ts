@@ -135,8 +135,11 @@ export class CeramicAnchorApp {
 
          // in this case, return only the task id following the last /
          const match = this.config.metrics.instanceIdentifier.match(/\/([^\/]*)$/);
-         const instanceId: string = match ? match[1] : this.config.metrics.instanceIdentifier
-         Metrics.setInstanceIdentifier(instanceId)
+         if (match and match[1]) {
+            Metrics.setInstanceIdentifier(match[1])
+         } else {
+            Metrics.setInstanceIdentifier(this.config.metrics.instanceIdentifier)
+         }
       }
     } catch (e: any) {
       logger.imp('ERROR: Metrics exporter failed to start. Continuing anyway.')
