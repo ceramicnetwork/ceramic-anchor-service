@@ -134,7 +134,7 @@ export class CeramicAnchorApp {
          // example value: http://169.254.170.2/v3/234fae8d117d4b76a7af0600b94fc195-2439726129
 
          // in this case, return only the task id following the last /
-         const match = this.config.metrics.instanceIdentifier.match(/\/([^\/]*)$/);
+         const match = this.config.metrics.instanceIdentifier.match(/\/([^/]*)$/);
          if (match && match[1]) {
             Metrics.setInstanceIdentifier(match[1])
          } else {
