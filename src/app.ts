@@ -135,7 +135,7 @@ export class CeramicAnchorApp {
 
          // in this case, return only the task id following the last /
          const match = this.config.metrics.instanceIdentifier.match(/\/([^\/]*)$/);
-         if (match and match[1]) {
+         if (match && match[1]) {
             Metrics.setInstanceIdentifier(match[1])
          } else {
             Metrics.setInstanceIdentifier(this.config.metrics.instanceIdentifier)
