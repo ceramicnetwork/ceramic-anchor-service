@@ -599,7 +599,7 @@ describe('Metrics Options', () => {
       port: casPort,
       useSmartContractAnchors: true,
       metrics: {
-        instanceIdentifier: 'http://127.0.0.1/v3/234fffffffffffffffffffffffffffffffff9726129'
+        instanceIdentifier: '234fffffffffffffffffffffffffffffffff9726129'
       }
     })
     await cas.start()
@@ -613,7 +613,7 @@ describe('Metrics Options', () => {
       port: casPort,
       useSmartContractAnchors: true,
       metrics: {
-        instanceIdentifier: 'fred'
+        instanceIdentifier: ''
       }
     })
     await cas2.start()
