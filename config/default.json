@@ -55,6 +55,7 @@
     "collectorHost": "",
     "exportIntervalMillis": 30000,
     "exportTimeoutMillis": 20000,
+    "instanceIdentifier": "",
     "prometheusPort": 0
   },
   "db": {

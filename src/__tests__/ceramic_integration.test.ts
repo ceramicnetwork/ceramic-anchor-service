@@ -584,3 +584,42 @@ describe('CAR file', () => {
     await casIPFS.stop()
   })
 })
+
+describe('Metrics Options', () => {
+  test('cas starts with a typical instance identifier', async () => {
+    const ipfsApiPort = await getPort()
+    const casIPFS = await createIPFS(ipfsApiPort)
+    const ganacheServer = await makeGanache()
+    const dbConnection = await createDbConnection()
+    const casPort = await getPort()
+    const cas = await makeCAS(createInjector(), dbConnection, {
+      mode: 'server',
+      ipfsPort: ipfsApiPort,
+      ganachePort: ganacheServer.port,
+      port: casPort,
+      useSmartContractAnchors: true,
+      metrics: {
+        instanceIdentifier: '234fffffffffffffffffffffffffffffffff9726129'
+      }
+    })
+    await cas.start()
+    // Teardown
+    await cas.stop()
+
+    const cas2 = await makeCAS(createInjector(), dbConnection, {
+      mode: 'server',
+      ipfsPort: ipfsApiPort,
+      ganachePort: ganacheServer.port,
+      port: casPort,
+      useSmartContractAnchors: true,
+      metrics: {
+        instanceIdentifier: ''
+      }
+    })
+    await cas2.start()
+    await cas2.stop()
+
+    await ganacheServer.close()
+    await casIPFS.stop()
+  })
+})

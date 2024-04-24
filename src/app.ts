@@ -129,6 +129,9 @@ export class CeramicAnchorApp {
       )
       Metrics.count('HELLO', 1)
       logger.imp('Metrics exporter started')
+      if (this.config.metrics.instanceIdentifier) {
+         Metrics.setInstanceIdentifier(this.config.metrics.instanceIdentifier)
+      }
     } catch (e: any) {
       logger.imp('ERROR: Metrics exporter failed to start. Continuing anyway.')
       logger.err(e)
