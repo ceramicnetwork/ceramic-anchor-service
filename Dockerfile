@@ -43,6 +43,10 @@ RUN npm install
 
 WORKDIR /
 
+COPY entrypoint.sh .
+RUN chmod +x ./entrypoint.sh
+
 COPY runner.sh .
 
+ENTRYPOINT ["./entrypoint.sh"]
 CMD [ "./runner.sh" ]
