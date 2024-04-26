@@ -88,6 +88,7 @@ functions:
       METRIC_BASE_NAME: ${env:CAS_AUTH_METRIC_BASE_NAME}
       METRIC_NAMESPACE: ${env:CAS_AUTH_METRIC_NAMESPACE}
       TESTING: ${env:TESTING}
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
 resources:
   Resources:
     authorizerLambdaPermissions:
