@@ -302,27 +302,38 @@ export class AnchorService {
   private async _anchorCandidates(candidates: Candidate[]): Promise<Partial<AnchorSummary>> {
     logger.imp(`Creating Merkle tree from ${candidates.length} selected streams`)
     const span = Metrics.startSpan('anchor_candidates')
+
+    const buildMerkleTreeSpan = Metrics.startSpan('build_merkle_tree')
     const merkleTree = await this._buildMerkleTree(candidates)
+    buildMerkleTreeSpan.end()
 
     // create and send ETH transaction
+    const createAndSendTransactionSpan = Metrics.startSpan('create_and_send_transaction')
     const tx: Transaction = await this.transactionRepository.withTransactionMutex(() => {
       logger.debug('Preparing to send transaction to put merkle root on blockchain')
       return this.blockchainService.sendTransaction(merkleTree.root.data.cid)
     })
+    createAndSendTransactionSpan.end()
 
     // Create proof
+    const createIPFSPan = Metrics.startSpan('create_ipfs_proof')
     logger.debug('Creating IPFS anchor proof')
     const ipfsProofCid = this._createIPFSProof(merkleTree.car, tx, merkleTree.root.data.cid)
+    createIPFSPan.end()
 
     // Create anchor records on IPFS
+    const createAnchorCommitsSpan = Metrics.startSpan('create_anchor_commits')
     logger.debug('Creating anchor commits')
     const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
+    createAnchorCommitsSpan.end()
 
     // Do not store CAR file in IPFS by default
+    const importCARSpan = Metrics.startSpan('import_car')
     if (process.env['CAS_USE_IPFS_STORAGE']) {
       logger.debug('Importing Merkle CAR to IPFS')
       try {
         await this.ipfsService.importCAR(merkleTree.car)
+        Metrics.count(METRIC_NAMES.MERKLE_CAR_STORAGE_SUCCESS_IPFS, 1)
       } catch (e) {
         Metrics.count(METRIC_NAMES.MERKLE_CAR_STORAGE_FAILURE_IPFS, 1)
         const message = `Can not store Merkle CAR to IPFS. Batch failed: ${e}`
@@ -330,20 +341,26 @@ export class AnchorService {
         throw e
       }
     }
+    importCARSpan.end()
 
+    const storeCARSpan = Metrics.startSpan('store_car')
     logger.debug('Storing Merkle CAR file')
     try {
       await this.merkleCarService.storeCarFile(ipfsProofCid, merkleTree.car)
+      Metrics.count(METRIC_NAMES.MERKLE_CAR_STORAGE_SUCCESS_S3, 1)
     } catch (e) {
       Metrics.count(METRIC_NAMES.MERKLE_CAR_STORAGE_FAILURE_S3, 1)
       const message = `Can not store Merkle CAR to S3. Batch failed: ${e}`
       logger.err(message)
       throw e
     }
+    storeCARSpan.end()
 
     // Update the database to record the successful anchors
     logger.debug('Persisting results to local database')
+    const persistAnchorResultSpan = Metrics.startSpan('persist_anchor_result')
     const persistedAnchorsCount = await this._persistAnchorResult(anchors, candidates)
+    persistAnchorResultSpan.end()
 
     logger.imp(`Service successfully anchored ${anchors.length} CIDs.`)
     Metrics.count(METRIC_NAMES.ANCHOR_SUCCESS, anchors.length)

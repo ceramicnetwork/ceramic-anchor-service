@@ -39,6 +39,7 @@ import { MockEventProducerService } from './mock-event-producer-service.util.js'
 import { type IMerkleCarService, makeMerkleCarService } from '../merkle-car-service.js'
 
 process.env['NODE_ENV'] = 'test'
+process.env['CAS_USE_IPFS_STORAGE'] = 'true';
 
 async function anchorCandidates(
   candidates: Candidate[],
