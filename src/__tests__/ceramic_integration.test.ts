@@ -48,6 +48,7 @@ import { teeDbConnection } from './tee-db-connection.util.js'
 import { CARFactory, type CAR } from 'cartonne'
 
 process.env.NODE_ENV = 'test'
+process.env['CAS_USE_IPFS_STORAGE'] = 'true'
 
 const randomNumber = Math.floor(Math.random() * 10000)
 const TOPIC = `/ceramic/local/${randomNumber}`

@@ -333,6 +333,7 @@ export class AnchorService {
       logger.debug('Importing Merkle CAR to IPFS')
       try {
         await this.ipfsService.importCAR(merkleTree.car)
+        Metrics.count(METRIC_NAMES.MERKLE_CAR_STORAGE_SUCCESS_IPFS, 1)
       } catch (e) {
         Metrics.count(METRIC_NAMES.MERKLE_CAR_STORAGE_FAILURE_IPFS, 1)
         const message = `Can not store Merkle CAR to IPFS. Batch failed: ${e}`
@@ -346,6 +347,7 @@ export class AnchorService {
     logger.debug('Storing Merkle CAR file')
     try {
       await this.merkleCarService.storeCarFile(ipfsProofCid, merkleTree.car)
+      Metrics.count(METRIC_NAMES.MERKLE_CAR_STORAGE_SUCCESS_S3, 1)
     } catch (e) {
       Metrics.count(METRIC_NAMES.MERKLE_CAR_STORAGE_FAILURE_S3, 1)
       const message = `Can not store Merkle CAR to S3. Batch failed: ${e}`
