@@ -318,14 +318,17 @@ export class AnchorService {
     logger.debug('Creating anchor commits')
     const anchors = await this._createAnchorCommits(ipfsProofCid, merkleTree)
 
-    logger.debug('Importing Merkle CAR to IPFS')
-    try {
-      await this.ipfsService.importCAR(merkleTree.car)
-    } catch (e) {
-      Metrics.count(METRIC_NAMES.MERKLE_CAR_STORAGE_FAILURE_IPFS, 1)
-      const message = `Can not store Merkle CAR to IPFS. Batch failed: ${e}`
-      logger.err(message)
-      throw e
+    // Do not store CAR file in IPFS by default
+    if (process.env['CAS_USE_IPFS_STORAGE']) {
+      logger.debug('Importing Merkle CAR to IPFS')
+      try {
+        await this.ipfsService.importCAR(merkleTree.car)
+      } catch (e) {
+        Metrics.count(METRIC_NAMES.MERKLE_CAR_STORAGE_FAILURE_IPFS, 1)
+        const message = `Can not store Merkle CAR to IPFS. Batch failed: ${e}`
+        logger.err(message)
+        throw e
+      }
     }
 
     logger.debug('Storing Merkle CAR file')
@@ -504,8 +507,10 @@ export class AnchorService {
     }
 
     try {
-      await this.ipfsService.storeRecord(ipfsAnchorCommit)
-
+      // Do not store in IPFS by default
+      if (process.env['CAS_USE_IPFS_STORAGE']) {
+        await this.ipfsService.storeRecord(ipfsAnchorCommit)
+      }
       // Do not publish to pubsub by default
       if (process.env['CAS_PUBSUB_PUBLISH']) {
         // TODO: Remove this case entirely after js-ceramic no longer supports pubsub

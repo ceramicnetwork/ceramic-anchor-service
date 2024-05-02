@@ -190,10 +190,12 @@ describe('anchor service', () => {
       expectPresent(request)
       expect(anchor.requestId).toEqual(request.id)
 
-      const anchorRecord = await ipfsService.retrieveRecord(anchor.cid)
-      expect(anchorRecord.prev.toString()).toEqual(request.cid)
-      expect(anchorRecord.proof).toEqual(ipfsProofCid)
-      expect(anchorRecord.path).toEqual(anchor.path)
+      if (process.env['CAS_USE_IPFS_STORAGE']) {
+        const anchorRecord = await ipfsService.retrieveRecord(anchor.cid)
+        expect(anchorRecord.prev.toString()).toEqual(request.cid)
+        expect(anchorRecord.proof).toEqual(ipfsProofCid)
+        expect(anchorRecord.path).toEqual(anchor.path)
+      }
     }
 
     expectPresent(anchors[0])
@@ -702,29 +704,31 @@ describe('anchor service', () => {
       }
     })
 
-    test('fail a batch if can not import Merkle CAR to IPFS', async () => {
-      const numRequests = 4
-      const requests = await fake.multipleRequests(numRequests)
+    if (process.env['CAS_USE_IPFS_STORAGE']) {
+      test('fail a batch if can not import Merkle CAR to IPFS', async () => {
+        const numRequests = 4
+        const requests = await fake.multipleRequests(numRequests)
 
-      const batch = new MockQueueMessage({
-        bid: uuidv4(),
-        rids: requests.map(({ id }) => id),
+        const batch = new MockQueueMessage({
+          bid: uuidv4(),
+          rids: requests.map(({id}) => id),
+        })
+        anchorBatchQueueService.receiveMessage.mockReturnValue(Promise.resolve(batch))
+
+        const original = blockchainService.sendTransaction
+        blockchainService.sendTransaction = () => {
+          return Promise.resolve(fakeTransaction)
+        }
+
+        jest.spyOn(ipfsService, 'importCAR').mockImplementation(async () => {
+          throw new Error(`Can not import merkle CAR`)
+        })
+        await expect(anchorService.anchorRequests()).rejects.toThrow()
+        const retrieved = await requestRepository.findByIds(requests.map((r) => r.id))
+        expect(retrieved.every((r) => r.status === RequestStatus.PENDING)).toBeTruthy()
+        blockchainService.sendTransaction = original
       })
-      anchorBatchQueueService.receiveMessage.mockReturnValue(Promise.resolve(batch))
-
-      const original = blockchainService.sendTransaction
-      blockchainService.sendTransaction = () => {
-        return Promise.resolve(fakeTransaction)
-      }
-
-      jest.spyOn(ipfsService, 'importCAR').mockImplementation(async () => {
-        throw new Error(`Can not import merkle CAR`)
-      })
-      await expect(anchorService.anchorRequests()).rejects.toThrow()
-      const retrieved = await requestRepository.findByIds(requests.map((r) => r.id))
-      expect(retrieved.every((r) => r.status === RequestStatus.PENDING)).toBeTruthy()
-      blockchainService.sendTransaction = original
-    })
+    }
 
     test('fail a batch if can not store Merkle CAR to S3', async () => {
       const numRequests = 4
