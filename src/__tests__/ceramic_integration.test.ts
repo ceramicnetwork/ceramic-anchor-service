@@ -265,15 +265,24 @@ describe('Ceramic Integration Test', () => {
   beforeAll(async () => {
     ipfsApiPort1 = await getPort()
     ipfsApiPort2 = await getPort()
-    ;[ipfs1, ipfs2, ipfs3, ipfs4] = await Promise.all([
-      createIPFS(ipfsApiPort1),
-      createIPFS(ipfsApiPort2),
-      createIPFS(),
-      createIPFS(),
-    ])
+    if (process.env['CAS_USE_IPFS_STORAGE']) {
+      ;[ipfs1, ipfs2, ipfs3, ipfs4] = await Promise.all([
+        createIPFS(ipfsApiPort1),
+        createIPFS(ipfsApiPort2),
+        createIPFS(),
+        createIPFS(),
+      ])
+    } else {
+      ;[ipfs3, ipfs4] = await Promise.all([
+        createIPFS(ipfsApiPort1),
+        createIPFS(ipfsApiPort2),
+        createIPFS(),
+        createIPFS(),
+      ])
+    }
 
     // Now make sure all ipfs nodes are connected to all other ipfs nodes
-    const ipfsNodes = [ipfs1, ipfs2, ipfs3, ipfs4]
+    const ipfsNodes = process.env['CAS_USE_IPFS_STORAGE'] ? [ipfs1, ipfs2, ipfs3, ipfs4] : [ipfs3, ipfs4]
     for (const [i] of ipfsNodes.entries()) {
       for (const [j] of ipfsNodes.entries()) {
         if (i == j) {
@@ -296,8 +305,11 @@ describe('Ceramic Integration Test', () => {
   })
 
   afterAll(async () => {
-    // await Promise.all([ipfsServer1.stop(), ipfsServer2.stop()])
-    await Promise.all([ipfs1.stop(), ipfs2.stop(), ipfs3.stop(), ipfs4.stop()])
+    if (process.env['CAS_USE_IPFS_STORAGE']) {
+      await Promise.all([ipfs1.stop(), ipfs2.stop(), ipfs3.stop(), ipfs4.stop()])
+    } else {
+      await Promise.all([ipfs3.stop(), ipfs4.stop()])
+    }
     await ganacheServer.close()
     await anchorLauncher.stop()
   })

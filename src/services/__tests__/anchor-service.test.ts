@@ -190,10 +190,12 @@ describe('anchor service', () => {
       expectPresent(request)
       expect(anchor.requestId).toEqual(request.id)
 
-      const anchorRecord = await ipfsService.retrieveRecord(anchor.cid)
-      expect(anchorRecord.prev.toString()).toEqual(request.cid)
-      expect(anchorRecord.proof).toEqual(ipfsProofCid)
-      expect(anchorRecord.path).toEqual(anchor.path)
+      if (process.env['CAS_USE_IPFS_STORAGE']) {
+        const anchorRecord = await ipfsService.retrieveRecord(anchor.cid)
+        expect(anchorRecord.prev.toString()).toEqual(request.cid)
+        expect(anchorRecord.proof).toEqual(ipfsProofCid)
+        expect(anchorRecord.path).toEqual(anchor.path)
+      }
     }
 
     expectPresent(anchors[0])
