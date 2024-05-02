@@ -376,7 +376,8 @@ describe('Ceramic Integration Test', () => {
     })
 
     describe('Multiple CAS instances in same process works', () => {
-      test(
+      // This test uses a very old approach for anchoring. Moreover, we will never be deploying multiple CAS instances.
+      test.skip(
         'Anchors on different CAS instances are independent',
         async () => {
           const doc1 = await TileDocument.create(ceramic1, { foo: 1 }, null, { anchor: true })
