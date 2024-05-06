@@ -1,4 +1,4 @@
-FROM node:16 as base
+FROM node:20 as base
 
 ARG CODE_VERSION="00000"
 
