@@ -20,6 +20,10 @@ EXPOSE 8081
 
 CMD npm run start
 
+FROM runner as tracing
+
+RUN npm install dd-trace --save
+
 FROM base as runner
 
 ENV CAS_PATH=/cas
