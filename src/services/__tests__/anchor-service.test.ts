@@ -386,10 +386,17 @@ describe('anchor service', () => {
     const ipfsProofCid = await ipfsService.storeRecord({})
     const anchors = await anchorService._createAnchorCommits(ipfsProofCid, merkleTree)
 
-    await Promise.all([
-      requestRepository.updateRequests({ status: RequestStatus.REPLACED }, requests),
-      anchorService._persistAnchorResult(anchors, candidates),
-    ])
+    // this update will lock the request rows for 1 second
+    // it is not awaited, so it will run in parallel with the persistAnchorResult
+    connection.transaction(async (trx) => {
+      await requestRepository
+        .withConnection(trx)
+        .updateRequests({ status: RequestStatus.REPLACED }, requests)
+
+      await Utils.delay(1000)
+    })
+    // an error will be thrown because of the lock from above, but will retry until it works
+    await anchorService._persistAnchorResult(anchors, candidates)
 
     const readyRequests = await requestRepository.findByStatus(RequestStatus.READY)
     expect(readyRequests.length).toEqual(0)
