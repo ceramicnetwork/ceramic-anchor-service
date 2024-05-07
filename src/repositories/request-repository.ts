@@ -20,6 +20,7 @@ import { parseCountResult } from './parse-count-result.util.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import type { IMetadataRepository } from './metadata-repository.js'
 import { date } from '@ceramicnetwork/codecs'
+import { REPEATED_READ_SERIALIZATION_ERROR } from './repository-types.js'
 
 // How long we should keep recently anchored streams pinned on our local Ceramic node, to keep the
 // AnchorCommit available to the network.
@@ -30,8 +31,6 @@ export const PROCESSING_TIMEOUT = 1000 * 60 * 60 * 3 //3H
 export const FAILURE_RETRY_WINDOW = 1000 * 60 * 60 * 48 // 48H
 // only retry failed requests if it hasn't been tried within the last 6 hours
 export const FAILURE_RETRY_INTERVAL = 1000 * 60 * 60 * 6 // 6H
-// application is recommended to automatically retry when seeing this error
-const REPEATED_READ_SERIALIZATION_ERROR = '40001'
 
 const TABLE_NAME = 'request'
 

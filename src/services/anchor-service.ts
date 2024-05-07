@@ -23,6 +23,7 @@ import { v4 as uuidv4 } from 'uuid'
 import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
+import { REPEATED_READ_SERIALIZATION_ERROR } from '../repositories/repository-types.js'
 import type { IMetadataService } from './metadata-service.js'
 import { pathString, type CIDHolder, type TreeMetadata } from '@ceramicnetwork/anchor-utils'
 import { Candidate } from './candidate.js'
@@ -546,40 +547,46 @@ export class AnchorService {
    */
   async _persistAnchorResult(anchors: FreshAnchor[], candidates: Candidate[]): Promise<number> {
     // filter to requests for streams that were actually anchored successfully
-    const acceptedRequests = []
+    const acceptedRequests: Request[] = []
     for (const candidate of candidates) {
       acceptedRequests.push(candidate.request)
     }
 
-    const trx = await this.connection.transaction(null, { isolationLevel: 'repeatable read' })
-    try {
-      const persistedAnchorsCount =
-        anchors.length > 0
-          ? await this.anchorRepository.withConnection(trx).createAnchors(anchors)
-          : 0
+    return await this.connection
+      .transaction(
+        async (trx) => {
+          const persistedAnchorsCount =
+            anchors.length > 0
+              ? await this.anchorRepository.withConnection(trx).createAnchors(anchors)
+              : 0
 
-      await this.requestRepository.withConnection(trx).updateRequests(
-        {
-          status: RS.COMPLETED,
-          message: 'CID successfully anchored.',
-          pinned: true,
+          await this.requestRepository.withConnection(trx).updateRequests(
+            {
+              status: RS.COMPLETED,
+              message: 'CID successfully anchored.',
+              pinned: true,
+            },
+            acceptedRequests
+          )
+
+          // record some metrics about the timing and count of anchors
+          const completed = new TimeableMetric(SinceField.CREATED_AT)
+          completed.recordAll(acceptedRequests)
+          completed.publishStats(METRIC_NAMES.CREATED_SUCCESS_MS)
+          Metrics.count(METRIC_NAMES.ACCEPTED_REQUESTS, acceptedRequests.length)
+          return persistedAnchorsCount
         },
-        acceptedRequests
+        { isolationLevel: 'repeatable read' }
       )
+      .catch(async (err) => {
+        if (err?.code === REPEATED_READ_SERIALIZATION_ERROR) {
+          Metrics.count(METRIC_NAMES.DB_SERIALIZATION_ERROR, 1)
+          await Utils.delay(100)
+          return this._persistAnchorResult(anchors, candidates)
+        }
 
-      await trx.commit()
-
-      // record some metrics about the timing and count of anchors
-      const completed = new TimeableMetric(SinceField.CREATED_AT)
-      completed.recordAll(acceptedRequests)
-      completed.publishStats(METRIC_NAMES.CREATED_SUCCESS_MS)
-      Metrics.count(METRIC_NAMES.ACCEPTED_REQUESTS, acceptedRequests.length)
-
-      return persistedAnchorsCount
-    } catch (err) {
-      await trx.rollback()
-      throw err
-    }
+        throw err
+      })
   }
 
   /**
