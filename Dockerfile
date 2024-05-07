@@ -1,4 +1,4 @@
-FROM node:16 as base
+FROM node:20 as base
 
 ARG CODE_VERSION="00000"
 
@@ -19,6 +19,10 @@ RUN npm run build
 EXPOSE 8081
 
 CMD npm run start
+
+FROM base as tracing
+
+RUN npm install dd-trace --save
 
 FROM base as runner
 
