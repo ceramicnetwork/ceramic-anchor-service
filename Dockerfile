@@ -20,7 +20,7 @@ EXPOSE 8081
 
 CMD npm run start
 
-FROM runner as tracing
+FROM base as tracing
 
 RUN npm install dd-trace --save
 
