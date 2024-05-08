@@ -128,10 +128,8 @@ export class RequestService {
       cacao: 'cacaoDomain' in params ? params.cacaoDomain : '',
     };
 
-    // High cardinality business metrics, should be skipped by prometheus
-    Metrics.count(METRIC_NAMES.WRITE_TOTAL_TSDB, 1, logData)
-
-    logger.debug(`Anchor request received: ${JSON.stringify(logData)}`);
+    // DO NOT REMOVE - this logging is used by business metrics
+    logger.imp(`Anchor request received: ${JSON.stringify(logData)}`);
 
     return this.requestPresentationService.body(storedRequest)
   }
