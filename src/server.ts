@@ -3,7 +3,7 @@ import { Server } from '@overnightjs/core'
 import { auth } from './auth/index.js'
 import { expressLoggers, logger, expressErrorLogger } from './logger/index.js'
 import { Config } from 'node-config-ts'
-import { multiprocess, type Multiprocess } from './ancillary/multiprocess'
+import { multiprocess, type Multiprocess } from './ancillary/multiprocess.js'
 
 const DEFAULT_SERVER_PORT = 8081
 
