@@ -34,7 +34,7 @@ export class CeramicAnchorServer extends Server {
    * @param port - Server listening port
    */
   start(port: number = DEFAULT_SERVER_PORT): Promise<void> {
-    const workers = process.env['JEST_WORKER_ID'] ? 1 : undefined
+    const workers = process.env['JEST_WORKER_ID'] ? 0 : undefined
     return new Promise<void>((resolve, reject) => {
       this._server = multiprocess(
         () => {
