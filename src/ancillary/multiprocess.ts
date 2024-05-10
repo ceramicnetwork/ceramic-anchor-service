@@ -74,9 +74,7 @@ export class Multiprocess extends EventEmitter {
       cluster.fork()
     }
 
-    if (options.main) {
-      options.main()
-    }
+    options.main?.()
   }
 
   stop() {
