@@ -18,7 +18,7 @@ const DEFAULT_OPTIONS: Partial<MultiprocessOptions> = {
 }
 
 export type TeardownFunction = () => void
-export type MultiprocessWork = () => void | (() => TeardownFunction)
+export type MultiprocessWork = (() => void) | (() => TeardownFunction)
 
 export class Multiprocess extends EventEmitter {
   private keepAlive: boolean
