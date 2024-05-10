@@ -38,12 +38,16 @@ export class CeramicAnchorServer extends Server {
     return new Promise<void>((resolve, reject) => {
       this._server = multiprocess(
         () => {
-          this.app
+          const server = this.app
             .listen(port, () => {
               logger.imp(`Server ready: Listening on port ${port}`)
               resolve()
             })
             .on('error', (err) => reject(err))
+
+          return () => {
+            server.close()
+          }
         },
         {
           keepAlive: false,

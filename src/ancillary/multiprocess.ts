@@ -17,11 +17,13 @@ const DEFAULT_OPTIONS: Partial<MultiprocessOptions> = {
   autostart: true,
 }
 
-export type MultiprocessWork = () => void | Promise<void>
+export type TeardownFunction = () => void
+export type MultiprocessWork = () => void | (() => TeardownFunction)
 
 export class Multiprocess extends EventEmitter {
   private keepAlive: boolean
   private readonly work: MultiprocessWork
+  private teardownFn: TeardownFunction | undefined = undefined
 
   constructor(work: MultiprocessWork, options: Partial<MultiprocessOptions>) {
     super()
@@ -31,7 +33,9 @@ export class Multiprocess extends EventEmitter {
     }
 
     this.keepAlive = effectiveOptions.keepAlive ?? true
-    this.work = work.bind(this)
+    this.work = () => {
+      this.teardownFn = work() || undefined
+    }
     this.fork = this.fork.bind(this)
     this.stop = this.stop.bind(this)
 
@@ -84,6 +88,7 @@ export class Multiprocess extends EventEmitter {
           worker.kill()
         }
       }
+      this.teardownFn?.()
       this.emit('offline')
     }
   }
