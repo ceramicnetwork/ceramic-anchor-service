@@ -7,9 +7,14 @@ export type MultiprocessOptions = {
    * If `true`, a single worker failure should not kill us all. A failed worker will get respawned.
    */
   keepAlive: boolean
+  /**
+   * If `true`, the workers are started right away.
+   */
   autostart: boolean
+  /**
+   * Number of child processes to spawn. By default, number of child processes equals to number of CPUs.
+   */
   workers: number | undefined
-  main: MultiprocessWork
 }
 
 const DEFAULT_OPTIONS: Partial<MultiprocessOptions> = {
@@ -73,8 +78,6 @@ export class Multiprocess extends EventEmitter {
       processes -= 1
       cluster.fork()
     }
-
-    options.main?.()
   }
 
   stop() {
