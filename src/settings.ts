@@ -12,7 +12,7 @@ export enum METRIC_NAMES {
   ANCHOR_SUCCESS = 'anchor_success',       // Anchor service: requests successfully anchored
 
   // Anchor Service Errors and warnings
-  ALREADY_ANCHORED_REQUESTS = 'already_anchored_requests', 
+  ALREADY_ANCHORED_REQUESTS = 'already_anchored_requests',
   CONFLICTING_REQUESTS = 'conflicting_requests',
   ERROR_IPFS = 'error_ipfs',
   ERROR_MULTIQUERY = 'error_multiquery',
@@ -28,6 +28,7 @@ export enum METRIC_NAMES {
   NO_ANCHOR_FOR_REQUEST = 'no_anchor_for_request',
   MERKLE_CAR_STORAGE_FAILURE_IPFS = 'merkle_car_storage_failure_ipfs',
   MERKLE_CAR_STORAGE_FAILURE_S3 = 'merkle_car_storage_failure_s3',
+  WITNESS_CAR_STORAGE_FAILURE = 'witness_car_storage_failure',
 
   // Transaction repository
   MANY_ATTEMPTS_TO_ACQUIRE_MUTEX = 'many_attempts_to_acquire_mutex',

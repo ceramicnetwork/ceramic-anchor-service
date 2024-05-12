@@ -20,6 +20,13 @@
     "s3BucketName": "myS3Bucket",
     "s3Endpoint": ""
   },
+  "witnessStorage": {
+    "awsRegion": "us-east-1",
+    "dynamoDbEndpoint": "",
+    "dynamoDbTableName": "",
+    "dynamoDbTtl": "",
+    "mode": "inmemory"
+  },
   "ipfsConfig": {
     "url": "http://localhost:5001",
     "pubsubTopic": "/ceramic/testnet-clay",

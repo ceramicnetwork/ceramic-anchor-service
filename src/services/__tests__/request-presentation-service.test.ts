@@ -7,14 +7,14 @@ import type {
 } from '../../repositories/anchor-repository.type.js'
 import { generateRequest } from '../../__tests__/test-utils.js'
 import { InMemoryMerkleCarService } from '../merkle-car-service.js'
-import { WitnessService } from '../witness-service.js'
+import { InMemoryWitnessService } from '../witness-service.js'
 import { CID } from 'multiformats/cid'
 
 const anchorRepository = {
   findByRequest: jest.fn(),
 } as unknown as IAnchorRepository
 const merkleCarService = new InMemoryMerkleCarService()
-const witnessService = new WitnessService()
+const witnessService = new InMemoryWitnessService()
 
 const service = new RequestPresentationService(anchorRepository, merkleCarService, witnessService)
 
