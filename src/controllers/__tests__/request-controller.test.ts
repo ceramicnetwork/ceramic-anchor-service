@@ -30,7 +30,7 @@ import { AnchorRequestParamsParser } from '../../ancillary/anchor-request-params
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 import { RequestService } from '../../services/request-service.js'
 import { ValidationSqsQueueService } from '../../services/queue/sqs-queue-service.js'
-import { WitnessService } from '../../services/witness-service.js'
+import { makeWitnessService } from '../../services/witness-service.js'
 import { makeMerkleCarService } from '../../services/merkle-car-service.js'
 
 type Tokens = {
@@ -96,7 +96,7 @@ describe('createRequest', () => {
       .provideClass('anchorRepository', AnchorRepository)
       .provideClass('ipfsService', MockIpfsService)
       .provideFactory('merkleCarService', makeMerkleCarService)
-      .provideClass('witnessService', WitnessService)
+      .provideFactory('witnessService', makeWitnessService)
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('metadataService', MockMetadataService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
@@ -375,7 +375,7 @@ describe('createRequest', () => {
         .provideClass('anchorRepository', AnchorRepository)
         .provideClass('ipfsService', MockIpfsService)
         .provideFactory('merkleCarService', makeMerkleCarService)
-        .provideClass('witnessService', WitnessService)
+        .provideFactory('witnessService', makeWitnessService)
         .provideClass('requestPresentationService', RequestPresentationService)
         .provideClass('metadataService', MockMetadataService)
         .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)

@@ -20,6 +20,13 @@
     "s3BucketName": "@@S3_BUCKET_NAME",
     "s3Endpoint": "@@S3_ENDPOINT"
   },
+  "witnessStorage": {
+    "awsRegion": "@@AWS_REGION",
+    "dynamoDbEndpoint": "@@DYNAMODB_ENDPOINT",
+    "dynamoDbTableName": "@@DYNAMODB_WITNESS_TABLE",
+    "dynamoDbTtl": "@@DYNAMODB_WITNESS_TTL",
+    "mode": "@@WITNESS_CAR_STORAGE_MODE"
+  },
   "ipfsConfig": {
     "url": "@@IPFS_API_URL",
     "pubsubTopic": "@@IPFS_PUBSUB_TOPIC",

@@ -11,7 +11,6 @@ import {
   test,
 } from '@jest/globals'
 
-import { CeramicDaemon, DaemonConfig } from '@ceramicnetwork/cli'
 import { Ceramic } from '@ceramicnetwork/core'
 import { AnchorStatus, fetchJson, IpfsApi, Stream } from '@ceramicnetwork/common'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
@@ -46,6 +45,7 @@ import type { Injector } from 'typed-inject'
 import { createInjector } from 'typed-inject'
 import { teeDbConnection } from './tee-db-connection.util.js'
 import { CARFactory, type CAR } from 'cartonne'
+import { InMemoryWitnessService } from '../services/witness-service.js'
 
 process.env.NODE_ENV = 'test'
 
@@ -200,6 +200,9 @@ async function makeCAS(
   configCopy.carStorage = {
     mode: 'inmemory',
   }
+  configCopy.witnessStorage = {
+    mode: 'inmemory',
+  }
   return new CeramicAnchorApp(
     container.provideValue('config', configCopy).provideValue('dbConnection', dbConnection)
   )
@@ -282,7 +285,9 @@ describe('Ceramic Integration Test', () => {
     }
 
     // Now make sure all ipfs nodes are connected to all other ipfs nodes
-    const ipfsNodes = process.env['CAS_USE_IPFS_STORAGE'] ? [ipfs1, ipfs2, ipfs3, ipfs4] : [ipfs3, ipfs4]
+    const ipfsNodes = process.env['CAS_USE_IPFS_STORAGE']
+      ? [ipfs1, ipfs2, ipfs3, ipfs4]
+      : [ipfs3, ipfs4]
     for (const [i] of ipfsNodes.entries()) {
       for (const [j] of ipfsNodes.entries()) {
         if (i == j) {
@@ -566,12 +571,11 @@ describe('CAR file', () => {
 
     // Intercept witness CAR built on CAS side
     let witnessCAR: CAR
-    const witnessService = cas.container.resolve('witnessService')
-    const buildWitnessCAR = witnessService.buildWitnessCAR.bind(witnessCAR)
+    const witnessService = new InMemoryWitnessService()
     const spyBuildWitnessCAR = jest
-      .spyOn(witnessService, 'buildWitnessCAR')
+      .spyOn(cas.container.resolve('witnessService'), 'build')
       .mockImplementation((anchorCommitCID, merkleCAR) => {
-        witnessCAR = buildWitnessCAR(anchorCommitCID, merkleCAR)
+        witnessCAR = witnessService.build(anchorCommitCID, merkleCAR)
         return witnessCAR
       })
 
@@ -612,8 +616,8 @@ describe('Metrics Options', () => {
       port: casPort,
       useSmartContractAnchors: true,
       metrics: {
-        instanceIdentifier: '234fffffffffffffffffffffffffffffffff9726129'
-      }
+        instanceIdentifier: '234fffffffffffffffffffffffffffffffff9726129',
+      },
     })
     await cas.start()
     // Teardown
@@ -626,8 +630,8 @@ describe('Metrics Options', () => {
       port: casPort,
       useSmartContractAnchors: true,
       metrics: {
-        instanceIdentifier: ''
-      }
+        instanceIdentifier: '',
+      },
     })
     await cas2.start()
     await cas2.stop()

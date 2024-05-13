@@ -43,7 +43,7 @@ import {
   ValidationSqsQueueService,
 } from './services/queue/sqs-queue-service.js'
 import { makeMerkleCarService, type IMerkleCarService } from './services/merkle-car-service.js'
-import { WitnessService } from './services/witness-service.js'
+import { makeWitnessService, type IWitnessService } from './services/witness-service.js'
 
 type DependenciesContext = {
   config: Config
@@ -66,7 +66,7 @@ type ProvidedContext = {
   requestService: RequestService
   merkleCarService: IMerkleCarService
   continualAnchoringScheduler: TaskSchedulerService
-  witnessService: WitnessService
+  witnessService: IWitnessService
 } & DependenciesContext
 
 /**
@@ -107,10 +107,10 @@ export class CeramicAnchorApp {
       .provideClass('anchorBatchQueueService', AnchorBatchSqsQueueService)
       .provideClass('validationQueueService', ValidationSqsQueueService)
       .provideFactory('merkleCarService', makeMerkleCarService)
+      .provideFactory('witnessService', makeWitnessService)
       .provideClass('anchorService', AnchorService)
       .provideClass('markReadyScheduler', TaskSchedulerService)
       .provideClass('healthcheckService', HealthcheckService)
-      .provideClass('witnessService', WitnessService)
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
       .provideClass('requestService', RequestService)
@@ -160,6 +160,9 @@ export class CeramicAnchorApp {
       const ipfsService = this.container.resolve('ipfsService')
       await ipfsService.init()
     }
+
+    const witnessService = this.container.resolve('witnessService')
+    await witnessService.init()
 
     switch (this.mode) {
       case AppMode.SERVER:

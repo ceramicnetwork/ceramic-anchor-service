@@ -3,7 +3,7 @@ import { InvalidRequestStatusError, RequestStatus } from '../models/request.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import { AnchorWithRequest } from '../repositories/anchor-repository.type.js'
 import type { IMerkleCarService } from './merkle-car-service.js'
-import type { WitnessService } from './witness-service.js'
+import type { IWitnessService } from './witness-service.js'
 import type { CAR } from 'cartonne'
 import {
   AnchorCommitPresentation,
@@ -15,7 +15,6 @@ import {
 import { CID } from 'multiformats/cid'
 import { StreamID } from '@ceramicnetwork/streamid'
 import type { OutputOf } from 'codeco'
-import { LRUCache } from 'least-recent'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 import { logger } from '../logger/index.js'
@@ -29,39 +28,36 @@ const NAME_FROM_STATUS = {
   [RequestStatus.COMPLETED]: AnchorRequestStatusName.READY,
 } as const
 
-const WITNESS_CAR_CACHE = 1000 // ~2MiB if one witness car is 2KiB
-
 /**
  * Render anchoring Request as JSON for a client to consume.
  */
 export class RequestPresentationService {
   static inject = ['anchorRepository', 'merkleCarService', 'witnessService'] as const
 
-  private readonly cache = new LRUCache<string, CAR>(WITNESS_CAR_CACHE)
-
   constructor(
     private readonly anchorRepository: IAnchorRepository,
     private readonly merkleCarService: IMerkleCarService,
-    private readonly witnessService: WitnessService
+    private readonly witnessService: IWitnessService
   ) {}
 
   async witnessCAR(anchor: AnchorWithRequest | null): Promise<CAR | null> {
     if (!anchor) return null // Expected behaviour
-    const cacheKey = anchor.cid.toString()
-    const fromCache = this.cache.get(cacheKey)
+    const fromCache = await this.witnessService.get(anchor.cid)
     if (fromCache) {
-      Metrics.count(METRIC_NAMES.MERKLE_CAR_CACHE_HIT, 1)
+      logger.debug(`Found witness CAR for anchor ${anchor.cid}`)
+      Metrics.count(METRIC_NAMES.WITNESS_CAR_CACHE_HIT, 1)
       return fromCache
     }
-    Metrics.count(METRIC_NAMES.MERKLE_CAR_CACHE_MISS, 1)
+    Metrics.count(METRIC_NAMES.WITNESS_CAR_CACHE_MISS, 1)
     const merkleCAR = await this.merkleCarService.retrieveCarFile(anchor.proofCid)
     if (!merkleCAR) {
       Metrics.count(METRIC_NAMES.NO_MERKLE_CAR_FOR_ANCHOR, 1)
       logger.warn(`No Merkle CAR found for anchor ${anchor.cid}`)
       return null
     }
-    const witnessCAR = this.witnessService.buildWitnessCAR(anchor.cid, merkleCAR)
-    this.cache.set(cacheKey, witnessCAR)
+    // Build and store the witness CAR file if was not already cached
+    const witnessCAR = this.witnessService.build(anchor.cid, merkleCAR)
+    await this.witnessService.store(anchor.cid, witnessCAR)
     return witnessCAR
   }
 

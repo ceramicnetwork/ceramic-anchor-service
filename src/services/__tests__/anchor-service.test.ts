@@ -37,6 +37,7 @@ import { FakeFactory } from './fake-factory.util.js'
 import { FakeEthereumBlockchainService } from './fake-ethereum-blockchain-service.util.js'
 import { MockEventProducerService } from './mock-event-producer-service.util.js'
 import { type IMerkleCarService, makeMerkleCarService } from '../merkle-car-service.js'
+import { type IWitnessService, makeWitnessService } from '../witness-service.js'
 
 process.env['NODE_ENV'] = 'test'
 
@@ -68,6 +69,7 @@ type Context = {
   metadataService: IMetadataService
   metadataRepository: MetadataRepository
   merkleCarService: IMerkleCarService
+  witnessService: IWitnessService
   anchorBatchQueueService: MockQueueService<any>
   blockchainService: FakeEthereumBlockchainService
 }
@@ -117,6 +119,7 @@ describe('anchor service', () => {
       .provideClass('metadataService', MetadataService)
       .provideClass('anchorBatchQueueService', MockQueueService<AnchorBatchQMessage>)
       .provideFactory('merkleCarService', makeMerkleCarService)
+      .provideFactory('witnessService', makeWitnessService)
       .provideClass('anchorService', AnchorService)
 
     ipfsService = injector.resolve('ipfsService')

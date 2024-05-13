@@ -34,6 +34,7 @@ import { create as createMultihash } from 'multiformats/hashes/digest'
 import { CAR } from 'cartonne'
 import { AbortOptions } from '@ceramicnetwork/common'
 import type { IMerkleCarService } from './merkle-car-service.js'
+import type { IWitnessService } from './witness-service.js'
 
 const CONTRACT_TX_TYPE = 'f(bytes32)'
 
@@ -144,6 +145,7 @@ export class AnchorService {
     'metadataService',
     'anchorBatchQueueService',
     'merkleCarService',
+    'witnessService',
   ] as const
 
   constructor(
@@ -157,7 +159,8 @@ export class AnchorService {
     private readonly eventProducerService: EventProducerService,
     private readonly metadataService: IMetadataService,
     private readonly anchorBatchQueueService: IQueueConsumerService<AnchorBatchQMessage>,
-    private readonly merkleCarService: IMerkleCarService
+    private readonly merkleCarService: IMerkleCarService,
+    private readonly witnessService: IWitnessService
   ) {
     this.merkleDepthLimit = config.merkleDepthLimit
     this.useSmartContractAnchors = config.useSmartContractAnchors
@@ -341,6 +344,9 @@ export class AnchorService {
       logger.err(message)
       throw e
     }
+
+    logger.debug('Storing witness CAR files')
+    await this._storeWitnessCARs(anchors, merkleTree.car)
 
     // Update the database to record the successful anchors
     logger.debug('Persisting results to local database')
@@ -533,6 +539,26 @@ export class AnchorService {
       logger.err(msg)
       Metrics.count(METRIC_NAMES.ERROR_IPFS, 1)
       return anchor
+    }
+  }
+
+  /**
+   * For each anchored CID, create and store the corresponding witness CAR file.
+   * @private
+   * @param anchors Array of Anchor objects corresponding to anchored requests.
+   * @param merkleCAR Merkle CAR file.
+   */
+  async _storeWitnessCARs(anchors: FreshAnchor[], merkleCAR: CAR): Promise<void> {
+    for (const anchor of anchors) {
+      logger.debug(`Created witness CAR for anchor commit ${anchor.cid}`)
+      const witnessCAR = this.witnessService.build(anchor.cid, merkleCAR)
+      try {
+        await this.witnessService.store(anchor.cid, witnessCAR)
+      } catch (err) {
+        // An error storing the witness CAR file should not prevent the anchor from being considered successful
+        Metrics.count(METRIC_NAMES.WITNESS_CAR_STORAGE_FAILURE, 1)
+        logger.err(`Error storing witness CAR for anchor commit ${anchor.cid}: ${err}`)
+      }
     }
   }
 
