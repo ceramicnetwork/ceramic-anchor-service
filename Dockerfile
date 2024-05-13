@@ -16,13 +16,12 @@ RUN npm run postinstall
 
 RUN npm run build
 
+RUN npm install dd-trace --save
+
 EXPOSE 8081
 
 CMD npm run start
 
-FROM base as tracing
-
-RUN npm install dd-trace --save
 
 FROM base as runner
 
