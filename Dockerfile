@@ -22,10 +22,7 @@ EXPOSE 8081
 
 CMD npm run start
 
-
 FROM base as runner
-
-ENV CAS_PATH=/cas
 
 # For running on AWS ECS
 ENV AWS_REGION=${AWS_REGION}
@@ -38,18 +35,12 @@ ENV AWS_ECS_FAMILY=${AWS_ECS_FAMILY}
 ENV DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
 ENV CLOUDWATCH_LOG_BASE_URL=${CLOUDWATCH_LOG_BASE_URL}
 
-WORKDIR /runner
+WORKDIR /cas
 
-COPY runner/package*.json runner/*.js ./
-
-RUN npm install
-
-WORKDIR /
-
-COPY entrypoint.sh .
-RUN chmod +x ./entrypoint.sh
-
-COPY runner.sh .
+COPY runner ./runner
+COPY runner.sh ./
+COPY entrypoint.sh ./
+RUN chmod +x ./runner.sh ./entrypoint.sh
 
 ENTRYPOINT ["./entrypoint.sh"]
 CMD [ "./runner.sh" ]
