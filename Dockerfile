@@ -20,6 +20,10 @@ RUN npm install dd-trace --save
 
 EXPOSE 8081
 
+COPY entrypoint.sh ./
+RUN chmod +x ./entrypoint.sh
+
+ENTRYPOINT ["./entrypoint.sh"]
 CMD npm run start
 
 FROM base as runner
@@ -39,8 +43,7 @@ WORKDIR /cas
 
 COPY runner ./runner
 COPY runner.sh ./
-COPY entrypoint.sh ./
-RUN chmod +x ./runner.sh ./entrypoint.sh
+RUN chmod +x ./runner.sh
 
 ENTRYPOINT ["./entrypoint.sh"]
 CMD [ "./runner.sh" ]
