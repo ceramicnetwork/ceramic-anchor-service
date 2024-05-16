@@ -45,7 +45,7 @@ export async function createDbConnection(dbConfig: Db = config.db): Promise<Knex
     connection: dbConfig.connection.connectionString || dbConfig.connection,
     debug: dbConfig.debug,
     migrations: dbConfig.migrations,
-    pool: { min: 3, max: 30 },
+    pool: { min: 3, max: 100 },
     // In our DB, identifiers have snake case formatting while in our code identifiers have camel case formatting.
     // We use the following transformers so we can always use camel case formatting in our code.
 
