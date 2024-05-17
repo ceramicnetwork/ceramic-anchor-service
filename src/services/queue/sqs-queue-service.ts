@@ -5,6 +5,7 @@ import {
   DeleteMessageCommand,
   ChangeMessageVisibilityCommand,
   SendMessageCommand,
+  QueueAttributeName,
 } from '@aws-sdk/client-sqs'
 import { IpfsPubSubPublishQMessage, QueueMessageData } from '../../models/queue-message.js'
 import {
@@ -95,7 +96,7 @@ export class SqsQueueService<TValue extends QueueMessageData>
   async receiveMessage(abortOptions?: AbortOptions): Promise<IQueueMessage<TValue> | undefined> {
     const receiveMessageCommandInput = {
       QueueUrl: this.sqsQueueUrl,
-      AttributeNames: ['All'],
+      AttributeNames: [QueueAttributeName.All],
       MessageAttributeNames: ['All'],
       MaxNumberOfMessages: 1,
       VisibilityTimeout: this.maxTimeToHoldMessageSec,
@@ -130,7 +131,9 @@ export class SqsQueueService<TValue extends QueueMessageData>
       MessageBody: JSON.stringify(this.messageType.encode(data)),
     }
 
-    await this.sqsClient.send(new SendMessageCommand(sendMessageCommandInput))
+    await this.sqsClient.send(new SendMessageCommand(sendMessageCommandInput)).catch((err) => {
+      throw new Error(`Failed to send message to SQS queue: ${err}`)
+    })
   }
 }
 
