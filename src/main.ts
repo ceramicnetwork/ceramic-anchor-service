@@ -15,9 +15,9 @@ async function startApp() {
 
   const container = createInjector()
     .provideValue('config', config)
-    .provideValue('dbConnection', connection)
     .provideValue('replicaDbConnection', replicaConnection)
 
+    .provideValue('dbConnection', connection)
   const app = new CeramicAnchorApp(container)
   await app.start()
 }

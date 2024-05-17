@@ -69,10 +69,15 @@
   "db": {
     "connection": {
       "database": "@@DB_NAME",
+      "replicaDatabase": "@@REPLICA_DB_NAME",
       "host": "@@DB_HOST",
+      "replicaHost": "@@REPLICA_DB_HOST",
       "user": "@@DB_USERNAME",
+      "replicaUser": "@@REPLICA_DB_USERNAME",
       "password": "@@DB_PASSWORD",
-      "port": "@@DB_PORT"
+      "replicaPassword": "@@DB_PASSWORD",
+      "port": "@@DB_PORT",
+      "replicaPort": "@@REPLICA_DB_PORT"
     }
   },
   "replica_db": {
