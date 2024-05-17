@@ -69,6 +69,35 @@ export async function createDbConnection(dbConfig: Db = config.db): Promise<Knex
   return connection
 }
 
+export async function createReplicaDbConnection(dbConfig: Db = config.db): Promise<Knex> {
+  const replicaKnexConfig: Knex.Config = {
+    client: dbConfig.client,
+    connection: dbConfig.replicaConnectionString,
+    debug: dbConfig.debug,
+    migrations: dbConfig.migrations,
+    pool: { min: 3, max: 30 },
+    // In our DB, identifiers have snake case formatting while in our code identifiers have camel case formatting.
+    // We use the following transformers so we can always use camel case formatting in our code.
+
+    // transforms identifier names in our queries from camel case to snake case. This is because the DB uses snake case identifiers.
+    wrapIdentifier: (value, origWrap): string => origWrap(snakeCase(value)),
+    // modifies returned rows from the DB. This transforms identifiers from snake case to camel case.
+    postProcessResponse: (result) => toCamelCase(result),
+  }
+  let connection
+  try {
+    connection = knex(replicaKnexConfig)
+  } catch (e) {
+    throw new Error(`Database connection failed: ${e}`)
+  }
+
+  await runMigrations(connection).catch((err) => {
+    throw new Error(`Migrations have failed: ${err}`)
+  })
+
+  return connection
+}
+
 /**
  * USED FOR TESTING
  * Clears all tables

@@ -13,6 +13,7 @@ import { IQueueProducerService } from './queue/queue-service.type.js'
 import { RequestQMessage } from '../models/queue-message.js'
 import type { OutputOf } from 'codeco'
 import type { CASResponse } from '@ceramicnetwork/codecs'
+import { ReplicationRequestRepository } from '../repositories/replication-request-repository.js'
 
 const ISO8601_DATE_FORMAT = new Intl.DateTimeFormat('sv-SE', {
   month: '2-digit',
@@ -32,6 +33,7 @@ export class RequestService {
   static inject = [
     'config',
     'requestRepository',
+    'replicationRequestRepository',
     'requestPresentationService',
     'metadataService',
     'validationQueueService',
@@ -40,6 +42,7 @@ export class RequestService {
   constructor(
     config: Config,
     private readonly requestRepository: RequestRepository,
+    private readonly replicationRequestRepository: ReplicationRequestRepository,
     private readonly requestPresentationService: RequestPresentationService,
     private readonly metadataService: IMetadataService,
     private readonly validationQueueService: IQueueProducerService<RequestQMessage>
@@ -63,7 +66,8 @@ export class RequestService {
   }
 
   async findByCid(cid: CID): Promise<OutputOf<typeof CASResponse> | undefined> {
-    const found = await this.requestRepository.findByCid(cid)
+    // TODO: updated the call only here for now, upadte for calls
+    const found = await this.replicationRequestRepository.findByCid(cid)
     if (!found) return undefined
     return this.requestPresentationService.body(found)
   }
@@ -109,7 +113,7 @@ export class RequestService {
         crt: storedRequest.createdAt,
         org: origin,
       })
-      Metrics.count(METRIC_NAMES.PUBLISH_TO_QUEUE, 1) 
+      Metrics.count(METRIC_NAMES.PUBLISH_TO_QUEUE, 1)
     } else {
       await this.requestRepository.markReplaced(storedRequest)
       Metrics.count(METRIC_NAMES.UPDATED_STORED_REQUEST, 1)
@@ -126,10 +130,10 @@ export class RequestService {
       stream: request.streamId,
       origin: request.origin,
       cacao: 'cacaoDomain' in params ? params.cacaoDomain : '',
-    };
+    }
 
     // DO NOT REMOVE - this logging is used by business metrics
-    logger.imp(`Anchor request received: ${JSON.stringify(logData)}`);
+    logger.imp(`Anchor request received: ${JSON.stringify(logData)}`)
 
     return this.requestPresentationService.body(storedRequest)
   }

@@ -44,15 +44,18 @@ import {
 } from './services/queue/sqs-queue-service.js'
 import { makeMerkleCarService, type IMerkleCarService } from './services/merkle-car-service.js'
 import { makeWitnessService, type IWitnessService } from './services/witness-service.js'
+import { ReplicationRequestRepository } from './repositories/replication-request-repository.js'
 
 type DependenciesContext = {
   config: Config
   dbConnection: Knex
+  replicaDbConnection: Knex
 }
 
 type ProvidedContext = {
   anchorService: AnchorService
   requestRepository: RequestRepository
+  replicationRequestRepository: ReplicationRequestRepository
   anchorRepository: AnchorRepository
   transactionRepository: TransactionRepository
   blockchainService: BlockchainService
@@ -96,6 +99,7 @@ export class CeramicAnchorApp {
       // register repositories
       .provideClass('metadataRepository', MetadataRepository)
       .provideFactory('requestRepository', RequestRepository.make)
+      .provideFactory('replicationRequestRepository', ReplicationRequestRepository.make)
       .provideClass('anchorRepository', AnchorRepository)
       .provideClass('transactionRepository', TransactionRepository)
       // register services
@@ -130,7 +134,7 @@ export class CeramicAnchorApp {
       Metrics.count('HELLO', 1)
       logger.imp('Metrics exporter started')
       if (this.config.metrics.instanceIdentifier) {
-         Metrics.setInstanceIdentifier(this.config.metrics.instanceIdentifier)
+        Metrics.setInstanceIdentifier(this.config.metrics.instanceIdentifier)
       }
     } catch (e: any) {
       logger.imp('ERROR: Metrics exporter failed to start. Continuing anyway.')
