@@ -72,9 +72,14 @@ export async function createDbConnection(dbConfig: Db = config.db): Promise<Knex
 export async function createReplicaDbConnection(dbConfig: Db = config.db): Promise<Knex> {
   const replicaKnexConfig: Knex.Config = {
     client: dbConfig.client,
-    connection: dbConfig.replicaConnectionString,
+    connection: dbConfig.connection.replicaConnectionString || {
+      host: dbConfig.connection.replicaHost,
+      port: dbConfig.connection.replicaPort,
+      user: dbConfig.connection.replicaUser,
+      password: dbConfig.connection.replicaPassword,
+      database: dbConfig.connection.replicaDatabase,
+    },
     debug: dbConfig.debug,
-    migrations: dbConfig.migrations,
     pool: { min: 3, max: 30 },
     // In our DB, identifiers have snake case formatting while in our code identifiers have camel case formatting.
     // We use the following transformers so we can always use camel case formatting in our code.
@@ -88,12 +93,8 @@ export async function createReplicaDbConnection(dbConfig: Db = config.db): Promi
   try {
     connection = knex(replicaKnexConfig)
   } catch (e) {
-    throw new Error(`Database connection failed: ${e}`)
+    throw new Error(`Replica database connection failed: ${e}`)
   }
-
-  await runMigrations(connection).catch((err) => {
-    throw new Error(`Migrations have failed: ${err}`)
-  })
 
   return connection
 }
