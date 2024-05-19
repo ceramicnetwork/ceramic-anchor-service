@@ -2,10 +2,8 @@ name: anchor-contract-pipeline
 
 on:
   push:
-    branches: [ '**' ]
-    paths-ignore:
-      - '.github/**'
-      - 'auth/**'
+    paths:
+      - contracts/src/*.sol
   workflow_dispatch: # manually triggered
 
 env:

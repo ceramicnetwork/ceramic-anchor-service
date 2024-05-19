@@ -25,25 +25,3 @@ RUN chmod +x ./entrypoint.sh
 
 ENTRYPOINT ["./entrypoint.sh"]
 CMD npm run start
-
-FROM base as runner
-
-# For running on AWS ECS
-ENV AWS_REGION=${AWS_REGION}
-ENV AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-ENV AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-ENV AWS_ECS_CLUSTER=${AWS_ECS_CLUSTER}
-ENV AWS_ECS_FAMILY=${AWS_ECS_FAMILY}
-
-# Discord notifications about running ECS tasks
-ENV DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
-ENV CLOUDWATCH_LOG_BASE_URL=${CLOUDWATCH_LOG_BASE_URL}
-
-WORKDIR /cas
-
-COPY runner ./runner
-COPY runner.sh ./
-RUN chmod +x ./runner.sh
-
-ENTRYPOINT ["./entrypoint.sh"]
-CMD [ "./runner.sh" ]
