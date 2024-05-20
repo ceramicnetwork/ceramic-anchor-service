@@ -217,7 +217,7 @@ export class AnchorService {
     }
 
     try {
-      logger.imp('Anchoring requests from the batch')
+      logger.imp(`Anchoring ${batchMessage.data.rids.length} requests from batch ${batchMessage.data.bid}`)
       const requests = await this.requestRepository.findByIds(batchMessage.data.rids)
 
       const requestsNotReplaced = requests.filter(

@@ -6,6 +6,9 @@ import {
   ChangeMessageVisibilityCommand,
   SendMessageCommand,
 } from '@aws-sdk/client-sqs'
+import AWSSDK from 'aws-sdk'
+import LevelUp from 'levelup'
+import S3LevelDOWN from 's3leveldown'
 import { IpfsPubSubPublishQMessage, QueueMessageData } from '../../models/queue-message.js'
 import {
   IQueueConsumerService,
@@ -19,6 +22,8 @@ import { AbortOptions } from '@ceramicnetwork/common'
 
 const DEFAULT_MAX_TIME_TO_HOLD_MESSAGES_S = 21600
 const DEFAULT_WAIT_TIME_FOR_MESSAGE_S = 10
+const BATCH_STORE_PATH = '/cas/anchor/batch'
+
 /**
  * Sqs Queue Message received by consumers.
  * Once the message is done processing you can either "ack" the message (remove the message from the queue) or "nack" the message (put the message back on the queue)
@@ -57,6 +62,28 @@ export class SqsQueueMessage<TValue extends QueueMessageData> implements IQueueM
         VisibilityTimeout: 0,
       })
     )
+  }
+}
+
+// This wrapper around SqsQueueMessage is used to handle the case where the list of batch request IDs is empty and must
+// be fetched from S3. The underlying SqsQueueMessage remains the same (and is what is used for n/acking the message),
+// but the data is updated to include the batch request IDs.
+export class BatchQueueMessage implements IQueueMessage<AnchorBatchQMessage> {
+  readonly data: AnchorBatchQMessage
+
+  constructor(
+    private readonly anchorBatchMessage: IQueueMessage<AnchorBatchQMessage>,
+    batchJson: any
+  ) {
+    this.data = decode(AnchorBatchQMessage, batchJson)
+  }
+
+  async ack(): Promise<void> {
+    await this.anchorBatchMessage.ack()
+  }
+
+  async nack(): Promise<void> {
+    await this.anchorBatchMessage.nack()
   }
 }
 
@@ -149,9 +176,52 @@ export class ValidationSqsQueueService extends SqsQueueService<RequestQMessage> 
  * AnchorBatchSqsQueueService is used to consume and publish anchor batch messages. These batches are anchored by anchor workers
  */
 export class AnchorBatchSqsQueueService extends SqsQueueService<AnchorBatchQMessage> {
-  constructor(config: Config) {
+  constructor(
+    config: Config,
+    private s3StorePath = config.queue.s3BucketName + BATCH_STORE_PATH,
+    private s3Endpoint = config.queue.s3Endpoint ? config.queue.s3Endpoint : undefined,
+    private _s3store?: LevelUp.LevelUp
+  ) {
     const queueUrl = config.queue.sqsQueueUrl + 'batch'
     super(config, queueUrl, AnchorBatchQMessage)
+  }
+
+  /**
+   * `new LevelUp` attempts to open a database, which leads to a request to AWS.
+   * Let's make initialization lazy.
+   */
+  get s3store(): LevelUp.LevelUp {
+    if (!this._s3store) {
+      const levelDown = this.s3Endpoint
+        ? new S3LevelDOWN(
+            this.s3StorePath,
+            new AWSSDK.S3({
+              endpoint: this.s3Endpoint,
+              s3ForcePathStyle: true,
+            })
+          )
+        : new S3LevelDOWN(this.s3StorePath)
+
+      this._s3store = new LevelUp(levelDown)
+    }
+    return this._s3store
+  }
+
+  override async receiveMessage(
+    abortOptions?: AbortOptions
+  ): Promise<IQueueMessage<AnchorBatchQMessage> | undefined> {
+    const anchorBatchMessage: IQueueMessage<AnchorBatchQMessage> | undefined =
+      await super.receiveMessage(abortOptions)
+    // If the list of batch request IDs is empty, we need to fetch the full batch from S3.
+    if (anchorBatchMessage && anchorBatchMessage.data.rids.length === 0) {
+      try {
+        const batchJson = await this.s3store.get(anchorBatchMessage.data.bid)
+        return new BatchQueueMessage(anchorBatchMessage, JSON.parse(batchJson))
+      } catch (err: any) {
+        throw Error(`Error retrieving batch ${anchorBatchMessage.data.bid} from S3: ${err.message}`)
+      }
+    }
+    return anchorBatchMessage
   }
 }
 
