@@ -5,6 +5,7 @@ import {
   DeleteMessageCommand,
   ChangeMessageVisibilityCommand,
   SendMessageCommand,
+  QueueAttributeName,
 } from '@aws-sdk/client-sqs'
 import AWSSDK from 'aws-sdk'
 import LevelUp from 'levelup'
@@ -19,6 +20,7 @@ import type { Config } from 'node-config-ts'
 import { AnchorBatchQMessage, RequestQMessage } from '../../models/queue-message.js'
 import { Codec, decode } from 'codeco'
 import { AbortOptions } from '@ceramicnetwork/common'
+import { logger } from '../../logger/index.js'
 
 const DEFAULT_MAX_TIME_TO_HOLD_MESSAGES_S = 21600
 const DEFAULT_WAIT_TIME_FOR_MESSAGE_S = 10
@@ -104,10 +106,23 @@ export class SqsQueueService<TValue extends QueueMessageData>
     private readonly sqsQueueUrl: string,
     private readonly messageType: Codec<TValue, TValue>
   ) {
+    const awsLogger = {
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      info: () => {},
+      error: (msg: any) => {
+        logger.err(msg)
+      },
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      debug: () => {},
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      warn: () => {},
+    }
+
     // Set the AWS Region.
     this.sqsClient = new SQSClient({
       region: config.queue.awsRegion,
       endpoint: this.sqsQueueUrl,
+      logger: awsLogger,
     })
     this.maxTimeToHoldMessageSec =
       config.queue.maxTimeToHoldMessageSec || DEFAULT_MAX_TIME_TO_HOLD_MESSAGES_S
@@ -122,7 +137,7 @@ export class SqsQueueService<TValue extends QueueMessageData>
   async receiveMessage(abortOptions?: AbortOptions): Promise<IQueueMessage<TValue> | undefined> {
     const receiveMessageCommandInput = {
       QueueUrl: this.sqsQueueUrl,
-      AttributeNames: ['All'],
+      AttributeNames: [QueueAttributeName.All],
       MessageAttributeNames: ['All'],
       MaxNumberOfMessages: 1,
       VisibilityTimeout: this.maxTimeToHoldMessageSec,
@@ -134,6 +149,9 @@ export class SqsQueueService<TValue extends QueueMessageData>
         abortSignal: abortOptions?.signal,
       })
       .then((result) => result.Messages)
+      .catch((err) => {
+        throw new Error(`Failed to receive message from SQS queue ${this.sqsQueueUrl}: ${err}`)
+      })
 
     if (!messages || messages.length !== 1) {
       return undefined
@@ -151,13 +169,22 @@ export class SqsQueueService<TValue extends QueueMessageData>
    * Publishes a message to a sqs queue
    * @param data the data you want to publish
    */
-  async sendMessage(data: TValue): Promise<void> {
+  async sendMessage(data: TValue, attempt = 0): Promise<void> {
     const sendMessageCommandInput = {
       QueueUrl: this.sqsQueueUrl,
       MessageBody: JSON.stringify(this.messageType.encode(data)),
     }
 
-    await this.sqsClient.send(new SendMessageCommand(sendMessageCommandInput))
+    await this.sqsClient.send(new SendMessageCommand(sendMessageCommandInput)).catch((err) => {
+      if (err.message.includes('Signature expired') && attempt < 3) {
+        logger.warn(
+          `Received a signature expired error while sending message to SQS queue ${this.sqsQueueUrl} during attempt ${attempt}`
+        )
+        return this.sendMessage(data, attempt + 1)
+      }
+
+      throw new Error(`Failed to send message to SQS queue ${this.sqsQueueUrl}: ${err}`)
+    })
   }
 }
 
