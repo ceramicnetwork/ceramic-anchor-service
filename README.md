@@ -14,20 +14,6 @@ This implementation currently uses the Ethereum blockchain but is built in order
 docker build . --target base -t cas
 ```
 
-**Build the runner image (optional):**
-
-The runner is only useful if running CAS with ECS.
-It sends updates on the start and exit status of the container to Discord webhooks.
-```sh
-docker build . --target runner -t cas-runner
-
-docker run cas-runner
-
-# Test the runner with Discord by using test
-# webhooks instead of the actual alert channels.
-docker run -e DISCORD_WEBHOOK_URL_INFO_CAS="<test_webhook_url>" -e DISCORD_WEBHOOK_URL_ALERTS="<test_webhook_url>" cas-runner
-```
-
 ### Docker Compose
 
 Docker compose will run two instances of CAS--the api in "server" mode and the anchor worker in "anchor" mode.
