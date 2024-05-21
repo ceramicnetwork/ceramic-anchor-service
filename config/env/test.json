@@ -57,6 +57,15 @@
       "tableName": "knex_migrations"
     }
   },
+  "replica_db": {
+    "connection": {
+      "database": "@@REPLICA_DB_NAME",
+      "host": "@@REPLICA_DB_HOST",
+      "user": "@@REPLICA_DB_USERNAME",
+      "password": "@@REPLICA_DB_PASSWORD",
+      "port": "@@REPLICA_DB_PORT"
+    }
+  },
   "queue": {
     "type": "sqs",
     "awsRegion": "us-east-1",

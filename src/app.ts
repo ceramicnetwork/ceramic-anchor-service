@@ -14,6 +14,7 @@ import { BlockchainService } from './services/blockchain/blockchain-service.js'
 import { HTTPEventProducerService } from './services/event-producer/http/http-event-producer-service.js'
 import { AnchorRepository } from './repositories/anchor-repository.js'
 import { RequestRepository } from './repositories/request-repository.js'
+import { ReplicationRequestRepository } from './repositories/replication-request-repository.js'
 import { TransactionRepository } from './repositories/transaction-repository.js'
 import { HealthcheckController } from './controllers/healthcheck-controller.js'
 import { AnchorController } from './controllers/anchor-controller.js'
@@ -44,7 +45,6 @@ import {
 } from './services/queue/sqs-queue-service.js'
 import { makeMerkleCarService, type IMerkleCarService } from './services/merkle-car-service.js'
 import { makeWitnessService, type IWitnessService } from './services/witness-service.js'
-import { ReplicationRequestRepository } from './repositories/replication-request-repository.js'
 
 type DependenciesContext = {
   config: Config
@@ -55,7 +55,6 @@ type DependenciesContext = {
 type ProvidedContext = {
   anchorService: AnchorService
   requestRepository: RequestRepository
-  replicationRequestRepository: ReplicationRequestRepository
   anchorRepository: AnchorRepository
   transactionRepository: TransactionRepository
   blockchainService: BlockchainService
@@ -99,9 +98,9 @@ export class CeramicAnchorApp {
       // register repositories
       .provideClass('metadataRepository', MetadataRepository)
       .provideFactory('requestRepository', RequestRepository.make)
-      .provideFactory('replicationRequestRepository', ReplicationRequestRepository.make)
       .provideClass('anchorRepository', AnchorRepository)
       .provideClass('transactionRepository', TransactionRepository)
+      .provideClass('replicationRequestRepository', ReplicationRequestRepository)
       // register services
       .provideFactory('blockchainService', EthereumBlockchainService.make)
       .provideClass('eventProducerService', HTTPEventProducerService)
@@ -117,8 +116,8 @@ export class CeramicAnchorApp {
       .provideClass('healthcheckService', HealthcheckService)
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
-      .provideClass('requestService', RequestService)
       .provideClass('continualAnchoringScheduler', TaskSchedulerService)
+      .provideClass('requestService', RequestService)
 
     try {
       Metrics.start(

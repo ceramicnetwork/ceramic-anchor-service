@@ -13,7 +13,7 @@ import { IQueueProducerService } from './queue/queue-service.type.js'
 import { RequestQMessage } from '../models/queue-message.js'
 import type { OutputOf } from 'codeco'
 import type { CASResponse } from '@ceramicnetwork/codecs'
-import { ReplicationRequestRepository } from '../repositories/replication-request-repository.js'
+import { IReplicationRequestRepository } from '../repositories/replication-request-repository.js'
 
 const ISO8601_DATE_FORMAT = new Intl.DateTimeFormat('sv-SE', {
   month: '2-digit',
@@ -42,7 +42,7 @@ export class RequestService {
   constructor(
     config: Config,
     private readonly requestRepository: RequestRepository,
-    private readonly replicationRequestRepository: ReplicationRequestRepository,
+    private readonly replicationRequestRepository: IReplicationRequestRepository,
     private readonly requestPresentationService: RequestPresentationService,
     private readonly metadataService: IMetadataService,
     private readonly validationQueueService: IQueueProducerService<RequestQMessage>

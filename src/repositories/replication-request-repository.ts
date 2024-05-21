@@ -1,24 +1,37 @@
 import { Knex } from 'knex'
 import { Request } from '../models/request'
 import { CID } from 'multiformats/cid'
-import { Config } from 'node-config-ts'
 
-export class ReplicationRequestRepository {
-  static make = make
-  private readonly connection: Knex
+const TABLE_NAME = 'request'
 
-  constructor(connection: Knex) {
-    this.connection = connection
+/**
+ * Replication request repository.
+ */
+export interface IReplicationRequestRepository {
+  readonly table: Knex.QueryBuilder
+  /**
+   * Finds a request with the given CID if exists using the replica database.
+   * @param cid CID the request is for
+   * @returns Promise for the associated request
+   */
+  findByCid(cid: CID | string): Promise<Request | undefined>
+}
+
+export class ReplicationRequestRepository implements IReplicationRequestRepository {
+  static inject = ['replicaDbConnection'] as const
+
+  constructor( private readonly connection: Knex) {}
+  
+  get table(): Knex.QueryBuilder {
+    return this.connection(TABLE_NAME)
   }
-
   /**
    * Finds a request with the given CID if exists using the replica database.
    * @param cid CID the request is for
    * @returns Promise for the associated request
    */
   async findByCid(cid: CID | string): Promise<Request | undefined> {
-    const found = await this.connection
-      .table('requests')
+    const found = await this.table
       .where({ cid: String(cid) })
       .first()
     if (found) {
@@ -26,15 +39,6 @@ export class ReplicationRequestRepository {
     }
     return undefined
   }
-
   // Add more methods that utilize the replica connection here
 }
 
-/**
- * Injection factory.
- */
-function make(config: Config, replicaConnection: Knex) {
-  return new ReplicationRequestRepository(replicaConnection)
-}
-
-make.inject = ['config', 'replicaDbConnection'] as const

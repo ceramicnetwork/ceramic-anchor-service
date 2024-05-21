@@ -1,5 +1,5 @@
 import { config } from 'node-config-ts'
-import type { Db } from 'node-config-ts'
+import type { Db, Replicadb } from 'node-config-ts'
 import type { Knex } from 'knex'
 import knex from 'knex'
 import snakeCase from 'lodash.snakecase'
@@ -69,17 +69,19 @@ export async function createDbConnection(dbConfig: Db = config.db): Promise<Knex
   return connection
 }
 
-export async function createReplicaDbConnection(dbConfig: Db = config.db): Promise<Knex> {
+export async function createReplicaDbConnection(dbConfig: Replicadb = config.replica_db): Promise<Knex> {
   const replicaKnexConfig: Knex.Config = {
-    client: dbConfig.client,
-    connection: dbConfig.connection.replicaConnectionString || {
-      host: dbConfig.connection.replicaHost,
-      port: dbConfig.connection.replicaPort,
-      user: dbConfig.connection.replicaUser,
-      password: dbConfig.connection.replicaPassword,
-      database: dbConfig.connection.replicaDatabase,
-    },
-    debug: dbConfig.debug,
+    // client: dbConfig.,
+    connection: dbConfig.connection,
+
+    // connection: dbConfig.connection.connectionString || {
+    //   host: dbConfig.connection.replicaHost,
+    //   port: dbConfig.connection.replicaPort,
+    //   user: dbConfig.connection.replicaUser,
+    //   password: dbConfig.connection.replicaPassword,
+    //   database: dbConfig.connection.replicaDatabase,
+    // },
+    // debug: dbConfig.debug,
     pool: { min: 3, max: 30 },
     // In our DB, identifiers have snake case formatting while in our code identifiers have camel case formatting.
     // We use the following transformers so we can always use camel case formatting in our code.
