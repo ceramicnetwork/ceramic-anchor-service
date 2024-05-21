@@ -4,6 +4,7 @@ import type { Knex } from 'knex'
 import type { AnchorWithRequest, IAnchorRepository } from './anchor-repository.type.js'
 import { parseCountResult } from './parse-count-result.util.js'
 import { decode } from 'codeco'
+import { request } from 'https'
 
 const TABLE_NAME = 'anchor'
 
@@ -56,5 +57,16 @@ export class AnchorRepository implements IAnchorRepository {
     const row = await this.table.where({ requestId: requestId }).first()
     if (!row) return null
     return decode(StoredAnchor, row)
+  }
+
+  async findByRequests(requests: Request[]): Promise<AnchorWithRequest[]> {
+    const rows = await this.table.whereIn(
+      'requestId',
+      requests.map((r) => r.id)
+    )
+    return rows.map((row) => {
+      const anchor = decode(StoredAnchor, row)
+      return { ...anchor, request }
+    })
   }
 }

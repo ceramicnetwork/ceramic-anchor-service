@@ -26,6 +26,10 @@ export interface IMetadataRepository {
    * Mark an entry as used `now`. Return true if touched, i.e. if the entry was in the database.
    */
   touch(streamId: StreamID, now?: Date): Promise<boolean>
+  /**
+   * Find all entries for the given `streamIds`. Return an empty array if none found.
+   */
+  batchRetrieve(streamIds: StreamID[]): Promise<StoredMetadata[]>
 }
 
 /**
@@ -89,5 +93,16 @@ export class MetadataRepository implements IMetadataRepository {
       .where({ streamId: streamIdAsString.encode(streamId) })
       .update({ usedAt: date.encode(now) })
     return rowsTouched > 0
+  }
+
+  /**
+   * Find all entries for the given `streamIds`. Return an empty array if none found.
+   */
+  async batchRetrieve(streamIds: StreamID[]): Promise<StoredMetadata[]> {
+    const rows = await this.table.whereIn(
+      'streamId',
+      streamIds.map((s) => s.toString())
+    )
+    return rows.map((row: any) => decode(StoredMetadata, row))
   }
 }

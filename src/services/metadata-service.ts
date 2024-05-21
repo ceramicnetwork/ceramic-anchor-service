@@ -16,6 +16,7 @@ export interface IMetadataService {
   fill(streamId: StreamID, genesisFields: GenesisFields): Promise<void>
   fillFromIpfs(streamId: StreamID, options?: AbortOptions): Promise<GenesisFields>
   retrieve(streamId: StreamID): Promise<StoredMetadata | undefined>
+  batchRetrieve(streamIds: StreamID[]): Promise<StoredMetadata[]>
 }
 
 /**
@@ -101,6 +102,10 @@ export class MetadataService implements IMetadataService {
 
   async retrieve(streamId: StreamID): Promise<StoredMetadata | undefined> {
     return this.metadataRepository.retrieve(streamId)
+  }
+
+  async batchRetrieve(streamIds: StreamID[]): Promise<StoredMetadata[]> {
+    return this.metadataRepository.batchRetrieve(streamIds)
   }
 
   /**
