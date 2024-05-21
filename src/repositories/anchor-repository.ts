@@ -64,7 +64,7 @@ export class AnchorRepository implements IAnchorRepository {
       'requestId',
       requests.map((r) => r.id)
     )
-    return rows.map((row) => {
+    return rows.map((row: StoredAnchor) => {
       const anchor = decode(StoredAnchor, row)
       return { ...anchor, request }
     })
