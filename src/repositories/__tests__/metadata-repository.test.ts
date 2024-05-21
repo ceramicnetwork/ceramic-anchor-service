@@ -10,13 +10,17 @@ import { expectPresent } from '../../__tests__/expect-present.util.js'
 let dbConnection: Knex
 let repository: MetadataRepository
 
-const FRESH_METADATA: FreshMetadata = {
-  streamId: randomStreamID(),
-  metadata: {
-    controllers: [asDIDString('did:key:controller')],
-    model: randomStreamID(),
-    tags: ['hello'],
-  },
+const FRESH_METADATA = createFreshMetadata()
+
+function createFreshMetadata(): FreshMetadata {
+  return {
+    streamId: randomStreamID(),
+    metadata: {
+      controllers: [asDIDString('did:key:controller')],
+      model: randomStreamID(),
+      tags: ['hello'],
+    },
+  }
 }
 
 beforeAll(async () => {
@@ -93,4 +97,34 @@ test('touch', async () => {
   const retrieved2 = await repository.retrieve(streamId)
   expectPresent(retrieved2)
   expect(retrieved2.usedAt.valueOf()).toBeCloseTo(now1.valueOf(), -2)
+})
+
+test('batchRetrieve', async () => {
+  const metadata1 = createFreshMetadata()
+  const metadata2 = createFreshMetadata()
+
+  await repository.save(metadata1)
+  await repository.save(metadata2)
+  const retrieved = await repository.batchRetrieve([
+    metadata1.streamId,
+    metadata2.streamId,
+    FRESH_METADATA.streamId,
+  ])
+  expect(retrieved.length).toEqual(2)
+
+  const retrieved1 = retrieved.find((m) => m.streamId.toString() === metadata1.streamId.toString())
+  const retrieved2 = retrieved.find((m) => m.streamId.toString() === metadata2.streamId.toString())
+  const retreived3 = retrieved.find(
+    (m) => m.streamId.toString() === FRESH_METADATA.streamId.toString()
+  )
+
+  expectPresent(retrieved1)
+  expect(retrieved1.streamId).toEqual(metadata1.streamId)
+  expect(retrieved1.metadata).toEqual(metadata1.metadata)
+
+  expectPresent(retrieved2)
+  expect(retrieved2.streamId).toEqual(metadata2.streamId)
+  expect(retrieved2.metadata).toEqual(metadata2.metadata)
+
+  expect(retreived3).toBeUndefined()
 })

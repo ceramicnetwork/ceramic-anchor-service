@@ -217,7 +217,9 @@ export class AnchorService {
     }
 
     try {
-      logger.imp(`Anchoring ${batchMessage.data.rids.length} requests from batch ${batchMessage.data.bid}`)
+      logger.imp(
+        `Anchoring ${batchMessage.data.rids.length} requests from batch ${batchMessage.data.bid}`
+      )
       const requests = await this.requestRepository.findByIds(batchMessage.data.rids)
 
       const requestsNotReplaced = requests.filter(
@@ -645,9 +647,15 @@ export class AnchorService {
    */
   async _buildCandidates(requests: Request[]): Promise<Array<Candidate>> {
     const candidates = []
+    const metadataByStreamId = await this.metadataService
+      .batchRetrieve(requests.map((r) => StreamID.fromString(r.streamId)))
+      .then((metadata) => {
+        return Object.fromEntries(metadata.map((m) => [m.streamId.toString(), m]))
+      })
+
     for (const request of requests) {
       const streamId = StreamID.fromString(request.streamId)
-      const metadata = await this.metadataService.retrieve(streamId)
+      const metadata = metadataByStreamId[request.streamId]
       if (metadata) {
         const candidate = new Candidate(streamId, request, metadata.metadata)
         candidates.push(candidate)
@@ -680,6 +688,15 @@ export class AnchorService {
       candidateLimit = candidates.length
     }
 
+    // batch load anchor commits for all candidates. If one already exists we can skip that candidate.
+    const anchorCommitsByRequest = await this.anchorRepository
+      .findByRequests(candidates.map((candidate) => candidate.request))
+      .then((anchorCommits) => {
+        return Object.fromEntries(
+          anchorCommits.map((anchorCommit) => [anchorCommit.requestId, anchorCommit])
+        )
+      })
+
     for (const candidate of candidates) {
       if (numSelectedCandidates >= candidateLimit) {
         // No need to process this candidate, we've already filled our anchor batch
@@ -689,7 +706,7 @@ export class AnchorService {
 
       // anchor commit may already exist so check first
       const existingAnchorCommit = candidate.shouldAnchor()
-        ? await this.anchorRepository.findByRequest(candidate.request)
+        ? anchorCommitsByRequest[candidate.request.id]
         : null
 
       if (existingAnchorCommit) {
