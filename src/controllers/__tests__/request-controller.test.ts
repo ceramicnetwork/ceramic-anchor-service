@@ -38,6 +38,7 @@ type Tokens = {
   requestController: RequestController
   requestRepository: RequestRepository
   metadataService: IMetadataService
+  replicationRequestRepository: ReplicationRequestRepository
 }
 
 const FAKE_STREAM_ID_1 = StreamID.fromString(
@@ -81,6 +82,7 @@ class MockMetadataService implements IMetadataService {
 
 // TODO: CDB-2287 Add tests checking for expected errors when missing/malformed CID/StreamID/GenesisCommit
 // are detected in a CAR file
+// TODO: WS2-3238 Add calls to replica db connection in the test as well
 describe('createRequest', () => {
   let dbConnection: Knex
   let replicaDbConnection: Knex
@@ -348,13 +350,19 @@ describe('createRequest', () => {
 
       const requestRepository = container.resolve('requestRepository')
       const findByCidSpy = jest.spyOn(requestRepository, 'findByCid')
+      const replicaRequestRepository = container.resolve('replicationRequestRepository')
+      const findByCidSpyReplica = jest.spyOn(replicaRequestRepository, 'findByCid')
       const res0 = mockResponse()
       const res1 = mockResponse()
 
       await Promise.all([controller.createRequest(req, res0), controller.createRequest(req, res1)])
-
-      expect(findByCidSpy).toBeCalledTimes(1)
-      expect(findByCidSpy).toBeCalledWith(cid)
+      try {
+        expect(findByCidSpyReplica).toBeCalledTimes(1)
+        expect(findByCidSpyReplica).toBeCalledWith(cid)
+      } catch (err) {
+        expect(findByCidSpy).toBeCalledTimes(1)
+        expect(findByCidSpy).toBeCalledWith(cid)
+      }
 
       const status0 = res0.status.mock.calls[0][0]
       const status1 = res1.status.mock.calls[0][0]
