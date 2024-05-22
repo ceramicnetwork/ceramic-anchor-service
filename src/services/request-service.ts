@@ -50,12 +50,20 @@ export class RequestService {
     this.publishToQueue = Boolean(config.queue.sqsQueueUrl)
   }
 
+  /**
+   * Finds a request by CID from read replica first if not found there then from main db
+   * @param cid The CID of the request.
+   * @returns The request.
+   */
   async getStatusForCid(cid: CID): Promise<OutputOf<typeof CASResponse> | { error: string }> {
-    const request = await this.requestRepository.findByCid(cid)
+    let request = await this.replicationRequestRepository.findByCid(cid)
     if (!request) {
-      throw new RequestDoesNotExistError(cid)
+      request = await this.requestRepository.findByCid(cid)
+      logger.debug(`Request not found in replica db for ${cid}, fetching from main_db`)
+      if (!request) {
+        throw new RequestDoesNotExistError(cid)
+      }
     }
-
     logger.debug(
       `Found request for ${cid} of ${request.streamId} created at ${ISO8601_DATE_FORMAT.format(
         request.createdAt
@@ -65,10 +73,20 @@ export class RequestService {
     return this.requestPresentationService.body(request)
   }
 
+  /**
+   * Finds a request by CID from read replica first if not found there then from main db
+   * @param cid The CID of the request.
+   * @returns The request.
+   */
   async findByCid(cid: CID): Promise<OutputOf<typeof CASResponse> | undefined> {
-    // TODO: updated the call only here for now, upadte for calls
-    const found = await this.replicationRequestRepository.findByCid(cid)
-    if (!found) return undefined
+    let found = await this.replicationRequestRepository.findByCid(cid)
+    if (!found) {
+      found = await this.requestRepository.findByCid(cid)
+      logger.debug(`Request not found in replica db for ${cid}, fetching from main_db`)
+      if (!found) {
+        throw new RequestDoesNotExistError(cid)
+      }
+    }
     return this.requestPresentationService.body(found)
   }
 
