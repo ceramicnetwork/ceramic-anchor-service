@@ -1,5 +1,5 @@
 import { describe, expect, jest, test, beforeAll, afterAll } from '@jest/globals'
-import { createDbConnection, clearTables } from '../../db-connection.js'
+import { createDbConnection, clearTables, createReplicaDbConnection } from '../../db-connection.js'
 import { createInjector, Injector } from 'typed-inject'
 import { config } from 'node-config-ts'
 import { RequestController } from '../request-controller.js'
@@ -83,15 +83,18 @@ class MockMetadataService implements IMetadataService {
 // are detected in a CAR file
 describe('createRequest', () => {
   let dbConnection: Knex
+  let replicaDbConnection: Knex
   let container: Injector<Tokens>
   let controller: RequestController
 
   beforeAll(async () => {
     dbConnection = await createDbConnection()
+    replicaDbConnection = await createReplicaDbConnection()
     await clearTables(dbConnection)
     container = createInjector()
       .provideValue('config', config)
       .provideValue('dbConnection', dbConnection)
+      .provideValue('replicaDbConnection', replicaDbConnection)
       .provideClass('metadataRepository', MetadataRepository)
       .provideFactory('requestRepository', RequestRepository.make)
       .provideClass('replicationRequestRepository', ReplicationRequestRepository)
@@ -372,6 +375,7 @@ describe('createRequest', () => {
           queue: { sqsQueueUrl: 'testurl' },
         })
         .provideValue('dbConnection', dbConnection)
+        .provideValue('replicaDbConnection', replicaDbConnection)
         .provideClass('metadataRepository', MetadataRepository)
         .provideFactory('requestRepository', RequestRepository.make)
         .provideClass('replicationRequestRepository', ReplicationRequestRepository)
