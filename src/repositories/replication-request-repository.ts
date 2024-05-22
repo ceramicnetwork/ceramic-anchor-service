@@ -1,5 +1,5 @@
 import { Knex } from 'knex'
-import { Request } from '../models/request'
+import { Request } from '../models/request.js'
 import { CID } from 'multiformats/cid'
 
 const TABLE_NAME = 'request'
