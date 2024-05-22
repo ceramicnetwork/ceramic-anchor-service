@@ -9,7 +9,7 @@ export enum METRIC_NAMES {
 
   // Happy path
   ACCEPTED_REQUESTS = 'accepted_requests', // Anchor service: request candidates accepted
-  ANCHOR_SUCCESS = 'anchor_success',       // Anchor service: requests successfully anchored
+  ANCHOR_SUCCESS = 'anchor_success', // Anchor service: requests successfully anchored
 
   // Anchor Service Errors and warnings
   ALREADY_ANCHORED_REQUESTS = 'already_anchored_requests',
@@ -60,6 +60,7 @@ export enum METRIC_NAMES {
   // *******************************************************************//
   // Request Service
   WRITE_TOTAL_TSDB = 'write_total_tsdb', // note _tsdb implies handles high cardinality
+  REPLICA_DB_REQUEST_NOT_FOUND = 'replica_db_request_not_found',
   // DO NOT change TSDB as it is used downstream
 
   MERKLE_CAR_CACHE_HIT = 'merkle_car_cache_hit',

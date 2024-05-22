@@ -60,6 +60,7 @@ export class RequestService {
     if (!request) {
       request = await this.requestRepository.findByCid(cid)
       logger.debug(`Request not found in replica db for ${cid}, fetching from main_db`)
+      Metrics.count(METRIC_NAMES.REPLICA_DB_REQUEST_NOT_FOUND, 1)
       if (!request) {
         throw new RequestDoesNotExistError(cid)
       }
@@ -83,6 +84,7 @@ export class RequestService {
     if (!found) {
       found = await this.requestRepository.findByCid(cid)
       logger.debug(`Request not found in replica db for ${cid}, fetching from main_db`)
+      Metrics.count(METRIC_NAMES.REPLICA_DB_REQUEST_NOT_FOUND, 1)
       if (!found) {
         throw new RequestDoesNotExistError(cid)
       }
