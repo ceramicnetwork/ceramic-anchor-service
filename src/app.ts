@@ -45,7 +45,6 @@ import {
 } from './services/queue/sqs-queue-service.js'
 import { makeMerkleCarService, type IMerkleCarService } from './services/merkle-car-service.js'
 import { makeWitnessService, type IWitnessService } from './services/witness-service.js'
-import { ReplicationRequestRepository } from './repositories/replication-request-repository.js'
 
 type DependenciesContext = {
   config: Config
@@ -100,7 +99,6 @@ export class CeramicAnchorApp {
       // register repositories
       .provideClass('metadataRepository', MetadataRepository)
       .provideFactory('requestRepository', RequestRepository.make)
-      .provideFactory('replicationRequestRepository', ReplicationRequestRepository.make)
       .provideClass('anchorRepository', AnchorRepository)
       .provideClass('transactionRepository', TransactionRepository)
       .provideClass('replicationRequestRepository', ReplicationRequestRepository)

@@ -69,17 +69,19 @@ export async function createDbConnection(dbConfig: Db = config.db): Promise<Knex
   return connection
 }
 
-export async function createReplicaDbConnection(dbConfig: Db = config.db): Promise<Knex> {
+export async function createReplicaDbConnection(
+  replica_db_config: Replicadb = config.replica_db
+): Promise<Knex> {
   const replicaKnexConfig: Knex.Config = {
-    client: dbConfig.client,
-    connection: dbConfig.connection.replicaConnectionString || {
-      host: dbConfig.connection.replicaHost,
-      port: dbConfig.connection.replicaPort,
-      user: dbConfig.connection.replicaUser,
-      password: dbConfig.connection.replicaPassword,
-      database: dbConfig.connection.replicaDatabase,
+    client: replica_db_config.client,
+    connection: replica_db_config.connection.connectionString || {
+      host: replica_db_config.connection.host,
+      port: replica_db_config.connection.port,
+      user: replica_db_config.connection.user,
+      password: replica_db_config.connection.password,
+      database: replica_db_config.connection.database,
     },
-    debug: dbConfig.debug,
+    debug: replica_db_config.debug,
     pool: { min: 3, max: 30 },
     // In our DB, identifiers have snake case formatting while in our code identifiers have camel case formatting.
     // We use the following transformers so we can always use camel case formatting in our code.

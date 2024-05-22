@@ -20,8 +20,8 @@ export interface IReplicationRequestRepository {
 export class ReplicationRequestRepository implements IReplicationRequestRepository {
   static inject = ['replicaDbConnection'] as const
 
-  constructor( private readonly connection: Knex) {}
-  
+  constructor(private readonly connection: Knex) {}
+
   get table(): Knex.QueryBuilder {
     return this.connection(TABLE_NAME)
   }
@@ -31,9 +31,7 @@ export class ReplicationRequestRepository implements IReplicationRequestReposito
    * @returns Promise for the associated request
    */
   async findByCid(cid: CID | string): Promise<Request | undefined> {
-    const found = await this.table
-      .where({ cid: String(cid) })
-      .first()
+    const found = await this.table.where({ cid: String(cid) }).first()
     if (found) {
       return new Request(found)
     }
@@ -41,4 +39,3 @@ export class ReplicationRequestRepository implements IReplicationRequestReposito
   }
   // Add more methods that utilize the replica connection here
 }
-
