@@ -32,6 +32,7 @@ import { RequestService } from '../../services/request-service.js'
 import { ValidationSqsQueueService } from '../../services/queue/sqs-queue-service.js'
 import { makeWitnessService } from '../../services/witness-service.js'
 import { makeMerkleCarService } from '../../services/merkle-car-service.js'
+import { ReplicationRequestRepository } from '../../repositories/replication-request-repository.js'
 
 type Tokens = {
   requestController: RequestController
@@ -102,6 +103,7 @@ describe('createRequest', () => {
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
       .provideClass('validationQueueService', ValidationSqsQueueService)
       .provideClass('requestService', RequestService)
+      .provideClass('replicationRequestRepository', ReplicationRequestRepository)
       .provideClass('requestController', RequestController)
     controller = container.resolve('requestController')
   })
@@ -381,6 +383,7 @@ describe('createRequest', () => {
         .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
         .provideClass('validationQueueService', ValidationSqsQueueService)
         .provideClass('requestService', RequestService)
+        .provideClass('replicationRequestRepository', ReplicationRequestRepository)
         .provideClass('requestController', RequestController)
 
       controllerPublishingToQueue = container.resolve('requestController')

@@ -63,7 +63,8 @@
       "host": "@@REPLICA_DB_HOST",
       "user": "@@REPLICA_DB_USERNAME",
       "password": "@@REPLICA_DB_PASSWORD",
-      "port": "@@REPLICA_DB_PORT"
+      "port": "@@REPLICA_DB_PORT",
+      "connectionString": "@@DATABASE_URL"
     }
   },
   "queue": {
