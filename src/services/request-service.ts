@@ -58,9 +58,9 @@ export class RequestService {
   async getStatusForCid(cid: CID): Promise<OutputOf<typeof CASResponse> | { error: string }> {
     let request = await this.replicationRequestRepository.findByCid(cid)
     if (!request) {
-      request = await this.requestRepository.findByCid(cid)
       logger.debug(`Request not found in replica db for ${cid}, fetching from main_db`)
       Metrics.count(METRIC_NAMES.REPLICA_DB_REQUEST_NOT_FOUND, 1)
+      request = await this.requestRepository.findByCid(cid)
       if (!request) {
         throw new RequestDoesNotExistError(cid)
       }
@@ -70,7 +70,6 @@ export class RequestService {
         request.createdAt
       )}`
     )
-
     return this.requestPresentationService.body(request)
   }
 
