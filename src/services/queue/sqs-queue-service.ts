@@ -21,6 +21,8 @@ import { AnchorBatchQMessage, RequestQMessage } from '../../models/queue-message
 import { Codec, decode } from 'codeco'
 import { AbortOptions } from '@ceramicnetwork/common'
 import { logger } from '../../logger/index.js'
+import * as http from 'http'
+import { NodeHttpHandler } from '@smithy/node-http-handler'
 
 const DEFAULT_MAX_TIME_TO_HOLD_MESSAGES_S = 21600
 const DEFAULT_WAIT_TIME_FOR_MESSAGE_S = 10
@@ -123,6 +125,11 @@ export class SqsQueueService<TValue extends QueueMessageData>
       region: config.queue.awsRegion,
       endpoint: this.sqsQueueUrl,
       logger: awsLogger,
+      requestHandler: new NodeHttpHandler({
+        httpAgent: new http.Agent({
+          keepAlive: true,
+        }),
+      }),
     })
     this.maxTimeToHoldMessageSec =
       config.queue.maxTimeToHoldMessageSec || DEFAULT_MAX_TIME_TO_HOLD_MESSAGES_S
