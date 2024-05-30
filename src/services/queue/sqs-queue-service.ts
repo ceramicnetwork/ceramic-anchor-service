@@ -128,8 +128,6 @@ export class SqsQueueService<TValue extends QueueMessageData>
       requestHandler: new NodeHttpHandler({
         httpAgent: new http.Agent({
           keepAlive: true,
-          maxSockets: 1000,
-          maxFreeSockets: 768,
         }),
       }),
     })
