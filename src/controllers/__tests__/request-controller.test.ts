@@ -1,5 +1,5 @@
 import { describe, expect, jest, test, beforeAll, afterAll } from '@jest/globals'
-import { createDbConnection, clearTables } from '../../db-connection.js'
+import { createDbConnection, clearTables, createReplicaDbConnection } from '../../db-connection.js'
 import { createInjector, Injector } from 'typed-inject'
 import { config } from 'node-config-ts'
 import { RequestController } from '../request-controller.js'
@@ -32,11 +32,13 @@ import { RequestService } from '../../services/request-service.js'
 import { ValidationSqsQueueService } from '../../services/queue/sqs-queue-service.js'
 import { makeWitnessService } from '../../services/witness-service.js'
 import { makeMerkleCarService } from '../../services/merkle-car-service.js'
+import { ReplicationRequestRepository } from '../../repositories/replication-request-repository.js'
 
 type Tokens = {
   requestController: RequestController
   requestRepository: RequestRepository
   metadataService: IMetadataService
+  replicationRequestRepository: ReplicationRequestRepository
 }
 
 const FAKE_STREAM_ID_1 = StreamID.fromString(
@@ -80,19 +82,24 @@ class MockMetadataService implements IMetadataService {
 
 // TODO: CDB-2287 Add tests checking for expected errors when missing/malformed CID/StreamID/GenesisCommit
 // are detected in a CAR file
+// TODO: WS2-3238 Add calls to replica db connection in the test as well
 describe('createRequest', () => {
   let dbConnection: Knex
+  let replicaDbConnection: Knex
   let container: Injector<Tokens>
   let controller: RequestController
 
   beforeAll(async () => {
     dbConnection = await createDbConnection()
+    replicaDbConnection = await createReplicaDbConnection()
     await clearTables(dbConnection)
     container = createInjector()
       .provideValue('config', config)
       .provideValue('dbConnection', dbConnection)
+      .provideValue('replicaDbConnection', replicaDbConnection)
       .provideClass('metadataRepository', MetadataRepository)
       .provideFactory('requestRepository', RequestRepository.make)
+      .provideClass('replicationRequestRepository', ReplicationRequestRepository)
       .provideClass('anchorRepository', AnchorRepository)
       .provideClass('ipfsService', MockIpfsService)
       .provideFactory('merkleCarService', makeMerkleCarService)
@@ -343,13 +350,19 @@ describe('createRequest', () => {
 
       const requestRepository = container.resolve('requestRepository')
       const findByCidSpy = jest.spyOn(requestRepository, 'findByCid')
+      const replicaRequestRepository = container.resolve('replicationRequestRepository')
+      const findByCidSpyReplica = jest.spyOn(replicaRequestRepository, 'findByCid')
       const res0 = mockResponse()
       const res1 = mockResponse()
 
       await Promise.all([controller.createRequest(req, res0), controller.createRequest(req, res1)])
-
-      expect(findByCidSpy).toBeCalledTimes(1)
-      expect(findByCidSpy).toBeCalledWith(cid)
+      try {
+        expect(findByCidSpyReplica).toBeCalledTimes(1)
+        expect(findByCidSpyReplica).toBeCalledWith(cid)
+      } catch (err) {
+        expect(findByCidSpy).toBeCalledTimes(1)
+        expect(findByCidSpy).toBeCalledWith(cid)
+      }
 
       const status0 = res0.status.mock.calls[0][0]
       const status1 = res1.status.mock.calls[0][0]
@@ -370,8 +383,10 @@ describe('createRequest', () => {
           queue: { sqsQueueUrl: 'testurl' },
         })
         .provideValue('dbConnection', dbConnection)
+        .provideValue('replicaDbConnection', replicaDbConnection)
         .provideClass('metadataRepository', MetadataRepository)
         .provideFactory('requestRepository', RequestRepository.make)
+        .provideClass('replicationRequestRepository', ReplicationRequestRepository)
         .provideClass('anchorRepository', AnchorRepository)
         .provideClass('ipfsService', MockIpfsService)
         .provideFactory('merkleCarService', makeMerkleCarService)

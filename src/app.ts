@@ -14,6 +14,7 @@ import { BlockchainService } from './services/blockchain/blockchain-service.js'
 import { HTTPEventProducerService } from './services/event-producer/http/http-event-producer-service.js'
 import { AnchorRepository } from './repositories/anchor-repository.js'
 import { RequestRepository } from './repositories/request-repository.js'
+import { ReplicationRequestRepository } from './repositories/replication-request-repository.js'
 import { TransactionRepository } from './repositories/transaction-repository.js'
 import { HealthcheckController } from './controllers/healthcheck-controller.js'
 import { AnchorController } from './controllers/anchor-controller.js'
@@ -48,11 +49,13 @@ import { makeWitnessService, type IWitnessService } from './services/witness-ser
 type DependenciesContext = {
   config: Config
   dbConnection: Knex
+  replicaDbConnection: Knex
 }
 
 type ProvidedContext = {
   anchorService: AnchorService
   requestRepository: RequestRepository
+  replicationRequestRepository: ReplicationRequestRepository
   anchorRepository: AnchorRepository
   transactionRepository: TransactionRepository
   blockchainService: BlockchainService
@@ -98,6 +101,7 @@ export class CeramicAnchorApp {
       .provideFactory('requestRepository', RequestRepository.make)
       .provideClass('anchorRepository', AnchorRepository)
       .provideClass('transactionRepository', TransactionRepository)
+      .provideClass('replicationRequestRepository', ReplicationRequestRepository)
       // register services
       .provideFactory('blockchainService', EthereumBlockchainService.make)
       .provideClass('eventProducerService', HTTPEventProducerService)
@@ -113,8 +117,8 @@ export class CeramicAnchorApp {
       .provideClass('healthcheckService', HealthcheckService)
       .provideClass('requestPresentationService', RequestPresentationService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
-      .provideClass('requestService', RequestService)
       .provideClass('continualAnchoringScheduler', TaskSchedulerService)
+      .provideClass('requestService', RequestService)
 
     try {
       Metrics.start(
@@ -130,7 +134,7 @@ export class CeramicAnchorApp {
       Metrics.count('HELLO', 1)
       logger.imp('Metrics exporter started')
       if (this.config.metrics.instanceIdentifier) {
-         Metrics.setInstanceIdentifier(this.config.metrics.instanceIdentifier)
+        Metrics.setInstanceIdentifier(this.config.metrics.instanceIdentifier)
       }
     } catch (e: any) {
       logger.imp('ERROR: Metrics exporter failed to start. Continuing anyway.')
