@@ -56,11 +56,11 @@ export class RequestService {
    * @returns The request.
    */
   async getStatusForCid(cid: CID): Promise<OutputOf<typeof CASResponse> | { error: string }> {
-    let request;
-    try{
+    let request
+    try {
       request = await this.replicationRequestRepository.findByCid(cid)
     } catch (e) {
-      logger.debug(`Error fetching request from replica db for ${cid}, error: ${e}`)
+      logger.err(`Error fetching request from replica db for ${cid}, error: ${e}`)
     }
     if (!request) {
       logger.debug(`Request not found in replica db for ${cid}, fetching from main_db`)
@@ -84,11 +84,11 @@ export class RequestService {
    * @returns The request.
    */
   async findByCid(cid: CID): Promise<OutputOf<typeof CASResponse> | undefined> {
-    let found;
-    try{
+    let found
+    try {
       found = await this.replicationRequestRepository.findByCid(cid)
     } catch (e) {
-      logger.debug(`Error fetching request from replica db for ${cid}, error: ${e}`)
+      logger.err(`Error fetching request from replica db for ${cid}, error: ${e}`)
     }
     if (!found) {
       found = await this.requestRepository.findByCid(cid)
