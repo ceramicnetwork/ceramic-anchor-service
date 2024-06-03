@@ -607,12 +607,15 @@ export class AnchorService {
         { isolationLevel: 'repeatable read' }
       )
       .catch(async (err) => {
-        logger.err(`Error persisting anchor results: ${err}`)
         if (err?.code === REPEATED_READ_SERIALIZATION_ERROR) {
+          logger.warn(`Retrying persist anchor results due to serialization error: ${err}`)
+
           Metrics.count(METRIC_NAMES.DB_SERIALIZATION_ERROR, 1)
           await Utils.delay(100)
           return this._persistAnchorResult(anchors, candidates)
         }
+
+        logger.err(`Error persisting anchor results: ${err}`)
 
         throw err
       })
