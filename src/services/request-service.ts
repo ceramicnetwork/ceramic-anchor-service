@@ -130,7 +130,6 @@ export class RequestService {
       cid: request.cid,
       stream: request.streamId,
       origin: request.origin,
-      cacao: 'cacaoDomain' in params ? params.cacaoDomain : '',
     }
 
     // DO NOT REMOVE - this logging is used by business metrics
