@@ -5,8 +5,6 @@ import { logger } from '../logger/index.js'
 import type { RequestRepository } from '../repositories/request-repository.js'
 import type { RequestPresentationService } from './request-presentation-service.js'
 import type { RequestAnchorParams } from '../ancillary/anchor-request-params-parser.js'
-import type { IMetadataService } from './metadata-service.js'
-import type { GenesisFields } from '../models/metadata'
 import { Request, RequestStatus } from '../models/request.js'
 import { Config } from 'node-config-ts'
 import { IQueueProducerService } from './queue/queue-service.type.js'
@@ -35,7 +33,6 @@ export class RequestService {
     'requestRepository',
     'replicationRequestRepository',
     'requestPresentationService',
-    'metadataService',
     'validationQueueService',
   ] as const
 
@@ -44,7 +41,6 @@ export class RequestService {
     private readonly requestRepository: RequestRepository,
     private readonly replicationRequestRepository: IReplicationRequestRepository,
     private readonly requestPresentationService: RequestPresentationService,
-    private readonly metadataService: IMetadataService,
     private readonly validationQueueService: IQueueProducerService<RequestQMessage>
   ) {
     this.publishToQueue = Boolean(config.queue.sqsQueueUrl)
@@ -95,14 +91,6 @@ export class RequestService {
     params: RequestAnchorParams,
     origin: string
   ): Promise<OutputOf<typeof CASResponse> | null> {
-    let genesisFields: GenesisFields
-    if ('genesisFields' in params) {
-      genesisFields = params.genesisFields
-      await this.metadataService.fill(params.streamId, params.genesisFields)
-    } else {
-      genesisFields = await this.metadataService.fillFromIpfs(params.streamId)
-    }
-
     const request = new Request()
     request.cid = params.cid.toString()
     request.origin = origin
@@ -138,14 +126,8 @@ export class RequestService {
       Metrics.count(METRIC_NAMES.UPDATED_STORED_REQUEST, 1)
     }
 
-    const did = genesisFields?.controllers?.[0]
-
     const logData = {
       cid: request.cid,
-      did,
-      schema: genesisFields?.schema,
-      family: genesisFields?.family,
-      model: genesisFields?.model?.toString() ?? '',
       stream: request.streamId,
       origin: request.origin,
       cacao: 'cacaoDomain' in params ? params.cacaoDomain : '',

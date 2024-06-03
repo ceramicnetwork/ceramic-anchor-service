@@ -11,7 +11,6 @@ import type { IpfsApi } from '@ceramicnetwork/common'
 import type { AbortOptions } from '../abort-options.type.js'
 import type { CID } from 'multiformats/cid'
 import { DelayAbortedError, Utils } from '../../utils.js'
-import { MetadataRepository } from '../../repositories/metadata-repository.js'
 import { RequestRepository } from '../../repositories/request-repository.js'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
 import { createDbConnection } from '../../db-connection.js'
@@ -34,7 +33,6 @@ declare type PubsubMessage = TypeOf<typeof PubsubMessageCodec>
 type Context = {
   config: Config
   anchorRepository: AnchorRepository
-  metadataRepository: MetadataRepository
   ipfsQueueService: MockQueueService<IpfsPubSubPublishQMessage>
   requestRepository: RequestRepository
 }
@@ -67,7 +65,6 @@ beforeAll(async () => {
       })
     )
     .provideClass('anchorRepository', AnchorRepository)
-    .provideClass('metadataRepository', MetadataRepository)
     .provideFactory('requestRepository', RequestRepository.make)
     .provideClass('ipfsQueueService', MockQueueService<IpfsPubSubPublishQMessage>)
 })

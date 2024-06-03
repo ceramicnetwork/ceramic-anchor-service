@@ -1,13 +1,10 @@
 import type { Request as ExpReq } from 'express'
-import type { CID } from 'multiformats/cid'
 import { CID as CIDObj } from 'multiformats/cid'
 import { CARFactory, type CAR } from 'cartonne'
 import { ServiceMetrics as Metrics } from '@ceramicnetwork/observability'
 import { base64urlToJSON } from '@ceramicnetwork/common'
 import { METRIC_NAMES } from '../settings.js'
 import * as DAG_JOSE from 'dag-jose'
-import { GenesisFields } from '../models/metadata.js'
-import { IpfsGenesis } from '../services/metadata-service.js'
 import { logger } from '../logger/index.js'
 import {
   uint8array,
@@ -23,7 +20,6 @@ import {
   string,
   strict,
   isLeft,
-  decode,
   validate,
   union,
   type TypeOf,
@@ -59,7 +55,6 @@ export const RequestAnchorParamsV2 = sparse({
   streamId: streamIdAsString,
   timestamp: date,
   cid: cidAsString,
-  genesisFields: GenesisFields,
   cacaoDomain: optional(string)
 })
 
@@ -71,9 +66,6 @@ export type RequestAnchorParams = RequestAnchorParamsV1 | RequestAnchorParamsV2
  * Encode request params for logging purposes.
  */
 export const RequestAnchorParamsCodec = union([RequestAnchorParamsV1, RequestAnchorParamsV2])
-
-const DAG_JOSE_CODE = 133
-const DAG_CBOR_CODE = 113
 
 export class AnchorRequestCarFileDecoder implements Decoder<Uint8Array, RequestAnchorParamsV2> {
   readonly name = 'RequestAnchorParamsV2'
@@ -88,17 +80,12 @@ export class AnchorRequestCarFileDecoder implements Decoder<Uint8Array, RequestA
       const rootE = RequestAnchorParamsV2Root.decode(rootRecord, context)
       if (isLeft(rootE)) return context.failures(rootE.left)
       const root = rootE.right
-      const genesisCid = root.streamId.cid
-      const maybeGenesisRecord = this.retrieveGenesisRecord(genesisCid, carFile)
-      const genesisRecord = decode(IpfsGenesis, maybeGenesisRecord)
-      const genesisFields = genesisRecord.header
       const cacaoDomain = this.extractCacaoDomain(rootRecord, carFile)
 
       return context.success({
         streamId: root.streamId,
         timestamp: root.timestamp,
         cid: root.tip,
-        genesisFields: genesisFields,
         cacaoDomain: cacaoDomain,
       })
     } catch (e: any) {
@@ -115,19 +102,6 @@ export class AnchorRequestCarFileDecoder implements Decoder<Uint8Array, RequestA
       const message = e.message || String(e)
       logger.warn(`Error extracting cacao: ${message}`)
       return ''
-    }
-  }
-
-  private retrieveGenesisRecord(genesisCid: CID, carFile: CAR): unknown {
-    switch (genesisCid.code) {
-      case DAG_CBOR_CODE:
-        return carFile.get(genesisCid)
-      case DAG_JOSE_CODE: {
-        const genesisJWS = carFile.get(genesisCid)
-        return carFile.get(genesisJWS.link)
-      }
-      default:
-        throw new Error(`Unsupported codec ${genesisCid.code} for genesis CID ${genesisCid}`)
     }
   }
 
