@@ -10,13 +10,13 @@ async function startApp() {
   logger.imp('Connecting to database...')
   const connection = await createDbConnection()
   logger.imp(`Connected to database: ${config.db.client}`)
-  const replicaConnection = await createReplicaDbConnection()
+  const { connection: replicaConnection, type: replicaDbType } = await createReplicaDbConnection()
   logger.imp(`Connected to replica database: ${config.db.client}`)
 
   const container = createInjector()
     .provideValue('config', config)
     .provideValue('dbConnection', connection)
-    .provideValue('replicaDbConnection', replicaConnection)
+    .provideValue('replicaDbConnection', { connection: replicaConnection, type: replicaDbType })
 
   const app = new CeramicAnchorApp(container)
   await app.start()

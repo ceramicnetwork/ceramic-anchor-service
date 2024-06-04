@@ -8,6 +8,7 @@ const TABLE_NAME = 'request'
  * Replication request repository.
  */
 export interface IReplicationRequestRepository {
+  readonly connectionType: string
   readonly table: Knex.QueryBuilder
   /**
    * Finds a request with the given CID if exists using the replica database.
@@ -20,11 +21,16 @@ export interface IReplicationRequestRepository {
 export class ReplicationRequestRepository implements IReplicationRequestRepository {
   static inject = ['replicaDbConnection'] as const
 
-  constructor(private readonly connection: Knex) {}
+  constructor(private readonly connection: { connection: Knex; type: string }) {}
 
   get table(): Knex.QueryBuilder {
-    return this.connection(TABLE_NAME)
+    return this.connection.connection(TABLE_NAME)
   }
+
+  get connectionType(): string {
+    return this.connection.type
+  }
+
   /**
    * Finds a request with the given CID if exists using the replica database.
    * @param cid CID the request is for

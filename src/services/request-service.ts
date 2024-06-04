@@ -60,7 +60,9 @@ export class RequestService {
     try {
       request = await this.replicationRequestRepository.findByCid(cid)
     } catch (e) {
-      logger.err(`Error fetching request from replica db for ${cid}, error: ${e}`)
+      logger.err(
+        `Error fetching request from db with connecion: ${this.replicationRequestRepository.connectionType} for ${cid}, error: ${e}`
+      )
     }
     if (!request) {
       logger.debug(`Request not found in replica db for ${cid}, fetching from main_db`)
@@ -88,7 +90,9 @@ export class RequestService {
     try {
       found = await this.replicationRequestRepository.findByCid(cid)
     } catch (e) {
-      logger.err(`Error fetching request from replica db for ${cid}, error: ${e}`)
+      logger.err(
+        `Error fetching request from db with connecion: ${this.replicationRequestRepository.connectionType} for ${cid}, error: ${e}`
+      )
     }
     if (!found) {
       logger.debug(`Request not found in replica db for ${cid}, fetching from main_db`)

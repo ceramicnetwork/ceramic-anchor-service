@@ -71,7 +71,7 @@ export async function createDbConnection(dbConfig: Db = config.db): Promise<Knex
 
 export async function createReplicaDbConnection(
   replica_db_config: Replicadb = config.replica_db
-): Promise<Knex> {
+): Promise<{ connection: Knex; type: string }> {
   const replicaKnexConfig: Knex.Config = {
     client: replica_db_config.client,
     connection: replica_db_config.connection.connectionString || {
@@ -93,12 +93,22 @@ export async function createReplicaDbConnection(
   }
   let connection
   try {
+    // Validation that the config has all the required replica db fields else it throws
+    const { host, port, user, password, database } = replica_db_config.connection
+    if (!host || !port || !user || !password || !database) {
+      throw new Error(
+        'Missing required database connection parameters. Parameters: host, port, user, password, database'
+      )
+    }
     connection = knex(replicaKnexConfig)
+    return { connection, type: 'replica' }
   } catch (e) {
-    throw new Error(`Replica database connection failed: ${e}`)
+    logger.imp(
+      `Not connecting to replica db with config ${replica_db_config}, error: ${e}. Connecting to the main db for reads`
+    )
+    connection = await createDbConnection()
   }
-
-  return connection
+  return { connection, type: 'main' }
 }
 
 /**

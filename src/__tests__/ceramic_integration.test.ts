@@ -185,7 +185,7 @@ async function makeCAS(
   container: Injector,
   dbConnection: Knex,
   minConfig: MinimalCASConfig,
-  replicaDbConnection: Knex
+  replicaDbConnection: { connection: Knex; type: string }
 ): Promise<CeramicAnchorApp> {
   const configCopy = cloneDeep(config)
   configCopy.mode = minConfig.mode
@@ -205,7 +205,10 @@ async function makeCAS(
     mode: 'inmemory',
   }
   return new CeramicAnchorApp(
-    container.provideValue('config', configCopy).provideValue('dbConnection', dbConnection).provideValue('replicaDbConnection', replicaDbConnection)
+    container
+      .provideValue('config', configCopy)
+      .provideValue('dbConnection', dbConnection)
+      .provideValue('replicaDbConnection', replicaDbConnection)
   )
 }
 
@@ -257,8 +260,8 @@ describe('Ceramic Integration Test', () => {
   let dbConnection1: Knex
   let dbConnection2: Knex
 
-  let replicaDbConnection1: Knex
-  let replicaDbConnection2: Knex
+  let replicaDbConnection1: { connection: Knex; type: string }
+  let replicaDbConnection2: { connection: Knex; type: string }
 
   let casPort1: number
   let cas1: CeramicAnchorApp
@@ -334,25 +337,35 @@ describe('Ceramic Integration Test', () => {
       replicaDbConnection1 = await createReplicaDbConnection()
       casPort1 = await getPort()
 
-      cas1 = await makeCAS(createInjector(), dbConnection1, {
-        mode: 'server',
-        ipfsPort: ipfsApiPort1,
-        ganachePort: ganacheServer.port,
-        port: casPort1,
-        useSmartContractAnchors,
-      }, replicaDbConnection1)
+      cas1 = await makeCAS(
+        createInjector(),
+        dbConnection1,
+        {
+          mode: 'server',
+          ipfsPort: ipfsApiPort1,
+          ganachePort: ganacheServer.port,
+          port: casPort1,
+          useSmartContractAnchors,
+        },
+        replicaDbConnection1
+      )
       await cas1.start()
       anchorService1 = cas1.container.resolve('anchorService')
       dbConnection2 = await teeDbConnection(dbConnection1)
       replicaDbConnection2 = await createReplicaDbConnection()
       const casPort2 = await getPort()
-      cas2 = await makeCAS(createInjector(), dbConnection2, {
-        mode: 'server',
-        ipfsPort: ipfsApiPort2,
-        ganachePort: ganacheServer.port,
-        port: casPort2,
-        useSmartContractAnchors,
-      }, replicaDbConnection2)
+      cas2 = await makeCAS(
+        createInjector(),
+        dbConnection2,
+        {
+          mode: 'server',
+          ipfsPort: ipfsApiPort2,
+          ganachePort: ganacheServer.port,
+          port: casPort2,
+          useSmartContractAnchors,
+        },
+        replicaDbConnection2
+      )
       await cas2.start()
       anchorService2 = cas2.container.resolve('anchorService')
 
@@ -376,7 +389,7 @@ describe('Ceramic Integration Test', () => {
       await cas1.stop()
       await cas2.stop()
       await Promise.all([dbConnection1.destroy(), dbConnection2.destroy()])
-      await Promise.all([replicaDbConnection1.destroy(), replicaDbConnection2.destroy()])
+      await Promise.all([replicaDbConnection1.connection.destroy(), replicaDbConnection2.connection.destroy()])
       await Promise.all([ceramic1.close(), ceramic2.close()])
     })
 
@@ -543,13 +556,18 @@ describe('CAR file', () => {
     const dbConnection = await createDbConnection()
     const dummyReplicaDbConnection = await createReplicaDbConnection()
     const casPort = await getPort()
-    const cas = await makeCAS(createInjector(), dbConnection, {
-      mode: 'server',
-      ipfsPort: ipfsApiPort,
-      ganachePort: ganacheServer.port,
-      port: casPort,
-      useSmartContractAnchors: true,
-    }, dummyReplicaDbConnection)
+    const cas = await makeCAS(
+      createInjector(),
+      dbConnection,
+      {
+        mode: 'server',
+        ipfsPort: ipfsApiPort,
+        ganachePort: ganacheServer.port,
+        port: casPort,
+        useSmartContractAnchors: true,
+      },
+      dummyReplicaDbConnection
+    )
     await cas.start()
 
     const ceramicIPFS = await createIPFS(await getPort())
@@ -620,30 +638,40 @@ describe('Metrics Options', () => {
     const dbConnection = await createDbConnection()
     const dummyReplicaDbConnection = await createReplicaDbConnection()
     const casPort = await getPort()
-    const cas = await makeCAS(createInjector(), dbConnection, {
-      mode: 'server',
-      ipfsPort: ipfsApiPort,
-      ganachePort: ganacheServer.port,
-      port: casPort,
-      useSmartContractAnchors: true,
-      metrics: {
-        instanceIdentifier: '234fffffffffffffffffffffffffffffffff9726129',
+    const cas = await makeCAS(
+      createInjector(),
+      dbConnection,
+      {
+        mode: 'server',
+        ipfsPort: ipfsApiPort,
+        ganachePort: ganacheServer.port,
+        port: casPort,
+        useSmartContractAnchors: true,
+        metrics: {
+          instanceIdentifier: '234fffffffffffffffffffffffffffffffff9726129',
+        },
       },
-    }, dummyReplicaDbConnection)
+      dummyReplicaDbConnection
+    )
     await cas.start()
     // Teardown
     await cas.stop()
 
-    const cas2 = await makeCAS(createInjector(), dbConnection, {
-      mode: 'server',
-      ipfsPort: ipfsApiPort,
-      ganachePort: ganacheServer.port,
-      port: casPort,
-      useSmartContractAnchors: true,
-      metrics: {
-        instanceIdentifier: '',
+    const cas2 = await makeCAS(
+      createInjector(),
+      dbConnection,
+      {
+        mode: 'server',
+        ipfsPort: ipfsApiPort,
+        ganachePort: ganacheServer.port,
+        port: casPort,
+        useSmartContractAnchors: true,
+        metrics: {
+          instanceIdentifier: '',
+        },
       },
-    }, dummyReplicaDbConnection)
+      dummyReplicaDbConnection
+    )
     await cas2.start()
     await cas2.stop()
 
