@@ -56,7 +56,14 @@ export class RequestService {
    * @returns The request.
    */
   async getStatusForCid(cid: CID): Promise<OutputOf<typeof CASResponse> | { error: string }> {
-    let request = await this.replicationRequestRepository.findByCid(cid)
+    let request
+    try {
+      request = await this.replicationRequestRepository.findByCid(cid)
+    } catch (e) {
+      logger.err(
+        `Error fetching request from db with connecion: ${this.replicationRequestRepository.connectionType} for ${cid}, error: ${e}`
+      )
+    }
     if (!request) {
       logger.debug(`Request not found in replica db for ${cid}, fetching from main_db`)
       Metrics.count(METRIC_NAMES.REPLICA_DB_REQUEST_NOT_FOUND, 1)
@@ -79,11 +86,18 @@ export class RequestService {
    * @returns The request.
    */
   async findByCid(cid: CID): Promise<OutputOf<typeof CASResponse> | undefined> {
-    let found = await this.replicationRequestRepository.findByCid(cid)
+    let found
+    try {
+      found = await this.replicationRequestRepository.findByCid(cid)
+    } catch (e) {
+      logger.err(
+        `Error fetching request from db with connecion: ${this.replicationRequestRepository.connectionType} for ${cid}, error: ${e}`
+      )
+    }
     if (!found) {
-      found = await this.requestRepository.findByCid(cid)
       logger.debug(`Request not found in replica db for ${cid}, fetching from main_db`)
       Metrics.count(METRIC_NAMES.REPLICA_DB_REQUEST_NOT_FOUND, 1)
+      found = await this.requestRepository.findByCid(cid)
       if (!found) {
         throw new RequestDoesNotExistError(cid)
       }

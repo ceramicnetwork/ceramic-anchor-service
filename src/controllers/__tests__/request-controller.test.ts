@@ -85,7 +85,7 @@ class MockMetadataService implements IMetadataService {
 // TODO: WS2-3238 Add calls to replica db connection in the test as well
 describe('createRequest', () => {
   let dbConnection: Knex
-  let replicaDbConnection: Knex
+  let replicaDbConnection: { connection: Knex; type: string }
   let container: Injector<Tokens>
   let controller: RequestController
 

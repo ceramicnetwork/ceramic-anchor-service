@@ -49,7 +49,7 @@ import { makeWitnessService, type IWitnessService } from './services/witness-ser
 type DependenciesContext = {
   config: Config
   dbConnection: Knex
-  replicaDbConnection: Knex
+  replicaDbConnection: { connection: Knex; type: string }
 }
 
 type ProvidedContext = {
