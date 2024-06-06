@@ -72,12 +72,12 @@ export class S3MerkleCarService implements IMerkleCarService {
     if (!this._s3store) {
       const levelDown = this.s3Endpoint
         ? new S3LevelDOWN(
-          this.s3StorePath,
-          new AWSSDK.S3({
-            endpoint: this.s3Endpoint,
-            s3ForcePathStyle: true,
-          })
-        )
+            this.s3StorePath,
+            new AWSSDK.S3({
+              endpoint: this.s3Endpoint,
+              s3ForcePathStyle: true,
+            })
+          )
         : new S3LevelDOWN(this.s3StorePath)
 
       this._s3store = new LevelUp(levelDown)

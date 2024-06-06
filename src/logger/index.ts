@@ -80,19 +80,19 @@ export const logMetric = {
 }
 
 interface ErrorData extends ServiceLog {
-  type: string;
-  message: string;
-  stack: string;
-  status: number;
-  originalUrl: string;
-  baseUrl: string;
-  path: string;
-  sourceIp: string;
-  did: string;
+  type: string
+  message: string
+  stack: string
+  status: number
+  originalUrl: string
+  baseUrl: string
+  path: string
+  sourceIp: string
+  did: string
 }
 
 export function expressErrorLogger(err: Error, req: ExpReq, res: ExpRes, next: ExpNext): void {
-  const logger = loggerProvider.makeServiceLogger('http-error');
+  const logger = loggerProvider.makeServiceLogger('http-error')
   const errorData: ErrorData = {
     type: 'error',
     message: err.message,
@@ -103,8 +103,8 @@ export function expressErrorLogger(err: Error, req: ExpReq, res: ExpRes, next: E
     path: req.path,
     sourceIp: req.get('sourceIp') || '',
     did: req.get('did') || '',
-  };
+  }
 
-  logger.log(errorData);
-  next(err); 
+  logger.log(errorData)
+  next(err)
 }

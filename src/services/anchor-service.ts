@@ -24,7 +24,12 @@ import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import { REPEATED_READ_SERIALIZATION_ERROR } from '../repositories/repository-types.js'
-import {pathString, type CIDHolder, type TreeMetadata, ICandidateMetadata} from '@ceramicnetwork/anchor-utils'
+import {
+  pathString,
+  type CIDHolder,
+  type TreeMetadata,
+  ICandidateMetadata,
+} from '@ceramicnetwork/anchor-utils'
 import { Candidate } from './candidate.js'
 import { MerkleCarFactory, type IMerkleTree, type MerkleCAR } from '../merkle/merkle-car-factory.js'
 import { IQueueConsumerService } from './queue/queue-service.type.js'

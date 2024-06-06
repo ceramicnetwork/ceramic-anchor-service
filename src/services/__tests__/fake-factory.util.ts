@@ -9,10 +9,7 @@ import { times } from '../../__tests__/test-utils.js'
  * Generate fake data for testing purposes.
  */
 export class FakeFactory {
-  constructor(
-    readonly ipfsService: IIpfsService,
-    readonly requestRepository: RequestRepository
-  ) {}
+  constructor(readonly ipfsService: IIpfsService, readonly requestRepository: RequestRepository) {}
 
   async streamId(): Promise<StreamID> {
     const genesisCID = await this.ipfsService.storeRecord({

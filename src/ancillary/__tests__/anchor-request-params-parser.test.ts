@@ -1,9 +1,6 @@
 import { describe, expect, test } from '@jest/globals'
 import { Request as ExpReq } from 'express'
-import {
-  AnchorRequestParamsParser,
-  RequestAnchorParams,
-} from '../anchor-request-params-parser.js'
+import { AnchorRequestParamsParser, RequestAnchorParams } from '../anchor-request-params-parser.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { toCID } from '@ceramicnetwork/common'
 import { bases } from 'multiformats/basics'
@@ -42,9 +39,7 @@ const CAR_FILE_INVALID = mockRequest({
   headers: {
     'Content-Type': 'application/vnd.ipld.car',
   },
-  body: bases['base64url'].decode(
-    'uQ3JlYXRlZEJ5Q2hhdEdQVDRZb3VjYW5Vc2VUaGlzU3RyaW5n'
-  ),
+  body: bases['base64url'].decode('uQ3JlYXRlZEJ5Q2hhdEdQVDRZb3VjYW5Vc2VUaGlzU3RyaW5n'),
 })
 
 describe('AnchoRequestParamsParser', () => {
@@ -71,8 +66,7 @@ describe('AnchoRequestParamsParser', () => {
   })
 
   test('isleft indicates invalid car file', () => {
-    const validation =  parser.parse(CAR_FILE_INVALID as ExpReq)
+    const validation = parser.parse(CAR_FILE_INVALID as ExpReq)
     expect(isLeft(validation)).toBeTruthy()
   })
-
 })
