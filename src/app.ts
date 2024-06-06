@@ -30,9 +30,6 @@ import { cleanupConfigForLogging, normalizeConfig } from './normalize-config.uti
 import type { Injector } from 'typed-inject'
 import type { EventProducerService } from './services/event-producer/event-producer-service.js'
 import { RequestPresentationService } from './services/request-presentation-service.js'
-import type { IMetadataService } from './services/metadata-service.js'
-import { MetadataService } from './services/metadata-service.js'
-import { MetadataRepository } from './repositories/metadata-repository.js'
 import { AppMode } from './app-mode.js'
 import { UnreachableCaseError } from '@ceramicnetwork/common'
 import { AnchorRequestParamsParser } from './ancillary/anchor-request-params-parser.js'
@@ -63,7 +60,6 @@ type ProvidedContext = {
   ipfsService: IIpfsService
   markReadyScheduler: TaskSchedulerService
   requestPresentationService: RequestPresentationService
-  metadataService: IMetadataService
   healthcheckService: IHealthcheckService
   anchorRequestParamsParser: AnchorRequestParamsParser
   requestService: RequestService
@@ -97,7 +93,6 @@ export class CeramicAnchorApp {
 
     this.container = container
       // register repositories
-      .provideClass('metadataRepository', MetadataRepository)
       .provideFactory('requestRepository', RequestRepository.make)
       .provideClass('anchorRepository', AnchorRepository)
       .provideClass('transactionRepository', TransactionRepository)
@@ -107,7 +102,6 @@ export class CeramicAnchorApp {
       .provideClass('eventProducerService', HTTPEventProducerService)
       .provideClass('ipfsQueueService', IpfsQueueService)
       .provideClass('ipfsService', IpfsService)
-      .provideClass('metadataService', MetadataService)
       .provideClass('anchorBatchQueueService', AnchorBatchSqsQueueService)
       .provideClass('validationQueueService', ValidationSqsQueueService)
       .provideFactory('merkleCarService', makeMerkleCarService)

@@ -11,10 +11,8 @@ import { Knex } from 'knex'
 import { createDbConnection } from '../../db-connection.js'
 import { createInjector, Injector } from 'typed-inject'
 import { config } from 'node-config-ts'
-import { MetadataRepository } from '../../repositories/metadata-repository.js'
 import { TransactionRepository } from '../../repositories/transaction-repository.js'
 import { MockIpfsService } from '../../__tests__/test-utils.js'
-import { IMetadataService, MetadataService } from '../metadata-service.js'
 import { FakeEthereumBlockchainService } from './fake-ethereum-blockchain-service.util.js'
 import { MockEventProducerService } from './mock-event-producer-service.util.js'
 import { Request } from '../../models/request.js'
@@ -34,7 +32,6 @@ type Context = {
   ipfsService: IIpfsService
   anchorService: AnchorService
   requestRepository: RequestRepository
-  metadataService: IMetadataService
   witnessService: IWitnessService
 }
 
@@ -60,13 +57,11 @@ beforeAll(async () => {
       })
     )
     .provideClass('anchorRepository', AnchorRepository)
-    .provideClass('metadataRepository', MetadataRepository)
     .provideFactory('requestRepository', RequestRepository.make)
     .provideClass('transactionRepository', TransactionRepository)
     .provideClass('blockchainService', FakeEthereumBlockchainService)
     .provideClass('ipfsService', MockIpfsService)
     .provideClass('eventProducerService', MockEventProducerService)
-    .provideClass('metadataService', MetadataService)
     .provideClass('anchorBatchQueueService', AnchorBatchSqsQueueService)
     .provideFactory('merkleCarService', makeMerkleCarService)
     .provideFactory('witnessService', makeWitnessService)
@@ -77,8 +72,7 @@ beforeAll(async () => {
   anchorRepository = injector.resolve('anchorRepository')
   ipfsService = injector.resolve('ipfsService')
   witnessService = injector.resolve('witnessService')
-  const metadataService = injector.resolve('metadataService')
-  fake = new FakeFactory(ipfsService, metadataService, requestRepository)
+  fake = new FakeFactory(ipfsService, requestRepository)
 })
 
 async function createAnchors(requests: Array<Request>) {

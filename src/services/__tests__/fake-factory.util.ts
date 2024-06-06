@@ -1,5 +1,4 @@
 import type { IIpfsService } from '../ipfs-service.type.js'
-import type { IMetadataService } from '../metadata-service.js'
 import type { RequestRepository } from '../../repositories/request-repository.js'
 import { StreamID } from '@ceramicnetwork/streamid'
 import { randomString } from '@stablelib/random'
@@ -12,7 +11,6 @@ import { times } from '../../__tests__/test-utils.js'
 export class FakeFactory {
   constructor(
     readonly ipfsService: IIpfsService,
-    readonly metadataService: IMetadataService,
     readonly requestRepository: RequestRepository
   ) {}
 
@@ -22,9 +20,7 @@ export class FakeFactory {
         controllers: [`did:method:${randomString(32)}`],
       },
     })
-    const streamId = new StreamID(1, genesisCID)
-    await this.metadataService.fillFromIpfs(streamId)
-    return streamId
+    return new StreamID(1, genesisCID)
   }
 
   async request(

@@ -18,7 +18,6 @@ import {
 import { METRIC_NAMES } from '../settings.js'
 import { parseCountResult } from './parse-count-result.util.js'
 import { StreamID } from '@ceramicnetwork/streamid'
-import type { IMetadataRepository } from './metadata-repository.js'
 import { date } from '@ceramicnetwork/codecs'
 import { REPEATED_READ_SERIALIZATION_ERROR } from './repository-types.js'
 
@@ -75,15 +74,14 @@ const recordAnchorRequestMetrics = (requests: Request[], anchoringDeadline: Date
 /**
  * Injection factory.
  */
-function make(config: Config, connection: Knex, metadataRepository: IMetadataRepository) {
+function make(config: Config, connection: Knex) {
   return new RequestRepository(
     connection,
     config.maxAnchoringDelayMS,
     config.readyRetryIntervalMS,
-    metadataRepository
   )
 }
-make.inject = ['config', 'dbConnection', 'metadataRepository'] as const
+make.inject = ['config', 'dbConnection'] as const
 
 export class RequestRepository {
   static make = make
@@ -92,7 +90,6 @@ export class RequestRepository {
     private readonly connection: Knex,
     private readonly maxAnchoringDelayMS: number,
     private readonly readyRetryIntervalMS: number,
-    private readonly metadataRepository: IMetadataRepository
   ) {}
 
   get table() {
@@ -104,7 +101,6 @@ export class RequestRepository {
       connection,
       this.maxAnchoringDelayMS,
       this.readyRetryIntervalMS,
-      this.metadataRepository
     )
   }
 
@@ -314,9 +310,7 @@ export class RequestRepository {
             return []
           }
 
-          const streamsWithMetadata = await embedded.hasMetadata(streamIds)
-
-          const requests = await embedded.findRequestsToAnchorForStreams(streamsWithMetadata, now)
+          const requests = await embedded.findRequestsToAnchorForStreams(streamIds, now)
 
           if (requests.length === 0) {
             logger.debug(`No requests to mark as READY`)
@@ -365,46 +359,6 @@ export class RequestRepository {
    */
   async findByStatus(status: RequestStatus): Promise<Request[]> {
     return this.table.orderBy('updatedAt', 'asc').where({ status })
-  }
-
-  /**
-   * Return up to `limit` StreamIds for requests that has no corresponding metadata in the database.
-   */
-  async allWithoutMetadata(limit: number) {
-    const result = await this.table
-      .select('streamId')
-      .whereNotExists(
-        this.metadataRepository.table
-          .select(this.connection.raw('NULL'))
-          .where('streamId', '=', this.connection.raw('request.stream_id'))
-      )
-      .andWhere((sub) =>
-        sub.whereIn('status', [
-          RequestStatus.PENDING,
-          RequestStatus.PROCESSING,
-          RequestStatus.READY,
-        ])
-      )
-      .orderBy('createdAt', 'ASC')
-      .groupBy('streamId', 'createdAt')
-      .limit(limit)
-    return result.map((row) => StreamID.fromString(row.streamId))
-  }
-
-  async hasMetadata(streamIds: Array<StreamID | string> = []): Promise<Array<StreamID>> {
-    const result = await this.table
-      .select('streamId')
-      .where((sub) => {
-        sub.whereExists(
-          this.metadataRepository.table
-            .select(this.connection.raw('NULL'))
-            .where('streamId', '=', this.connection.raw('request.stream_id'))
-        )
-      })
-      .andWhere((sub) => {
-        sub.whereIn('streamId', streamIds.map(String))
-      })
-    return result.map((row) => StreamID.fromString(row.streamId))
   }
 
   /**
