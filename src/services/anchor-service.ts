@@ -24,8 +24,7 @@ import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import { REPEATED_READ_SERIALIZATION_ERROR } from '../repositories/repository-types.js'
-import type { IMetadataService } from './metadata-service.js'
-import { pathString, type CIDHolder, type TreeMetadata } from '@ceramicnetwork/anchor-utils'
+import {pathString, type CIDHolder, type TreeMetadata, ICandidateMetadata} from '@ceramicnetwork/anchor-utils'
 import { Candidate } from './candidate.js'
 import { MerkleCarFactory, type IMerkleTree, type MerkleCAR } from '../merkle/merkle-car-factory.js'
 import { IQueueConsumerService } from './queue/queue-service.type.js'
@@ -142,7 +141,6 @@ export class AnchorService {
     'anchorRepository',
     'dbConnection',
     'eventProducerService',
-    'metadataService',
     'anchorBatchQueueService',
     'merkleCarService',
     'witnessService',
@@ -157,7 +155,6 @@ export class AnchorService {
     private readonly anchorRepository: IAnchorRepository,
     private readonly connection: Knex,
     private readonly eventProducerService: EventProducerService,
-    private readonly metadataService: IMetadataService,
     private readonly anchorBatchQueueService: IQueueConsumerService<AnchorBatchQMessage>,
     private readonly merkleCarService: IMerkleCarService,
     private readonly witnessService: IWitnessService
@@ -650,19 +647,11 @@ export class AnchorService {
    */
   async _buildCandidates(requests: Request[]): Promise<Array<Candidate>> {
     const candidates = []
-    const metadataByStreamId = await this.metadataService
-      .batchRetrieve(requests.map((r) => StreamID.fromString(r.streamId)))
-      .then((metadata) => {
-        return Object.fromEntries(metadata.map((m) => [m.streamId.toString(), m]))
-      })
 
     for (const request of requests) {
       const streamId = StreamID.fromString(request.streamId)
-      const metadata = metadataByStreamId[request.streamId]
-      if (metadata) {
-        const candidate = new Candidate(streamId, request, metadata.metadata)
-        candidates.push(candidate)
-      }
+      const candidate = new Candidate(streamId, request, null as unknown as ICandidateMetadata)
+      candidates.push(candidate)
     }
     // Make sure we process candidate streams in order of their earliest request.
     candidates.sort(Candidate.sortByTimestamp)
