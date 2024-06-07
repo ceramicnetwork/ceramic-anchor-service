@@ -75,11 +75,7 @@ const recordAnchorRequestMetrics = (requests: Request[], anchoringDeadline: Date
  * Injection factory.
  */
 function make(config: Config, connection: Knex) {
-  return new RequestRepository(
-    connection,
-    config.maxAnchoringDelayMS,
-    config.readyRetryIntervalMS,
-  )
+  return new RequestRepository(connection, config.maxAnchoringDelayMS, config.readyRetryIntervalMS)
 }
 make.inject = ['config', 'dbConnection'] as const
 
@@ -89,7 +85,7 @@ export class RequestRepository {
   constructor(
     private readonly connection: Knex,
     private readonly maxAnchoringDelayMS: number,
-    private readonly readyRetryIntervalMS: number,
+    private readonly readyRetryIntervalMS: number
   ) {}
 
   get table() {
@@ -97,11 +93,7 @@ export class RequestRepository {
   }
 
   withConnection(connection: Knex): RequestRepository {
-    return new RequestRepository(
-      connection,
-      this.maxAnchoringDelayMS,
-      this.readyRetryIntervalMS,
-    )
+    return new RequestRepository(connection, this.maxAnchoringDelayMS, this.readyRetryIntervalMS)
   }
 
   /**

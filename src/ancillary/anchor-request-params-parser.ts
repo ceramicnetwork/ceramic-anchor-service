@@ -87,7 +87,6 @@ export class AnchorRequestCarFileDecoder implements Decoder<Uint8Array, RequestA
       return context.failure(`Can not decode CAR file: ${message}`)
     }
   }
-
 }
 
 export class AnchorRequestParamsParser {

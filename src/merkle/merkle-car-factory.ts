@@ -8,11 +8,12 @@ import {
   type Node,
   type PathDirection,
   type CIDHolder,
-  type TreeMetadata, CompareFunction,
+  type TreeMetadata,
+  CompareFunction,
 } from '@ceramicnetwork/anchor-utils'
 import type { Candidate } from '../services/candidate.js'
 import type { CID } from 'multiformats/cid'
-import type {ICandidate} from "@ceramicnetwork/anchor-utils";
+import type { ICandidate } from '@ceramicnetwork/anchor-utils'
 
 const carFactory = new CARFactory()
 carFactory.codecs.add(DAG_JOSE)
@@ -24,7 +25,7 @@ carFactory.codecs.add(DAG_JOSE)
  */
 class CIDSort implements CompareFunction<ICandidate> {
   compare(left: Node<ICandidate>, right: Node<ICandidate>): number {
-    return left.data.cid.toString().localeCompare(right.data.cid.toString());
+    return left.data.cid.toString().localeCompare(right.data.cid.toString())
   }
 }
 

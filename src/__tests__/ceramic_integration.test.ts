@@ -389,7 +389,10 @@ describe('Ceramic Integration Test', () => {
       await cas1.stop()
       await cas2.stop()
       await Promise.all([dbConnection1.destroy(), dbConnection2.destroy()])
-      await Promise.all([replicaDbConnection1.connection.destroy(), replicaDbConnection2.connection.destroy()])
+      await Promise.all([
+        replicaDbConnection1.connection.destroy(),
+        replicaDbConnection2.connection.destroy(),
+      ])
       await Promise.all([ceramic1.close(), ceramic2.close()])
     })
 

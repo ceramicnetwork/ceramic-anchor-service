@@ -38,7 +38,12 @@ export class Utils {
     })
   }
 
-  static poll<T>(request: () => Promise<T>, attempts = Infinity, delay = 1000, abortOptions?: AbortOptions): Promise<T | undefined> {
+  static poll<T>(
+    request: () => Promise<T>,
+    attempts = Infinity,
+    delay = 1000,
+    abortOptions?: AbortOptions
+  ): Promise<T | undefined> {
     const aborted = abortOptions?.signal ? fromEvent(abortOptions.signal, 'abort') : NEVER
 
     return firstValueFrom(
@@ -49,7 +54,7 @@ export class Utils {
         retry({ delay: () => timer(delay), count: 3, resetOnSuccess: true }),
         takeUntil(aborted),
         first((result) => Boolean(result), undefined)
-      ),
+      )
     ).catch((err) => {
       if (abortOptions?.signal?.aborted) {
         throw new Error('Polling cancelled because aborted')
