@@ -11,4 +11,5 @@ export interface IAnchorRepository {
   findByRequest(request: Request): Promise<AnchorWithRequest | null>
   findByRequestId(id: string): Promise<StoredAnchor | null>
   withConnection(connection: Knex): IAnchorRepository
+  findByRequests(requests: Request[]): Promise<AnchorWithRequest[]>
 }

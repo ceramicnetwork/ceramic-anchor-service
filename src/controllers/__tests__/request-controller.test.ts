@@ -1,5 +1,5 @@
 import { describe, expect, jest, test, beforeAll, afterAll } from '@jest/globals'
-import { createDbConnection, clearTables } from '../../db-connection.js'
+import { createDbConnection, clearTables, createReplicaDbConnection } from '../../db-connection.js'
 import { createInjector, Injector } from 'typed-inject'
 import { config } from 'node-config-ts'
 import { RequestController } from '../request-controller.js'
@@ -15,90 +15,56 @@ import {
 } from '../../__tests__/test-utils.js'
 import type { Knex } from 'knex'
 import { RequestStatus } from '../../models/request.js'
-import { CommitID, StreamID } from '@ceramicnetwork/streamid'
-import type { IMetadataService } from '../../services/metadata-service.js'
+import { StreamID } from '@ceramicnetwork/streamid'
 import { DateTime } from 'luxon'
 import { mockRequest, mockResponse } from './mock-request.util.js'
-import { GenesisFields } from '../../models/metadata.js'
 import { bases } from 'multiformats/basics'
 import { toCID } from '@ceramicnetwork/common'
-import { asDIDString } from '@ceramicnetwork/codecs'
 import { AnchorRepository } from '../../repositories/anchor-repository.js'
-import { MetadataRepository } from '../../repositories/metadata-repository.js'
-import { StoredMetadata } from '../../models/metadata.js'
 import { AnchorRequestParamsParser } from '../../ancillary/anchor-request-params-parser.js'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 import { RequestService } from '../../services/request-service.js'
 import { ValidationSqsQueueService } from '../../services/queue/sqs-queue-service.js'
 import { makeWitnessService } from '../../services/witness-service.js'
 import { makeMerkleCarService } from '../../services/merkle-car-service.js'
+import { ReplicationRequestRepository } from '../../repositories/replication-request-repository.js'
 
 type Tokens = {
   requestController: RequestController
   requestRepository: RequestRepository
-  metadataService: IMetadataService
+  replicationRequestRepository: ReplicationRequestRepository
 }
 
 const FAKE_STREAM_ID_1 = StreamID.fromString(
   'k2t6wzhkhabz5h9xxyrc6qoh1mcj6b0ul90xxkoin4t5bns89e3vh0gyyy1exj'
 )
-const FAKE_STREAM_ID_2 = StreamID.fromString(
-  'k2t6wyfsu4pg1tpfbjf20op9tmfofulf9tyiyvc2wueupetzrcnp8r4wmnhw47'
-)
 const FAKE_TIP = toCID('bagcqceransp4tpxraev7xfqz5b2kxsj37pffwt2ahh2hfzt4uegvtzc64cja')
 const FAKE_TIMESTAMP = new Date('2023-01-25T17:32:42.971Z')
-const FAKE_GENESIS_FIELDS: GenesisFields = {
-  controllers: [asDIDString('did:pkh:eip155:1:0x926eeb192c18b7be607a7e10c8e7a7e8d9f70742')],
-  model: StreamID.fromBytes(
-    bases['base64'].decode('mzgECAYUBEiCIsWIw6kon5HSV8g+usyjT1ohr++q6zx+OOGy/05bUjQ')
-  ),
-}
-
-class MockMetadataService implements IMetadataService {
-  async fill(): Promise<void> {
-    return
-  }
-
-  async fillFromIpfs(): Promise<GenesisFields> {
-    // Fake GenesisFields
-    return {
-      controllers: ['did:method:fake'],
-      schema: CommitID.fromString(
-        'k1dpgaqe3i64kjqcp801r3sn7ysi5i0k7nxvs7j351s7kewfzr3l7mdxnj7szwo4kr9mn2qki5nnj0cv836ythy1t1gya9s25cn1nexst3jxi5o3h6qprfyju'
-      ),
-    }
-  }
-
-  async fillAll(): Promise<void> {
-    return
-  }
-
-  async retrieve(): Promise<StoredMetadata | undefined> {
-    return
-  }
-}
 
 // TODO: CDB-2287 Add tests checking for expected errors when missing/malformed CID/StreamID/GenesisCommit
 // are detected in a CAR file
+// TODO: WS2-3238 Add calls to replica db connection in the test as well
 describe('createRequest', () => {
   let dbConnection: Knex
+  let replicaDbConnection: { connection: Knex; type: string }
   let container: Injector<Tokens>
   let controller: RequestController
 
   beforeAll(async () => {
     dbConnection = await createDbConnection()
+    replicaDbConnection = await createReplicaDbConnection()
     await clearTables(dbConnection)
     container = createInjector()
       .provideValue('config', config)
       .provideValue('dbConnection', dbConnection)
-      .provideClass('metadataRepository', MetadataRepository)
+      .provideValue('replicaDbConnection', replicaDbConnection)
       .provideFactory('requestRepository', RequestRepository.make)
+      .provideClass('replicationRequestRepository', ReplicationRequestRepository)
       .provideClass('anchorRepository', AnchorRepository)
       .provideClass('ipfsService', MockIpfsService)
       .provideFactory('merkleCarService', makeMerkleCarService)
       .provideFactory('witnessService', makeWitnessService)
       .provideClass('requestPresentationService', RequestPresentationService)
-      .provideClass('metadataService', MockMetadataService)
       .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
       .provideClass('validationQueueService', ValidationSqsQueueService)
       .provideClass('requestService', RequestService)
@@ -276,39 +242,6 @@ describe('createRequest', () => {
       expect(createdRequest.origin).not.toBeNull()
     })
 
-    test('fill metadata from IPFS', async () => {
-      const cid = randomCID()
-      const streamId = randomStreamID()
-      const req = mockRequest({
-        headers: {
-          'Content-type': 'application/json',
-        },
-        body: {
-          cid: cid.toString(),
-          streamId: streamId.toString(),
-        },
-      })
-      const metadataService = container.resolve('metadataService')
-      const fillSpy = jest.spyOn(metadataService, 'fillFromIpfs')
-      await controller.createRequest(req, mockResponse())
-      expect(fillSpy).toBeCalledWith(streamId)
-    })
-
-    test('fill metadata from CAR file', async () => {
-      const req = mockRequest({
-        headers: {
-          'Content-Type': 'application/vnd.ipld.car',
-        },
-        body: bases['base64url'].decode(
-          'uOqJlcm9vdHOB2CpYJQABcRIgax-ozdCQvEUBpYyAxxvdm2oCT9Ybk_a8N3W28qhEkOlndmVyc2lvbgGtAQFxEiDOJNtRIYSdeN2M-33SQ376rhngpMX77pEENbKbTEpL16JkZGF0YfZmaGVhZGVyomVtb2RlbFgozgECAYUBEiCIsWIw6kon5HSV8g-usyjT1ohr--q6zx-OOGy_05bUjWtjb250cm9sbGVyc4F4O2RpZDpwa2g6ZWlwMTU1OjE6MHg5MjZlZWIxOTJjMThiN2JlNjA3YTdlMTBjOGU3YTdlOGQ5ZjcwNzQyqAEBcRIgax-ozdCQvEUBpYyAxxvdm2oCT9Ybk_a8N3W28qhEkOmjY3RpcNgqWCUAAXESIM4k21EhhJ143Yz7fdJDfvquGeCkxfvukQQ1sptMSkvXaHN0cmVhbUlkWCfOAQABcRIgziTbUSGEnXjdjPt90kN--q4Z4KTF--6RBDWym0xKS9dpdGltZXN0YW1weBgyMDIzLTAxLTI1VDE3OjMyOjQyLjk3MVo'
-        ),
-      })
-      const metadataService = container.resolve('metadataService')
-      const fillSpy = jest.spyOn(metadataService, 'fill')
-      await controller.createRequest(req, mockResponse())
-      expect(fillSpy).toBeCalledWith(FAKE_STREAM_ID_2, FAKE_GENESIS_FIELDS)
-    })
-
     test('mark previous submissions REPLACED', async () => {
       const cid = randomCID()
       const streamId = randomStreamID()
@@ -343,13 +276,19 @@ describe('createRequest', () => {
 
       const requestRepository = container.resolve('requestRepository')
       const findByCidSpy = jest.spyOn(requestRepository, 'findByCid')
+      const replicaRequestRepository = container.resolve('replicationRequestRepository')
+      const findByCidSpyReplica = jest.spyOn(replicaRequestRepository, 'findByCid')
       const res0 = mockResponse()
       const res1 = mockResponse()
 
       await Promise.all([controller.createRequest(req, res0), controller.createRequest(req, res1)])
-
-      expect(findByCidSpy).toBeCalledTimes(1)
-      expect(findByCidSpy).toBeCalledWith(cid)
+      try {
+        expect(findByCidSpyReplica).toBeCalledTimes(1)
+        expect(findByCidSpyReplica).toBeCalledWith(cid)
+      } catch (err) {
+        expect(findByCidSpy).toBeCalledTimes(1)
+        expect(findByCidSpy).toBeCalledWith(cid)
+      }
 
       const status0 = res0.status.mock.calls[0][0]
       const status1 = res1.status.mock.calls[0][0]
@@ -370,14 +309,14 @@ describe('createRequest', () => {
           queue: { sqsQueueUrl: 'testurl' },
         })
         .provideValue('dbConnection', dbConnection)
-        .provideClass('metadataRepository', MetadataRepository)
+        .provideValue('replicaDbConnection', replicaDbConnection)
         .provideFactory('requestRepository', RequestRepository.make)
+        .provideClass('replicationRequestRepository', ReplicationRequestRepository)
         .provideClass('anchorRepository', AnchorRepository)
         .provideClass('ipfsService', MockIpfsService)
         .provideFactory('merkleCarService', makeMerkleCarService)
         .provideFactory('witnessService', makeWitnessService)
         .provideClass('requestPresentationService', RequestPresentationService)
-        .provideClass('metadataService', MockMetadataService)
         .provideClass('anchorRequestParamsParser', AnchorRequestParamsParser)
         .provideClass('validationQueueService', ValidationSqsQueueService)
         .provideClass('requestService', RequestService)

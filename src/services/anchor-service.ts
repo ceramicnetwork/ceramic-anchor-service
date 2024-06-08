@@ -24,8 +24,12 @@ import type { Knex } from 'knex'
 import type { IIpfsService } from './ipfs-service.type.js'
 import type { IAnchorRepository } from '../repositories/anchor-repository.type.js'
 import { REPEATED_READ_SERIALIZATION_ERROR } from '../repositories/repository-types.js'
-import type { IMetadataService } from './metadata-service.js'
-import { pathString, type CIDHolder, type TreeMetadata } from '@ceramicnetwork/anchor-utils'
+import {
+  pathString,
+  type CIDHolder,
+  type TreeMetadata,
+  ICandidateMetadata,
+} from '@ceramicnetwork/anchor-utils'
 import { Candidate } from './candidate.js'
 import { MerkleCarFactory, type IMerkleTree, type MerkleCAR } from '../merkle/merkle-car-factory.js'
 import { IQueueConsumerService } from './queue/queue-service.type.js'
@@ -142,7 +146,6 @@ export class AnchorService {
     'anchorRepository',
     'dbConnection',
     'eventProducerService',
-    'metadataService',
     'anchorBatchQueueService',
     'merkleCarService',
     'witnessService',
@@ -157,7 +160,6 @@ export class AnchorService {
     private readonly anchorRepository: IAnchorRepository,
     private readonly connection: Knex,
     private readonly eventProducerService: EventProducerService,
-    private readonly metadataService: IMetadataService,
     private readonly anchorBatchQueueService: IQueueConsumerService<AnchorBatchQMessage>,
     private readonly merkleCarService: IMerkleCarService,
     private readonly witnessService: IWitnessService
@@ -217,7 +219,9 @@ export class AnchorService {
     }
 
     try {
-      logger.imp(`Anchoring ${batchMessage.data.rids.length} requests from batch ${batchMessage.data.bid}`)
+      logger.imp(
+        `Anchoring ${batchMessage.data.rids.length} requests from batch ${batchMessage.data.bid}`
+      )
       const requests = await this.requestRepository.findByIds(batchMessage.data.rids)
 
       const requestsNotReplaced = requests.filter(
@@ -605,12 +609,15 @@ export class AnchorService {
         { isolationLevel: 'repeatable read' }
       )
       .catch(async (err) => {
-        logger.err(`Error persisting anchor results: ${err}`)
         if (err?.code === REPEATED_READ_SERIALIZATION_ERROR) {
+          logger.warn(`Retrying persist anchor results due to serialization error: ${err}`)
+
           Metrics.count(METRIC_NAMES.DB_SERIALIZATION_ERROR, 1)
           await Utils.delay(100)
           return this._persistAnchorResult(anchors, candidates)
         }
+
+        logger.err(`Error persisting anchor results: ${err}`)
 
         throw err
       })
@@ -645,13 +652,11 @@ export class AnchorService {
    */
   async _buildCandidates(requests: Request[]): Promise<Array<Candidate>> {
     const candidates = []
+
     for (const request of requests) {
       const streamId = StreamID.fromString(request.streamId)
-      const metadata = await this.metadataService.retrieve(streamId)
-      if (metadata) {
-        const candidate = new Candidate(streamId, request, metadata.metadata)
-        candidates.push(candidate)
-      }
+      const candidate = new Candidate(streamId, request, null as unknown as ICandidateMetadata)
+      candidates.push(candidate)
     }
     // Make sure we process candidate streams in order of their earliest request.
     candidates.sort(Candidate.sortByTimestamp)
@@ -680,6 +685,15 @@ export class AnchorService {
       candidateLimit = candidates.length
     }
 
+    // batch load anchor commits for all candidates. If one already exists we can skip that candidate.
+    const anchorCommitsByRequest = await this.anchorRepository
+      .findByRequests(candidates.map((candidate) => candidate.request))
+      .then((anchorCommits) => {
+        return Object.fromEntries(
+          anchorCommits.map((anchorCommit) => [anchorCommit.requestId, anchorCommit])
+        )
+      })
+
     for (const candidate of candidates) {
       if (numSelectedCandidates >= candidateLimit) {
         // No need to process this candidate, we've already filled our anchor batch
@@ -689,7 +703,7 @@ export class AnchorService {
 
       // anchor commit may already exist so check first
       const existingAnchorCommit = candidate.shouldAnchor()
-        ? await this.anchorRepository.findByRequest(candidate.request)
+        ? anchorCommitsByRequest[candidate.request.id]
         : null
 
       if (existingAnchorCommit) {

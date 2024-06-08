@@ -27,8 +27,6 @@ import { v4 as uuidv4, validate as validateUUID } from 'uuid'
 import { TransactionRepository } from '../../repositories/transaction-repository.js'
 import { Transaction } from '../../models/transaction.js'
 import { createInjector, Injector } from 'typed-inject'
-import { MetadataRepository } from '../../repositories/metadata-repository.js'
-import { IMetadataService, MetadataService } from '../metadata-service.js'
 import { asDIDString } from '@ceramicnetwork/codecs'
 import { expectPresent } from '../../__tests__/expect-present.util.js'
 import { AnchorBatchQMessage } from '../../models/queue-message.js'
@@ -66,8 +64,6 @@ type Context = {
   eventProducerService: MockEventProducerService
   requestRepository: RequestRepository
   anchorService: AnchorService
-  metadataService: IMetadataService
-  metadataRepository: MetadataRepository
   merkleCarService: IMerkleCarService
   witnessService: IWitnessService
   anchorBatchQueueService: MockQueueService<any>
@@ -77,13 +73,11 @@ type Context = {
 describe('anchor service', () => {
   jest.setTimeout(10000)
   let ipfsService: IIpfsService
-  let metadataService: IMetadataService
   let connection: Knex
   let injector: Injector<Context>
   let requestRepository: RequestRepository
   let anchorService: AnchorService
   let eventProducerService: MockEventProducerService
-  let metadataRepository: MetadataRepository
   let merkleCarService: IMerkleCarService
   let fake: FakeFactory
 
@@ -110,13 +104,11 @@ describe('anchor service', () => {
         })
       )
       .provideClass('anchorRepository', AnchorRepository)
-      .provideClass('metadataRepository', MetadataRepository)
       .provideFactory('requestRepository', RequestRepository.make)
       .provideClass('transactionRepository', TransactionRepository)
       .provideClass('blockchainService', FakeEthereumBlockchainService)
       .provideClass('ipfsService', MockIpfsService)
       .provideClass('eventProducerService', MockEventProducerService)
-      .provideClass('metadataService', MetadataService)
       .provideClass('anchorBatchQueueService', MockQueueService<AnchorBatchQMessage>)
       .provideFactory('merkleCarService', makeMerkleCarService)
       .provideFactory('witnessService', makeWitnessService)
@@ -127,10 +119,8 @@ describe('anchor service', () => {
     requestRepository = injector.resolve('requestRepository')
     anchorService = injector.resolve('anchorService')
     eventProducerService = injector.resolve('eventProducerService')
-    metadataService = injector.resolve('metadataService')
-    metadataRepository = injector.resolve('metadataRepository')
     merkleCarService = injector.resolve('merkleCarService')
-    fake = new FakeFactory(ipfsService, metadataService, requestRepository)
+    fake = new FakeFactory(ipfsService, requestRepository)
   })
 
   beforeEach(async () => {
@@ -523,14 +513,6 @@ describe('anchor service', () => {
       )
 
       await requestRepository.createRequests(originalRequests)
-      for (const request of originalRequests) {
-        await metadataRepository.save({
-          streamId: StreamID.fromString(request.streamId),
-          metadata: {
-            controllers: [asDIDString(`did:random:${Math.random()}`)],
-          },
-        })
-      }
       const emitSpy = jest.spyOn(eventProducerService, 'emitAnchorEvent')
       await anchorService.emitAnchorEventIfReady()
 
@@ -551,15 +533,6 @@ describe('anchor service', () => {
         },
         STREAM_LIMIT
       )
-
-      for (const request of originalRequests) {
-        await metadataRepository.save({
-          streamId: StreamID.fromString(request.streamId),
-          metadata: {
-            controllers: ['did:foo'],
-          },
-        })
-      }
 
       jest
         .spyOn(eventProducerService, 'emitAnchorEvent')

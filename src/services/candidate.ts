@@ -36,7 +36,6 @@ export class Candidate implements ICandidate {
     if (!request.cid) throw new Error(`No CID present for request`)
     this.cid = CID.parse(request.cid)
     this.metadata = metadata
-    this.model = this.metadata.model
   }
 
   /**

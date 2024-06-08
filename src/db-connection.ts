@@ -1,5 +1,5 @@
 import { config } from 'node-config-ts'
-import type { Db } from 'node-config-ts'
+import type { Db, Replicadb } from 'node-config-ts'
 import type { Knex } from 'knex'
 import knex from 'knex'
 import snakeCase from 'lodash.snakecase'
@@ -67,6 +67,48 @@ export async function createDbConnection(dbConfig: Db = config.db): Promise<Knex
   })
 
   return connection
+}
+
+export async function createReplicaDbConnection(
+  replica_db_config: Replicadb = config.replica_db
+): Promise<{ connection: Knex; type: string }> {
+  const replicaKnexConfig: Knex.Config = {
+    client: replica_db_config.client,
+    connection: replica_db_config.connection.connectionString || {
+      host: replica_db_config.connection.host,
+      port: replica_db_config.connection.port,
+      user: replica_db_config.connection.user,
+      password: replica_db_config.connection.password,
+      database: replica_db_config.connection.database,
+    },
+    debug: replica_db_config.debug,
+    pool: { min: 3, max: 30 },
+    // In our DB, identifiers have snake case formatting while in our code identifiers have camel case formatting.
+    // We use the following transformers so we can always use camel case formatting in our code.
+
+    // transforms identifier names in our queries from camel case to snake case. This is because the DB uses snake case identifiers.
+    wrapIdentifier: (value, origWrap): string => origWrap(snakeCase(value)),
+    // modifies returned rows from the DB. This transforms identifiers from snake case to camel case.
+    postProcessResponse: (result) => toCamelCase(result),
+  }
+  let connection
+  try {
+    // Validation that the config has all the required replica db fields else it throws
+    const { host, port, user, password, database } = replica_db_config.connection
+    if (!host || !port || !user || !password || !database) {
+      throw new Error(
+        'Missing required database connection parameters. Parameters: host, port, user, password, database'
+      )
+    }
+    connection = knex(replicaKnexConfig)
+    return { connection, type: 'replica' }
+  } catch (e) {
+    logger.imp(
+      `Not connecting to replica db with config ${replica_db_config}, error: ${e}. Connecting to the main db for reads`
+    )
+    connection = await createDbConnection()
+  }
+  return { connection, type: 'main' }
 }
 
 /**

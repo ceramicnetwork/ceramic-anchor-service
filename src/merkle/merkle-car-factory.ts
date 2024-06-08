@@ -2,7 +2,6 @@ import type { DiagnosticsLogger } from '@ceramicnetwork/common'
 import { CARFactory, CAR } from 'cartonne'
 import * as DAG_JOSE from 'dag-jose'
 import {
-  IpfsLeafCompare,
   MerkleTreeFactory,
   IpfsMerge,
   type MerkleTree,
@@ -10,13 +9,25 @@ import {
   type PathDirection,
   type CIDHolder,
   type TreeMetadata,
+  CompareFunction,
 } from '@ceramicnetwork/anchor-utils'
-import { BloomMetadata } from './bloom-metadata.js'
 import type { Candidate } from '../services/candidate.js'
 import type { CID } from 'multiformats/cid'
+import type { ICandidate } from '@ceramicnetwork/anchor-utils'
 
 const carFactory = new CARFactory()
 carFactory.codecs.add(DAG_JOSE)
+
+/**
+ * Simple Candidate sorter that sorts based on the CIDs of the leaf nodes. We actually don't need
+ * to sort the leaf nodes in the merkle tree at all anymore, but all the tree building code is set
+ * up to expect a sort function, so we just do this for simplicity for now.
+ */
+class CIDSort implements CompareFunction<ICandidate> {
+  compare(left: Node<ICandidate>, right: Node<ICandidate>): number {
+    return left.data.cid.toString().localeCompare(right.data.cid.toString())
+  }
+}
 
 export class CARIpfsService {
   readonly car: CAR
@@ -65,12 +76,10 @@ export class MerkleCAR implements IMerkleTree<CIDHolder, Candidate, TreeMetadata
 }
 
 export class MerkleCarFactory {
-  private readonly ipfsCompare: IpfsLeafCompare
-  private readonly bloomMetadata: BloomMetadata
+  private readonly ipfsCompare: CIDSort
 
   constructor(private readonly logger: DiagnosticsLogger, private readonly depthLimit: number) {
-    this.ipfsCompare = new IpfsLeafCompare(this.logger)
-    this.bloomMetadata = new BloomMetadata()
+    this.ipfsCompare = new CIDSort()
   }
 
   async build(candidates: Candidate[]): Promise<MerkleCAR> {
@@ -79,7 +88,7 @@ export class MerkleCarFactory {
     const factory = new MerkleTreeFactory<CIDHolder, Candidate, TreeMetadata>(
       carMerge,
       this.ipfsCompare,
-      this.bloomMetadata,
+      undefined,
       this.depthLimit
     )
     const merkleTree = await factory.build(candidates)
