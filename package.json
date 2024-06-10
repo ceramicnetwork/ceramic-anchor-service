@@ -120,7 +120,7 @@
     "babel-jest": "^29.4.3",
     "dids": "^4.0.0",
     "eslint": "^8.35.0",
-    "eslint-config-3box": "^0.4.1",
+    "eslint-config-3box": "^1.0.0",
     "eslint-import-resolver-typescript": "^3.5.3",
     "eslint-plugin-import": "^2.27.5",
     "eslint-plugin-jest": "^27.2.1",
@@ -144,6 +144,7 @@
     "ts-essentials": "^9.3.2",
     "typescript": "^5.4.5"
   },
+  "prettier": "eslint-config-3box/prettier.config",
   "release-it": {
     "git": {
       "commitMessage": "chore: release v${version}"
