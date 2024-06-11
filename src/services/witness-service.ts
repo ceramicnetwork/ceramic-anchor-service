@@ -8,6 +8,8 @@ import { Config } from 'node-config-ts'
 import { DynamoDB } from '@aws-sdk/client-dynamodb'
 import { logger } from '../logger/index.js'
 import { Utils } from '../utils.js'
+import * as http from 'http'
+import { NodeHttpHandler } from '@smithy/node-http-handler'
 
 const carFactory = new CARFactory()
 
@@ -160,6 +162,11 @@ export class DynamoDbWitnessService extends WitnessService implements IWitnessSe
     this.dynamoDb = new DynamoDB({
       region: config.witnessStorage.awsRegion,
       endpoint: config.witnessStorage.dynamoDbEndpoint,
+      requestHandler: new NodeHttpHandler({
+        httpAgent: new http.Agent({
+          keepAlive: true,
+        }),
+      }),
     })
     this.tableName = config.witnessStorage.dynamoDbTableName || DEFAULT_WITNESS_TABLE_NAME
     this.ttl = config.witnessStorage.dynamoDbTtl || DEFAULT_WITNESS_TABLE_TTL
