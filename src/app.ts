@@ -126,9 +126,12 @@ export class CeramicAnchorApp {
         this.config.metrics.exportTimeoutMillis
       )
       Metrics.count('HELLO', 1)
-      logger.imp('Metrics exporter started')
+      logger.imp(
+        `Metrics exporter started for instance "${this.config.metrics.instanceIdentifier}" and process ID ${process.pid}`
+      )
       if (this.config.metrics.instanceIdentifier) {
-        Metrics.setInstanceIdentifier(this.config.metrics.instanceIdentifier)
+        // Append the PID to the metrics identifier to ensure uniqueness with clustering
+        Metrics.setInstanceIdentifier(this.config.metrics.instanceIdentifier + '_' + process.pid)
       }
     } catch (e: any) {
       logger.imp('ERROR: Metrics exporter failed to start. Continuing anyway.')
