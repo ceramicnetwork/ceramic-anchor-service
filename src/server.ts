@@ -2,14 +2,13 @@ import bodyParser from 'body-parser'
 import { Server } from '@overnightjs/core'
 import { auth } from './auth/index.js'
 import { expressLoggers, logger, expressErrorLogger } from './logger/index.js'
-
-import * as http from 'http'
 import { Config } from 'node-config-ts'
+import { multiprocess, type Multiprocess } from './ancillary/multiprocess.js'
 
 const DEFAULT_SERVER_PORT = 8081
 
 export class CeramicAnchorServer extends Server {
-  private _server?: http.Server
+  private _server?: Multiprocess
 
   constructor(controllers: any[], config: Config) {
     super(true)
@@ -35,17 +34,30 @@ export class CeramicAnchorServer extends Server {
    * @param port - Server listening port
    */
   start(port: number = DEFAULT_SERVER_PORT): Promise<void> {
+    const workers = process.env['JEST_WORKER_ID'] ? 0 : undefined
     return new Promise<void>((resolve, reject) => {
-      this._server = this.app
-        .listen(port, () => {
-          logger.imp(`Server ready: Listening on port ${port}`)
-          resolve()
-        })
-        .on('error', (err) => reject(err))
+      this._server = multiprocess(
+        () => {
+          const server = this.app
+            .listen(port, () => {
+              logger.imp(`Server ready: Listening on port ${port}`)
+              resolve()
+            })
+            .on('error', (err) => reject(err))
+
+          return () => {
+            server.close()
+          }
+        },
+        {
+          keepAlive: false,
+          workers: workers,
+        }
+      )
     })
   }
 
   stop(): void {
-    this._server?.close()
+    this._server?.stop()
   }
 }
