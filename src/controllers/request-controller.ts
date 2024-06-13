@@ -80,6 +80,7 @@ export class RequestController {
 
     try {
       const response = await this.requestService.getStatusForCid(cid)
+      Metrics.count(METRIC_NAMES.CTRL_REQUEST_FOUND, 1, { source: parseOrigin(req) })
       return res.status(StatusCodes.OK).json(response)
     } catch (err: any) {
       if (err instanceof RequestDoesNotExistError) {

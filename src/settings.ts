@@ -87,4 +87,5 @@ export enum METRIC_NAMES {
   CTRL_INVALID_REQUEST = 'ctrl_invalid_request',
   CTRL_ERROR_CREATING_REQUEST = 'ctrl_error_creating_request',
   CTRL_REQUEST_NOT_FOUND = 'ctrl_request_not_found',
+  CTRL_REQUEST_FOUND = 'ctrl_request_found',
 }
