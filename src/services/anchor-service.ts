@@ -589,6 +589,7 @@ export class AnchorService {
             anchors.length > 0
               ? await this.anchorRepository.withConnection(trx).createAnchors(anchors)
               : 0
+          logger.imp(`Persisted ${persistedAnchorsCount} anchors to the database`)
 
           await this.requestRepository.withConnection(trx).updateRequests(
             {
@@ -598,12 +599,14 @@ export class AnchorService {
             },
             acceptedRequests
           )
+          logger.imp(`Updated ${acceptedRequests.length} requests to COMPLETED status`)
 
           // record some metrics about the timing and count of anchors
           const completed = new TimeableMetric(SinceField.CREATED_AT)
           completed.recordAll(acceptedRequests)
           completed.publishStats(METRIC_NAMES.CREATED_SUCCESS_MS)
           Metrics.count(METRIC_NAMES.ACCEPTED_REQUESTS, acceptedRequests.length)
+          logger.imp('Published metrics for completed requests')
           return persistedAnchorsCount
         },
         { isolationLevel: 'repeatable read' }
