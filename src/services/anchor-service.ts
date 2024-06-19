@@ -182,7 +182,7 @@ export class AnchorService {
   // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
   async anchorRequests(abortOptions?: AbortOptions): Promise<boolean> {
     const timeout = setTimeout(() => {
-      Metrics.record(METRIC_NAMES.ANCHOR_TAKING_TOO_LONG, 1)
+      Metrics.count(METRIC_NAMES.ANCHOR_TAKING_TOO_LONG, 1)
     }, this.alertOnLongAnchorMs)
 
     abortOptions?.signal?.addEventListener('abort', () => {
@@ -190,9 +190,9 @@ export class AnchorService {
     })
 
     if (this.useQueueBatches) {
-      const results = await this.anchorNextQueuedBatch(abortOptions)
+      const batchAnchored = await this.anchorNextQueuedBatch(abortOptions)
       clearTimeout(timeout)
-      return results
+      return batchAnchored
     } else {
       const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
 
