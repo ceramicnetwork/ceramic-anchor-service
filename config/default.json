@@ -15,6 +15,7 @@
   "schedulerIntervalMS": 300000,
   "schedulerStopAfterNoOp": false,
   "pubsubResponderWindowMs": 8035200000,
+  "alertOnLongAnchorMs": 1200000,
   "carStorage": {
     "mode": "inmemory",
     "s3BucketName": "myS3Bucket",

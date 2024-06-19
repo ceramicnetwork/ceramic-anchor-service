@@ -29,6 +29,7 @@ export enum METRIC_NAMES {
   MERKLE_CAR_STORAGE_FAILURE_IPFS = 'merkle_car_storage_failure_ipfs',
   MERKLE_CAR_STORAGE_FAILURE_S3 = 'merkle_car_storage_failure_s3',
   WITNESS_CAR_STORAGE_FAILURE = 'witness_car_storage_failure',
+  ANCHOR_TAKING_TOO_LONG = 'anchor_taking_too_long',
 
   // Transaction repository
   MANY_ATTEMPTS_TO_ACQUIRE_MUTEX = 'many_attempts_to_acquire_mutex',
