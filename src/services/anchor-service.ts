@@ -53,7 +53,7 @@ type AnchorSummary = {
   // id of the batch
   batchId: string
   // all requests included in this batch
-  requests: number
+  batchRequestsCount: number
   // requests included in this batch after filtering out REPLACED requests
   acceptedRequestsCount: number
   // number of accepted requests that were anchored in a previous batch and were not included in the current batch.
@@ -80,7 +80,7 @@ type AnchorSummary = {
 
 const logAnchorSummary = async (
   batchId: string,
-  requests: Request[],
+  batchRequests: Request[],
   requestRepository: RequestRepository,
   groupedRequests: RequestGroups,
   candidates: Candidate[],
@@ -91,7 +91,7 @@ const logAnchorSummary = async (
   const anchorSummary: AnchorSummary = Object.assign(
     {
       batchId,
-      requests: requests.length,
+      batchRequestsCount: batchRequests.length,
       acceptedRequestsCount: groupedRequests.acceptedRequests.length,
       alreadyAnchoredRequestsCount: groupedRequests.alreadyAnchoredRequests.length,
       anchoredRequestsCount: 0,
