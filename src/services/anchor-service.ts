@@ -136,6 +136,7 @@ export class AnchorService {
   private readonly maxStreamLimit: number
   private readonly minStreamLimit: number
   private readonly merkleCarFactory: MerkleCarFactory
+  private readonly alertOnLongAnchorMs: number
 
   static inject = [
     'blockchainService',
@@ -167,6 +168,7 @@ export class AnchorService {
     this.merkleDepthLimit = config.merkleDepthLimit
     this.useSmartContractAnchors = config.useSmartContractAnchors
     this.useQueueBatches = Boolean(config.queue.sqsQueueUrl)
+    this.alertOnLongAnchorMs = Number(config.alertOnLongAnchorMs || 1200000) // default 20 minutes
 
     const minStreamCount = Number(config.minStreamCount)
     this.maxStreamLimit = this.merkleDepthLimit > 0 ? Math.pow(2, this.merkleDepthLimit) : 0
@@ -179,8 +181,18 @@ export class AnchorService {
    */
   // TODO: Remove for CAS V2 as we won't need to move PENDING requests to ready. Switch to using anchorReadyRequests.
   async anchorRequests(abortOptions?: AbortOptions): Promise<boolean> {
+    const timeout = setTimeout(() => {
+      Metrics.record(METRIC_NAMES.ANCHOR_TAKING_TOO_LONG, 1)
+    }, this.alertOnLongAnchorMs)
+
+    abortOptions?.signal?.addEventListener('abort', () => {
+      clearTimeout(timeout)
+    })
+
     if (this.useQueueBatches) {
-      return this.anchorNextQueuedBatch(abortOptions)
+      const results = await this.anchorNextQueuedBatch(abortOptions)
+      clearTimeout(timeout)
+      return results
     } else {
       const readyRequestsCount = await this.requestRepository.countByStatus(RS.READY)
 
@@ -190,6 +202,7 @@ export class AnchorService {
       }
 
       await this.anchorReadyRequests()
+      clearTimeout(timeout)
       return true
     }
   }
