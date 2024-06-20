@@ -12,6 +12,7 @@ import {
   AnchorRequestParamsParser,
   RequestAnchorParams,
   RequestAnchorParamsCodec,
+  RequestAnchorParamsV3,
 } from '../ancillary/anchor-request-params-parser.js'
 import bodyParser from 'body-parser'
 import { type RequestService, RequestDoesNotExistError } from '../services/request-service.js'
@@ -124,7 +125,12 @@ export class RequestController {
 
       // request was newly created
       if (body) {
-        Metrics.count(METRIC_NAMES.CTRL_NEW_ANCHOR_REQUEST, 1, { source: parseOrigin(req) })
+        const v3Params = requestParams as RequestAnchorParamsV3
+        Metrics.count(METRIC_NAMES.CTRL_NEW_ANCHOR_REQUEST, 1, {
+          source: parseOrigin(req),
+          jsCeramicVersion: v3Params.jsCeramicVersion,
+          ceramicOneVersion: v3Params.ceramicOneVersion,
+        })
         return res.status(StatusCodes.CREATED).json(body)
       }
 

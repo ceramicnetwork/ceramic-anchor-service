@@ -28,16 +28,18 @@ import {
 const carFactory = new CARFactory()
 carFactory.codecs.add(DAG_JOSE)
 
-export const RequestAnchorParamsV1 = sparse(
+const RequestAnchorParamsV3 = sparse(
   {
     streamId: string.pipe(streamIdAsString),
     cid: string.pipe(cidAsString),
-    timestamp: optional(date),
+    timestamp: date,
+    jsCeramicVersion: optional(string),
+    ceramicOneVersion: optional(string),
   },
-  'RequestAnchorParamsV1'
+  'RequestAnchorParamsV3'
 )
 
-type RequestAnchorParamsV1 = TypeOf<typeof RequestAnchorParamsV1>
+export type RequestAnchorParamsV3 = TypeOf<typeof RequestAnchorParamsV3>
 
 const RequestAnchorParamsV2Root = strict({
   streamId: uint8array.pipe(streamIdAsBytes),
@@ -56,12 +58,12 @@ export const RequestAnchorParamsV2 = sparse({
 
 export type RequestAnchorParamsV2 = TypeOf<typeof RequestAnchorParamsV2>
 
-export type RequestAnchorParams = RequestAnchorParamsV1 | RequestAnchorParamsV2
+export type RequestAnchorParams = RequestAnchorParamsV3 | RequestAnchorParamsV2
 
 /**
  * Encode request params for logging purposes.
  */
-export const RequestAnchorParamsCodec = union([RequestAnchorParamsV1, RequestAnchorParamsV2])
+export const RequestAnchorParamsCodec = union([RequestAnchorParamsV3, RequestAnchorParamsV2])
 
 export class AnchorRequestCarFileDecoder implements Decoder<Uint8Array, RequestAnchorParamsV2> {
   readonly name = 'RequestAnchorParamsV2'
@@ -96,7 +98,7 @@ export class AnchorRequestParamsParser {
     if (req.get('Content-Type') !== 'application/vnd.ipld.car') {
       // Legacy requests
       Metrics.count(METRIC_NAMES.CTRL_LEGACY_REQUESTED, 1)
-      return validate(RequestAnchorParamsV1, req.body)
+      return validate(RequestAnchorParamsV3, req.body)
     } else {
       // Next version of anchor requests, using the CAR file format
       // TODO: CDB-2212 Store the car file somewhere for future reference/validation of signatures
