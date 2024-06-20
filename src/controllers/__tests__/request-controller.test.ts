@@ -212,7 +212,7 @@ describe('createRequest', () => {
       expect(createdRequest.origin).toEqual(origin)
     })
 
-    test('timestamp is empty', async () => {
+    test('timestamp is required', async () => {
       const cid = randomCID()
       const streamId = randomStreamID()
       const now = new Date()
@@ -229,17 +229,7 @@ describe('createRequest', () => {
       const requestRepository = container.resolve('requestRepository')
       await expect(requestRepository.findByCid(cid)).resolves.toBeUndefined()
       await controller.createRequest(req, res)
-      expect(res.status).toBeCalledWith(StatusCodes.CREATED)
-      const createdRequest = await requestRepository.findByCid(cid)
-      expectPresent(createdRequest)
-      expect(createdRequest.cid).toEqual(cid.toString())
-      expect(createdRequest.status).toEqual(RequestStatus.PENDING)
-      expect(createdRequest.streamId).toEqual(streamId.toString())
-      expect(createdRequest.message).toEqual('Request is pending.')
-      expect(isClose(createdRequest.timestamp.getTime(), now.getTime())).toBeTruthy()
-      expect(isClose(createdRequest.createdAt.getTime(), now.getTime())).toBeTruthy()
-      expect(isClose(createdRequest.updatedAt.getTime(), now.getTime())).toBeTruthy()
-      expect(createdRequest.origin).not.toBeNull()
+      expect(res.status).toBeCalledWith(StatusCodes.BAD_REQUEST)
     })
 
     test('mark previous submissions REPLACED', async () => {
@@ -249,6 +239,7 @@ describe('createRequest', () => {
         body: {
           cid: cid.toString(),
           streamId: streamId.toString(),
+          timestamp: new Date().toISOString(),
         },
       })
       const requestRepository = container.resolve('requestRepository')
@@ -332,6 +323,7 @@ describe('createRequest', () => {
         body: {
           cid: cid.toString(),
           streamId: streamId.toString(),
+          timestamp: new Date().toISOString(),
         },
       })
       const validationQueueService = container.resolve('validationQueueService')
