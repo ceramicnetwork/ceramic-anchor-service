@@ -64,7 +64,10 @@ export class Multiprocess extends EventEmitter {
       this.work()
       return
     }
-    let processes = options.workers || cpus().length // TODO workers = -1 or undef means no workers
+    const workersFromEnv = process.env['MULTIPROCESS_SIZE']
+      ? parseInt(process.env['MULTIPROCESS_SIZE'], 10)
+      : undefined
+    let processes = options.workers || workersFromEnv || cpus().length
     process.on('SIGINT', this.stop).on('SIGTERM', this.stop)
     cluster.on('online', (wrk) => {
       this.emit('worker', wrk.process.pid)
