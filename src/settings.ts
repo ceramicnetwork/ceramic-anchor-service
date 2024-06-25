@@ -84,7 +84,7 @@ export enum METRIC_NAMES {
   CTRL_NEW_ANCHOR_REQUEST = 'ctrl_new_anchor_request',
   CTRL_FOUND_EXISTING_REQUEST = 'ctrl_found_existing_request',
   CTRL_CAR_REQUESTED = 'ctrl_car_requested',
-  CTRL_LEGACY_REQUESTED = 'ctrl_legacy_requested',
+  CTRL_JSON_REQUESTED = 'ctrl_json_requested',
   CTRL_INVALID_REQUEST = 'ctrl_invalid_request',
   CTRL_ERROR_CREATING_REQUEST = 'ctrl_error_creating_request',
   CTRL_REQUEST_NOT_FOUND = 'ctrl_request_not_found',

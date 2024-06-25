@@ -97,7 +97,7 @@ export class AnchorRequestParamsParser {
   parse(req: ExpReq): Validation<RequestAnchorParams> {
     if (req.get('Content-Type') !== 'application/vnd.ipld.car') {
       // Legacy requests
-      Metrics.count(METRIC_NAMES.CTRL_LEGACY_REQUESTED, 1)
+      Metrics.count(METRIC_NAMES.CTRL_JSON_REQUESTED, 1)
       return validate(RequestAnchorParamsV3, req.body)
     } else {
       // Next version of anchor requests, using the CAR file format
