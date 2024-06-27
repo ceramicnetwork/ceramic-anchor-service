@@ -16,6 +16,7 @@
   "schedulerStopAfterNoOp": "@@SCHEDULER_STOP_AFTER_NO_OP",
   "pubsubResponderWindowMs": "@@PUBSUB_RESPONDER_WINDOW_MS",
   "alertOnLongAnchorMs": "@@ALERT_ON_LONG_ANCHOR_MS",
+  "ceramicNetwork": "@@CERAMIC_NETWORK",
   "carStorage": {
     "mode": "@@MERKLE_CAR_STORAGE_MODE",
     "s3BucketName": "@@S3_BUCKET_NAME",
