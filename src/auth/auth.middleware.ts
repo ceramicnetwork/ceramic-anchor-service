@@ -2,7 +2,7 @@ import { NextFunction, Request, Response, Handler } from 'express'
 import * as DAG_JOSE from 'dag-jose'
 import * as sha256 from '@stablelib/sha256'
 import * as u8a from 'uint8arrays'
-import { CARFactory } from 'cartonne'
+import { CARFactory, CAR } from 'cartonne'
 import { Networks } from '@ceramicnetwork/common'
 import { ALLOWED_IP_ADDRESSES } from './allowed-ip-addresses.js'
 import { DID } from 'dids'
@@ -10,9 +10,13 @@ import KeyDIDResolver from 'key-did-resolver'
 
 export type AuthOpts = {
   ceramicNetwork: string
+  allowedDIDs: Set<string>
+  isRelaxed: boolean
 }
 
-export const authBearerRegex = new RegExp(/Bearer (.*)/)
+export const AUTH_BEARER_REGEXP = new RegExp(/Bearer (.*)/)
+const CAR_FACTORY = new CARFactory()
+CAR_FACTORY.codecs.add(DAG_JOSE)
 
 const VERIFIER = new DID({ resolver: KeyDIDResolver.getResolver() })
 
@@ -32,7 +36,7 @@ export function auth(opts: AuthOpts): Handler {
    * Notice that the absense of a did header or body bypasses any checks below
    * this app will still work if the logice above is not in place.
    */
-  return async function (req: Request, _res: Response, next: NextFunction) {
+  return async function (req: Request, res: Response, next: NextFunction) {
     // Allow if TESTNET
     if (opts.ceramicNetwork === Networks.TESTNET_CLAY) {
       return next()
@@ -52,33 +56,34 @@ export function auth(opts: AuthOpts): Handler {
     }
 
     // Authorization Header
-    const authorizationHeader = req.get('Authorization')
-    if (authorizationHeader) {
-      const match = authBearerRegex.exec(authorizationHeader)
-      if (match && match[1]) {
-        const jws = match[1]
-        const verified = await VERIFIER.verifyJWS(jws)
-        const did = verified.didResolutionResult.didDocument?.id
-        const nonce = verified.payload?.['nonce']
-        const digest = verified.payload?.['digest']
-        if (did && nonce && digest) {
+    const authorizationHeader = req.get('Authorization') || ''
+    const bearerTokenMatch = AUTH_BEARER_REGEXP.exec(authorizationHeader)
+    if (bearerTokenMatch && bearerTokenMatch[1]) {
+      const jws = bearerTokenMatch[1]
+      const verifyJWSResult = await VERIFIER.verifyJWS(jws)
+      const did = verifyJWSResult.didResolutionResult.didDocument?.id
+      const nonce = verifyJWSResult.payload?.['nonce']
+      const digest = verifyJWSResult.payload?.['digest']
+      if (did && nonce && digest && isAllowedDID(did, opts)) {
+        const body = req.body
+        const contentType = req.get('Content-Type')
+        const digestCalculated = buildBodyDigest(contentType, body)
+        const isCorrectDigest = digestCalculated == digest
+        if (isCorrectDigest) {
           return next()
         }
       }
     }
-    // Throw unauthorized
+    return res.status(403).json({ error: 'Unauthorized' })
+  }
+}
 
-    const didHeader = req.headers['did']
-    const body = req.body
-    if (didHeader && body && Object.keys(body).length > 0) {
-      const digest = buildBodyDigest(req.headers['content-type'], body)
-      if (req.headers['digest'] == digest) {
-        return next()
-      } else {
-        throw Error('Body digest verification failed')
-      }
-    }
-    return next()
+function isAllowedDID(did: string, opts: AuthOpts): boolean {
+  if (opts.isRelaxed) {
+    // TODO Notify here
+    return true
+  } else {
+    return opts.allowedDIDs.has(did)
   }
 }
 
@@ -89,17 +94,16 @@ function buildBodyDigest(contentType: string | undefined, body: any): string | u
 
   if (contentType) {
     if (contentType.includes('application/vnd.ipld.car')) {
-      const carFactory = new CARFactory()
-      carFactory.codecs.add(DAG_JOSE)
-      // console.log('Will build a car file from req.body', body)
-      // try {
-      //   console.log('Will build a car file from req.body (as utf8 string)', u8a.toString(body, 'base64'))
-      // } catch(e) {
-      //   console.log('Couldn\'t convert req.body to string: ', e)
-      // }
-      const car = carFactory.fromBytes(body)
+      let car: CAR
+      try {
+        car = CAR_FACTORY.fromBytes(body)
+      } catch (e) {
+        return undefined
+      }
       const root = car.roots[0]
-      if (!root) throw Error('Missing CAR root')
+      if (!root) {
+        return undefined
+      }
       return root.toString()
     } else if (contentType.includes('application/json')) {
       hash = sha256.hash(u8a.fromString(JSON.stringify(body)))
