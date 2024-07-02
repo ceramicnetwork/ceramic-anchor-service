@@ -3,12 +3,13 @@ import * as DAG_JOSE from 'dag-jose'
 import * as sha256 from '@stablelib/sha256'
 import * as u8a from 'uint8arrays'
 import { CARFactory, CAR } from 'cartonne'
-import { Networks } from '@ceramicnetwork/common'
+import { DiagnosticsLogger, Networks } from '@ceramicnetwork/common'
 import { ALLOWED_IP_ADDRESSES } from './allowed-ip-addresses.js'
 import { DID } from 'dids'
 import KeyDIDResolver from 'key-did-resolver'
 
 export type AuthOpts = {
+  logger?: DiagnosticsLogger
   ceramicNetwork: string
   allowedDIDs: Set<string>
   isRelaxed: boolean
@@ -19,11 +20,6 @@ const CAR_FACTORY = new CARFactory()
 CAR_FACTORY.codecs.add(DAG_JOSE)
 
 const VERIFIER = new DID({ resolver: KeyDIDResolver.getResolver() })
-
-// const allowRegisteredDIDSchema = Joi.object({
-//   did: Joi.string().regex(didRegex).required(),
-//   nonce: nonceValidation.required(),
-// })
 
 export function auth(opts: AuthOpts): Handler {
   /**
@@ -37,6 +33,7 @@ export function auth(opts: AuthOpts): Handler {
    * this app will still work if the logice above is not in place.
    */
   return async function (req: Request, res: Response, next: NextFunction) {
+    const logger = opts.logger
     // Allow if TESTNET
     if (opts.ceramicNetwork === Networks.TESTNET_CLAY) {
       return next()
@@ -44,43 +41,56 @@ export function auth(opts: AuthOpts): Handler {
 
     // Allow if IP address is in allowlist
     const origin = parseOriginIP(req)
-    let isAllowedIPAddress = false
-    for (const ip of origin) {
-      if (ALLOWED_IP_ADDRESSES[ip]) {
-        isAllowedIPAddress = true
-        break
-      }
-    }
-    if (isAllowedIPAddress) {
+    const allowedIpAddress = origin.find((ip) => ALLOWED_IP_ADDRESSES[ip])
+    if (allowedIpAddress) {
+      logger?.verbose(`Allowed: IP address: ${allowedIpAddress}`)
       return next()
     }
 
     // Authorization Header
     const authorizationHeader = req.get('Authorization') || ''
     const bearerTokenMatch = AUTH_BEARER_REGEXP.exec(authorizationHeader)
-    if (bearerTokenMatch && bearerTokenMatch[1]) {
-      const jws = bearerTokenMatch[1]
-      const verifyJWSResult = await VERIFIER.verifyJWS(jws)
-      const did = verifyJWSResult.didResolutionResult.didDocument?.id
-      const nonce = verifyJWSResult.payload?.['nonce']
-      const digest = verifyJWSResult.payload?.['digest']
-      if (did && nonce && digest && isAllowedDID(did, opts)) {
-        const body = req.body
-        const contentType = req.get('Content-Type')
-        const digestCalculated = buildBodyDigest(contentType, body)
-        const isCorrectDigest = digestCalculated == digest
-        if (isCorrectDigest) {
-          return next()
-        }
-      }
+    const jws = bearerTokenMatch?.[1]
+    if (!jws) {
+      logger?.verbose(`Disallowed: No authorization header`)
+      return disallow(res)
     }
-    return res.status(403).json({ error: 'Unauthorized' })
+    const verifyJWSResult = await VERIFIER.verifyJWS(jws)
+    const did = verifyJWSResult.didResolutionResult.didDocument?.id
+    if (!did) {
+      logger?.verbose(`Disallowed: No DID`)
+      return disallow(res)
+    }
+    const nonce = verifyJWSResult.payload?.['nonce']
+    const digest = verifyJWSResult.payload?.['digest']
+    if (!nonce || !digest) {
+      logger?.verbose(`Disallowed: No nonce or No digest`)
+      return disallow(res)
+    }
+    if (!isAllowedDID(did, opts)) {
+      logger?.verbose(`Disallowed: ${did}`)
+      return disallow(res)
+    }
+
+    const body = req.body
+    const contentType = req.get('Content-Type')
+    const digestCalculated = buildBodyDigest(contentType, body)
+    const isCorrectDigest = digestCalculated == digest
+    if (!isCorrectDigest) {
+      logger?.verbose(`Disallowed: Incorrect digest for DID ${did}`)
+      return disallow(res)
+    }
+    return next()
   }
+}
+
+function disallow(res: Response): Response {
+  return res.status(403).json({ error: 'Unauthorized' })
 }
 
 function isAllowedDID(did: string, opts: AuthOpts): boolean {
   if (opts.isRelaxed) {
-    // TODO Notify here
+    opts.logger?.verbose(`Allowed: Relaxed: ${did}`)
     return true
   } else {
     return opts.allowedDIDs.has(did)

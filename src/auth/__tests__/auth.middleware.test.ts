@@ -9,6 +9,7 @@ import { Ed25519Provider } from 'key-did-provider-ed25519'
 import KeyDIDResolver from 'key-did-resolver'
 import { CARFactory } from 'cartonne'
 import bodyParser from 'body-parser'
+import { logger } from '../../logger/index.js'
 
 const carFactory = new CARFactory()
 
@@ -37,6 +38,7 @@ describe('if testnet', () => {
       ceramicNetwork: Networks.TESTNET_CLAY,
       allowedDIDs: new Set(),
       isRelaxed: false,
+      logger: logger,
     })
   )
   app.get('/', (req, res) => {
@@ -60,6 +62,7 @@ describe('allowlisted IP', () => {
       ceramicNetwork: Networks.MAINNET,
       allowedDIDs: new Set(),
       isRelaxed: false,
+      logger: logger,
     })
   )
   app.get('/', (req, res) => {
@@ -113,6 +116,7 @@ describe('Authorization header: strict', () => {
         ceramicNetwork: Networks.MAINNET,
         allowedDIDs: new Set([did.id]),
         isRelaxed: false,
+        logger: logger,
       })
     )
     app.post('/', (req, res) => {
@@ -179,6 +183,7 @@ describe('Authorization header: relaxed', () => {
         ceramicNetwork: Networks.MAINNET,
         allowedDIDs: new Set(),
         isRelaxed: true,
+        logger: logger,
       })
     )
     app.post('/', (req, res) => {

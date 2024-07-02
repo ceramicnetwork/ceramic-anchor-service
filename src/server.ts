@@ -26,7 +26,8 @@ export class CeramicAnchorServer extends Server {
         auth({
           ceramicNetwork: config.ceramicNetwork,
           allowedDIDs: new Set(),
-          isRelaxed: false
+          isRelaxed: false,
+          logger: logger,
         })
       )
     }
