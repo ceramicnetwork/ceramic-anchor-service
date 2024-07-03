@@ -21,6 +21,15 @@ CAR_FACTORY.codecs.add(DAG_JOSE)
 
 const VERIFIER = new DID({ resolver: KeyDIDResolver.getResolver() })
 
+enum DISALLOW_REASON {
+  LAMBDA_INVALID_DIGEST = 'lambda-invalid-digest',
+  DID_ALLOWLIST_NO_HEADER = 'did-allowlist-no-header',
+  DID_ALLOWLIST_NO_DID = 'did-allowlist-no-did',
+  DID_ALLOWLIST_NO_FIELDS = 'did-allowlist-no-fields',
+  DID_ALLOWLIST_REJECTED = 'did-allowlist-rejected',
+  DID_ALLOWLIST_INVALID_DIGEST = 'did-allowlist-invalid-digest',
+}
+
 export function parseAllowedDIDs(dids: string | undefined): Set<string> {
   if (dids) {
     const parts = dids.split(',')
@@ -55,7 +64,7 @@ export function auth(opts: AuthOpts): Handler {
         return next()
       } else {
         logger?.verbose(`Disallowed: Auth lambda: Invalid digest`)
-        return disallow(res)
+        return disallow(res, DISALLOW_REASON.LAMBDA_INVALID_DIGEST)
       }
     }
 
@@ -66,23 +75,23 @@ export function auth(opts: AuthOpts): Handler {
       const jws = bearerTokenMatch?.[1]
       if (!jws) {
         logger?.verbose(`Disallowed: No authorization header`)
-        return disallow(res)
+        return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_HEADER)
       }
       const verifyJWSResult = await VERIFIER.verifyJWS(jws)
       const did = verifyJWSResult.didResolutionResult.didDocument?.id
       if (!did) {
         logger?.verbose(`Disallowed: No DID`)
-        return disallow(res)
+        return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_DID)
       }
       const nonce = verifyJWSResult.payload?.['nonce']
       const digest = verifyJWSResult.payload?.['digest']
       if (!nonce || !digest) {
         logger?.verbose(`Disallowed: No nonce or No digest`)
-        return disallow(res)
+        return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_FIELDS)
       }
       if (!isAllowedDID(did, opts)) {
         logger?.verbose(`Disallowed: ${did}`)
-        return disallow(res)
+        return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_REJECTED)
       }
 
       const body = req.body
@@ -91,7 +100,7 @@ export function auth(opts: AuthOpts): Handler {
       const isCorrectDigest = digestCalculated == digest
       if (!isCorrectDigest) {
         logger?.verbose(`Disallowed: Incorrect digest for DID ${did}`)
-        return disallow(res)
+        return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_INVALID_DIGEST)
       }
       ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: did })
     }
@@ -99,8 +108,8 @@ export function auth(opts: AuthOpts): Handler {
   }
 }
 
-function disallow(res: Response): Response {
-  ServiceMetrics.count(METRIC_NAMES.AUTH_DISALLOWED, 1)
+function disallow(res: Response, reason: DISALLOW_REASON): Response {
+  ServiceMetrics.count(METRIC_NAMES.AUTH_DISALLOWED, 1, { reason: reason })
   return res.status(403).json({ error: 'Unauthorized' })
 }
 
