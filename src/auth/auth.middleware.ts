@@ -4,7 +4,6 @@ import * as sha256 from '@stablelib/sha256'
 import * as u8a from 'uint8arrays'
 import { CARFactory, CAR } from 'cartonne'
 import { DiagnosticsLogger } from '@ceramicnetwork/common'
-import { ALLOWED_IP_ADDRESSES } from './allowed-ip-addresses.js'
 import { DID } from 'dids'
 import KeyDIDResolver from 'key-did-resolver'
 import { ServiceMetrics } from '@ceramicnetwork/observability'
@@ -38,20 +37,20 @@ export function auth(opts: AuthOpts): Handler {
   return async function (req: Request, res: Response, next: NextFunction) {
     const logger = opts.logger
 
-    // TODO Get rid of it
-    // Allow if IP address is in allowlist
-    const origin = parseOriginIP(req)
-    const allowedIpAddress = origin.find((ip) => ALLOWED_IP_ADDRESSES[ip])
-    if (allowedIpAddress) {
-      logger?.verbose(`Allowed: IP address: ${allowedIpAddress}`)
-      return next()
+    // Use auth lambda
+    const didFromHeader = req.header('did')
+    if (didFromHeader && req.body) {
+      const digest = buildBodyDigest(req.headers['content-type'], req.body)
+      if (req.headers['digest'] == digest) {
+        return next()
+      } else {
+        logger?.verbose(`Disallowed: Auth lambda: Invalid digest`)
+        return disallow(res)
+      }
     }
 
-    // TODO Auth lambda still
-
     // Authorization Header
-    const authorizationHeader = req.get('Authorization') || ''
-    // TODO get DID key from protected header and check there
+    const authorizationHeader = req.header('Authorization') || ''
     // TODO list is empty?? => the check does not apply
     const bearerTokenMatch = AUTH_BEARER_REGEXP.exec(authorizationHeader)
     const jws = bearerTokenMatch?.[1]
@@ -77,7 +76,7 @@ export function auth(opts: AuthOpts): Handler {
     }
 
     const body = req.body
-    const contentType = req.get('Content-Type')
+    const contentType = req.header('Content-Type')
     const digestCalculated = buildBodyDigest(contentType, body)
     const isCorrectDigest = digestCalculated == digest
     if (!isCorrectDigest) {
@@ -130,18 +129,4 @@ function buildBodyDigest(contentType: string | undefined, body: any): string | u
   }
 
   return `0x${u8a.toString(hash, 'base16')}`
-}
-
-function parseOriginIP(req: Request): Array<string> {
-  const sourceIp = req.get('sourceIp')
-  if (sourceIp) return [sourceIp]
-  const xForwardedForHeader = req.get('X-Forwarded-For')
-  if (!xForwardedForHeader) {
-    return []
-  }
-  if (Array.isArray(xForwardedForHeader)) {
-    return xForwardedForHeader.map((s) => s.trim())
-  } else {
-    return xForwardedForHeader.split(',').map((s) => s.trim())
-  }
 }
