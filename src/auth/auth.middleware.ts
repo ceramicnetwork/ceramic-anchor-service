@@ -9,8 +9,6 @@ import KeyDIDResolver from 'key-did-resolver'
 import { ServiceMetrics } from '@ceramicnetwork/observability'
 import { METRIC_NAMES } from '../settings.js'
 
-// Metrics: request denied, request approved
-
 export type AuthOpts = {
   logger?: DiagnosticsLogger
   allowedDIDs: Set<string>
