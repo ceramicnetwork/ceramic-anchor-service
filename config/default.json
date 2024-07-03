@@ -103,7 +103,7 @@
   },
   "auth": {
     "required": false,
-    "dids": "@@AUTH_DIDS_ALLOWED",
+    "dids": "",
     "relaxed": true
   }
 }
