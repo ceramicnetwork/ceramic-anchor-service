@@ -24,6 +24,8 @@ CAR_FACTORY.codecs.add(DAG_JOSE)
 const VERIFIER = new DID({ resolver: KeyDIDResolver.getResolver() })
 
 export function auth(opts: AuthOpts): Handler {
+  const hasAllowedDIDsList = opts.allowedDIDs.size > 0
+
   /**
    * @dev If the request has a did header, it means we have already confirmed the did
    * is registered. If the request has no did, it means we have already
@@ -50,38 +52,40 @@ export function auth(opts: AuthOpts): Handler {
     }
 
     // Authorization Header
-    const authorizationHeader = req.header('Authorization') || ''
-    // TODO list is empty?? => the check does not apply
-    const bearerTokenMatch = AUTH_BEARER_REGEXP.exec(authorizationHeader)
-    const jws = bearerTokenMatch?.[1]
-    if (!jws) {
-      logger?.verbose(`Disallowed: No authorization header`)
-      return disallow(res)
-    }
-    const verifyJWSResult = await VERIFIER.verifyJWS(jws)
-    const did = verifyJWSResult.didResolutionResult.didDocument?.id
-    if (!did) {
-      logger?.verbose(`Disallowed: No DID`)
-      return disallow(res)
-    }
-    const nonce = verifyJWSResult.payload?.['nonce']
-    const digest = verifyJWSResult.payload?.['digest']
-    if (!nonce || !digest) {
-      logger?.verbose(`Disallowed: No nonce or No digest`)
-      return disallow(res)
-    }
-    if (!isAllowedDID(did, opts)) {
-      logger?.verbose(`Disallowed: ${did}`)
-      return disallow(res)
-    }
+    if (hasAllowedDIDsList) {
+      const authorizationHeader = req.header('Authorization') || ''
+      // TODO list is empty?? => the check does not apply
+      const bearerTokenMatch = AUTH_BEARER_REGEXP.exec(authorizationHeader)
+      const jws = bearerTokenMatch?.[1]
+      if (!jws) {
+        logger?.verbose(`Disallowed: No authorization header`)
+        return disallow(res)
+      }
+      const verifyJWSResult = await VERIFIER.verifyJWS(jws)
+      const did = verifyJWSResult.didResolutionResult.didDocument?.id
+      if (!did) {
+        logger?.verbose(`Disallowed: No DID`)
+        return disallow(res)
+      }
+      const nonce = verifyJWSResult.payload?.['nonce']
+      const digest = verifyJWSResult.payload?.['digest']
+      if (!nonce || !digest) {
+        logger?.verbose(`Disallowed: No nonce or No digest`)
+        return disallow(res)
+      }
+      if (!isAllowedDID(did, opts)) {
+        logger?.verbose(`Disallowed: ${did}`)
+        return disallow(res)
+      }
 
-    const body = req.body
-    const contentType = req.header('Content-Type')
-    const digestCalculated = buildBodyDigest(contentType, body)
-    const isCorrectDigest = digestCalculated == digest
-    if (!isCorrectDigest) {
-      logger?.verbose(`Disallowed: Incorrect digest for DID ${did}`)
-      return disallow(res)
+      const body = req.body
+      const contentType = req.header('Content-Type')
+      const digestCalculated = buildBodyDigest(contentType, body)
+      const isCorrectDigest = digestCalculated == digest
+      if (!isCorrectDigest) {
+        logger?.verbose(`Disallowed: Incorrect digest for DID ${did}`)
+        return disallow(res)
+      }
     }
     return next()
   }

@@ -100,16 +100,18 @@ describe('Authorization header: strict', () => {
 describe('Authorization header: relaxed', () => {
   let app: Express
   let disallowedDID: DID
+  let did: DID
 
   beforeAll(async () => {
     disallowedDID = await createDidKey()
+    did = await createDidKey()
     app = express().use(express.json())
     app.use(bodyParser.raw({ inflate: true, type: 'application/vnd.ipld.car', limit: '1mb' }))
     app.use(bodyParser.json({ type: 'application/json' }))
     app.use(bodyParser.urlencoded({ extended: true, type: 'application/x-www-form-urlencoded' }))
     app.use(
       auth({
-        allowedDIDs: new Set(),
+        allowedDIDs: new Set([did.id]),
         isRelaxed: true,
         logger: logger,
       })
@@ -155,7 +157,7 @@ describe('Auth lambda', () => {
     app.use(
       auth({
         allowedDIDs: new Set(),
-        isRelaxed: true,
+        isRelaxed: false,
         logger: logger,
       })
     )
@@ -176,6 +178,62 @@ describe('Auth lambda', () => {
     expect(response.status).toBe(200)
   })
   test('invalid digest', async () => {
+    const carFile = carFactory.build()
+    const response = await supertest(app)
+      .post('/')
+      .set('Content-Type', 'application/vnd.ipld.car')
+      .set('did', did.id)
+      .set('digest', 'INVALID')
+      .send(Buffer.from(carFile.bytes)) // Supertest quirk
+    expect(response.status).toBe(403)
+  })
+})
+
+describe('empty allowed dids list', () => {
+  let app: Express
+  let did: DID
+
+  beforeAll(async () => {
+    did = await createDidKey()
+    app = express().use(express.json())
+    app.use(bodyParser.raw({ inflate: true, type: 'application/vnd.ipld.car', limit: '1mb' }))
+    app.use(bodyParser.json({ type: 'application/json' }))
+    app.use(bodyParser.urlencoded({ extended: true, type: 'application/x-www-form-urlencoded' }))
+    app.use(
+      auth({
+        allowedDIDs: new Set(),
+        isRelaxed: false,
+        logger: logger,
+      })
+    )
+    app.post('/', (req, res) => {
+      res.json({ hello: 'world' })
+    })
+  })
+
+  test('pass Authorization header check', async () => {
+    const carFile = carFactory.build()
+    const cid = carFile.put({ hello: 'world' }, { isRoot: true })
+    const jws = await makeJWS(did, { nonce: '1234567890', digest: cid.toString() })
+    const response = await supertest(app)
+      .post('/')
+      .set('Content-Type', 'application/vnd.ipld.car')
+      .set('Authorization', `Bearer ${jws}`)
+      .send(Buffer.from(carFile.bytes)) // Supertest quirk
+    expect(response.status).toBe(200)
+  })
+  test('use Auth Lambda check: ok', async () => {
+    const carFile = carFactory.build()
+    const cid = carFile.put({ hello: 'world' }, { isRoot: true })
+    const response = await supertest(app)
+      .post('/')
+      .set('Content-Type', 'application/vnd.ipld.car')
+      .set('did', did.id)
+      .set('digest', cid.toString())
+      .send(Buffer.from(carFile.bytes)) // Supertest quirk
+    expect(response.status).toBe(200)
+  })
+  test('use Auth Lambda check: invalid digest', async () => {
     const carFile = carFactory.build()
     const response = await supertest(app)
       .post('/')
