@@ -11,7 +11,6 @@
   "merkleDepthLimit": "@@MERKLE_DEPTH_LIMIT",
   "minStreamCount": "@@MIN_STREAM_COUNT",
   "readyRetryIntervalMS": "@@READY_RETRY_INTERVAL_MS",
-  "requireAuth": "@@REQUIRE_AUTH",
   "schedulerIntervalMS": "@@SCHEDULER_INTERVAL_MS",
   "schedulerStopAfterNoOp": "@@SCHEDULER_STOP_AFTER_NO_OP",
   "pubsubResponderWindowMs": "@@PUBSUB_RESPONDER_WINDOW_MS",
@@ -93,5 +92,10 @@
     "s3Endpoint": "@@S3_ENDPOINT",
     "maxTimeToHoldMessageSec": "@@MAX_TIME_TO_HOLD_MESSAGE_SEC",
     "waitTimeForMessageSec": "@@WAIT_TIME_FOR_MESSAGE_SEC"
+  },
+  "auth": {
+    "required": "@@REQUIRE_AUTH",
+    "dids": "@@AUTH_DIDS_ALLOWED",
+    "relaxed": "@@AUTH_RELAXED"
   }
 }

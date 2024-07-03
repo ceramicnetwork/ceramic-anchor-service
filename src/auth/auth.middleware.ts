@@ -21,6 +21,15 @@ CAR_FACTORY.codecs.add(DAG_JOSE)
 
 const VERIFIER = new DID({ resolver: KeyDIDResolver.getResolver() })
 
+export function parseAllowedDIDs(dids: string | undefined): Set<string> {
+  if (dids) {
+    const parts = dids.split(',')
+    return new Set(parts)
+  } else {
+    return new Set()
+  }
+}
+
 export function auth(opts: AuthOpts): Handler {
   const hasAllowedDIDsList = opts.allowedDIDs.size > 0
 

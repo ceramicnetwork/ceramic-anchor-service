@@ -1,6 +1,6 @@
 import bodyParser from 'body-parser'
 import { Server } from '@overnightjs/core'
-import { auth } from './auth/auth.middleware.js'
+import { auth, parseAllowedDIDs } from './auth/auth.middleware.js'
 import { expressLoggers, logger, expressErrorLogger } from './logger/index.js'
 import { Config } from 'node-config-ts'
 import { multiprocess, type Multiprocess } from './ancillary/multiprocess.js'
@@ -20,12 +20,11 @@ export class CeramicAnchorServer extends Server {
       bodyParser.urlencoded({ extended: true, type: 'application/x-www-form-urlencoded' })
     )
     this.app.use(expressLoggers)
-    if (config.requireAuth) {
+    if (config.auth.required) {
       this.app.use(
-        // TODO Set parameters correctly
         auth({
-          allowedDIDs: new Set(),
-          isRelaxed: false,
+          allowedDIDs: parseAllowedDIDs(config.auth.dids),
+          isRelaxed: config.auth.relaxed,
           logger: logger,
         })
       )
