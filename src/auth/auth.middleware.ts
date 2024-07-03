@@ -3,14 +3,17 @@ import * as DAG_JOSE from 'dag-jose'
 import * as sha256 from '@stablelib/sha256'
 import * as u8a from 'uint8arrays'
 import { CARFactory, CAR } from 'cartonne'
-import { DiagnosticsLogger, Networks } from '@ceramicnetwork/common'
+import { DiagnosticsLogger } from '@ceramicnetwork/common'
 import { ALLOWED_IP_ADDRESSES } from './allowed-ip-addresses.js'
 import { DID } from 'dids'
 import KeyDIDResolver from 'key-did-resolver'
+import { ServiceMetrics } from '@ceramicnetwork/observability'
+ServiceMetrics.count('foo', 1, { source: 'did' })
+
+// Metrics: request denied, request approved
 
 export type AuthOpts = {
   logger?: DiagnosticsLogger
-  ceramicNetwork: string
   allowedDIDs: Set<string>
   isRelaxed: boolean
 }
@@ -34,11 +37,8 @@ export function auth(opts: AuthOpts): Handler {
    */
   return async function (req: Request, res: Response, next: NextFunction) {
     const logger = opts.logger
-    // Allow if TESTNET
-    if (opts.ceramicNetwork === Networks.TESTNET_CLAY) {
-      return next()
-    }
 
+    // TODO Get rid of it
     // Allow if IP address is in allowlist
     const origin = parseOriginIP(req)
     const allowedIpAddress = origin.find((ip) => ALLOWED_IP_ADDRESSES[ip])
@@ -47,8 +47,12 @@ export function auth(opts: AuthOpts): Handler {
       return next()
     }
 
+    // TODO Auth lambda still
+
     // Authorization Header
     const authorizationHeader = req.get('Authorization') || ''
+    // TODO get DID key from protected header and check there
+    // TODO list is empty?? => the check does not apply
     const bearerTokenMatch = AUTH_BEARER_REGEXP.exec(authorizationHeader)
     const jws = bearerTokenMatch?.[1]
     if (!jws) {

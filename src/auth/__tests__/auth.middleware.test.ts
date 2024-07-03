@@ -1,7 +1,6 @@
 import { test, describe, expect, beforeAll } from '@jest/globals'
 import express, { Express } from 'express'
 import { auth } from '../auth.middleware.js'
-import { Networks } from '@ceramicnetwork/common'
 import supertest from 'supertest'
 import { ALLOWED_IP_ADDRESSES } from '../allowed-ip-addresses.js'
 import { DID } from 'dids'
@@ -31,27 +30,6 @@ async function makeJWS(did: DID, payload: object): Promise<string> {
   return `${signature.protected}.${dagJWS.payload}.${signature.signature}`
 }
 
-describe('if testnet', () => {
-  const app = express().use(express.json())
-  app.use(
-    auth({
-      ceramicNetwork: Networks.TESTNET_CLAY,
-      allowedDIDs: new Set(),
-      isRelaxed: false,
-      logger: logger,
-    })
-  )
-  app.get('/', (req, res) => {
-    res.json({ hello: 'world' })
-  })
-
-  test('allow', async () => {
-    const response = await supertest(app).get('/')
-    expect(response.status).toBe(200)
-    expect(response.body).toEqual({ hello: 'world' })
-  })
-})
-
 describe('allowlisted IP', () => {
   const ALLOWED = Object.keys(ALLOWED_IP_ADDRESSES)[0]
   const DISALLOWED = '192.168.0.1'
@@ -59,7 +37,6 @@ describe('allowlisted IP', () => {
   const app = express().use(express.json())
   app.use(
     auth({
-      ceramicNetwork: Networks.MAINNET,
       allowedDIDs: new Set(),
       isRelaxed: false,
       logger: logger,
@@ -113,7 +90,6 @@ describe('Authorization header: strict', () => {
     app.use(bodyParser.urlencoded({ extended: true, type: 'application/x-www-form-urlencoded' }))
     app.use(
       auth({
-        ceramicNetwork: Networks.MAINNET,
         allowedDIDs: new Set([did.id]),
         isRelaxed: false,
         logger: logger,
@@ -180,7 +156,6 @@ describe('Authorization header: relaxed', () => {
     app.use(bodyParser.urlencoded({ extended: true, type: 'application/x-www-form-urlencoded' }))
     app.use(
       auth({
-        ceramicNetwork: Networks.MAINNET,
         allowedDIDs: new Set(),
         isRelaxed: true,
         logger: logger,

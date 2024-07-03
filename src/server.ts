@@ -24,7 +24,6 @@ export class CeramicAnchorServer extends Server {
       this.app.use(
         // TODO Set parameters correctly
         auth({
-          ceramicNetwork: config.ceramicNetwork,
           allowedDIDs: new Set(),
           isRelaxed: false,
           logger: logger,
