@@ -7,7 +7,7 @@ import { DiagnosticsLogger } from '@ceramicnetwork/common'
 import { DID } from 'dids'
 import KeyDIDResolver from 'key-did-resolver'
 import { ServiceMetrics } from '@ceramicnetwork/observability'
-ServiceMetrics.count('foo', 1, { source: 'did' })
+import { METRIC_NAMES } from '../settings.js'
 
 // Metrics: request denied, request approved
 
@@ -42,8 +42,9 @@ export function auth(opts: AuthOpts): Handler {
     // Use auth lambda
     const didFromHeader = req.header('did')
     if (didFromHeader && req.body) {
-      const digest = buildBodyDigest(req.headers['content-type'], req.body)
-      if (req.headers['digest'] == digest) {
+      const digest = buildBodyDigest(req.header('Content-Type'), req.body)
+      if (req.header('digest') === digest) {
+        ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: didFromHeader })
         return next()
       } else {
         logger?.verbose(`Disallowed: Auth lambda: Invalid digest`)
@@ -54,7 +55,6 @@ export function auth(opts: AuthOpts): Handler {
     // Authorization Header
     if (hasAllowedDIDsList) {
       const authorizationHeader = req.header('Authorization') || ''
-      // TODO list is empty?? => the check does not apply
       const bearerTokenMatch = AUTH_BEARER_REGEXP.exec(authorizationHeader)
       const jws = bearerTokenMatch?.[1]
       if (!jws) {
@@ -86,12 +86,14 @@ export function auth(opts: AuthOpts): Handler {
         logger?.verbose(`Disallowed: Incorrect digest for DID ${did}`)
         return disallow(res)
       }
+      ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: did })
     }
     return next()
   }
 }
 
 function disallow(res: Response): Response {
+  ServiceMetrics.count(METRIC_NAMES.AUTH_DISALLOWED, 1)
   return res.status(403).json({ error: 'Unauthorized' })
 }
 

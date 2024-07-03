@@ -89,4 +89,8 @@ export enum METRIC_NAMES {
   CTRL_ERROR_CREATING_REQUEST = 'ctrl_error_creating_request',
   CTRL_REQUEST_NOT_FOUND = 'ctrl_request_not_found',
   CTRL_REQUEST_FOUND = 'ctrl_request_found',
+
+  // Auth
+  AUTH_ALLOWED = 'auth_allowed',
+  AUTH_DISALLOWED = 'auth_disallowed',
 }
