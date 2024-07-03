@@ -102,7 +102,8 @@ export function auth(opts: AuthOpts): Handler {
         logger?.verbose(`Disallowed: Incorrect digest for DID ${did}`)
         return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_INVALID_DIGEST)
       }
-      ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: did })
+      const relaxedLabel = opts.isRelaxed ? 1 : 0
+      ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: did, relaxed: relaxedLabel })
     }
     return next()
   }
