@@ -97,8 +97,7 @@ export function auth(opts: AuthOpts): Handler {
       const body = req.body
       const contentType = req.header('Content-Type')
       const digestCalculated = buildBodyDigest(contentType, body)
-      const isCorrectDigest = digestCalculated == digest
-      if (!isCorrectDigest) {
+      if (digestCalculated !== digest) {
         logger?.verbose(`Disallowed: Incorrect digest for DID ${did}`)
         return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_INVALID_DIGEST)
       }
