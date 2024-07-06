@@ -3,7 +3,6 @@
   "expirationPeriod": 0,
   "loadStreamTimeoutMs": 1000,
   "readyRetryIntervalMS": 10000,
-  "requireAuth": false,
   "schedulerIntervalMS": 10000,
   "carStorage": {
     "mode": "s3",
@@ -74,5 +73,10 @@
     "s3BucketName": "ceramic-tnet-cas",
     "maxTimeToHoldMessageSec": 10800,
     "waitTimeForMessageSec": 10
+  },
+  "auth": {
+    "required": false,
+    "dids": "",
+    "relaxed": true
   }
 }
