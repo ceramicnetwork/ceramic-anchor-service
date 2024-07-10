@@ -164,6 +164,9 @@ describe('Auth lambda', () => {
     app.post('/', (req, res) => {
       res.json({ hello: 'world' })
     })
+    app.get('/', (req, res) => {
+      res.json({ hello: 'world' })
+    })
   })
 
   test('valid digest', async () => {
@@ -175,7 +178,7 @@ describe('Auth lambda', () => {
       .set('did', did.id)
       .set('digest', cid.toString())
       .send(Buffer.from(carFile.bytes)) // Supertest quirk
-    expect(response.status).toBe(200)
+    expect(response.status).toEqual(200)
   })
   test('invalid digest', async () => {
     const carFile = carFactory.build()
@@ -185,7 +188,11 @@ describe('Auth lambda', () => {
       .set('did', did.id)
       .set('digest', 'INVALID')
       .send(Buffer.from(carFile.bytes)) // Supertest quirk
-    expect(response.status).toBe(403)
+    expect(response.status).toEqual(403)
+  })
+  test('get', async () => {
+    const response = await supertest(app).get('/')
+    expect(response.status).toEqual(200)
   })
 })
 
