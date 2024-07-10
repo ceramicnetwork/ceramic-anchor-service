@@ -57,7 +57,7 @@ export function auth(opts: AuthOpts): Handler {
 
     // Use auth lambda
     const didFromHeader = req.header('did')
-    if (didFromHeader && req.body) {
+    if (didFromHeader && req.body && Object.keys(req.body).length > 0) {
       const digest = buildBodyDigest(req.header('Content-Type'), req.body)
       if (req.header('digest') === digest) {
         ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: didFromHeader })
