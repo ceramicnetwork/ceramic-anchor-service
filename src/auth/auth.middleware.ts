@@ -53,7 +53,7 @@ export function auth(opts: AuthOpts): Handler {
    * this app will still work if the logice above is not in place.
    */
   return async function (req: Request, res: Response, next: NextFunction) {
-    const logger = opts.logger
+    // const logger = opts.logger
 
     // Use auth lambda
     const didFromHeader = req.header('did')
@@ -63,7 +63,7 @@ export function auth(opts: AuthOpts): Handler {
         ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: didFromHeader })
         return next()
       } else {
-        logger?.verbose(`Disallowed: Auth lambda: Invalid digest`)
+        console.log(`Disallowed: Auth lambda: Invalid digest`)
         return disallow(res, DISALLOW_REASON.LAMBDA_INVALID_DIGEST)
       }
     }
@@ -74,23 +74,23 @@ export function auth(opts: AuthOpts): Handler {
       const bearerTokenMatch = AUTH_BEARER_REGEXP.exec(authorizationHeader)
       const jws = bearerTokenMatch?.[1]
       if (!jws) {
-        logger?.verbose(`Disallowed: No authorization header`)
+        console.log(`Disallowed: No authorization header`)
         return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_HEADER)
       }
       const verifyJWSResult = await VERIFIER.verifyJWS(jws)
       const did = verifyJWSResult.didResolutionResult.didDocument?.id
       if (!did) {
-        logger?.verbose(`Disallowed: No DID`)
+        console.log(`Disallowed: No DID`)
         return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_DID)
       }
       const nonce = verifyJWSResult.payload?.['nonce']
       const digest = verifyJWSResult.payload?.['digest']
       if (!nonce || !digest) {
-        logger?.verbose(`Disallowed: No nonce or No digest`)
+        console.log(`Disallowed: No nonce or No digest`)
         return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_FIELDS)
       }
       if (!isAllowedDID(did, opts)) {
-        logger?.verbose(`Disallowed: ${did}`)
+        console.log(`Disallowed: ${did}`)
         return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_REJECTED)
       }
 
@@ -98,7 +98,7 @@ export function auth(opts: AuthOpts): Handler {
       const contentType = req.header('Content-Type')
       const digestCalculated = buildBodyDigest(contentType, body)
       if (digestCalculated !== digest) {
-        logger?.verbose(`Disallowed: Incorrect digest for DID ${did}`)
+        console.log(`Disallowed: Incorrect digest for DID ${did}`)
         return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_INVALID_DIGEST)
       }
       const relaxedLabel = opts.isRelaxed ? 1 : 0
@@ -115,7 +115,7 @@ function disallow(res: Response, reason: DISALLOW_REASON): Response {
 
 function isAllowedDID(did: string, opts: AuthOpts): boolean {
   if (opts.isRelaxed) {
-    opts.logger?.verbose(`Allowed: Relaxed: ${did}`)
+    console.log(`Allowed: Relaxed: ${did}`)
     return true
   } else {
     return opts.allowedDIDs.has(did)
