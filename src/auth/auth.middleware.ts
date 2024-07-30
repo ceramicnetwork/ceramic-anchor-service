@@ -57,54 +57,59 @@ export function auth(opts: AuthOpts): Handler {
     const logger = opts.logger
     const hasBody = req.body && Object.keys(req.body).length > 0
 
-    // Use auth lambda
-    const didFromHeader = req.header('did')
-    if (didFromHeader && hasBody) {
-      const digest = buildBodyDigest(req.header('Content-Type'), req.body)
-      if (req.header('digest') === digest) {
-        ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: didFromHeader })
-        logger?.verbose(`Allowed: Auth lambda: ${didFromHeader}`)
-        return next()
-      } else {
-        logger?.verbose(`Disallowed: Auth lambda: Invalid digest`)
-        return disallow(res, DISALLOW_REASON.INVALID_DIGEST)
+    try {
+      // Use auth lambda
+      const didFromHeader = req.header('did')
+      if (didFromHeader && hasBody) {
+        const digest = buildBodyDigest(req.header('Content-Type'), req.body)
+        if (req.header('digest') === digest) {
+          ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: didFromHeader })
+          logger?.verbose(`Allowed: Auth lambda: ${didFromHeader}`)
+          return next()
+        } else {
+          logger?.verbose(`Disallowed: Auth lambda: Invalid digest`)
+          return disallow(res, DISALLOW_REASON.INVALID_DIGEST)
+        }
       }
-    }
 
-    // Authorization Header
-    if (hasAllowedDIDsList && hasBody) {
-      const authorizationHeader = req.header('Authorization') || ''
-      const bearerTokenMatch = AUTH_BEARER_REGEXP.exec(authorizationHeader)
-      const jws = bearerTokenMatch?.[1]
-      if (!jws) {
-        logger?.verbose(`Disallowed: No authorization header`)
-        return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_HEADER)
+      // Authorization Header
+      if (hasAllowedDIDsList && hasBody) {
+        const authorizationHeader = req.header('Authorization') || ''
+        const bearerTokenMatch = AUTH_BEARER_REGEXP.exec(authorizationHeader)
+        const jws = bearerTokenMatch?.[1]
+        if (!jws) {
+          logger?.verbose(`Disallowed: No authorization header`)
+          return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_HEADER)
+        }
+        const verifyJWSResult = await VERIFIER.verifyJWS(jws)
+        const did = verifyJWSResult.didResolutionResult.didDocument?.id
+        if (!did) {
+          logger?.verbose(`Disallowed: No DID`)
+          return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_DID)
+        }
+        const nonce = verifyJWSResult.payload?.['nonce']
+        const digest = verifyJWSResult.payload?.['digest']
+        const expectedDigest = buildBodyDigest(req.header('Content-Type'), req.body)
+        if (!nonce || !digest) {
+          logger?.verbose(`Disallowed: No nonce or No digest`)
+          return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_FIELDS)
+        }
+        if (digest !== expectedDigest) {
+          logger?.verbose(`Disallowed: Invalid digest`)
+          return disallow(res, DISALLOW_REASON.INVALID_DIGEST)
+        }
+        if (!isAllowedDID(did, opts)) {
+          logger?.verbose(`Disallowed: ${did}`)
+          return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_REJECTED)
+        }
+        const relaxedLabel = opts.isRelaxed ? 1 : 0
+        ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: did, relaxed: relaxedLabel })
       }
-      const verifyJWSResult = await VERIFIER.verifyJWS(jws)
-      const did = verifyJWSResult.didResolutionResult.didDocument?.id
-      if (!did) {
-        logger?.verbose(`Disallowed: No DID`)
-        return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_DID)
-      }
-      const nonce = verifyJWSResult.payload?.['nonce']
-      const digest = verifyJWSResult.payload?.['digest']
-      const expectedDigest = buildBodyDigest(req.header('Content-Type'), req.body)
-      if (!nonce || !digest) {
-        logger?.verbose(`Disallowed: No nonce or No digest`)
-        return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_FIELDS)
-      }
-      if (digest !== expectedDigest) {
-        logger?.verbose(`Disallowed: Invalid digest`)
-        return disallow(res, DISALLOW_REASON.INVALID_DIGEST)
-      }
-      if (!isAllowedDID(did, opts)) {
-        logger?.verbose(`Disallowed: ${did}`)
-        return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_REJECTED)
-      }
-      const relaxedLabel = opts.isRelaxed ? 1 : 0
-      ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: did, relaxed: relaxedLabel })
+      return next()
+    } catch (e: any) {
+      logger?.err(e.message)
+      return res.status(500).send('Internal Server Error')
     }
-    return next()
   }
 }
 
