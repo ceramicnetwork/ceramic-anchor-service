@@ -51,6 +51,9 @@ describe('Authorization header: strict', () => {
     app.post('/', (req, res) => {
       res.json({ hello: 'world' })
     })
+    app.get('/', (req, res) => {
+      res.json({ hello: 'world' })
+    })
   })
 
   test('allowed DID, valid digest', async () => {
@@ -73,6 +76,10 @@ describe('Authorization header: strict', () => {
       .set('Authorization', `Bearer ${jws}`)
       .send(Buffer.from(carFile.bytes)) // Supertest quirk
     expect(response.status).toBe(403)
+  })
+  test('GET is bypassed', async () => {
+    const response = await supertest(app).get('/')
+    expect(response.status).toEqual(200)
   })
   test('disallowed DID, valid digest', async () => {
     const carFile = carFactory.build()

@@ -22,12 +22,11 @@ CAR_FACTORY.codecs.add(DAG_JOSE)
 const VERIFIER = new DID({ resolver: KeyDIDResolver.getResolver() })
 
 enum DISALLOW_REASON {
-  LAMBDA_INVALID_DIGEST = 'lambda-invalid-digest',
+  INVALID_DIGEST = 'invalid-digest',
   DID_ALLOWLIST_NO_HEADER = 'did-allowlist-no-header',
   DID_ALLOWLIST_NO_DID = 'did-allowlist-no-did',
   DID_ALLOWLIST_NO_FIELDS = 'did-allowlist-no-fields',
   DID_ALLOWLIST_REJECTED = 'did-allowlist-rejected',
-  DID_ALLOWLIST_INVALID_DIGEST = 'did-allowlist-invalid-digest',
 }
 
 export function parseAllowedDIDs(dids: string | undefined): Set<string> {
@@ -55,59 +54,62 @@ export function auth(opts: AuthOpts): Handler {
    * this app will still work if the logice above is not in place.
    */
   return async function (req: Request, res: Response, next: NextFunction) {
-    // const logger = opts.logger
+    const logger = opts.logger
+    const hasBody = req.body && Object.keys(req.body).length > 0
 
-    // Use auth lambda
-    const didFromHeader = req.header('did')
-    if (didFromHeader && req.body && Object.keys(req.body).length > 0) {
-      const digest = buildBodyDigest(req.header('Content-Type'), req.body)
-      if (req.header('digest') === digest) {
-        ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: didFromHeader })
-        console.log(`Allowed: Auth lambda: ${didFromHeader}`)
-        return next()
-      } else {
-        console.log(`Disallowed: Auth lambda: Invalid digest`)
-        return disallow(res, DISALLOW_REASON.LAMBDA_INVALID_DIGEST)
+    try {
+      // Use auth lambda
+      const didFromHeader = req.header('did')
+      if (didFromHeader && hasBody) {
+        const digest = buildBodyDigest(req.header('Content-Type'), req.body)
+        if (req.header('digest') === digest) {
+          ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: didFromHeader })
+          logger?.verbose(`Allowed: Auth lambda: ${didFromHeader}`)
+          return next()
+        } else {
+          logger?.verbose(`Disallowed: Auth lambda: Invalid digest`)
+          return disallow(res, DISALLOW_REASON.INVALID_DIGEST)
+        }
       }
+
+      // Authorization Header
+      if (hasAllowedDIDsList && hasBody) {
+        const authorizationHeader = req.header('Authorization') || ''
+        const bearerTokenMatch = AUTH_BEARER_REGEXP.exec(authorizationHeader)
+        const jws = bearerTokenMatch?.[1]
+        if (!jws) {
+          logger?.verbose(`Disallowed: No authorization header`)
+          return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_HEADER)
+        }
+        const verifyJWSResult = await VERIFIER.verifyJWS(jws)
+        const did = verifyJWSResult.didResolutionResult.didDocument?.id
+        if (!did) {
+          logger?.verbose(`Disallowed: No DID`)
+          return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_DID)
+        }
+        const nonce = verifyJWSResult.payload?.['nonce']
+        const digest = verifyJWSResult.payload?.['digest']
+        const expectedDigest = buildBodyDigest(req.header('Content-Type'), req.body)
+        if (!nonce || !digest) {
+          logger?.verbose(`Disallowed: No nonce or No digest`)
+          return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_FIELDS)
+        }
+        if (digest !== expectedDigest) {
+          logger?.verbose(`Disallowed: Invalid digest`)
+          return disallow(res, DISALLOW_REASON.INVALID_DIGEST)
+        }
+        if (!isAllowedDID(did, opts)) {
+          logger?.verbose(`Disallowed: ${did}`)
+          return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_REJECTED)
+        }
+        const relaxedLabel = opts.isRelaxed ? 1 : 0
+        ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: did, relaxed: relaxedLabel })
+      }
+      return next()
+    } catch (e: any) {
+      logger?.err(e.message)
+      return res.status(500).send('Internal Server Error')
     }
-
-    // Authorization Header
-    if (hasAllowedDIDsList) {
-      const authorizationHeader = req.header('Authorization') || ''
-      const bearerTokenMatch = AUTH_BEARER_REGEXP.exec(authorizationHeader)
-      const jws = bearerTokenMatch?.[1]
-      if (!jws) {
-        console.log(`Disallowed: No authorization header`)
-        return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_HEADER)
-      }
-      const verifyJWSResult = await VERIFIER.verifyJWS(jws)
-      const did = verifyJWSResult.didResolutionResult.didDocument?.id
-      if (!did) {
-        console.log(`Disallowed: No DID`)
-        return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_DID)
-      }
-      const nonce = verifyJWSResult.payload?.['nonce']
-      const digest = verifyJWSResult.payload?.['digest']
-      if (!nonce || !digest) {
-        console.log(`Disallowed: No nonce or No digest`)
-        return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_NO_FIELDS)
-      }
-      if (!isAllowedDID(did, opts)) {
-        console.log(`Disallowed: ${did}`)
-        return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_REJECTED)
-      }
-
-      const body = req.body
-      const contentType = req.header('Content-Type')
-      const digestCalculated = buildBodyDigest(contentType, body)
-      if (digestCalculated !== digest) {
-        console.log(`Disallowed: Incorrect digest for DID ${did}`)
-        return disallow(res, DISALLOW_REASON.DID_ALLOWLIST_INVALID_DIGEST)
-      }
-      const relaxedLabel = opts.isRelaxed ? 1 : 0
-      ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: did, relaxed: relaxedLabel })
-    }
-    return next()
   }
 }
 
