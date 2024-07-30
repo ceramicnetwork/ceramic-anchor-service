@@ -40,7 +40,9 @@ export function parseAllowedDIDs(dids: string | undefined): Set<string> {
 }
 
 export function auth(opts: AuthOpts): Handler {
+  console.log('opts.allowedDIDs.0', Array.from(opts.allowedDIDs))
   const hasAllowedDIDsList = opts.allowedDIDs.size > 0
+  console.log('opts.allowedDIDs.hasAllowedDIDsList', hasAllowedDIDsList)
 
   /**
    * @dev If the request has a did header, it means we have already confirmed the did
@@ -61,6 +63,7 @@ export function auth(opts: AuthOpts): Handler {
       const digest = buildBodyDigest(req.header('Content-Type'), req.body)
       if (req.header('digest') === digest) {
         ServiceMetrics.count(METRIC_NAMES.AUTH_ALLOWED, 1, { did: didFromHeader })
+        console.log(`Allowed: Auth lambda: ${didFromHeader}`)
         return next()
       } else {
         console.log(`Disallowed: Auth lambda: Invalid digest`)
