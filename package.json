@@ -74,7 +74,7 @@
     "http-status-codes": "^2.2.0",
     "ipfs-http-client": "^60.0.0",
     "knex": "^2.2.0",
-    "least-recent": "^1.0.2",
+    "least-recent": "^1.0.3",
     "levelup": "^5.1.1",
     "lodash.camelcase": "^4.3.0",
     "lodash.clonedeep": "^4.5.0",
