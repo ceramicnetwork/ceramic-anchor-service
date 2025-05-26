@@ -87,7 +87,7 @@
     "rxjs": "^7.5.2",
     "s3leveldown": "^2.2.2",
     "tsm": "^2.2.2",
-    "typed-inject": "^4.0.0",
+    "typed-inject": "^5.0.0",
     "uint8arrays": "^4.0.3",
     "uuid": "^9.0.0"
   },
