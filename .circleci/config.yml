@@ -96,7 +96,8 @@ jobs:
             - ./node_modules
   dispatch-event:
     machine:
-      image: ubuntu-2004:202107-02
+      image: ubuntu-2004:current
+    resource_class: medium
     steps:
       - send-dispatch-event
 
