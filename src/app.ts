@@ -82,7 +82,6 @@ export class CeramicAnchorApp {
     this.config = container.resolve('config')
     normalizeConfig(this.config)
     this.mode = this.config.mode as AppMode
-    // IPFS is now optional in all modes - never require it on startup
     this.usesIpfs = false
 
     // TODO: Selectively register only the global singletons needed based on the config
@@ -194,8 +193,11 @@ export class CeramicAnchorApp {
 
     this._server?.stop()
 
-    const ipfsService = this.container.resolve('ipfsService')
-    await ipfsService.stop()
+    // Only stop IPFS service if it was used
+    if (this.usesIpfs) {
+      const ipfsService = this.container.resolve('ipfsService')
+      await ipfsService.stop()
+    }
   }
 
   /**
