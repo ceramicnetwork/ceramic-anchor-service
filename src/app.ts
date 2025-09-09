@@ -82,12 +82,8 @@ export class CeramicAnchorApp {
     this.config = container.resolve('config')
     normalizeConfig(this.config)
     this.mode = this.config.mode as AppMode
-    this.usesIpfs =
-      this.mode === AppMode.ANCHOR ||
-      this.mode === AppMode.BUNDLED ||
-      this.mode === AppMode.CONTINUAL_ANCHORING ||
-      this.mode === AppMode.PUBSUB_RESPONDER ||
-      this.config.anchorControllerEnabled
+    // IPFS is now optional in all modes - never require it on startup
+    this.usesIpfs = false
 
     // TODO: Selectively register only the global singletons needed based on the config
 
