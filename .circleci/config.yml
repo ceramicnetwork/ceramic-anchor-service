@@ -35,7 +35,7 @@ jobs:
     shell: /bin/bash
     working_directory: ~/cas
     docker:
-      - image: cimg/rust:1.62.0-node
+      - image: cimg/rust:1.75.0-node
         environment:
           DATABASE_URL: 'postgres://test-user@localhost:5432/test-db'
       - image: cimg/postgres:14.2
@@ -96,7 +96,8 @@ jobs:
             - ./node_modules
   dispatch-event:
     machine:
-      image: ubuntu-2004:202107-02
+      image: ubuntu-2004:current
+    resource_class: medium
     steps:
       - send-dispatch-event
 

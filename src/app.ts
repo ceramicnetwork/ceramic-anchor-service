@@ -82,12 +82,7 @@ export class CeramicAnchorApp {
     this.config = container.resolve('config')
     normalizeConfig(this.config)
     this.mode = this.config.mode as AppMode
-    this.usesIpfs =
-      this.mode === AppMode.ANCHOR ||
-      this.mode === AppMode.BUNDLED ||
-      this.mode === AppMode.CONTINUAL_ANCHORING ||
-      this.mode === AppMode.PUBSUB_RESPONDER ||
-      this.config.anchorControllerEnabled
+    this.usesIpfs = false
 
     // TODO: Selectively register only the global singletons needed based on the config
 
@@ -198,8 +193,11 @@ export class CeramicAnchorApp {
 
     this._server?.stop()
 
-    const ipfsService = this.container.resolve('ipfsService')
-    await ipfsService.stop()
+    // Only stop IPFS service if it was used
+    if (this.usesIpfs) {
+      const ipfsService = this.container.resolve('ipfsService')
+      await ipfsService.stop()
+    }
   }
 
   /**

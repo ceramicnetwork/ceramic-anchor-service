@@ -553,34 +553,10 @@ export class AnchorService {
       path: path,
       cid: anchorCid,
     }
-
-    try {
-      // Do not store in IPFS by default
-      if (process.env['CAS_USE_IPFS_STORAGE']) {
-        await this.ipfsService.storeRecord(ipfsAnchorCommit)
-      }
-      // Do not publish to pubsub by default
-      if (process.env['CAS_PUBSUB_PUBLISH']) {
-        // TODO: Remove this case entirely after js-ceramic no longer supports pubsub
-        await this.ipfsService.publishAnchorCommit(anchorCid, candidate.streamId)
-        logger.debug(
-          `Created anchor commit with CID ${anchorCid} for commit ${candidate.cid} of stream ${candidate.streamId} and published it to pubsub`
-        )
-      } else {
-        logger.debug(
-          `Created anchor commit with CID ${anchorCid} for commit ${candidate.cid} of stream ${candidate.streamId}`
-        )
-      }
-
-      return anchor
-    } catch (err) {
-      const msg = `Error publishing anchor commit of commit ${
-        candidate.cid
-      } for stream ${candidate.streamId.toString()}: ${err}`
-      logger.err(msg)
-      Metrics.count(METRIC_NAMES.ERROR_IPFS, 1)
-      return anchor
-    }
+    logger.debug(
+      `Created anchor commit with CID ${anchorCid} for commit ${candidate.cid} of stream ${candidate.streamId}`
+    )
+    return anchor
   }
 
   /**
