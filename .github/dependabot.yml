@@ -1,10 +1,10 @@
-version: 2
+giversion: 2
 updates:
 - package-ecosystem: npm
   directory: "/"
   schedule:
     interval: weekly
-  open-pull-requests-limit: 10
+  open-pull-requests-limit: 0
   target-branch: develop
   reviewers:
   - stbrody
